@@ -1,0 +1,52 @@
+name: Update Leaderboard Data
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install jsonschema
+
+      - name: Sync external leaderboards
+        run: python leaderboard/scripts/sync_external.py --apply
+
+      - name: Fetch coverage and citations
+        continue-on-error: true
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+        run: |
+          python leaderboard/scripts/update_coverage.py --fetch
+          python leaderboard/scripts/update_citations.py --fetch
+
+      - name: Validate results
+        run: python leaderboard/scripts/validate.py
+
+      - name: Create PR if changed
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: 'data: update leaderboard data'
+          title: 'data: update leaderboard data'
+          body: |
+            Automated weekly leaderboard data update.
+
+            - Synced external leaderboard scores
+            - Updated citation counts and coverage stats
+
+            Validation passed. Review the diff for new/updated entries.
+          branch: update-leaderboard-data
+          delete-branch: true
+          labels: data

@@ -1,0 +1,45 @@
+# MIKASA-Robo evaluation environment
+#
+# ManiSkill3/SAPIEN-based memory-intensive manipulation benchmark.
+# 32 tasks across categories: remember, shell-game, rotate, intercept, etc.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# Create conda env with Python 3.10 for ManiSkill3
+RUN conda create -n mikasa python=3.10 -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "mikasa", "/bin/bash", "-c"]
+
+# Install torch with CUDA 12.1 support
+RUN uv pip install --no-cache-dir torch==2.2.1 torchvision==0.17.1 \
+        --index-url https://download.pytorch.org/whl/cu121
+
+# Install ManiSkill3 (pre-release) and gymnasium
+RUN uv pip install --no-cache-dir --prerelease=allow mani_skill==3.0.0b15 gymnasium==0.29.1
+
+# Clone and install MIKASA-Robo
+# MIKASA-Robo's setup.py imports pkg_resources, which was removed from
+# setuptools >=70 on conda-forge. Pin setuptools <70 to restore it.
+RUN uv pip install --no-cache-dir "setuptools<70" \
+    && git clone --depth 1 https://github.com/CognitiveAISystems/MIKASA-Robo.git /opt/MIKASA-Robo \
+    && cd /opt/MIKASA-Robo \
+    && uv pip install --no-cache-dir --no-build-isolation . \
+    && rm -rf /opt/MIKASA-Robo/.git
+
+# Install harness
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+
+# Restore numpy 1.x compatibility (torch 2.2.1 was compiled against numpy 1.x)
+RUN uv pip install --no-cache-dir "numpy==1.23.5"
+
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "mikasa", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/mikasa_eval.yaml"]
+

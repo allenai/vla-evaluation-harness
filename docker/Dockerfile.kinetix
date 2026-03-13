@@ -1,0 +1,33 @@
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Conda environment ──────────────────────────────────────────────
+RUN conda create -n kinetix python=3.11 -y && conda clean -afy
+SHELL ["conda", "run", "-n", "kinetix", "/bin/bash", "-c"]
+
+# ── Kinetix environment (pinned to the commit RTC depends on) ────
+RUN git clone https://github.com/FLAIROx/Kinetix.git /opt/kinetix \
+    && cd /opt/kinetix \
+    && git checkout cf7453ea103fa0b77348af1a39f689c658161613 \
+    && uv pip install --no-cache-dir -e . numpy Pillow
+
+# ── JAX with CUDA support (after kinetix to override its JAX pin) ─
+RUN uv pip install --no-cache-dir --upgrade "jax[cuda12]"
+
+# ── Clone RTC repo for custom level files ─────────────────────────
+RUN git clone --depth 1 \
+        https://github.com/Physical-Intelligence/real-time-chunking-kinetix.git \
+        /app/rtc \
+    && rm -rf /app/rtc/.git
+
+# ── Install evaluation harness ────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "kinetix", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/kinetix_eval.yaml"]

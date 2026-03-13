@@ -1,0 +1,373 @@
+#!/usr/bin/env python3
+"""Demand curve benchmark: measure observation arrival rate λ(N) from real environments.
+
+Starts an instant-response model server, then launches N real Docker
+benchmark shards against it.  Counts on_observation() calls to measure
+the true observation rate including all real-world overhead (physics sim,
+rendering, observation serialization, network).
+
+Timing is measured from the **first observation arrival**, not from
+subprocess launch, so container init / image pull overhead is excluded.
+
+Prerequisites:
+    - Docker image for your benchmark (e.g. libero)
+    - A benchmark config YAML (will be patched to point at the instant server)
+
+Usage:
+    uv run python experiments/bench_demand.py \
+        --config configs/libero_spatial.yaml \
+        --shards 1,8,16,24,32,48 \
+        --episodes-per-shard 10
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+from functools import partial
+from pathlib import Path
+from typing import Any
+
+import anyio
+import numpy as np
+import yaml
+from tqdm import tqdm
+
+from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.predict import PredictModelServer
+from vla_eval.model_servers.serve import serve_async
+from vla_eval.types import Action, Observation
+
+# ---------------------------------------------------------------------------
+# Instant server
+# ---------------------------------------------------------------------------
+
+
+class InstantServer(PredictModelServer):
+    """Returns immediately with zero-latency actions. Counts all observations."""
+
+    def __init__(self) -> None:
+        super().__init__(chunk_size=1)
+        self.call_count = 0
+        self._pbar = tqdm()
+        self._first_obs_time: float | None = None
+
+    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+        return {"actions": np.zeros(7, dtype=np.float32)}
+
+    async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
+        if self._first_obs_time is None:
+            self._first_obs_time = time.monotonic()
+        self.call_count += 1
+        self._pbar.update(1)
+        await super().on_observation(obs, ctx)
+
+    def reset(self) -> None:
+        """Reset counters for the next measurement round."""
+        self.call_count = 0
+        self._first_obs_time = None
+        self._pbar.reset()
+        self._pbar.refresh()
+
+
+# ---------------------------------------------------------------------------
+# Docker helpers
+# ---------------------------------------------------------------------------
+
+
+def _patch_config(
+    config: dict,
+    server_url: str,
+    output_dir: str,
+    num_shards: int,
+    episodes_per_shard: int,
+) -> dict:
+    """Patch config to point at our instant server and control episode count.
+
+    Sets ``max_tasks=1`` and ``episodes_per_task = episodes_per_shard * num_shards``
+    so that each shard gets exactly ``episodes_per_shard`` episodes via round-robin,
+    regardless of the original config's episode/task settings.
+    """
+    config = copy.deepcopy(config)
+    config["server"] = {"url": server_url}
+    config["output_dir"] = output_dir
+    episodes_per_task = episodes_per_shard * num_shards
+    for bench in config.get("benchmarks", []):
+        bench["max_tasks"] = 1
+        bench["episodes_per_task"] = episodes_per_task
+        bench["throughput_mode"] = True
+    return config
+
+
+def _build_shard_commands(
+    config_path: str,
+    config: dict,
+    num_shards: int,
+    gpus: str = "all",
+    cpus: str | None = None,
+) -> list[list[str]]:
+    """Build docker run commands for N shards (does not launch them)."""
+    from vla_eval.config import DockerConfig
+    from vla_eval.docker_resources import shard_docker_flags
+
+    docker = shutil.which("docker")
+    assert docker, "docker not found"
+    docker_cfg = DockerConfig.from_dict(config.get("docker"))
+    assert docker_cfg.image, "docker.image not set in config"
+
+    config_abs = str(Path(config_path).resolve())
+    results_dir = str(Path(config.get("output_dir", "./results")).resolve())
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
+
+    cmds = []
+    for shard_id in range(num_shards):
+        container_name = f"vla-eval-demand-{os.getpid()}-{shard_id}"
+        cmd = [
+            docker,
+            "run",
+            "--rm",
+            "--name",
+            container_name,
+            "--network",
+            "host",
+            "-v",
+            f"{results_dir}:/workspace/results",
+            "-v",
+            f"{config_abs}:/tmp/eval_config.yaml:ro",
+        ]
+        for vol in docker_cfg.volumes:
+            cmd.extend(["-v", vol])
+        for env_str in docker_cfg.env:
+            cmd.extend(["-e", env_str])
+        cmd.extend(shard_docker_flags(shard_id, num_shards, cpus=cpus, gpus=gpus))
+        cmd.extend(
+            [
+                docker_cfg.image,
+                "run",
+                "--no-docker",
+                "--config",
+                "/tmp/eval_config.yaml",
+                "--shard-id",
+                str(shard_id),
+                "--num-shards",
+                str(num_shards),
+            ]
+        )
+        cmds.append(cmd)
+    return cmds
+
+
+# ---------------------------------------------------------------------------
+# Measurement
+# ---------------------------------------------------------------------------
+
+
+async def measure_demand(
+    config_path: str,
+    num_shards: int,
+    port: int,
+    gpus: str = "all",
+    cpus: str | None = None,
+    episodes_per_shard: int = 10,
+    timeout: float | None = None,
+) -> dict[str, Any]:
+    """Measure λ(N): real observation rate (obs/s) with N Docker shards."""
+    # Load and patch config
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    server_url = f"ws://127.0.0.1:{port}"
+    tmp_dir = tempfile.mkdtemp(prefix="bench-demand-")
+    patched = _patch_config(config, server_url, tmp_dir, num_shards, episodes_per_shard)
+    tmp_config = os.path.join(tmp_dir, "config.yaml")
+    with open(tmp_config, "w") as f:
+        yaml.dump(patched, f)
+
+    # Start instant server
+    server = InstantServer()
+
+    # Wait for server ready
+    import websockets
+
+    result: dict[str, Any] = {}
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(serve_async, server, "0.0.0.0", port)
+
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            try:
+                async with websockets.connect(server_url):
+                    break
+            except (OSError, Exception):
+                await anyio.sleep(0.05)
+
+        # Build and launch Docker shards via anyio — automatic cleanup on cancel
+        server.reset()
+        wall_t0 = time.monotonic()
+        cmds = _build_shard_commands(tmp_config, patched, num_shards, gpus=gpus, cpus=cpus)
+        stderr_bufs: list[bytes] = [b""] * num_shards
+
+        async def _run_shard(idx: int, cmd: list[str]) -> None:
+            result = await anyio.run_process(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False)
+            stderr_bufs[idx] = result.stderr
+
+        timed_out = False
+        with anyio.move_on_after(timeout) as cancel_scope:
+            async with anyio.create_task_group() as shard_tg:
+                for i, cmd in enumerate(cmds):
+                    shard_tg.start_soon(_run_shard, i, cmd)
+
+        if cancel_scope.cancelled_caught:
+            timed_out = True
+            print(f"  Timeout after {timeout}s — killing remaining containers")
+            pid = os.getpid()
+            for i in range(num_shards):
+                subprocess.run(
+                    ["docker", "kill", f"vla-eval-demand-{pid}-{i}"],
+                    capture_output=True,
+                )
+
+        t_end = time.monotonic()
+        wall_elapsed = t_end - wall_t0
+
+        # Elapsed from first observation (excludes container init / image pull overhead)
+        if server._first_obs_time is not None:
+            obs_elapsed = t_end - server._first_obs_time
+        else:
+            obs_elapsed = wall_elapsed
+
+        # Log stderr from shards for diagnostics
+        for i, buf in enumerate(stderr_bufs):
+            stderr = buf.decode("utf-8", errors="replace").strip()
+            if stderr:
+                print(f"  [shard {i}] stderr ({len(buf)}B):", flush=True)
+                for line in stderr.splitlines()[-8:]:
+                    print(f"    {line}", flush=True)
+
+        result = {
+            "num_shards": num_shards,
+            "total_requests": server.call_count,
+            "elapsed": round(obs_elapsed, 3),
+            "wall_elapsed": round(wall_elapsed, 3),
+            "init_overhead": round(wall_elapsed - obs_elapsed, 3),
+            "lambda_rps": round(server.call_count / obs_elapsed, 1) if obs_elapsed > 0 else 0,
+            "timed_out": timed_out,
+        }
+
+        # Cancel the server task group
+        tg.cancel_scope.cancel()
+
+    server._pbar.close()
+
+    # Clean up temp dir
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return result
+
+
+def sweep_demand(
+    config_path: str,
+    shard_counts: list[int],
+    port: int,
+    gpus: str = "all",
+    cpus: str | None = None,
+    episodes_per_shard: int = 10,
+    timeout: float | None = None,
+) -> list[dict[str, Any]]:
+    """Run measure_demand for each N in shard_counts. Returns list of result dicts."""
+    results = []
+    for n in shard_counts:
+        print(f"\n--- N={n} shards (episodes_per_shard={episodes_per_shard}) ---")
+        try:
+            result = anyio.run(
+                partial(
+                    measure_demand,
+                    config_path,
+                    n,
+                    port,
+                    gpus=gpus,
+                    cpus=cpus,
+                    episodes_per_shard=episodes_per_shard,
+                    timeout=timeout,
+                )
+            )
+        except KeyboardInterrupt:
+            print("\n  Interrupted.")
+            break
+        results.append(result)
+        tag = " (TIMEOUT)" if result.get("timed_out") else ""
+        print(f"  observations: {result['total_requests']}{tag}")
+        print(
+            f"  elapsed: {result['elapsed']:.1f}s (wall: {result['wall_elapsed']:.1f}s, init: {result['init_overhead']:.1f}s)"
+        )
+        print(f"  λ = {result['lambda_rps']:.1f} obs/s{tag}")
+    return results
+
+
+def print_demand_table(results: list[dict[str, Any]]) -> None:
+    """Print formatted demand curve table."""
+    print(f"\n{'=' * 70}")
+    print(f"{'N':>4}  {'observations':>12}  {'elapsed':>10}  {'init':>8}  {'λ (obs/s)':>10}")
+    print(f"{'-' * 4}  {'-' * 12}  {'-' * 10}  {'-' * 8}  {'-' * 10}")
+    for r in results:
+        tag = " *" if r.get("timed_out") else ""
+        print(
+            f"{r['num_shards']:4d}  {r['total_requests']:12d}  "
+            f"{r['elapsed']:10.1f}  {r['init_overhead']:8.1f}  {r['lambda_rps']:10.1f}{tag}"
+        )
+    print(f"{'=' * 70}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Demand curve: measure real request rate λ(N) from Docker environments",
+    )
+    parser.add_argument("--config", "-c", required=True, help="Path to benchmark YAML config (must have docker.image)")
+    parser.add_argument("--shards", required=True, help="Comma-separated shard counts to sweep, e.g. 1,8,16,24,32,48")
+    parser.add_argument("--port", type=int, default=18925, help="Port for instant server (default: 18925)")
+    parser.add_argument("--gpus", default="all", help="GPU devices for benchmarks, e.g. '0,1' (default: all)")
+    parser.add_argument("--cpus", default=None, help="CPU range for benchmarks, e.g. '0-31' (default: all)")
+    parser.add_argument(
+        "--episodes-per-shard",
+        type=int,
+        default=10,
+        help="Episodes each shard runs (default: 10). Config is patched to max_tasks=1 "
+        "and episodes_per_task=episodes_per_shard*N so every shard gets this many episodes.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Per-shard-count timeout in seconds. If a shard count takes longer, "
+        "remaining containers are killed and partial results are recorded.",
+    )
+    args = parser.parse_args()
+
+    shard_counts = [int(x) for x in args.shards.split(",")]
+
+    print(f"Demand benchmark: {args.config}")
+    print(f"  port={args.port}, gpus={args.gpus}, cpus={args.cpus}")
+    print(f"  episodes_per_shard={args.episodes_per_shard}, timeout={args.timeout}")
+    print(f"  shard counts: {shard_counts}")
+
+    results = sweep_demand(
+        args.config,
+        shard_counts,
+        args.port,
+        gpus=args.gpus,
+        cpus=args.cpus,
+        episodes_per_shard=args.episodes_per_shard,
+        timeout=args.timeout,
+    )
+    if results:
+        print_demand_table(results)
+
+
+if __name__ == "__main__":
+    main()
