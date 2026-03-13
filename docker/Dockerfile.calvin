@@ -1,0 +1,59 @@
+# CALVIN evaluation environment
+# Long-horizon language-conditioned manipulation benchmark
+# https://github.com/mees/calvin
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# multicoretsne (CALVIN dep) needs FFTW and BLAS to compile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libfftw3-dev libopenblas-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python 3.8 conda env via miniforge
+RUN conda create -y -n calvin python=3.8 && conda clean -afy
+SHELL ["conda", "run", "-n", "calvin", "/bin/bash", "-c"]
+
+# Clone CALVIN with submodules (shallow)
+RUN git clone --recurse-submodules --depth 1 \
+      https://github.com/mees/calvin.git /app/calvin
+
+# CALVIN has legacy deps (pyhash needs use_2to3 / multicoretsne needs old cmake).
+# Pin setuptools <=57 and use pip (not uv) with --no-build-isolation to avoid
+# uv's build-isolation injecting newer setuptools.
+RUN pip install --no-cache-dir "setuptools==57.5.0" \
+    && conda install -n calvin cmake=3.18 -y && conda clean -afy
+RUN cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
+    && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
+
+# Patch: catch pybullet.error on double-disconnect during GC teardown
+# (upstream only catches TypeError, not pybullet.error)
+RUN sed -i 's/except TypeError:/except Exception:/' \
+    /app/calvin/calvin_env/calvin_env/envs/play_table_env.py
+
+# CPU-only torch + extra harness dependency
+RUN uv pip install --no-cache-dir \
+      "torch==2.1.0+cpu" --index-url https://download.pytorch.org/whl/cpu \
+    && uv pip install --no-cache-dir fnvhash
+
+# Remove .git history to shrink image, then re-init minimal repos
+# (CALVIN calls git diff internally via get_git_commit_hash)
+RUN find /app/calvin -name .git -exec rm -rf {} + 2>/dev/null || true \
+    && git config --global user.email "x" && git config --global user.name "x" \
+    && git -C /app/calvin/calvin_env init -q && git -C /app/calvin/calvin_env add -A && git -C /app/calvin/calvin_env commit -qm init \
+    && git -C /app/calvin init -q && git -C /app/calvin add -A && git -C /app/calvin commit -qm init
+
+# Embed CALVIN validation config (17KB) — no volume mount needed
+COPY docker/calvin_validation_data/ /data/calvin/dataset/validation/
+
+# ------- install vla-eval harness -------
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "calvin", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/calvin_eval.yaml"]

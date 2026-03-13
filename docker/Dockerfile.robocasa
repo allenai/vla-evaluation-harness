@@ -1,0 +1,39 @@
+# RoboCasa kitchen manipulation evaluation environment
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# Create conda env with Python 3.11
+RUN conda create -n robocasa python=3.11 -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "robocasa", "/bin/bash", "-c"]
+
+# Clone and install robosuite v2 (must be from master branch)
+RUN git clone --depth 1 https://github.com/ARISE-Initiative/robosuite.git /app/robosuite && \
+    cd /app/robosuite && \
+    uv pip install --no-cache-dir -e . && \
+    rm -rf /app/robosuite/.git
+
+# Clone and install RoboCasa
+RUN git clone --depth 1 https://github.com/robocasa/robocasa.git /app/robocasa && \
+    cd /app/robocasa && \
+    uv pip install --no-cache-dir -e . && \
+    rm -rf /app/robocasa/.git
+
+# Setup macros (non-interactive) and download kitchen assets (~10 GB)
+RUN cd /app/robocasa \
+    && python robocasa/scripts/setup_macros.py \
+    && echo "y" | python robocasa/scripts/download_kitchen_assets.py
+
+# Install harness
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robocasa", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/robocasa_eval.yaml"]
+

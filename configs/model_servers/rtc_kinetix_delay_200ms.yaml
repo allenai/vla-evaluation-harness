@@ -1,0 +1,11 @@
+# RTC model server — 200ms artificial inference delay (for delay sweep experiment)
+script: "src/vla_eval/model_servers/rtc.py"
+args:
+  checkpoint_dir: "experiments/checkpoints/bc/0/policies"
+  rtc_src_path: "experiments/rtc-kinetix/src"
+  action_dim: 6
+  prediction_horizon: 8
+  denoising_steps: 5
+  chunk_size: 8
+  inference_delay: 0.2
+  port: 8000

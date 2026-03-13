@@ -1,0 +1,44 @@
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+RUN conda create -n libero_mem python=3.8 -y && conda clean -afy
+SHELL ["conda", "run", "-n", "libero_mem", "/bin/bash", "-c"]
+
+RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# robosuite/robomimic are installed from libero-mem's bundled thirdparty/
+# forks (not PyPI) — they contain modifications for memory-dependent envs.
+RUN uv pip install --no-cache-dir \
+        numpy==1.22.4 mujoco==3.2.3 bddl==1.0.1 \
+        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
+        "gym>=0.21,<0.27" matplotlib \
+    && rm -rf ~/.cache/pip ~/.cache/uv
+
+RUN git clone --depth 1 https://github.com/libero-mem/libero-mem.git /app/libero-mem \
+    && cd /app/libero-mem/thirdparty/robomimic && pip install --no-cache-dir -e . \
+    && cd /app/libero-mem/thirdparty/robosuite && pip install --no-cache-dir -e . \
+    && cd /app/libero-mem && pip install --no-cache-dir -e . \
+    && rm -rf /app/libero-mem/.git ~/.cache/pip
+
+RUN mkdir -p /root/.libero && printf '\
+benchmark_root: /app/libero-mem/libero/libero\n\
+bddl_files: /app/libero-mem/libero/libero/bddl_files\n\
+init_states: /app/libero-mem/libero/libero/init_files\n\
+datasets: /app/libero-mem/libero/datasets\n\
+assets: /app/libero-mem/libero/libero/assets\n' > /root/.libero/config.yaml
+
+# Pre-generated init states (avoids ~43 min MuJoCo generation during build)
+# To regenerate, run: docker/generate_libero_mem_inits.py
+COPY docker/init_states/libero_mem/ /app/libero-mem/libero/libero/init_files/libero_mem/
+
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "libero_mem", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/libero_mem.yaml"]

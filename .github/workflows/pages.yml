@@ -1,0 +1,41 @@
+name: Deploy Leaderboard
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'leaderboard/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Build site
+        run: |
+          python leaderboard/scripts/update_coverage.py
+          python leaderboard/scripts/update_citations.py
+          mkdir -p _site/leaderboard
+          cp leaderboard/site/* _site/leaderboard/
+          cp leaderboard/data/results.json _site/leaderboard/
+          cp leaderboard/data/coverage.json _site/leaderboard/
+          cp leaderboard/data/citations.json _site/leaderboard/
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true

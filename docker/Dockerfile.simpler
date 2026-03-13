@@ -1,0 +1,49 @@
+# SimplerEnv evaluation environment
+# Includes ManiSkill2_real2sim + SimplerEnv at pinned commits.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Conda environment ──────────────────────────────────────────────────
+RUN conda create -n simpler python=3.10 -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
+
+# ── Clone ManiSkill2_real2sim + SimplerEnv (pinned commits) ────────────
+WORKDIR /app
+RUN git clone https://github.com/simpler-env/ManiSkill2_real2sim.git /app/ManiSkill2_real2sim \
+    && cd /app/ManiSkill2_real2sim && git checkout ef7a4d4fdf4b69f2c2154db5b15b9ac8dfe10682 \
+    && rm -rf .git
+
+RUN git clone https://github.com/simpler-env/SimplerEnv.git /app/simpler_env_src \
+    && cd /app/simpler_env_src && git checkout 4ab7178e83e84ee06894034ec6dbf9e7aad1e882 \
+    && rm -rf .git
+
+# ── Install simulation stack ──────────────────────────────────────────
+# sapien imports pkg_resources, removed from conda-forge setuptools >=70.
+RUN uv pip install --no-cache-dir "setuptools<70"
+RUN cd /app/ManiSkill2_real2sim && uv pip install --no-cache-dir -e .
+RUN cd /app/simpler_env_src && uv pip install --no-cache-dir -e .
+
+# opencv-python 4.12 pulls numpy>=2, but SimplerEnv needs numpy 1.24.
+# Install opencv first, then force-downgrade numpy.
+RUN uv pip install --no-cache-dir \
+        matplotlib mediapy omegaconf hydra-core \
+        opencv-python==4.12.0.88
+RUN uv pip install --no-cache-dir numpy==1.24.4
+
+# ── Symlink for rgb_overlay_path config compatibility ─────────────────
+RUN mkdir -p /app/simpler \
+    && ln -sfn /app/ManiSkill2_real2sim /app/simpler/ManiSkill2_real2sim
+
+# ── Install evaluation harness ────────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "simpler", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/simpler_all_tasks.yaml"]

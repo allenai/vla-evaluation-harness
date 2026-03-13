@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vla-eval"
+dynamic = ["version"]
+description = "Evaluation harness for Vision-Language-Action models"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "anyio>=4.0.0",
+    "lazyregistry>=0.4.0",  # Python 3.8 support
+    "msgpack>=1.0.0",
+    "numpy>=1.24",
+    "pillow>=9.4.0",        # PIL.Image.ExifTags introduced in 9.4.0
+    "pyyaml>=6.0",          # Security fixes (CVE-2020-14343) + Python 3.11
+    "tqdm",
+    "websockets>=12.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/vla_eval/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vla_eval"]
+
+[project.scripts]
+vla-eval = "vla_eval.cli.main:main"
+
+[tool.ruff]
+line-length = 119
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.ty.rules]
+unresolved-import = "ignore"

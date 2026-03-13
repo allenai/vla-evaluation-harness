@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VLA Leaderboard Results",
+  "type": "object",
+  "required": ["last_updated", "benchmarks", "results"],
+  "properties": {
+    "last_updated": { "type": "string", "format": "date" },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["display_name", "metric"],
+        "properties": {
+          "display_name": { "type": "string" },
+          "paper_url": { "type": "string", "format": "uri" },
+          "metric": {
+            "type": "object",
+            "required": ["name", "unit", "range", "higher_is_better"],
+            "properties": {
+              "name": { "type": "string" },
+              "unit": { "type": "string" },
+              "range": {
+                "type": "array",
+                "items": { "type": "number" },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "higher_is_better": { "type": "boolean" }
+            }
+          },
+          "official_leaderboard": { "type": "string", "format": "uri" },
+          "expand_suites": { "type": "boolean", "description": "Force per-suite columns in overview even when results have overall_score" },
+          "avg_position": { "type": "integer", "minimum": 0, "description": "Insert Avg column after this many suite columns (default: end)" },
+          "avg_label": { "type": "string", "description": "Custom label for the Avg column (e.g. 'Avg (w/o 90)')" },
+          "detail_notes": { "type": "string", "description": "Info note shown when viewing this benchmark's detail view" },
+          "suites": { "type": "array", "items": { "type": "string" } },
+          "tasks": { "type": "array", "items": { "type": "string" } },
+          "papers_reviewed": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "ArXiv IDs of all papers reviewed for this benchmark"
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model", "display_name", "benchmark", "weight_type", "curated_by", "date_added"],
+        "additionalProperties": false,
+        "properties": {
+          "model": { "type": "string" },
+          "display_name": { "type": "string" },
+          "benchmark": { "type": "string" },
+          "overall_score": { "type": ["number", "null"] },
+          "suite_scores": {
+            "type": "object",
+            "additionalProperties": { "type": "number" }
+          },
+          "task_scores": {
+            "type": "object",
+            "additionalProperties": { "type": "number" }
+          },
+          "num_episodes": { "type": "integer", "minimum": 1 },
+          "source_paper": { "type": ["string", "null"], "format": "uri" },
+          "source_table": { "type": ["string", "null"] },
+          "curated_by": { "type": "string" },
+          "notes": { "type": "string" },
+          "date_added": { "type": "string", "format": "date" },
+          "params": { "type": ["string", "null"] },
+          "model_paper": { "type": ["string", "null"], "format": "uri" },
+          "weight_type": { "type": "string", "enum": ["shared", "finetuned"] }
+        }
+      }
+    }
+  }
+}
