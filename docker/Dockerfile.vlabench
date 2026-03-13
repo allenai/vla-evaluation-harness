@@ -1,0 +1,64 @@
+# VLABench evaluation environment (MuJoCo-based)
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+ENV VLABENCH_ROOT=/app/VLABench/VLABench
+
+# Create conda env with Python 3.10
+RUN conda create -n vlabench python=3.10 -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "vlabench", "/bin/bash", "-c"]
+
+# Install MuJoCo, dm_control, and numpy first
+RUN uv pip install --no-cache-dir \
+        mujoco==3.2.2 \
+        dm_control==1.0.22 \
+        numpy==1.25.0
+
+# Install remaining VLABench dependencies
+RUN uv pip install --no-cache-dir \
+        gym==0.26.2 \
+        gymnasium==0.29.1 \
+        opencv-python \
+        scipy==1.14.0 \
+        h5py==3.11.0 \
+        mediapy==1.2.0 \
+        imageio \
+        gdown \
+        colorlog \
+        colorama \
+        ipdb \
+        Pillow \
+        open3d==0.18.0 \
+        scikit-learn \
+        openai
+
+# Clone and install rrt-algorithms (required by VLABench skill_lib)
+RUN git clone --depth 1 https://github.com/motion-planning/rrt-algorithms.git /app/rrt-algorithms && \
+    cd /app/rrt-algorithms && \
+    uv pip install --no-cache-dir -e . && \
+    rm -rf /app/rrt-algorithms/.git
+
+# Clone and install VLABench
+RUN git clone --depth 1 https://github.com/OpenMOSS/VLABench.git /app/VLABench && \
+    cd /app/VLABench && \
+    uv pip install --no-cache-dir -e . && \
+    rm -rf /app/VLABench/.git
+
+# Download assets (obj + scene from Google Drive)
+RUN cd /app/VLABench && \
+    python scripts/download_assets.py || \
+    echo "WARNING: Asset download failed — may need manual download"
+
+# Install harness
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "vlabench", "vla-eval"]
+

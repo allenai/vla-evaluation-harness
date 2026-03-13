@@ -1,0 +1,27 @@
+# CogACT model server — base model (microsoft/CogACT)
+# Weight: CogACT/CogACT-Base (HuggingFace)
+# Output: 16 actions × 7-DoF (future_action_window_size=15 → 16 steps)
+#
+# Usage: vla-eval serve --config configs/model_servers/cogact.yaml
+#
+# Available checkpoints:
+#   CogACT/CogACT-Small  (action_model_type: DiT-S)
+#   CogACT/CogACT-Base   (action_model_type: DiT-B)
+#   CogACT/CogACT-Large  (action_model_type: DiT-L)
+#
+# unnorm_key selects the dataset statistics used for action
+# denormalization.  Required for multi-dataset checkpoints like
+# CogACT-Base.  Common keys: fractal20220817_data (RT-1),
+# bridge_orig (BridgeData V2), kuka, bc_z, taco_play, etc.
+
+script: "src/vla_eval/model_servers/cogact.py"
+args:
+  model_path: CogACT/CogACT-Base
+  action_model_type: DiT-B
+  future_action_window_size: 15
+  unnorm_key: bridge_orig
+  chunk_size: 16
+  cfg_scale: 1.5
+  use_ddim: true
+  num_ddim_steps: 10
+  port: 8000

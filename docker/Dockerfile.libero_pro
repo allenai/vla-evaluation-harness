@@ -1,0 +1,44 @@
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Conda environment ──────────────────────────────────────────────
+RUN conda create -n libero python=3.8 -y && conda clean -afy
+SHELL ["conda", "run", "-n", "libero", "/bin/bash", "-c"]
+
+# ── CPU-only PyTorch ───────────────────────────────────────────────
+RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# ── Python dependencies ───────────────────────────────────────────
+RUN uv pip install --no-cache-dir \
+        numpy==1.22.4 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
+        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
+        "gym>=0.21,<0.27" matplotlib \
+    && rm -rf ~/.cache/pip ~/.cache/uv
+
+# ── Clone LIBERO-PRO ──────────────────────────────────────────────
+# uv wheel builder can't handle find_packages() in setup.py;
+# fall back to pip for this single install.
+RUN git clone --depth 1 https://github.com/Zxy-MLlab/LIBERO-PRO.git /app/libero-pro \
+    && cd /app/libero-pro && pip install --no-cache-dir -e . \
+    && rm -rf /app/libero-pro/.git ~/.cache/pip
+
+# ── Pre-create LIBERO config (suppress interactive prompt) ─────────
+RUN mkdir -p /root/.libero && printf '\
+benchmark_root: /app/libero-pro/libero/libero\n\
+bddl_files: /app/libero-pro/libero/libero/bddl_files\n\
+init_states: /app/libero-pro/libero/libero/init_files\n\
+datasets: /app/libero-pro/libero/datasets\n\
+assets: /app/libero-pro/libero/libero/assets\n' > /root/.libero/config.yaml
+
+# ── Install evaluation harness ─────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "libero", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/libero_pro_eval.yaml"]

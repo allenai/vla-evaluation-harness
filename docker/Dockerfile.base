@@ -1,0 +1,49 @@
+# Common base image for all VLA evaluation harness benchmarks
+#
+# Provides: CUDA 12.1 runtime, EGL/Vulkan rendering, Miniforge, uv
+#
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+LABEL org.opencontainers.image.source=https://github.com/allenai/vla-evaluation-harness
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    # Rendering
+    PYOPENGL_PLATFORM=egl \
+    EGL_PLATFORM=device \
+    MUJOCO_GL=egl \
+    NVIDIA_DRIVER_CAPABILITIES=all
+
+# ── System dependencies (EGL, Vulkan, OpenGL, build tools) ───────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git wget curl ca-certificates unzip \
+        # EGL / OpenGL
+        libegl1 libegl1-mesa-dev libgl1 libgl1-mesa-glx libgles2 \
+        libglfw3 libosmesa6 libosmesa6-dev libglew-dev libglvnd-dev \
+        # Vulkan
+        libvulkan1 mesa-vulkan-drivers \
+        # X11 / misc
+        libglib2.0-0 libsm6 libxext6 libxrender-dev \
+        libxcb-xinerama0 libxkbcommon-x11-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Vulkan ICD for NVIDIA GPU ────────────────────────────────────────
+RUN mkdir -p /usr/share/vulkan/icd.d /usr/share/glvnd/egl_vendor.d \
+    && printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libGLX_nvidia.so.0","api_version":"1.2.155"}}\n' \
+        > /usr/share/vulkan/icd.d/nvidia_icd.json \
+    && printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}\n' \
+        > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+
+# ── Miniforge (lightweight conda, conda-forge defaults) ──────────────
+RUN wget -qO /tmp/miniforge.sh \
+        https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+    && bash /tmp/miniforge.sh -b -p /opt/conda \
+    && rm /tmp/miniforge.sh \
+    && /opt/conda/bin/conda clean -afy
+ENV PATH=/opt/conda/bin:$PATH
+
+# ── uv (fast Python package installer) ───────────────────────────────
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /workspace
+

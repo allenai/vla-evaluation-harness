@@ -1,0 +1,14 @@
+# OpenVLA-OFT model server — LIBERO-Spatial
+# Weight: moojink/openvla-7b-oft-finetuned-libero-spatial (HuggingFace)
+# Action chunking enabled (parallel decoding, 26× faster than OpenVLA).
+#
+# Usage: vla-eval serve --config configs/model_servers/oft_libero.yaml
+
+script: "src/vla_eval/model_servers/oft.py"
+args:
+  pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-spatial
+  unnorm_key: libero_spatial_no_noops
+  num_images_in_input: 1
+  chunk_size: 10
+  port: 8000
+

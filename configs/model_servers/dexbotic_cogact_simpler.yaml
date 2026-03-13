@@ -1,0 +1,12 @@
+# DB-CogACT model server — SIMPLER checkpoint
+# Weight: Dexmal/simpler-db-cogact (HuggingFace)
+# Benchmark: SIMPLER (SAPIEN/ManiSkill2 real2sim, WidowX Bridge tasks)
+
+
+script: "src/vla_eval/model_servers/dexbotic/cogact.py"
+args:
+  model_path: Dexmal/simpler-db-cogact
+  chunk_size: 5
+  port: 8000
+  use_text_template: true
+

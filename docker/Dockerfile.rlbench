@@ -1,0 +1,72 @@
+# RLBench benchmark (CoppeliaSim 4.1.0 + PyRep + RLBench)
+# CoppeliaSim needs an X display even in headless mode → Xvfb wrapper
+# https://github.com/stepjam/RLBench
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Xvfb for headless CoppeliaSim ─────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb libfontconfig1 tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── CoppeliaSim 4.1.0 ─────────────────────────────────────────────
+# PyRep/RLBench require exactly 4.1.0; newer versions cause segfaults.
+ENV COPPELIASIM_ROOT=/opt/coppeliasim
+ENV LD_LIBRARY_PATH=${COPPELIASIM_ROOT}:${LD_LIBRARY_PATH} \
+    QT_QPA_PLATFORM_PLUGIN_PATH=${COPPELIASIM_ROOT}/platforms \
+    QT_QPA_PLATFORM=offscreen
+RUN wget -qO /tmp/coppeliasim.tar.xz \
+        https://downloads.coppeliarobotics.com/V4_1_0/CoppeliaSim_Edu_V4_1_0_Ubuntu20_04.tar.xz \
+    && mkdir -p ${COPPELIASIM_ROOT} \
+    && tar -xf /tmp/coppeliasim.tar.xz -C ${COPPELIASIM_ROOT} --strip-components=1 \
+    && rm /tmp/coppeliasim.tar.xz
+
+# Disable the OpenGL3 renderer plugin — the bundled Qt lacks GLX/EGL
+# support in headless Docker, causing segfaults.  The built-in renderer
+# works correctly under Xvfb.
+RUN mv ${COPPELIASIM_ROOT}/libsimExtOpenGL3Renderer.so \
+       ${COPPELIASIM_ROOT}/libsimExtOpenGL3Renderer.so.disabled
+
+# ── Conda environment (Python 3.8 required by PyRep/RLBench) ──────
+RUN conda create -y -n rlbench python=3.8 && conda clean -afy
+SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
+
+# ── PyRep (from source) ───────────────────────────────────────────
+RUN git clone --depth 1 https://github.com/stepjam/PyRep.git /tmp/PyRep \
+    && cd /tmp/PyRep && pip install --no-cache-dir -e . \
+    && rm -rf /tmp/PyRep/.git
+
+# ── RLBench (from source) ─────────────────────────────────────────
+RUN git clone --depth 1 https://github.com/stepjam/RLBench.git /tmp/RLBench \
+    && cd /tmp/RLBench && pip install --no-cache-dir -e . \
+    && rm -rf /tmp/RLBench/.git
+
+# ── Install evaluation harness ─────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir gymnasium .
+COPY configs/ configs/
+
+# ── Entrypoint: start Xvfb then run vla-eval ──────────────────────
+# CoppeliaSim needs an X display even in headless mode
+COPY <<'EOF' /rlbench_entrypoint.sh
+#!/bin/bash
+set -e
+Xvfb :99 -screen 0 1280x1024x24 +extension GLX +render -noreset &
+export DISPLAY=:99
+sleep 2
+# Activate conda env directly instead of `conda run` — conda run waits
+# for all child processes (including CoppeliaSim) which prevents exit.
+eval "$(conda shell.bash hook 2>/dev/null)"
+conda activate rlbench
+vla-eval "$@"
+EOF
+RUN chmod +x /rlbench_entrypoint.sh
+
+# tini reaps orphaned CoppeliaSim processes so the container exits cleanly
+ENTRYPOINT ["tini", "-g", "--", "/rlbench_entrypoint.sh"]
+CMD ["run", "--config", "/workspace/configs/rlbench_eval.yaml"]
