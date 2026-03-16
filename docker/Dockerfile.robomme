@@ -1,0 +1,47 @@
+# RoboMME evaluation environment (ManiSkill3 fork + SAPIEN, Vulkan rendering)
+
+ARG BASE_IMAGE=ghcr.io/worv-ai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Conda environment (Python 3.11 per RoboMME requirement) ──────────────
+RUN conda create -n robomme python=3.11 -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "robomme", "/bin/bash", "-c"]
+
+# ── PyTorch with CUDA (RoboMME envs use torch for scene randomization) ───
+# torch 2.9.1 is pinned in robomme pyproject.toml; verify cu121 wheel exists at build time
+RUN uv pip install --no-cache-dir "torch==2.9.1" "torchvision==0.24.1" \
+        --index-url https://download.pytorch.org/whl/cu121 \
+    || uv pip install --no-cache-dir "torch>=2.5,<3" "torchvision>=0.20" \
+        --index-url https://download.pytorch.org/whl/cu121
+
+# ── setuptools (RoboMME pins 80.9.0) ────────────────────────────────────
+RUN uv pip install --no-cache-dir "setuptools==80.9.0"
+
+# ── Custom ManiSkill fork (pinned commit) ────────────────────────────────
+WORKDIR /app
+RUN git clone https://github.com/YinpeiDai/ManiSkill.git /app/ManiSkill \
+    && cd /app/ManiSkill && git checkout 07be6fbc66350ddca200abfb0a11b692f078f7fd \
+    && rm -rf .git
+RUN cd /app/ManiSkill && uv pip install --no-cache-dir -e .
+
+# ── RoboMME benchmark (public repo, pinned commit) ──────────────────────
+RUN git clone https://github.com/RoboMME/robomme_benchmark.git /app/robomme_benchmark \
+    && cd /app/robomme_benchmark && git checkout f2b540e64034cf9afd0b51cf8ec491de09c74f58 \
+    && rm -rf .git
+RUN cd /app/robomme_benchmark && uv pip install --no-cache-dir -e .
+
+# ── Additional runtime deps (h5py imported by DemonstrationWrapper) ─────
+RUN uv pip install --no-cache-dir "opencv-python>=4.11.0.86" h5py imageio
+
+# ── Install evaluation harness ──────────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robomme", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/robomme_eval.yaml"]

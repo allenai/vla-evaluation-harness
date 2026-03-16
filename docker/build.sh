@@ -19,50 +19,42 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BENCHMARKS=(simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix)
+BENCHMARKS=(simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme)
 REGISTRY="ghcr.io/allenai/vla-evaluation-harness"
 
 # Default BASE_IMAGE follows TAG unless explicitly overridden
 BASE_IMAGE="${BASE_IMAGE:-${REGISTRY}/base:${TAG}}"
 
-# Derive harness version via hatch-vcs (PEP 440 compliant)
-HARNESS_VERSION="$(uvx hatch version 2>/dev/null || echo "0.0.0")"
-
 build_image() {
   local name="$1"
-  local image_name="${name//_/-}"
   local dockerfile="docker/Dockerfile.${name}"
-  local image_tag="${REGISTRY}/${image_name}:${TAG}"
-  local build_args=()
 
-  if [[ "$name" != "base" ]]; then
-    build_args=(--build-arg "BASE_IMAGE=${BASE_IMAGE}" --build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
+  if [[ ! -f "$dockerfile" ]]; then
+    echo "SKIP: $dockerfile not found"
+    return
   fi
 
-  echo "========================================="
-  echo "Building: ${image_tag}"
-  echo "========================================="
-  docker build -t "${image_tag}" -f "${dockerfile}" "${build_args[@]+"${build_args[@]}"}" .
+  local tag="${REGISTRY}/${name}:${TAG}"
+
+  echo "Building ${tag} ..."
+  docker build \
+    -f "$dockerfile" \
+    --build-arg BASE_IMAGE="${BASE_IMAGE}" \
+    --build-arg HARNESS_VERSION="${TAG}" \
+    -t "$tag" \
+    .
 }
 
 if [[ -n "$TARGET" ]]; then
-  if [[ "$TARGET" != "base" ]]; then
-    found=false
-    for b in "${BENCHMARKS[@]}"; do
-      [[ "$b" == "$TARGET" ]] && found=true && break
-    done
-    if ! $found; then
-      echo "ERROR: Unknown image '${TARGET}'. Available: base ${BENCHMARKS[*]}"
-      exit 1
-    fi
-    # Build base first
+  if [[ "$TARGET" == "base" ]]; then
     build_image base
+  else
+    build_image "$TARGET"
   fi
-  build_image "$TARGET"
 else
+  # Build base first, then all benchmarks
   build_image base
-  for b in "${BENCHMARKS[@]}"; do
-    build_image "$b"
+  for name in "${BENCHMARKS[@]}"; do
+    build_image "$name"
   done
 fi
-
