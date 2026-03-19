@@ -1,13 +1,21 @@
 """Smoke test infrastructure for vla-eval CLI commands.
 
 Discovers configs, checks resource prerequisites, runs tests, and reports results.
+All test logic (validate, server, benchmark) is self-contained here — no subprocess
+delegation to other CLI subcommands.
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import os
 import shutil
+import socket
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +30,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIGS_DIR = REPO_ROOT / "configs"
 SERVER_CONFIGS_DIR = CONFIGS_DIR / "model_servers"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,6 +60,18 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
+def classify_config(path: Path) -> str:
+    """Classify a config file as 'server', 'benchmark', or 'unknown'."""
+    data = _load_yaml(path)
+    if "script" in data:
+        return "server"
+    if (data.get("docker") or {}).get("image"):
+        return "benchmark"
+    if isinstance(data.get("benchmarks"), list):
+        return "benchmark"
+    return "unknown"
+
+
 # ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
@@ -75,29 +97,24 @@ def _extract_model_id(data: dict[str, Any]) -> str:
     return "unknown"
 
 
-def discover_server_tests(name_filter: str | None = None) -> list[SmokeTest]:
-    """Find model server configs, optionally filtered by name."""
+def discover_server_tests() -> list[SmokeTest]:
+    """Find all model server configs in configs/model_servers/."""
     tests: list[SmokeTest] = []
     for path in sorted(SERVER_CONFIGS_DIR.glob("*.yaml")):
-        if name_filter and name_filter != "*" and name_filter not in path.stem:
-            continue
         data = _load_yaml(path)
         model = _extract_model_id(data)
         tests.append(SmokeTest("server", path.stem, path, model))
     return tests
 
 
-def discover_benchmark_tests(name_filter: str | None = None) -> list[SmokeTest]:
-    """Find benchmark configs that have a docker image, optionally filtered by name."""
+def discover_benchmark_tests() -> list[SmokeTest]:
+    """Find all benchmark configs that have a docker image."""
     tests: list[SmokeTest] = []
     for path in sorted(CONFIGS_DIR.glob("*.yaml")):
-        if name_filter and name_filter != "*" and name_filter not in path.stem:
-            continue
         data = _load_yaml(path)
         image = (data.get("docker") or {}).get("image")
         if not image:
             continue
-        # Show short image name (last component before :tag)
         short = image.rsplit("/", 1)[-1] if "/" in image else image
         tests.append(SmokeTest("benchmark", path.stem, path, short))
     return tests
@@ -139,7 +156,7 @@ def _benchmark_image(config_path: Path) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Execution
+# Execution — validate
 # ---------------------------------------------------------------------------
 
 
@@ -182,75 +199,313 @@ def run_validate(tests: list[SmokeTest]) -> SmokeResult:
     return SmokeResult(dummy, "pass", f"{valid}/{total} configs valid", dt)
 
 
+# ---------------------------------------------------------------------------
+# Execution — server smoke test
+# ---------------------------------------------------------------------------
+
+
 def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
-    """Run vla-eval test-server as a subprocess."""
+    """Smoke-test a model server: launch it, send dummy observations, check for actions."""
     assert test.config_path is not None
+
     uv_ok, uv_msg = check_uv()
     if not uv_ok:
         return SmokeResult(test, "skip", uv_msg)
 
-    t0 = time.monotonic()
+    config = _load_yaml(test.config_path)
+    script = Path(config.get("script", "")).resolve()
+    if not script.exists():
+        return SmokeResult(test, "fail", f"script not found: {script}")
+
     uv = shutil.which("uv")
     assert uv is not None
-    cmd = [uv, "run", "vla-eval", "test-server", "-c", str(test.config_path), "--timeout", str(timeout)]
+
+    # Pick a free port
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+
+    # Build uv run command with --port override
+    cmd: list[str] = [uv, "run", str(script)]
+    for key, value in config.get("args", {}).items():
+        if key == "port":
+            continue
+        flag = f"--{key}"
+        if isinstance(value, bool):
+            if value:
+                cmd.append(flag)
+        else:
+            cmd.extend([flag, str(value)])
+    cmd.extend(["--port", str(port)])
+
+    # Extract suite for servers with chunk_size_map
+    import json as _json
+
+    from vla_eval.types import Task
+
+    task: Task = {"name": "smoke_test"}
+    args_cfg = config.get("args", {})
+    chunk_map_raw = args_cfg.get("chunk_size_map")
+    if chunk_map_raw:
+        chunk_map = _json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
+        if chunk_map:
+            task["suite"] = next(iter(chunk_map.keys()))
+
+    # Inline StubBenchmark
+    import numpy as np
+
+    from vla_eval.benchmarks.base import StepBenchmark, StepResult
+    from vla_eval.types import Observation
+
+    class _StubBenchmark(StepBenchmark):
+        def __init__(self) -> None:
+            super().__init__()
+            self._step = 0
+
+        @staticmethod
+        def _dummy_obs() -> dict[str, Any]:
+            return {
+                "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
+                "task_description": "smoke test",
+            }
+
+        def get_tasks(self) -> list[dict[str, Any]]:
+            return [task]
+
+        def reset(self, task_: Task) -> Any:
+            self._step = 0
+            return None
+
+        def step(self, action: Any) -> StepResult:
+            self._step += 1
+            done = self._step >= 3
+            return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
+
+        def make_obs(self, raw_obs: Any, task_: Task) -> Observation:
+            return self._dummy_obs()
+
+        def check_done(self, step_result: StepResult) -> bool:
+            return step_result.done
+
+        def get_step_result(self, step_result: StepResult) -> dict[str, Any]:
+            return {"success": step_result.done}
+
+        def get_metadata(self) -> dict[str, Any]:
+            return {"max_steps": 50}
+
+    import subprocess as _subprocess
+
+    import anyio
+
+    from vla_eval.connection import Connection
+    from vla_eval.runners.sync_runner import SyncEpisodeRunner
+
+    t0 = time.monotonic()
+
+    async def _run() -> dict:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=_subprocess.DEVNULL,
+            stderr=_subprocess.PIPE,
+        )
+        stderr_chunks: list[bytes] = []
+
+        async def _drain_stderr() -> None:
+            assert proc.stderr
+            async for chunk in proc.stderr:
+                stderr_chunks.append(chunk)
+
+        drain_task = asyncio.create_task(_drain_stderr())
+
+        try:
+            url = f"ws://127.0.0.1:{port}"
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                if proc.returncode is not None:
+                    await drain_task
+                    stderr = b"".join(stderr_chunks).decode(errors="replace")
+                    raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
+                try:
+                    with anyio.fail_after(1.0):
+                        stream = await anyio.connect_tcp("127.0.0.1", port)
+                        await stream.aclose()
+                    break
+                except (OSError, TimeoutError):
+                    await anyio.sleep(1.0)
+            else:
+                raise TimeoutError(f"Model server did not start within {timeout}s")
+
+            benchmark = _StubBenchmark()
+            runner = SyncEpisodeRunner()
+            async with Connection(url) as conn:
+                return await runner.run_episode(benchmark, task, conn, max_steps=50)
+        finally:
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                pass
+            try:
+                with anyio.fail_after(10):
+                    await proc.wait()
+            except TimeoutError:
+                proc.kill()
+            drain_task.cancel()
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 30)
-    except subprocess.TimeoutExpired:
+        result = anyio.run(_run)
         dt = time.monotonic() - t0
-        return SmokeResult(test, "fail", f"subprocess timeout after {timeout + 30}s", dt)
-
-    dt = time.monotonic() - t0
-    if result.returncode == 0:
-        # Extract last line of stdout for summary
-        lines = result.stdout.strip().splitlines()
-        msg = lines[-1] if lines else "ok"
-        return SmokeResult(test, "pass", msg, dt)
-    # Extract error from stderr
-    err_lines = result.stderr.strip().splitlines()
-    msg = err_lines[-1] if err_lines else f"exit code {result.returncode}"
-    return SmokeResult(test, "fail", msg, dt)
+        success = result.get("success", False)
+        steps = result.get("steps", 0)
+        if success:
+            return SmokeResult(test, "pass", f"{steps} steps, success=True", dt)
+        else:
+            return SmokeResult(test, "fail", f"{steps} steps, success=False", dt)
+    except Exception as e:
+        dt = time.monotonic() - t0
+        return SmokeResult(test, "fail", str(e), dt)
 
 
-def run_benchmark_test(test: SmokeTest) -> SmokeResult:
-    """Run vla-eval test-benchmark as a subprocess."""
+# ---------------------------------------------------------------------------
+# Execution — benchmark smoke test
+# ---------------------------------------------------------------------------
+
+
+def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
+    """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode."""
     assert test.config_path is not None
-    image = _benchmark_image(test.config_path)
-    if not image:
+
+    config = _load_yaml(test.config_path)
+
+    from vla_eval.config import DockerConfig
+
+    docker_cfg = DockerConfig.from_dict(config.get("docker"))
+    if not docker_cfg.image:
         return SmokeResult(test, "skip", "no docker.image in config")
+
+    docker = shutil.which("docker")
+    if not docker:
+        return SmokeResult(test, "skip", "docker not found on PATH")
 
     docker_ok, docker_msg = check_docker()
     if not docker_ok:
         return SmokeResult(test, "skip", docker_msg)
 
-    img_ok, img_msg = check_docker_image(image)
+    img_ok, img_msg = check_docker_image(docker_cfg.image)
     if not img_ok:
         return SmokeResult(test, "skip", f"{img_msg}: {test.description}")
 
     t0 = time.monotonic()
-    uv = shutil.which("uv")
-    cmd_parts: list[str] = [uv, "run"] if uv else [sys.executable, "-m"]
-    cmd = [*cmd_parts, "vla-eval", "test-benchmark", "-c", str(test.config_path), "-y"]
+
+    # Pick a free port for echo server
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("0.0.0.0", 0))
+        port = s.getsockname()[1]
+
+    # Write temp config: 1 task, 1 episode, pointing to echo server
+    smoke_config = dict(config)
+    smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
+    smoke_config.pop("docker", None)
+    for bench in smoke_config.get("benchmarks", []):
+        bench["episodes_per_task"] = 1
+        bench["max_tasks"] = 1
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-smoke-")
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        with os.fdopen(tmp_fd, "w") as f:
+            yaml.dump(smoke_config, f)
+    except Exception:
+        os.close(tmp_fd)
+        raise
+
+    # Infer action_dim (default 7)
+    action_dim = 7
+    for bench in smoke_config.get("benchmarks", []):
+        action_dim = bench.get("action_dim", action_dim)
+
+    import numpy as np
+
+    from vla_eval.model_servers.predict import PredictModelServer
+    from vla_eval.model_servers.serve import serve_async
+
+    class _EchoModelServer(PredictModelServer):
+        def predict(self, obs: Any, ctx: Any) -> dict[str, Any]:
+            return {"actions": np.zeros(action_dim, dtype=np.float32)}
+
+    # Suppress websocket noise
+    logging.getLogger("websockets").setLevel(logging.CRITICAL)
+
+    # Start echo server in daemon thread
+    def _run_echo_server() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(serve_async(_EchoModelServer(), host="0.0.0.0", port=port))
+
+    server_thread = threading.Thread(target=_run_echo_server, daemon=True)
+    server_thread.start()
+
+    # Wait for echo server readiness
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                break
+        except OSError:
+            time.sleep(0.1)
+
+    # Run Docker container
+    results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
+    container_name = f"vla-eval-test-{os.getpid()}"
+
+    from vla_eval.docker_resources import gpu_docker_flag
+
+    # fmt: off
+    docker_cmd: list[str] = [
+        docker, "run", "--rm",
+        "--name", container_name,
+        "--network", "host",
+        "-v", f"{results_dir}:/workspace/results",
+        "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
+    ]
+    # fmt: on
+    docker_cmd.extend(gpu_docker_flag(docker_cfg.gpus))
+    for vol in docker_cfg.volumes:
+        docker_cmd.extend(["-v", vol])
+    for env_str in docker_cfg.env:
+        docker_cmd.extend(["-e", env_str])
+    docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
+
+    try:
+        result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
+        rc = result.returncode
     except subprocess.TimeoutExpired:
         dt = time.monotonic() - t0
-        return SmokeResult(test, "fail", "subprocess timeout after 600s", dt)
+        return SmokeResult(test, "fail", f"docker timeout after {timeout}s", dt)
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
     dt = time.monotonic() - t0
-    if result.returncode == 0:
-        lines = result.stdout.strip().splitlines()
-        msg = lines[-1] if lines else "ok"
-        return SmokeResult(test, "pass", msg, dt)
-    err_lines = result.stderr.strip().splitlines()
-    msg = err_lines[-1] if err_lines else f"exit code {result.returncode}"
-    return SmokeResult(test, "fail", msg, dt)
+
+    if rc != 0:
+        err_lines = result.stderr.strip().splitlines()
+        msg = err_lines[-1] if err_lines else f"exit code {rc}"
+        return SmokeResult(test, "fail", msg, dt)
+
+    # Check results
+    import glob as _glob
+    import json
+
+    json_files = _glob.glob(os.path.join(results_dir, "*.json"))
+    if json_files:
+        data = json.loads(Path(json_files[0]).read_text())
+        rate = data.get("overall_success_rate", 0)
+        return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
+    return SmokeResult(test, "pass", "completed (no result file)", dt)
 
 
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
 
-# Status symbols
 _SYM = {"pass": "\u2713", "fail": "\u2717", "skip": "-"}
 
 

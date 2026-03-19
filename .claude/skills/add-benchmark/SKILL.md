@@ -150,7 +150,7 @@ If the name contains underscores (e.g. `mikasa_robo`), the scripts automatically
 1. Run `make check` — lint + format + type check
 2. Run `make test` — ensure existing tests still pass
 3. Run `vla-eval test --validate` — validate all config import strings (including the new one)
-4. Run `vla-eval test --benchmark <name>` — smoke-test the benchmark (requires Docker + the benchmark image; runs 1 episode with an EchoModelServer, no real model or GPU needed)
+4. Run `vla-eval test -c configs/<name>_eval.yaml` — smoke-test the benchmark (requires Docker + the benchmark image; runs 1 episode with an EchoModelServer, no real model or GPU needed)
 
 ### Reference Implementations
 

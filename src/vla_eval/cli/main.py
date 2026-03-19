@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import logging
 import os
-import subprocess as _subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -408,170 +406,11 @@ def cmd_merge(args: argparse.Namespace) -> None:
         print(json.dumps(merged, indent=2, default=str))
 
 
-def cmd_validate(args: argparse.Namespace) -> None:
-    """Validate config file."""
-    config = _load_config(args.config)
-    from vla_eval.benchmarks.base import Benchmark
-    from vla_eval.registry import resolve_import_string
-
-    errors = []
-    for bench in config.get("benchmarks", []):
-        import_path = bench.get("benchmark", "")
-        if not import_path or ":" not in import_path:
-            errors.append(f"Missing or invalid 'benchmark' import path: {import_path!r}")
-            continue
-        try:
-            cls = resolve_import_string(import_path)
-            if not (isinstance(cls, type) and issubclass(cls, Benchmark)):
-                errors.append(f"{import_path!r} is not a Benchmark subclass")
-        except Exception as e:
-            errors.append(f"Cannot resolve {import_path!r}: {e}")
-    if errors:
-        for e in errors:
-            print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    else:
-        print("Config is valid.")
-
-
-def cmd_test_benchmark(args: argparse.Namespace) -> None:
-    """Smoke-test a benchmark: start EchoModelServer on host, run benchmark via Docker for 1 episode."""
-    import shutil
-    import socket
-    import subprocess
-    import tempfile
-
-    from vla_eval.model_servers.predict import PredictModelServer
-    from vla_eval.model_servers.serve import serve_async
-
-    config = _load_config(args.config)
-
-    # Require docker config
-    docker_cfg = DockerConfig.from_dict(config.get("docker"))
-    if not docker_cfg.image:
-        print("ERROR: Config has no docker.image — test-benchmark requires a Docker benchmark.", file=sys.stderr)
-        sys.exit(1)
-
-    docker = shutil.which("docker")
-    if docker is None:
-        print("ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/", file=sys.stderr)
-        sys.exit(1)
-
-    _check_docker_daemon(docker)
-    _ensure_docker_image(docker, docker_cfg.image, auto_yes=getattr(args, "yes", False))
-
-    # Pick a free port for the echo server
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("0.0.0.0", 0))
-        port = s.getsockname()[1]
-
-    # Write a temporary config with 1 task, 1 episode, pointing to our echo server
-    smoke_config = dict(config)
-    # --network host: container shares host network, so 127.0.0.1 works
-    smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
-    smoke_config.pop("docker", None)
-    for bench in smoke_config.get("benchmarks", []):
-        bench["episodes_per_task"] = 1
-        bench["max_tasks"] = 1
-
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
-    yaml.dump(smoke_config, tmp)
-    tmp.close()
-
-    # Infer action_dim from benchmark config (default 7)
-    action_dim = 7
-    for bench in smoke_config.get("benchmarks", []):
-        action_dim = bench.get("action_dim", action_dim)
-
-    class _EchoModelServer(PredictModelServer):
-        def predict(self, obs, ctx):
-            import numpy as np
-
-            return {"actions": np.zeros(action_dim, dtype=np.float32)}
-
-    # Suppress websocket noise from the echo server (handshake errors from TCP
-    # readiness probes, connection lifecycle messages).  The echo server is a
-    # short-lived test helper, so its websocket logs are never useful.
-    import time
-
-    logging.getLogger("websockets").setLevel(logging.CRITICAL)
-
-    # Start echo server in a daemon thread so it dies automatically when
-    # the main thread exits — no portal cleanup needed.
-    import asyncio
-    import threading
-
-    def _run_echo_server():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(serve_async(_EchoModelServer(), host="0.0.0.0", port=port))
-
-    server_thread = threading.Thread(target=_run_echo_server, daemon=True)
-    server_thread.start()
-
-    # Wait for echo server to be ready
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                break
-        except OSError:
-            time.sleep(0.1)
-
-    # Run Docker container
-    results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
-    container_name = f"vla-eval-test-{os.getpid()}"
-
-    from vla_eval.docker_resources import gpu_docker_flag
-
-    cmd: list[str] = [
-        docker,
-        "run",
-        "--rm",
-        "--name",
-        container_name,
-        "--network",
-        "host",
-        "-v",
-        f"{results_dir}:/workspace/results",
-        "-v",
-        f"{tmp.name}:/tmp/eval_config.yaml:ro",
-    ]
-    cmd.extend(gpu_docker_flag(docker_cfg.gpus))
-    for vol in docker_cfg.volumes:
-        cmd.extend(["-v", vol])
-    for env_str in docker_cfg.env:
-        cmd.extend(["-e", env_str])
-    cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
-
-    print(f"Starting echo server on port {port}")
-    print(f"Running: {' '.join(cmd)}")
-
-    try:
-        rc = subprocess.call(cmd)
-    finally:
-        os.unlink(tmp.name)
-
-    if rc != 0:
-        print(f"❌ Benchmark test failed (exit code {rc})", file=sys.stderr)
-        sys.exit(1)
-
-    # Check results
-    import glob
-    import json
-
-    json_files = glob.glob(os.path.join(results_dir, "*.json"))
-    if json_files:
-        result = json.loads(Path(json_files[0]).read_text())
-        rate = result.get("overall_success_rate", 0)
-        print(f"✅ Benchmark test passed: success_rate={rate:.0%}")
-    else:
-        print("✅ Benchmark test completed (no result file — check benchmark output above)")
-
-
 def cmd_test(args: argparse.Namespace) -> None:
     """Run smoke tests across CLI commands."""
     from vla_eval.cli.smoke import (
+        SmokeTest,
+        classify_config,
         discover_benchmark_tests,
         discover_server_tests,
         discover_validate_tests,
@@ -582,21 +421,41 @@ def cmd_test(args: argparse.Namespace) -> None:
         run_validate,
     )
 
-    # Which categories to run
-    run_all = not args.validate_only and args.server is None and args.benchmark is None
-    do_validate = run_all or args.validate_only
-    do_server = run_all or args.server is not None
-    do_benchmark = run_all or args.benchmark is not None
+    # Explicit config paths via -c take priority over category flags
+    if args.config:
+        validate_tests: list[SmokeTest] = []
+        server_tests: list[SmokeTest] = []
+        benchmark_tests: list[SmokeTest] = []
+        for config_path_str in args.config:
+            path = Path(config_path_str).resolve()
+            if not path.exists():
+                print(f"ERROR: config not found: {config_path_str}", file=sys.stderr)
+                sys.exit(1)
+            cat = classify_config(path)
+            if cat == "server":
+                from vla_eval.cli.smoke import _extract_model_id, _load_yaml
 
-    # Discover tests
-    validate_tests = discover_validate_tests() if do_validate else []
-    server_tests = discover_server_tests(args.server) if do_server else []
-    benchmark_tests = discover_benchmark_tests(args.benchmark) if do_benchmark else []
+                data = _load_yaml(path)
+                server_tests.append(SmokeTest("server", path.stem, path, _extract_model_id(data)))
+            elif cat == "benchmark":
+                from vla_eval.cli.smoke import _benchmark_image
+
+                image = _benchmark_image(path) or ""
+                short = image.rsplit("/", 1)[-1] if "/" in image else image
+                benchmark_tests.append(SmokeTest("benchmark", path.stem, path, short))
+            else:
+                print(f"ERROR: cannot classify config: {config_path_str}", file=sys.stderr)
+                sys.exit(1)
+    else:
+        # Category flags
+        run_all = not args.validate_only and not args.server and not args.benchmark
+        validate_tests = discover_validate_tests() if (run_all or args.validate_only) else []
+        server_tests = discover_server_tests() if (run_all or args.server) else []
+        benchmark_tests = discover_benchmark_tests() if (run_all or args.benchmark) else []
 
     if args.list or args.dry_run:
         print_list(validate_tests, server_tests, benchmark_tests)
         if args.dry_run and not args.list:
-            # Show what would run (vs --list which shows all regardless)
             total = len(validate_tests) + len(server_tests) + len(benchmark_tests)
             print(f"Would run {total} test(s). Use without --dry-run to execute.")
         return
@@ -610,174 +469,13 @@ def cmd_test(args: argparse.Namespace) -> None:
         results.append(run_server_test(t, args.timeout))
 
     for t in benchmark_tests:
-        results.append(run_benchmark_test(t))
+        results.append(run_benchmark_test(t, args.timeout))
 
     if not results:
         print("No tests to run. Use --list to see available tests.", file=sys.stderr)
         sys.exit(1)
 
     print_report(results)
-
-
-def cmd_test_server(args: argparse.Namespace) -> None:
-    """Smoke-test a model server: launch it via uv run, run StubBenchmark for 1 episode."""
-    import shutil
-    import socket
-    import time
-
-    from vla_eval.benchmarks.base import StepBenchmark, StepResult
-    from vla_eval.types import Observation, Task
-    from vla_eval.connection import Connection
-    from vla_eval.runners.sync_runner import SyncEpisodeRunner
-
-    uv = shutil.which("uv")
-    if uv is None:
-        print("ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/", file=sys.stderr)
-        sys.exit(1)
-
-    config = _load_config(args.config)
-    script = Path(config["script"]).resolve()
-    if not script.exists():
-        print(f"ERROR: Script not found: {script}", file=sys.stderr)
-        sys.exit(1)
-
-    # Pick a free port
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-
-    # Build uv run command with --port override
-    cmd: list[str] = [uv, "run", str(script)]
-    for key, value in config.get("args", {}).items():
-        flag = f"--{key}"
-        if key == "port":
-            continue  # we override port
-        if isinstance(value, bool):
-            if value:
-                cmd.append(flag)
-        else:
-            cmd.extend([flag, str(value)])
-    cmd.extend(["--port", str(port)])
-
-    print(f"Starting model server: {' '.join(cmd)}")
-
-    # Extract suite from config for servers that use chunk_size_map
-    import json as _json
-
-    task: Task = {"name": "smoke_test"}
-    args_cfg = config.get("args", {})
-    chunk_map_raw = args_cfg.get("chunk_size_map")
-    if chunk_map_raw:
-        chunk_map = _json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
-        if chunk_map:
-            task["suite"] = next(iter(chunk_map.keys()))
-
-    # Minimal benchmark that sends realistic observations
-    class _StubBenchmark(StepBenchmark):
-        def __init__(self):
-            super().__init__()
-            self._step = 0
-
-        @staticmethod
-        def _dummy_obs() -> dict[str, Any]:
-            import numpy as np
-
-            return {
-                "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
-                "task_description": "smoke test",
-            }
-
-        def get_tasks(self):
-            return [task]
-
-        def reset(self, task: Task) -> Any:
-            self._step = 0
-            return None
-
-        def step(self, action):
-            self._step += 1
-            done = self._step >= 3
-            return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
-
-        def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-            return self._dummy_obs()
-
-        def check_done(self, step_result):
-            return step_result.done
-
-        def get_step_result(self, step_result):
-            return {"success": step_result.done}
-
-        def get_metadata(self):
-            return {"max_steps": 50}
-
-    import anyio
-
-    async def _run() -> dict:
-        # Use async subprocess to avoid pipe buffer deadlock — model servers
-        # can produce significant stdout/stderr during model loading.
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=_subprocess.DEVNULL,
-            stderr=_subprocess.PIPE,
-        )
-        stderr_chunks: list[bytes] = []
-
-        async def _drain_stderr() -> None:
-            assert proc.stderr
-            async for chunk in proc.stderr:
-                stderr_chunks.append(chunk)
-
-        drain_task = asyncio.create_task(_drain_stderr())
-
-        try:
-            url = f"ws://127.0.0.1:{port}"
-            # Wait for server to be ready via TCP check (no WebSocket handshake)
-            timeout = getattr(args, "timeout", 300)
-            deadline = time.monotonic() + timeout
-            while time.monotonic() < deadline:
-                if proc.returncode is not None:
-                    await drain_task
-                    stderr = b"".join(stderr_chunks).decode(errors="replace")
-                    raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
-                try:
-                    with anyio.fail_after(1.0):
-                        stream = await anyio.connect_tcp("127.0.0.1", port)
-                        await stream.aclose()
-                    break
-                except (OSError, TimeoutError):
-                    await anyio.sleep(1.0)
-            else:
-                raise TimeoutError(f"Model server did not start within {timeout}s")
-
-            benchmark = _StubBenchmark()
-            runner = SyncEpisodeRunner()
-            async with Connection(url) as conn:
-                return await runner.run_episode(benchmark, task, conn, max_steps=50)
-        finally:
-            try:
-                proc.terminate()
-            except ProcessLookupError:
-                pass
-            try:
-                with anyio.fail_after(10):
-                    await proc.wait()
-            except TimeoutError:
-                proc.kill()
-            drain_task.cancel()
-
-    try:
-        result = anyio.run(_run)
-        success = result.get("success", False)
-        steps = result.get("steps", 0)
-        if success:
-            print(f"✅ Model server OK: {steps} steps, success={success}")
-        else:
-            print(f"❌ Model server FAIL: {steps} steps, success={success}", file=sys.stderr)
-            sys.exit(1)
-    except Exception as e:
-        print(f"❌ Model server test failed: {e}", file=sys.stderr)
-        sys.exit(1)
 
 
 def main() -> None:
@@ -892,111 +590,42 @@ examples:
     merge_parser.add_argument("--verbose", "-v", action="store_true")
     merge_parser.set_defaults(func=cmd_merge)
 
-    # validate command
-    val_parser = sub.add_parser(
-        "validate",
-        help="Validate config file",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Checks that all 'benchmark' import strings (module:Class format) in the
-config resolve to valid Benchmark subclasses.
-
-Note: this does NOT check whether benchmark dependencies (e.g. robosuite,
-mani_skill2) are installed — only that the import path is well-formed and
-the class exists in the current Python environment.
-""",
-    )
-    val_parser.add_argument("--config", "-c", required=True, help="Path to YAML config file")
-    val_parser.set_defaults(func=cmd_validate)
-
-    # test-benchmark command
-    tb_parser = sub.add_parser(
-        "test-benchmark",
-        help="Smoke-test a benchmark (EchoModelServer + 1 episode)",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Verifies that a benchmark Docker image works end-to-end.
-
-  What it does:
-    1. Starts an EchoModelServer on the host (returns zero actions)
-    2. Launches the benchmark Docker container (1 task, 1 episode)
-    3. Reports pass/fail based on whether the episode completes
-
-  Requires: Docker (docker.image must be set in config).
-  Does NOT require: a real model or GPU inference.
-""",
-    )
-    tb_parser.add_argument("--config", "-c", required=True, help="Path to benchmark YAML config")
-    tb_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
-    tb_parser.add_argument("--verbose", "-v", action="store_true")
-    tb_parser.set_defaults(func=cmd_test_benchmark)
-
-    # test-server command
-    ts_parser = sub.add_parser(
-        "test-server",
-        help="Smoke-test a model server (StubBenchmark + 1 episode)",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Verifies that a model server starts and responds to observations.
-
-  What it does:
-    1. Launches the model server via 'uv run <script>'
-    2. Waits for TCP readiness (up to --timeout seconds)
-    3. Sends dummy observations from a StubBenchmark (3 steps)
-    4. Reports pass/fail based on whether actions are received
-
-  Requires: uv on PATH, model server config with 'script' key.
-  Does NOT require: Docker or a real benchmark environment.
-""",
-    )
-    ts_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")
-    ts_parser.add_argument("--timeout", "-t", type=int, default=300, help="Seconds to wait for server startup")
-    ts_parser.add_argument("--verbose", "-v", action="store_true")
-    ts_parser.set_defaults(func=cmd_test_server)
-
-    # test command (umbrella smoke tests)
+    # test command
     test_parser = sub.add_parser(
         "test",
-        help="Run smoke tests across all CLI commands",
+        help="Run smoke tests (validate configs, test servers, test benchmarks)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Discovers configs, checks resource prerequisites, and runs smoke tests.
 
   categories:
     validate   — resolve import strings in all benchmark configs (fast, no deps)
-    server     — run test-server for each model server config (needs uv + model + GPU)
-    benchmark  — run test-benchmark for each benchmark config (needs Docker + image + GPU)
+    server     — launch model server, send dummy observations, check actions
+                 (needs uv + model weights + GPU)
+    benchmark  — start EchoModelServer, run benchmark in Docker for 1 episode
+                 (needs Docker + image + GPU)
 
   By default, runs all categories. Use flags to select specific ones.
+  Use -c to test specific config files (auto-detects server vs benchmark).
 
 examples:
-  vla-eval test --list                     show available tests + readiness
-  vla-eval test --validate                 validate all benchmark configs
-  vla-eval test --server cogact            test model servers matching 'cogact'
-  vla-eval test --benchmark libero         test benchmarks matching 'libero'
-  vla-eval test --dry-run                  preview what would run
+  vla-eval test --list                              show available tests
+  vla-eval test --validate                          validate all benchmark configs
+  vla-eval test --server                            test all model servers
+  vla-eval test --benchmark                         test all benchmarks
+  vla-eval test -c configs/model_servers/cogact.yaml   test a specific config
+  vla-eval test --dry-run                           preview what would run
 """,
+    )
+    test_parser.add_argument(
+        "-c", "--config", action="append", default=None, metavar="PATH", help="Config YAML path(s) to test"
     )
     test_parser.add_argument("--list", action="store_true", help="Show available tests and prerequisites")
     test_parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
     test_parser.add_argument("--validate", dest="validate_only", action="store_true", help="Validate configs only")
-    test_parser.add_argument(
-        "--server",
-        nargs="?",
-        const="*",
-        default=None,
-        metavar="NAME",
-        help="Run server smoke tests (optional name filter, e.g. 'cogact')",
-    )
-    test_parser.add_argument(
-        "--benchmark",
-        nargs="?",
-        const="*",
-        default=None,
-        metavar="NAME",
-        help="Run benchmark smoke tests (optional name filter, e.g. 'libero')",
-    )
-    test_parser.add_argument("--timeout", type=int, default=300, help="Server startup timeout in seconds")
+    test_parser.add_argument("--server", action="store_true", help="Run all server smoke tests")
+    test_parser.add_argument("--benchmark", action="store_true", help="Run all benchmark smoke tests")
+    test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
     test_parser.add_argument("--verbose", "-v", action="store_true")
     test_parser.set_defaults(func=cmd_test)
 
