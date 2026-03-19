@@ -128,7 +128,8 @@ def main():
 
     output_path = os.environ.get("GITHUB_OUTPUT")
     if output_path:
-        summary = f"- {len(papers)} papers, {len(results_data['results'])} results"
+        changed = sum(1 for aid, count in papers.items() if cached_papers.get(aid) != count)
+        summary = f"- {changed} of {len(papers)} papers updated"
         with open(output_path, "a") as f:
             f.write(f"citations_summary={summary}\n")
 
