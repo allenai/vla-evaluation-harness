@@ -136,7 +136,7 @@ benchmarks:
 
 The full config is saved alongside results for reproducibility.
 
-**`vla-eval validate --config ...`** checks that all `benchmark` import paths resolve to valid `Benchmark` subclasses.
+**`vla-eval test --validate`** checks that all `benchmark` import paths resolve to valid `Benchmark` subclasses.
 
 ## Import Resolution
 

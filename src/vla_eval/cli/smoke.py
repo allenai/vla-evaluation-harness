@@ -31,7 +31,6 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CONFIGS_DIR = REPO_ROOT / "configs"
-SERVER_CONFIGS_DIR = CONFIGS_DIR / "model_servers"
 
 logger = logging.getLogger(__name__)
 
@@ -549,8 +548,6 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
         docker_cmd.extend(["-e", env_str])
     docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
 
-    import shutil as _shutil
-
     try:
         result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
         rc = result.returncode
@@ -579,7 +576,7 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         return SmokeResult(test, "pass", "completed (no result file)", dt)
     finally:
-        _shutil.rmtree(results_dir, ignore_errors=True)
+        shutil.rmtree(results_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
