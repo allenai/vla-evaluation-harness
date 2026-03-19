@@ -508,6 +508,8 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         os.close(tmp_fd)
         raise
 
+    import anyio
+
     from vla_eval.model_servers.serve import serve_async
 
     echo_server = _make_echo_server(action_dim)
@@ -515,14 +517,24 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
     # Suppress websocket noise
     logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
-    # Start echo server in daemon thread with a stoppable event loop
+    # Start echo server in daemon thread with graceful shutdown via Event
     echo_loop: asyncio.AbstractEventLoop | None = None
+    shutdown_event: asyncio.Event | None = None
 
     def _run_echo_server() -> None:
-        nonlocal echo_loop
+        nonlocal echo_loop, shutdown_event
         echo_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(echo_loop)
-        echo_loop.run_until_complete(serve_async(echo_server, host="0.0.0.0", port=port))
+        shutdown_event = asyncio.Event()
+
+        async def _serve_until_shutdown() -> None:
+            assert shutdown_event is not None
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(serve_async, echo_server, "0.0.0.0", port)
+                await shutdown_event.wait()
+                tg.cancel_scope.cancel()
+
+        echo_loop.run_until_complete(_serve_until_shutdown())
 
     server_thread = threading.Thread(target=_run_echo_server, daemon=True)
     server_thread.start()
@@ -567,10 +579,10 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         return SmokeResult(test, "fail", f"docker timeout after {timeout}s", dt)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
-        # Stop echo server event loop
-        if echo_loop is not None:
-            echo_loop.call_soon_threadsafe(echo_loop.stop)
-            server_thread.join(timeout=2)
+        # Signal echo server to shut down gracefully
+        if echo_loop is not None and shutdown_event is not None:
+            echo_loop.call_soon_threadsafe(shutdown_event.set)
+            server_thread.join(timeout=5)
 
     dt = time.monotonic() - t0
 
