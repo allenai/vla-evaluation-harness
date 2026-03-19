@@ -446,11 +446,16 @@ def cmd_test(args: argparse.Namespace) -> None:
         # Normalize: --server/--benchmark with no value → all; None → not requested
         server_name = None if args.server is None else (args.server if args.server != "*" else None)
         benchmark_name = None if args.benchmark is None else (args.benchmark if args.benchmark != "*" else None)
-        has_filter = args.validate_only or args.server is not None or args.benchmark is not None
+        has_filter = args.all or args.validate_only or args.server is not None or args.benchmark is not None
 
-        validate_tests = discover_validate_tests() if (not has_filter or args.validate_only) else []
+        # Default (no flags) → validate only; --all → everything
+        run_validate_flag = args.all or args.validate_only or not has_filter
+        run_server_flag = args.all or args.server is not None
+        run_benchmark_flag = args.all or args.benchmark is not None
 
-        if not has_filter or args.server is not None:
+        validate_tests = discover_validate_tests() if run_validate_flag else []
+
+        if run_server_flag:
             if server_name and server_name not in SERVER_REGISTRY:
                 names = ", ".join(SERVER_REGISTRY.keys())
                 print(f"ERROR: unknown server '{server_name}'. Available: {names}", file=sys.stderr)
@@ -459,7 +464,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         else:
             server_tests = []
 
-        if not has_filter or args.benchmark is not None:
+        if run_benchmark_flag:
             if benchmark_name and benchmark_name not in BENCHMARK_REGISTRY:
                 names = ", ".join(BENCHMARK_REGISTRY.keys())
                 print(f"ERROR: unknown benchmark '{benchmark_name}'. Available: {names}", file=sys.stderr)
@@ -620,12 +625,14 @@ Discovers configs, checks resource prerequisites, and runs smoke tests.
     benchmark  — start EchoModelServer, run benchmark in Docker for 1 episode
                  (needs Docker + image + GPU)
 
-  By default, runs all categories. Use flags to select specific ones.
+  By default, runs only fast validation. Use --all for everything, or
+  --server / --benchmark to select expensive categories explicitly.
   Use -c to test specific config files (auto-detects server vs benchmark).
 
 examples:
+  vla-eval test                                     validate configs (fast, default)
+  vla-eval test --all                               run all categories
   vla-eval test --list                              show available tests
-  vla-eval test --validate                          validate all benchmark configs
   vla-eval test --server                            test all model servers
   vla-eval test --server cogact                     test a specific server by registry name
   vla-eval test --benchmark libero                  test a specific benchmark by registry name
@@ -638,6 +645,7 @@ examples:
     )
     test_parser.add_argument("--list", action="store_true", help="Show available tests and prerequisites")
     test_parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
+    test_parser.add_argument("--all", action="store_true", help="Run all categories (validate + server + benchmark)")
     test_parser.add_argument("--validate", dest="validate_only", action="store_true", help="Validate configs only")
     test_parser.add_argument(
         "--server", nargs="?", const="*", default=None, metavar="NAME", help="Server tests (exact registry name)"
