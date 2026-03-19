@@ -135,10 +135,28 @@ def _ensure_docker_image(docker: str, image: str, auto_yes: bool) -> None:
         sys.exit(1)
 
 
+def _resolve_dev_src() -> Path:
+    """Find the host ``src/`` directory for ``--dev`` bind-mount."""
+    # 1. CWD (running from repo root)
+    cwd_src = Path.cwd() / "src"
+    if (cwd_src / "vla_eval").is_dir():
+        return cwd_src
+    # 2. Editable install: __file__ lives under src/vla_eval/
+    import vla_eval
+
+    pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
+    if pkg_parent.name == "src" and (pkg_parent / "vla_eval").is_dir():
+        return pkg_parent
+
+    print("ERROR: --dev: cannot find src/vla_eval/ in cwd or via editable install", file=sys.stderr)
+    sys.exit(1)
+
+
 def _run_via_docker(
     config: dict[str, Any],
     *,
     auto_yes: bool = False,
+    dev: bool = False,
     shard_id: int | None = None,
     num_shards: int | None = None,
 ) -> None:
@@ -189,6 +207,12 @@ def _run_via_docker(
         "-v", f"{docker_config_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
+
+    # Dev mode: mount host src/ into container (requires editable install in image)
+    if dev:
+        src_dir = _resolve_dev_src()
+        cmd.extend(["-v", f"{src_dir}:/workspace/src"])
+        logger.info("Dev mode: mounting %s -> /workspace/src", src_dir)
 
     # Extra volumes from config
     for vol in docker_cfg.volumes:
@@ -254,6 +278,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         _run_via_docker(
             config,
             auto_yes=getattr(args, "yes", False),
+            dev=getattr(args, "dev", False),
             shard_id=shard_id,
             num_shards=num_shards,
         )
@@ -692,6 +717,9 @@ execution flow:
         "--cpus",
         default=None,
         help="CPU range for benchmark containers, e.g. '0-31' (overrides docker.cpus in config)",
+    )
+    run_parser.add_argument(
+        "--dev", action="store_true", help="Mount local src/ into the container (skip image rebuild on code changes)"
     )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
