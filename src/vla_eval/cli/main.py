@@ -500,7 +500,9 @@ def cmd_test(args: argparse.Namespace) -> None:
             try:
                 workers = min(int(args.parallel), len(gpu_ids))
             except ValueError:
-                print(f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr)
+                print(
+                    f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr
+                )
                 sys.exit(1)
         if workers > 1:
             gpu_queue = queue.Queue()
