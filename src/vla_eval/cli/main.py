@@ -443,35 +443,28 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 benchmark_tests.append(t)
     else:
-        # Category flags with optional name filter
+        # Normalize: --server/--benchmark with no value → all; None → not requested
+        server_name = None if args.server is None else (args.server if args.server != "*" else None)
+        benchmark_name = None if args.benchmark is None else (args.benchmark if args.benchmark != "*" else None)
         has_filter = args.validate_only or args.server is not None or args.benchmark is not None
-        do_validate = not has_filter or args.validate_only
-        do_server = not has_filter or args.server is not None
-        do_benchmark = not has_filter or args.benchmark is not None
 
-        validate_tests = discover_validate_tests() if do_validate else []
+        validate_tests = discover_validate_tests() if (not has_filter or args.validate_only) else []
 
-        if do_server:
-            if args.server and args.server != "*":
-                if args.server not in SERVER_REGISTRY:
-                    names = ", ".join(SERVER_REGISTRY.keys())
-                    print(f"ERROR: unknown server '{args.server}'. Available: {names}", file=sys.stderr)
-                    sys.exit(1)
-                server_tests = [t for t in discover_server_tests() if t.name == args.server]
-            else:
-                server_tests = discover_server_tests()
+        if not has_filter or args.server is not None:
+            if server_name and server_name not in SERVER_REGISTRY:
+                names = ", ".join(SERVER_REGISTRY.keys())
+                print(f"ERROR: unknown server '{server_name}'. Available: {names}", file=sys.stderr)
+                sys.exit(1)
+            server_tests = discover_server_tests(name=server_name)
         else:
             server_tests = []
 
-        if do_benchmark:
-            if args.benchmark and args.benchmark != "*":
-                if args.benchmark not in BENCHMARK_REGISTRY:
-                    names = ", ".join(BENCHMARK_REGISTRY.keys())
-                    print(f"ERROR: unknown benchmark '{args.benchmark}'. Available: {names}", file=sys.stderr)
-                    sys.exit(1)
-                benchmark_tests = [t for t in discover_benchmark_tests() if t.name == args.benchmark]
-            else:
-                benchmark_tests = discover_benchmark_tests()
+        if not has_filter or args.benchmark is not None:
+            if benchmark_name and benchmark_name not in BENCHMARK_REGISTRY:
+                names = ", ".join(BENCHMARK_REGISTRY.keys())
+                print(f"ERROR: unknown benchmark '{benchmark_name}'. Available: {names}", file=sys.stderr)
+                sys.exit(1)
+            benchmark_tests = discover_benchmark_tests(name=benchmark_name)
         else:
             benchmark_tests = []
 
