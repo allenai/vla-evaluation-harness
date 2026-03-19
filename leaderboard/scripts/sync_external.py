@@ -11,8 +11,10 @@ import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
+from typing import NamedTuple
 
 RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
 
@@ -214,17 +216,17 @@ def sync_roboarena(data: dict) -> list[str]:
 # Adding a new source: define a sync_*() function above, then add an entry here.
 # CLI --source choices, PR title/body, and --list-sources all derive from this.
 # ---------------------------------------------------------------------------
-SOURCES = {
-    "robochallenge": {
-        "display_name": "RoboChallenge",
-        "url": "https://robochallenge.ai/leaderboard",
-        "sync": sync_robochallenge,
-    },
-    "roboarena": {
-        "display_name": "RoboArena",
-        "url": "https://robo-arena.github.io/",
-        "sync": sync_roboarena,
-    },
+
+
+class Source(NamedTuple):
+    display_name: str
+    url: str
+    sync: Callable[[dict], list[str]]
+
+
+SOURCES: dict[str, Source] = {
+    "robochallenge": Source("RoboChallenge", "https://robochallenge.ai/leaderboard", sync_robochallenge),
+    "roboarena": Source("RoboArena", "https://robo-arena.github.io/", sync_roboarena),
 }
 
 
@@ -233,12 +235,12 @@ def _set_github_output(synced: list[str], num_changes: int) -> None:
     output_path = os.environ.get("GITHUB_OUTPUT")
     if not output_path:
         return
-    names = " + ".join(SOURCES[s]["display_name"] for s in synced)
+    names = " + ".join(SOURCES[s].display_name for s in synced)
     title = f"data: sync {names} scores"
     body_lines = ["Automated sync from external leaderboard APIs.", ""]
     for key in synced:
         src = SOURCES[key]
-        body_lines.append(f"- **{src['display_name']}**: {src['url']}")
+        body_lines.append(f"- **{src.display_name}**: {src.url}")
     body_lines.extend(["", f"{num_changes} change(s). Validation passed. Review the diff for new/updated entries."])
     with open(output_path, "a") as f:
         f.write(f"pr_title={title}\n")
@@ -255,7 +257,7 @@ def main():
     args = parser.parse_args()
 
     if args.list_sources:
-        info = {k: {"display_name": v["display_name"], "url": v["url"]} for k, v in SOURCES.items()}
+        info = {k: {"display_name": v.display_name, "url": v.url} for k, v in SOURCES.items()}
         print(json.dumps(info, indent=2))
         return
 
@@ -265,8 +267,8 @@ def main():
 
     for key in [args.source] if args.source else SOURCES:
         src = SOURCES[key]
-        print(f"Syncing {src['display_name']}...")
-        changes = src["sync"](data)
+        print(f"Syncing {src.display_name}...")
+        changes = src.sync(data)
         all_changes.extend(changes)
         if changes:
             synced.append(key)
