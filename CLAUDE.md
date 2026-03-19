@@ -22,6 +22,13 @@ make test          # uv run pytest
 # Single test
 uv run pytest tests/test_protocol.py -v
 uv run pytest tests/test_protocol.py::test_name -v
+
+# Smoke tests (model servers, benchmarks, config validation)
+make smoke                               # run all available smoke tests
+vla-eval test --list                     # show available tests + prerequisites
+vla-eval test --validate                 # validate all config import strings
+vla-eval test --server cogact            # smoke-test a specific model server
+vla-eval test --benchmark libero         # smoke-test benchmarks matching 'libero'
 ```
 
 Line length is **119** (configured in pyproject.toml for ruff and ty).
