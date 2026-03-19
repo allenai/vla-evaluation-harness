@@ -486,30 +486,31 @@ def cmd_test(args: argparse.Namespace) -> None:
     import queue
     import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    from contextlib import nullcontext
 
     from vla_eval.docker_resources import parse_gpus
 
     # --- resolve parallelism ---
-    gpu_ids: list[str] | None = None
+    gpu_queue: queue.Queue[str] | None = None
     if args.parallel is not None:
         gpu_ids = parse_gpus(None)  # auto-detect via nvidia-smi
         if args.parallel == "auto":
             workers = len(gpu_ids)
         else:
-            workers = min(int(args.parallel), len(gpu_ids))
-            gpu_ids = gpu_ids[:workers]
+            try:
+                workers = min(int(args.parallel), len(gpu_ids))
+            except ValueError:
+                print(f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr)
+                sys.exit(1)
+        if workers > 1:
+            gpu_queue = queue.Queue()
+            for gid in gpu_ids[:workers]:
+                gpu_queue.put(gid)
     else:
         workers = 1
 
-    # --- GPU slot pool ---
-    gpu_queue: queue.Queue[str] | None = None
-    if gpu_ids is not None and workers > 1:
-        gpu_queue = queue.Queue()
-        for gid in gpu_ids:
-            gpu_queue.put(gid)
-
     results: list[SmokeResult] = []
-    print_lock = threading.Lock()
+    print_lock = threading.Lock() if workers > 1 else nullcontext()
 
     def _record(r: SmokeResult) -> bool:
         """Record result, print progress, return True if should stop."""
@@ -535,10 +536,10 @@ def cmd_test(args: argparse.Namespace) -> None:
         return runner(test, timeout)
 
     def _run_parallel(tests: list[SmokeTest], runner) -> bool:
-        """Run tests with thread pool. Returns True if fail-fast triggered."""
+        """Run tests in parallel via thread pool, or sequentially if workers <= 1."""
         if workers <= 1:
             for t in tests:
-                r = runner(t, args.timeout)
+                r = _run_with_gpu(runner, t, args.timeout)
                 if _record(r):
                     return True
             return False
@@ -548,7 +549,7 @@ def cmd_test(args: argparse.Namespace) -> None:
             stopped = False
             for future in as_completed(futures):
                 if stopped:
-                    continue
+                    break
                 r = future.result()
                 if _record(r):
                     stopped = True
