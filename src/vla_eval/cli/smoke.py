@@ -390,53 +390,48 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
     t0 = time.monotonic()
 
     async def _run() -> dict:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
+        proc = await anyio.open_process(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         stderr_chunks: list[bytes] = []
 
         async def _drain_stderr() -> None:
-            assert proc.stderr
+            assert proc.stderr is not None
             async for chunk in proc.stderr:
                 stderr_chunks.append(chunk)
 
-        drain_task = asyncio.create_task(_drain_stderr())
-
         try:
-            url = f"ws://127.0.0.1:{port}"
-            deadline = time.monotonic() + timeout
-            while time.monotonic() < deadline:
-                if proc.returncode is not None:
-                    await drain_task
-                    stderr = b"".join(stderr_chunks).decode(errors="replace")
-                    raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
-                try:
-                    with anyio.fail_after(1.0):
-                        stream = await anyio.connect_tcp("127.0.0.1", port)
-                        await stream.aclose()
-                    break
-                except (OSError, TimeoutError):
-                    await anyio.sleep(1.0)
-            else:
-                raise TimeoutError(f"Model server did not start within {timeout}s")
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(_drain_stderr)
 
-            benchmark = _make_stub_benchmark(task)
-            runner = SyncEpisodeRunner()
-            async with Connection(url) as conn:
-                return await runner.run_episode(benchmark, task, conn, max_steps=50)
+                url = f"ws://127.0.0.1:{port}"
+                deadline = time.monotonic() + timeout
+                while time.monotonic() < deadline:
+                    if proc.returncode is not None:
+                        tg.cancel_scope.cancel()
+                        stderr = b"".join(stderr_chunks).decode(errors="replace")
+                        raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
+                    try:
+                        with anyio.fail_after(1.0):
+                            stream = await anyio.connect_tcp("127.0.0.1", port)
+                            await stream.aclose()
+                        break
+                    except (OSError, TimeoutError):
+                        await anyio.sleep(1.0)
+                else:
+                    raise TimeoutError(f"Model server did not start within {timeout}s")
+
+                benchmark = _make_stub_benchmark(task)
+                runner = SyncEpisodeRunner()
+                async with Connection(url) as conn:
+                    result = await runner.run_episode(benchmark, task, conn, max_steps=50)
+                tg.cancel_scope.cancel()
+                return result
         finally:
-            try:
-                proc.terminate()
-            except ProcessLookupError:
-                pass
+            proc.terminate()
             try:
                 with anyio.fail_after(10):
                     await proc.wait()
             except TimeoutError:
                 proc.kill()
-            drain_task.cancel()
 
     try:
         result = anyio.run(_run)
