@@ -387,16 +387,16 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
     t0 = time.monotonic()
+    captured_stderr: list[bytes] = []  # shared with _run() closure
 
     async def _run() -> dict:
         env = {**os.environ, "CUDA_VISIBLE_DEVICES": gpu_id} if gpu_id is not None else None
         proc = await anyio.open_process(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env)
-        stderr_chunks: list[bytes] = []
 
         async def _drain_stderr() -> None:
             assert proc.stderr is not None
             async for chunk in proc.stderr:
-                stderr_chunks.append(chunk)
+                captured_stderr.append(chunk)
 
         try:
             async with anyio.create_task_group() as tg:
@@ -407,7 +407,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
                 while time.monotonic() < deadline:
                     if proc.returncode is not None:
                         tg.cancel_scope.cancel()
-                        stderr = b"".join(stderr_chunks).decode(errors="replace")
+                        stderr = b"".join(captured_stderr).decode(errors="replace")
                         raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
                     try:
                         with anyio.fail_after(1.0):
@@ -444,9 +444,14 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
             return SmokeResult(test, "fail", f"{steps} steps, success=False", dt)
     except Exception as e:
         dt = time.monotonic() - t0
-        err_lines = str(e).strip().splitlines()
-        tail = err_lines[-5:] if len(err_lines) > 5 else err_lines
-        msg = "\n    ".join(tail)
+        # Unwrap ExceptionGroup (anyio TaskGroup wraps errors)
+        cause = e.exceptions[0] if hasattr(e, "exceptions") else e
+        parts = [str(cause)]
+        stderr_text = b"".join(captured_stderr).decode(errors="replace").strip()
+        if stderr_text:
+            stderr_tail = stderr_text.splitlines()[-10:]
+            parts.append("stderr:\n    " + "\n    ".join(stderr_tail))
+        msg = "\n    ".join(parts)
         return SmokeResult(test, "fail", msg, dt)
 
 

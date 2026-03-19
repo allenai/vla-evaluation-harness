@@ -26,10 +26,11 @@ def _load_config(path: str) -> dict[str, Any]:
 def _setup_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
-        level=level,
+        level=logging.WARNING,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    logging.getLogger("vla_eval").setLevel(level)
 
 
 def _inside_docker() -> bool:
