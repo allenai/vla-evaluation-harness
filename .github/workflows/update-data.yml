@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
   workflow_dispatch:
+    inputs:
+      source:
+        description: 'External source to sync (leave empty for all)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -22,7 +27,13 @@ jobs:
         run: pip install jsonschema
 
       - name: Sync external leaderboards
-        run: python leaderboard/scripts/sync_external.py --apply
+        id: sync
+        run: |
+          SOURCE_ARG=""
+          if [ -n "${{ inputs.source }}" ]; then
+            SOURCE_ARG="--source ${{ inputs.source }}"
+          fi
+          python leaderboard/scripts/sync_external.py --apply $SOURCE_ARG
 
       - name: Fetch coverage and citations
         continue-on-error: true
@@ -39,14 +50,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'data: update leaderboard data'
-          title: 'data: update leaderboard data'
-          body: |
-            Automated weekly leaderboard data update.
-
-            - Synced external leaderboard scores
-            - Updated citation counts and coverage stats
-
-            Validation passed. Review the diff for new/updated entries.
+          title: "${{ steps.sync.outputs.pr_title || 'data: update leaderboard data' }}"
+          body: "${{ steps.sync.outputs.pr_body || 'Automated weekly leaderboard data update.\n\n- Synced external leaderboard scores\n- Updated citation counts and coverage stats\n\nValidation passed. Review the diff for new/updated entries.' }}"
           branch: update-leaderboard-data
           delete-branch: true
           labels: data
