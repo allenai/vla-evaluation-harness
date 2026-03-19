@@ -24,11 +24,12 @@ uv run pytest tests/test_protocol.py -v
 uv run pytest tests/test_protocol.py::test_name -v
 
 # Smoke tests (model servers, benchmarks, config validation)
-make smoke                               # run all available smoke tests
-vla-eval test --list                     # show available tests + prerequisites
-vla-eval test --validate                 # validate all config import strings
-vla-eval test --server cogact            # smoke-test a specific model server
-vla-eval test --benchmark libero         # smoke-test benchmarks matching 'libero'
+make smoke                                          # run all available smoke tests
+vla-eval test --list                                # show available tests + prerequisites
+vla-eval test --validate                            # validate all config import strings
+vla-eval test --server                              # smoke-test all model servers
+vla-eval test --benchmark                           # smoke-test all benchmarks
+vla-eval test -c configs/model_servers/cogact.yaml  # smoke-test a specific config
 ```
 
 Line length is **119** (configured in pyproject.toml for ruff and ty).

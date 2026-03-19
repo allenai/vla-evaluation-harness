@@ -160,7 +160,7 @@ which translates to: `uv run <script> --checkpoint <value> --chunk_size <value> 
 
 1. Run `make check` — lint + format + type check
 2. Run `make test` — ensure existing tests still pass
-3. Suggest user test: `vla-eval test --server <name>`
+3. Suggest user test: `vla-eval test -c configs/model_servers/<name>.yaml`
    (starts server, sends dummy observations from a StubBenchmark, checks for valid action response — requires `uv` + GPU + model weights)
 
 ### Reference Implementations
