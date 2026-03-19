@@ -443,7 +443,10 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
             return SmokeResult(test, "fail", f"{steps} steps, success=False", dt)
     except Exception as e:
         dt = time.monotonic() - t0
-        return SmokeResult(test, "fail", str(e), dt)
+        err_lines = str(e).strip().splitlines()
+        tail = err_lines[-5:] if len(err_lines) > 5 else err_lines
+        msg = "\n    ".join(tail)
+        return SmokeResult(test, "fail", msg, dt)
 
 
 # ---------------------------------------------------------------------------
@@ -566,7 +569,8 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
     try:
         if rc != 0:
             err_lines = result.stderr.strip().splitlines()
-            msg = err_lines[-1] if err_lines else f"exit code {rc}"
+            tail = err_lines[-5:] if err_lines else [f"exit code {rc}"]
+            msg = "\n    ".join(tail)
             return SmokeResult(test, "fail", msg, dt)
 
         json_files = _glob.glob(os.path.join(results_dir, "*.json"))
