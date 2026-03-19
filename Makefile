@@ -16,7 +16,7 @@ test:
 	uv run pytest
 
 smoke:
-	uv run vla-eval test
+	uv run vla-eval test --all
 
 smoke-list:
 	uv run vla-eval test --list
