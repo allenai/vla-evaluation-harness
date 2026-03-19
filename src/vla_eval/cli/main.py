@@ -483,19 +483,78 @@ def cmd_test(args: argparse.Namespace) -> None:
             print(f"Would run {total} test(s). Use without --dry-run to execute.")
         return
 
+    import queue
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from vla_eval.docker_resources import parse_gpus
+
+    # --- resolve parallelism ---
+    gpu_ids: list[str] | None = None
+    if args.parallel is not None:
+        gpu_ids = parse_gpus(None)  # auto-detect via nvidia-smi
+        if args.parallel == "auto":
+            workers = len(gpu_ids)
+        else:
+            workers = min(int(args.parallel), len(gpu_ids))
+            gpu_ids = gpu_ids[:workers]
+    else:
+        workers = 1
+
+    # --- GPU slot pool ---
+    gpu_queue: queue.Queue[str] | None = None
+    if gpu_ids is not None and workers > 1:
+        gpu_queue = queue.Queue()
+        for gid in gpu_ids:
+            gpu_queue.put(gid)
+
     results: list[SmokeResult] = []
+    print_lock = threading.Lock()
 
     def _record(r: SmokeResult) -> bool:
         """Record result, print progress, return True if should stop."""
-        results.append(r)
         sym = {
             "pass": "\u2713",
             "fail": "\u2717",
             "skip": "-",
         }.get(r.status, "?")
         dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
-        print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
+        with print_lock:
+            results.append(r)
+            print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
         return r.status == "fail" and args.fail_fast
+
+    def _run_with_gpu(runner, test, timeout):
+        """Acquire a GPU slot, run the test, release the slot."""
+        if gpu_queue is not None:
+            gid = gpu_queue.get()
+            try:
+                return runner(test, timeout, gpu_id=gid)
+            finally:
+                gpu_queue.put(gid)
+        return runner(test, timeout)
+
+    def _run_parallel(tests: list[SmokeTest], runner) -> bool:
+        """Run tests with thread pool. Returns True if fail-fast triggered."""
+        if workers <= 1:
+            for t in tests:
+                r = runner(t, args.timeout)
+                if _record(r):
+                    return True
+            return False
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_run_with_gpu, runner, t, args.timeout): t for t in tests}
+            stopped = False
+            for future in as_completed(futures):
+                if stopped:
+                    continue
+                r = future.result()
+                if _record(r):
+                    stopped = True
+                    for f in futures:
+                        f.cancel()
+            return stopped
 
     # --- validate ---
     if validate_tests:
@@ -513,12 +572,11 @@ def cmd_test(args: argparse.Namespace) -> None:
             for t in server_tests:
                 results.append(SmokeResult(t, "skip", uv_msg))
         else:
-            print(f"Running {len(server_tests)} server test(s)...")
-            for t in server_tests:
-                r = run_server_test(t, args.timeout)
-                if _record(r):
-                    print_report(results)
-                    return
+            par = f", {workers} parallel" if workers > 1 else ""
+            print(f"Running {len(server_tests)} server test(s){par}...")
+            if _run_parallel(server_tests, run_server_test):
+                print_report(results)
+                return
 
     # --- benchmark (prerequisite: docker) ---
     if benchmark_tests:
@@ -528,12 +586,11 @@ def cmd_test(args: argparse.Namespace) -> None:
             for t in benchmark_tests:
                 results.append(SmokeResult(t, "skip", docker_msg))
         else:
-            print(f"Running {len(benchmark_tests)} benchmark test(s)...")
-            for t in benchmark_tests:
-                r = run_benchmark_test(t, args.timeout)
-                if _record(r):
-                    print_report(results)
-                    return
+            par = f", {workers} parallel" if workers > 1 else ""
+            print(f"Running {len(benchmark_tests)} benchmark test(s){par}...")
+            if _run_parallel(benchmark_tests, run_benchmark_test):
+                print_report(results)
+                return
 
     if not results:
         print("No tests to run. Use --list to see available tests.", file=sys.stderr)
@@ -677,6 +734,8 @@ examples:
   vla-eval test                                     validate configs (fast, default)
   vla-eval test --all                               run all categories
   vla-eval test --all -x                            run all, stop at first failure
+  vla-eval test --server --parallel                 test servers in parallel (one per GPU)
+  vla-eval test --server --parallel 2               test servers, max 2 at a time
   vla-eval test --list                              show available tests
   vla-eval test --server                            test all model servers
   vla-eval test --server cogact                     test a specific server by registry name
@@ -699,6 +758,14 @@ examples:
         "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
     )
     test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument(
+        "--parallel",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="N",
+        help="Run server/benchmark tests in parallel (default: one per GPU, auto-detected)",
+    )
     test_parser.add_argument("-x", "--fail-fast", action="store_true", help="Stop at first failure")
     test_parser.add_argument("--verbose", "-v", action="store_true")
     test_parser.set_defaults(func=cmd_test)
