@@ -569,6 +569,56 @@ def cmd_test_benchmark(args: argparse.Namespace) -> None:
         print("✅ Benchmark test completed (no result file — check benchmark output above)")
 
 
+def cmd_test(args: argparse.Namespace) -> None:
+    """Run smoke tests across CLI commands."""
+    from vla_eval.cli.smoke import (
+        discover_benchmark_tests,
+        discover_server_tests,
+        discover_validate_tests,
+        print_list,
+        print_report,
+        run_benchmark_test,
+        run_server_test,
+        run_validate,
+    )
+
+    # Which categories to run
+    run_all = not args.validate_only and args.server is None and args.benchmark is None
+    do_validate = run_all or args.validate_only
+    do_server = run_all or args.server is not None
+    do_benchmark = run_all or args.benchmark is not None
+
+    # Discover tests
+    validate_tests = discover_validate_tests() if do_validate else []
+    server_tests = discover_server_tests(args.server) if do_server else []
+    benchmark_tests = discover_benchmark_tests(args.benchmark) if do_benchmark else []
+
+    if args.list or args.dry_run:
+        print_list(validate_tests, server_tests, benchmark_tests)
+        if args.dry_run and not args.list:
+            # Show what would run (vs --list which shows all regardless)
+            total = len(validate_tests) + len(server_tests) + len(benchmark_tests)
+            print(f"Would run {total} test(s). Use without --dry-run to execute.")
+        return
+
+    results = []
+
+    if validate_tests:
+        results.append(run_validate(validate_tests))
+
+    for t in server_tests:
+        results.append(run_server_test(t, args.timeout))
+
+    for t in benchmark_tests:
+        results.append(run_benchmark_test(t))
+
+    if not results:
+        print("No tests to run. Use --list to see available tests.", file=sys.stderr)
+        sys.exit(1)
+
+    print_report(results)
+
+
 def cmd_test_server(args: argparse.Namespace) -> None:
     """Smoke-test a model server: launch it via uv run, run StubBenchmark for 1 episode."""
     import shutil
@@ -903,6 +953,52 @@ Verifies that a model server starts and responds to observations.
     ts_parser.add_argument("--timeout", "-t", type=int, default=300, help="Seconds to wait for server startup")
     ts_parser.add_argument("--verbose", "-v", action="store_true")
     ts_parser.set_defaults(func=cmd_test_server)
+
+    # test command (umbrella smoke tests)
+    test_parser = sub.add_parser(
+        "test",
+        help="Run smoke tests across all CLI commands",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Discovers configs, checks resource prerequisites, and runs smoke tests.
+
+  categories:
+    validate   — resolve import strings in all benchmark configs (fast, no deps)
+    server     — run test-server for each model server config (needs uv + model + GPU)
+    benchmark  — run test-benchmark for each benchmark config (needs Docker + image + GPU)
+
+  By default, runs all categories. Use flags to select specific ones.
+
+examples:
+  vla-eval test --list                     show available tests + readiness
+  vla-eval test --validate                 validate all benchmark configs
+  vla-eval test --server cogact            test model servers matching 'cogact'
+  vla-eval test --benchmark libero         test benchmarks matching 'libero'
+  vla-eval test --dry-run                  preview what would run
+""",
+    )
+    test_parser.add_argument("--list", action="store_true", help="Show available tests and prerequisites")
+    test_parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
+    test_parser.add_argument("--validate", dest="validate_only", action="store_true", help="Validate configs only")
+    test_parser.add_argument(
+        "--server",
+        nargs="?",
+        const="*",
+        default=None,
+        metavar="NAME",
+        help="Run server smoke tests (optional name filter, e.g. 'cogact')",
+    )
+    test_parser.add_argument(
+        "--benchmark",
+        nargs="?",
+        const="*",
+        default=None,
+        metavar="NAME",
+        help="Run benchmark smoke tests (optional name filter, e.g. 'libero')",
+    )
+    test_parser.add_argument("--timeout", type=int, default=300, help="Server startup timeout in seconds")
+    test_parser.add_argument("--verbose", "-v", action="store_true")
+    test_parser.set_defaults(func=cmd_test)
 
     args = parser.parse_args()
     _setup_logging(getattr(args, "verbose", False))
