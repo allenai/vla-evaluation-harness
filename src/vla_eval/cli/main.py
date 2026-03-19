@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import logging
 import os
 import sys
@@ -11,22 +12,18 @@ from typing import Any
 
 import yaml
 
-from rich.console import Console
-
 from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
 
 logger = logging.getLogger(__name__)
 
-_stderr_con: Console | None = None
 
+@functools.cache
+def _stderr_console():
+    """Return a shared Console that writes to stderr (lazy import)."""
+    from rich.console import Console
 
-def _stderr_console() -> Console:
-    """Return a shared Console that writes to stderr."""
-    global _stderr_con  # noqa: PLW0603
-    if _stderr_con is None:
-        _stderr_con = Console(stderr=True, highlight=False)
-    return _stderr_con
+    return Console(stderr=True, highlight=False)
 
 
 def _load_config(path: str) -> dict[str, Any]:
@@ -553,7 +550,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         workers = 1
 
     from vla_eval.cli.smoke import REPO_ROOT as _REPO_ROOT
-    from vla_eval.cli.smoke import console
+    from vla_eval.cli.smoke import _SYM, console
 
     results: list[SmokeResult] = []
     print_lock = threading.Lock() if workers > 1 else nullcontext()
@@ -567,15 +564,9 @@ def cmd_test(args: argparse.Namespace) -> None:
             log_dir.mkdir(parents=True, exist_ok=True)
         return log_dir
 
-    _SYM_INLINE = {
-        "pass": "[green]\u2713[/green]",
-        "fail": "[red]\u2717[/red]",
-        "skip": "[yellow]-[/yellow]",
-    }
-
     def _record(r: SmokeResult) -> bool:
         """Record result, print progress, save log on failure."""
-        sym = _SYM_INLINE.get(r.status, "?")
+        sym = _SYM.get(r.status, "?")
         dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
         log_path: Path | None = None
         if r.status == "fail" and r.stderr:
