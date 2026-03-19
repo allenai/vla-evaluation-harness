@@ -7,11 +7,14 @@ Default is dry-run (prints changes). Use --apply to write.
 
 import argparse
 import json
+import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
+from typing import NamedTuple
 
 RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
 
@@ -208,22 +211,64 @@ def sync_roboarena(data: dict) -> list[str]:
     return changes
 
 
+# ---------------------------------------------------------------------------
+# Source registry — single source of truth for available external leaderboards.
+# Adding a new source: define a sync_*() function above, then add an entry here.
+# CLI --source choices, PR title/body, and --list-sources all derive from this.
+# ---------------------------------------------------------------------------
+
+
+class Source(NamedTuple):
+    display_name: str
+    url: str
+    sync: Callable[[dict], list[str]]
+
+
+SOURCES: dict[str, Source] = {
+    "robochallenge": Source("RoboChallenge", "https://robochallenge.ai/leaderboard", sync_robochallenge),
+    "roboarena": Source("RoboArena", "https://robo-arena.github.io/", sync_roboarena),
+}
+
+
+def _set_github_output(synced: list[str], num_changes: int) -> None:
+    """Write sync summary to $GITHUB_OUTPUT for the CI workflow."""
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if not output_path:
+        return
+    lines = []
+    for key in synced:
+        src = SOURCES[key]
+        lines.append(f"- **{src.display_name}**: {src.url}")
+    lines.append(f"- {num_changes} change(s)")
+    with open(output_path, "a") as f:
+        f.write("sync_summary<<GITHUB_OUTPUT_EOF\n")
+        f.write("\n".join(lines) + "\n")
+        f.write("GITHUB_OUTPUT_EOF\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sync external leaderboard APIs into results.json.")
     parser.add_argument("--apply", action="store_true", help="Write changes (default is dry-run)")
-    parser.add_argument("--source", choices=["robochallenge", "roboarena"], help="Sync only one source")
+    parser.add_argument("--source", choices=SOURCES, help="Sync only one source")
+    parser.add_argument("--list-sources", action="store_true", help="Print available sources as JSON and exit")
     args = parser.parse_args()
+
+    if args.list_sources:
+        info = {k: {"display_name": v.display_name, "url": v.url} for k, v in SOURCES.items()}
+        print(json.dumps(info, indent=2))
+        return
 
     data = json.loads(RESULTS_PATH.read_text())
     all_changes = []
+    synced = []
 
-    if args.source in (None, "robochallenge"):
-        print("Syncing RoboChallenge...")
-        all_changes.extend(sync_robochallenge(data))
-
-    if args.source in (None, "roboarena"):
-        print("Syncing RoboArena...")
-        all_changes.extend(sync_roboarena(data))
+    for key in [args.source] if args.source else SOURCES:
+        src = SOURCES[key]
+        print(f"Syncing {src.display_name}...")
+        changes = src.sync(data)
+        all_changes.extend(changes)
+        if changes:
+            synced.append(key)
 
     if not all_changes:
         print("No changes.")
@@ -238,6 +283,7 @@ def main():
         data["last_updated"] = date.today().isoformat()
         RESULTS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         print(f"\nWritten to {RESULTS_PATH}")
+        _set_github_output(synced, len(all_changes))
     else:
         print("\nDry-run. Use --apply to write changes.")
 
