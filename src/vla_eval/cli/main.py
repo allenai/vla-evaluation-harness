@@ -477,10 +477,11 @@ def cmd_test(args: argparse.Namespace) -> None:
         benchmark_name = None if args.benchmark is None else (args.benchmark if args.benchmark != "*" else None)
         has_filter = args.all or args.validate_only or args.server is not None or args.benchmark is not None
 
-        # Default (no flags) → validate only; --all → everything
-        run_validate_flag = args.all or args.validate_only or not has_filter
-        run_server_flag = args.all or args.server is not None
-        run_benchmark_flag = args.all or args.benchmark is not None
+        # --list/--dry-run always discover everything; otherwise default to validate only
+        show_all = args.list or args.dry_run
+        run_validate_flag = show_all or args.all or args.validate_only or not has_filter
+        run_server_flag = show_all or args.all or args.server is not None
+        run_benchmark_flag = show_all or args.all or args.benchmark is not None
 
         validate_tests = discover_validate_tests() if run_validate_flag else []
 
