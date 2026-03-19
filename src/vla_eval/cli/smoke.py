@@ -445,7 +445,8 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     except Exception as e:
         dt = time.monotonic() - t0
         # Unwrap ExceptionGroup (anyio TaskGroup wraps errors)
-        cause = e.exceptions[0] if hasattr(e, "exceptions") else e
+        sub_exceptions = getattr(e, "exceptions", None)
+        cause = sub_exceptions[0] if sub_exceptions else e
         parts = [str(cause)]
         stderr_text = b"".join(captured_stderr).decode(errors="replace").strip()
         if stderr_text:
