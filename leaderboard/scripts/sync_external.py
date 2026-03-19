@@ -231,21 +231,18 @@ SOURCES: dict[str, Source] = {
 
 
 def _set_github_output(synced: list[str], num_changes: int) -> None:
-    """Write PR metadata to $GITHUB_OUTPUT for the CI workflow."""
+    """Write sync summary to $GITHUB_OUTPUT for the CI workflow."""
     output_path = os.environ.get("GITHUB_OUTPUT")
     if not output_path:
         return
-    names = " + ".join(SOURCES[s].display_name for s in synced)
-    title = f"data: sync {names} scores"
-    body_lines = ["Automated sync from external leaderboard APIs.", ""]
+    lines = []
     for key in synced:
         src = SOURCES[key]
-        body_lines.append(f"- **{src.display_name}**: {src.url}")
-    body_lines.extend(["", f"{num_changes} change(s). Validation passed. Review the diff for new/updated entries."])
+        lines.append(f"- **{src.display_name}**: {src.url}")
+    lines.append(f"- {num_changes} change(s)")
     with open(output_path, "a") as f:
-        f.write(f"pr_title={title}\n")
-        f.write("pr_body<<GITHUB_OUTPUT_EOF\n")
-        f.write("\n".join(body_lines) + "\n")
+        f.write("sync_summary<<GITHUB_OUTPUT_EOF\n")
+        f.write("\n".join(lines) + "\n")
         f.write("GITHUB_OUTPUT_EOF\n")
 
 

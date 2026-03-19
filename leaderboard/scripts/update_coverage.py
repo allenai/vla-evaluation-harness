@@ -9,6 +9,7 @@ Writes coverage data to leaderboard/data/coverage.json for display on the leader
 
 import argparse
 import json
+import os
 import re
 import time
 import urllib.error
@@ -139,6 +140,17 @@ def main():
 
     COVERAGE_PATH.write_text(json.dumps(coverage, indent=2) + "\n")
     print(f"\nCoverage written to {COVERAGE_PATH}")
+
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        summary = (
+            f"- {len(coverage['benchmarks'])} benchmarks, "
+            f"{coverage['total_models']} models, "
+            f"{coverage['total_results']} results, "
+            f"{coverage['total_papers_reviewed']} papers reviewed"
+        )
+        with open(output_path, "a") as f:
+            f.write(f"coverage_summary={summary}\n")
 
 
 if __name__ == "__main__":

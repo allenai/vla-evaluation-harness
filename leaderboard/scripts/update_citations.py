@@ -126,6 +126,12 @@ def main():
     CITATIONS_PATH.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
     print(f"Wrote {len(papers)} citation entries to {CITATIONS_PATH}")
 
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        summary = f"- {len(papers)} papers, {len(results_data['results'])} results"
+        with open(output_path, "a") as f:
+            f.write(f"citations_summary={summary}\n")
+
 
 if __name__ == "__main__":
     main()
