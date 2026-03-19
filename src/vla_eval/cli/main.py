@@ -567,7 +567,8 @@ def cmd_test(args: argparse.Namespace) -> None:
                     return True
             return False
 
-        with ThreadPoolExecutor(max_workers=workers) as pool:
+        pool = ThreadPoolExecutor(max_workers=workers)
+        try:
             futures = {pool.submit(_run_with_gpu, runner, t, args.timeout): t for t in tests}
             stopped = False
             for future in as_completed(futures):
@@ -579,6 +580,13 @@ def cmd_test(args: argparse.Namespace) -> None:
                     for f in futures:
                         f.cancel()
             return stopped
+        except KeyboardInterrupt:
+            for f in futures:
+                f.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
+        else:
+            pool.shutdown(wait=True)
 
     stopped = False
     try:
