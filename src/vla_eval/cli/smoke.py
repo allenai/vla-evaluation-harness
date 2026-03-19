@@ -24,12 +24,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from rich.console import Console
 
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+console = Console(highlight=False)
 CONFIGS_DIR = REPO_ROOT / "configs"
 
 logger = logging.getLogger(__name__)
@@ -610,7 +612,11 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
 # Reporting
 # ---------------------------------------------------------------------------
 
-_SYM = {"pass": "\u2713", "fail": "\u2717", "skip": "-"}
+_SYM = {"pass": "[green]\u2713[/green]", "fail": "[red]\u2717[/red]", "skip": "[yellow]-[/yellow]"}
+
+
+def _prereq_str(ok: bool, label: str, msg: str) -> str:
+    return f"{label} [green]ok[/green]" if ok else f"{label} [red]{msg}[/red]"
 
 
 def print_list(
@@ -619,29 +625,29 @@ def print_list(
     benchmark_tests: list[SmokeTest],
 ) -> None:
     """Print inventory of available smoke tests with prerequisite status."""
-    print("\nvla-eval smoke test inventory")
-    print("=" * 40)
+    console.print("\n[bold]vla-eval smoke test inventory[/bold]")
+    console.print("=" * 40)
 
     # Validate
-    print(f"\nVALIDATE -- import string resolution ({len(validate_tests)} benchmark configs)")
+    console.print(f"\n[bold]VALIDATE[/bold] -- import string resolution ({len(validate_tests)} benchmark configs)")
     if validate_tests:
-        print("  All configs can be validated.")
+        console.print("  All configs can be validated.")
 
     # Server
     uv_ok, uv_msg = check_uv()
-    print(f"\nSERVER -- model weights + GPU ({len(server_tests)} configs)")
+    console.print(f"\n[bold]SERVER[/bold] -- model weights + GPU ({len(server_tests)} configs)")
     if not uv_ok:
-        print(f"  prerequisite: {uv_msg}")
+        console.print(f"  prerequisite: [red]{uv_msg}[/red]")
     if server_tests:
         w = max(len(t.name) for t in server_tests) + 2
         for t in server_tests:
-            print(f"  {t.name:<{w}s}{t.description}")
+            console.print(f"  {t.name:<{w}s}{t.description}")
 
     # Benchmark — check each unique image once
     docker_ok, docker_msg = check_docker()
-    print(f"\nBENCHMARK -- Docker + GPU ({len(benchmark_tests)} configs)")
+    console.print(f"\n[bold]BENCHMARK[/bold] -- Docker + GPU ({len(benchmark_tests)} configs)")
     if not docker_ok:
-        print(f"  prerequisite: {docker_msg}")
+        console.print(f"  prerequisite: [red]{docker_msg}[/red]")
     if benchmark_tests:
         # Cache image status to avoid repeated `docker image inspect` calls
         image_status: dict[str, tuple[bool, str]] = {}
@@ -657,42 +663,49 @@ def print_list(
         for t in benchmark_tests:
             if t.image:
                 ok, msg = image_status[t.image]
-                status = f"[{msg}]"
+                status = f"[green]\\[{msg}][/green]" if ok else f"[red]\\[{msg}][/red]"
             else:
-                status = "[no image]"
-            print(f"  {t.name:<{w}s}{t.description:<{dw}s}{status}")
+                status = "[red]\\[no image][/red]"
+            console.print(f"  {t.name:<{w}s}{t.description:<{dw}s}{status}")
 
         # Summary
         pulled = sum(1 for ok, _ in image_status.values() if ok)
-        print(f"\nPrerequisites: uv {'ok' if uv_ok else uv_msg}  |  docker {'ok' if docker_ok else docker_msg}")
-        print(f"  {pulled} of {len(image_status)} unique Docker images pulled")
+        console.print(
+            f"\nPrerequisites: {_prereq_str(uv_ok, 'uv', uv_msg)}  |  {_prereq_str(docker_ok, 'docker', docker_msg)}"
+        )
+        console.print(f"  {pulled} of {len(image_status)} unique Docker images pulled")
     else:
-        print(f"\nPrerequisites: uv {'ok' if uv_ok else uv_msg}  |  docker {'ok' if docker_ok else docker_msg}")
-    print()
+        console.print(
+            f"\nPrerequisites: {_prereq_str(uv_ok, 'uv', uv_msg)}  |  {_prereq_str(docker_ok, 'docker', docker_msg)}"
+        )
+    console.print()
 
 
 def print_report(results: list[SmokeResult]) -> None:
     """Print execution report with pass/fail/skip counts."""
-    print("\nvla-eval smoke tests")
-    print("=" * 40)
+    console.print("\n[bold]vla-eval smoke tests[/bold]")
+    console.print("=" * 40)
 
     current_cat = ""
     for r in results:
         if r.test.category != current_cat:
             current_cat = r.test.category
-            print(f"\n{current_cat.upper()}")
+            console.print(f"\n[bold]{current_cat.upper()}[/bold]")
         sym = _SYM.get(r.status, "?")
         name = r.test.name
         dur = f"{r.duration:.1f}s" if r.duration > 0 else ""
-        print(f"  {sym} {name:<24s}{r.message:<44s}{dur:>8s}")
+        console.print(f"  {sym} {name:<24s}{r.message:<44s}{dur:>8s}")
 
     passed = sum(1 for r in results if r.status == "pass")
     failed = sum(1 for r in results if r.status == "fail")
     skipped = sum(1 for r in results if r.status == "skip")
     total_time = sum(r.duration for r in results)
 
-    print(f"\n{'=' * 40}")
-    print(f"Results: {passed} passed, {failed} failed, {skipped} skipped    total: {total_time:.1f}s\n")
+    console.print(f"\n{'=' * 40}")
+    console.print(
+        f"Results: [green]{passed} passed[/green], [red]{failed} failed[/red], "
+        f"[yellow]{skipped} skipped[/yellow]    total: {total_time:.1f}s\n"
+    )
 
     if failed > 0:
         sys.exit(1)
