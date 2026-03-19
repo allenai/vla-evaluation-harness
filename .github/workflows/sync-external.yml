@@ -5,13 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source to sync (leave empty for both)'
+        description: 'Source to sync (leave empty for all)'
         required: false
-        type: choice
-        options:
-          - ''
-          - robochallenge
-          - roboarena
+        type: string
 
 permissions:
   contents: write
@@ -31,6 +27,7 @@ jobs:
         run: pip install jsonschema
 
       - name: Sync external APIs
+        id: sync
         run: |
           SOURCE_ARG=""
           if [ -n "${{ inputs.source }}" ]; then
@@ -45,14 +42,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'data: sync external leaderboard scores'
-          title: 'data: sync RoboChallenge + RoboArena scores'
-          body: |
-            Automated sync from external leaderboard APIs.
-
-            - **RoboChallenge**: https://robochallenge.ai/leaderboard
-            - **RoboArena**: https://robo-arena.github.io/
-
-            Validation passed. Review the diff for new/updated entries.
+          title: ${{ steps.sync.outputs.pr_title || 'data: sync external leaderboard scores' }}
+          body: ${{ steps.sync.outputs.pr_body || 'Automated sync from external leaderboard APIs.' }}
           branch: sync-external-data
           delete-branch: true
           labels: data
