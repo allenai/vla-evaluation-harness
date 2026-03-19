@@ -411,7 +411,10 @@ def cmd_test(args: argparse.Namespace) -> None:
     from vla_eval.cli.smoke import (
         BENCHMARK_REGISTRY,
         SERVER_REGISTRY,
+        SmokeResult,
         SmokeTest,
+        check_docker,
+        check_uv,
         discover_benchmark_tests,
         discover_server_tests,
         discover_validate_tests,
@@ -480,16 +483,57 @@ def cmd_test(args: argparse.Namespace) -> None:
             print(f"Would run {total} test(s). Use without --dry-run to execute.")
         return
 
-    results = []
+    results: list[SmokeResult] = []
 
+    def _record(r: SmokeResult) -> bool:
+        """Record result, print progress, return True if should stop."""
+        results.append(r)
+        sym = {
+            "pass": "\u2713",
+            "fail": "\u2717",
+            "skip": "-",
+        }.get(r.status, "?")
+        dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
+        print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
+        return r.status == "fail" and args.fail_fast
+
+    # --- validate ---
     if validate_tests:
-        results.append(run_validate(validate_tests))
+        print("Running validate tests...")
+        r = run_validate(validate_tests)
+        if _record(r):
+            print_report(results)
+            return
 
-    for t in server_tests:
-        results.append(run_server_test(t, args.timeout))
+    # --- server (prerequisite: uv) ---
+    if server_tests:
+        uv_ok, uv_msg = check_uv()
+        if not uv_ok:
+            print(f"Skipping {len(server_tests)} server test(s): {uv_msg}")
+            for t in server_tests:
+                results.append(SmokeResult(t, "skip", uv_msg))
+        else:
+            print(f"Running {len(server_tests)} server test(s)...")
+            for t in server_tests:
+                r = run_server_test(t, args.timeout)
+                if _record(r):
+                    print_report(results)
+                    return
 
-    for t in benchmark_tests:
-        results.append(run_benchmark_test(t, args.timeout))
+    # --- benchmark (prerequisite: docker) ---
+    if benchmark_tests:
+        docker_ok, docker_msg = check_docker()
+        if not docker_ok:
+            print(f"Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}")
+            for t in benchmark_tests:
+                results.append(SmokeResult(t, "skip", docker_msg))
+        else:
+            print(f"Running {len(benchmark_tests)} benchmark test(s)...")
+            for t in benchmark_tests:
+                r = run_benchmark_test(t, args.timeout)
+                if _record(r):
+                    print_report(results)
+                    return
 
     if not results:
         print("No tests to run. Use --list to see available tests.", file=sys.stderr)
@@ -632,6 +676,7 @@ Discovers configs, checks resource prerequisites, and runs smoke tests.
 examples:
   vla-eval test                                     validate configs (fast, default)
   vla-eval test --all                               run all categories
+  vla-eval test --all -x                            run all, stop at first failure
   vla-eval test --list                              show available tests
   vla-eval test --server                            test all model servers
   vla-eval test --server cogact                     test a specific server by registry name
@@ -654,6 +699,7 @@ examples:
         "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
     )
     test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument("-x", "--fail-fast", action="store_true", help="Stop at first failure")
     test_parser.add_argument("--verbose", "-v", action="store_true")
     test_parser.set_defaults(func=cmd_test)
 
