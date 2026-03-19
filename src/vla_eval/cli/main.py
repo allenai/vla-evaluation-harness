@@ -409,6 +409,8 @@ def cmd_merge(args: argparse.Namespace) -> None:
 def cmd_test(args: argparse.Namespace) -> None:
     """Run smoke tests across CLI commands."""
     from vla_eval.cli.smoke import (
+        BENCHMARK_REGISTRY,
+        SERVER_REGISTRY,
         SmokeTest,
         discover_benchmark_tests,
         discover_server_tests,
@@ -421,7 +423,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         smoke_test_from_path,
     )
 
-    # Explicit config paths via -c take priority over category flags
+    # Explicit config paths via -c
     if args.config:
         validate_tests: list[SmokeTest] = []
         server_tests: list[SmokeTest] = []
@@ -441,11 +443,37 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 benchmark_tests.append(t)
     else:
-        # Category flags
-        run_all = not args.validate_only and not args.server and not args.benchmark
-        validate_tests = discover_validate_tests() if (run_all or args.validate_only) else []
-        server_tests = discover_server_tests() if (run_all or args.server) else []
-        benchmark_tests = discover_benchmark_tests() if (run_all or args.benchmark) else []
+        # Category flags with optional name filter
+        has_filter = args.validate_only or args.server is not None or args.benchmark is not None
+        do_validate = not has_filter or args.validate_only
+        do_server = not has_filter or args.server is not None
+        do_benchmark = not has_filter or args.benchmark is not None
+
+        validate_tests = discover_validate_tests() if do_validate else []
+
+        if do_server:
+            if args.server and args.server != "*":
+                if args.server not in SERVER_REGISTRY:
+                    names = ", ".join(SERVER_REGISTRY.keys())
+                    print(f"ERROR: unknown server '{args.server}'. Available: {names}", file=sys.stderr)
+                    sys.exit(1)
+                server_tests = [t for t in discover_server_tests() if t.name == args.server]
+            else:
+                server_tests = discover_server_tests()
+        else:
+            server_tests = []
+
+        if do_benchmark:
+            if args.benchmark and args.benchmark != "*":
+                if args.benchmark not in BENCHMARK_REGISTRY:
+                    names = ", ".join(BENCHMARK_REGISTRY.keys())
+                    print(f"ERROR: unknown benchmark '{args.benchmark}'. Available: {names}", file=sys.stderr)
+                    sys.exit(1)
+                benchmark_tests = [t for t in discover_benchmark_tests() if t.name == args.benchmark]
+            else:
+                benchmark_tests = discover_benchmark_tests()
+        else:
+            benchmark_tests = []
 
     if args.list or args.dry_run:
         print_list(validate_tests, server_tests, benchmark_tests)
@@ -606,8 +634,9 @@ examples:
   vla-eval test --list                              show available tests
   vla-eval test --validate                          validate all benchmark configs
   vla-eval test --server                            test all model servers
-  vla-eval test --benchmark                         test all benchmarks
-  vla-eval test -c configs/model_servers/cogact.yaml   test a specific config
+  vla-eval test --server cogact                     test a specific server by registry name
+  vla-eval test --benchmark libero                  test a specific benchmark by registry name
+  vla-eval test -c configs/model_servers/cogact.yaml   test an arbitrary config file
   vla-eval test --dry-run                           preview what would run
 """,
     )
@@ -617,8 +646,12 @@ examples:
     test_parser.add_argument("--list", action="store_true", help="Show available tests and prerequisites")
     test_parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
     test_parser.add_argument("--validate", dest="validate_only", action="store_true", help="Validate configs only")
-    test_parser.add_argument("--server", action="store_true", help="Run all server smoke tests")
-    test_parser.add_argument("--benchmark", action="store_true", help="Run all benchmark smoke tests")
+    test_parser.add_argument(
+        "--server", nargs="?", const="*", default=None, metavar="NAME", help="Server tests (exact registry name)"
+    )
+    test_parser.add_argument(
+        "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
+    )
     test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
     test_parser.add_argument("--verbose", "-v", action="store_true")
     test_parser.set_defaults(func=cmd_test)
