@@ -50,6 +50,7 @@ class SmokeResult:
     status: str  # "pass", "fail", "skip"
     message: str
     duration: float = 0.0
+    stderr: str = ""  # full stderr for failed tests (used for log files)
 
 
 # ---------------------------------------------------------------------------
@@ -453,7 +454,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
             stderr_tail = stderr_text.splitlines()[-10:]
             parts.append("stderr:\n    " + "\n    ".join(stderr_tail))
         msg = "\n    ".join(parts)
-        return SmokeResult(test, "fail", msg, dt)
+        return SmokeResult(test, "fail", msg, dt, stderr=stderr_text)
 
 
 # ---------------------------------------------------------------------------
@@ -591,7 +592,7 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
             err_lines = result.stderr.strip().splitlines()
             tail = err_lines[-5:] if err_lines else [f"exit code {rc}"]
             msg = "\n    ".join(tail)
-            return SmokeResult(test, "fail", msg, dt)
+            return SmokeResult(test, "fail", msg, dt, stderr=result.stderr)
 
         json_files = _glob.glob(os.path.join(results_dir, "*.json"))
         if json_files:
@@ -689,7 +690,19 @@ def print_report(results: list[SmokeResult]) -> None:
     total_time = sum(r.duration for r in results)
 
     print(f"\n{'=' * 40}")
-    print(f"Results: {passed} passed, {failed} failed, {skipped} skipped    total: {total_time:.1f}s\n")
+    print(f"Results: {passed} passed, {failed} failed, {skipped} skipped    total: {total_time:.1f}s")
 
+    # Save stderr logs for failed tests
+    failed_with_logs = [r for r in results if r.status == "fail" and r.stderr]
+    if failed_with_logs:
+        log_dir = REPO_ROOT / "results" / "smoke-logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        print(f"\nFailed test logs saved to: {log_dir}/")
+        for r in failed_with_logs:
+            log_path = log_dir / f"{r.test.category}_{r.test.name}.log"
+            log_path.write_text(r.stderr)
+            print(f"  {log_path.name}")
+
+    print()
     if failed > 0:
         sys.exit(1)
