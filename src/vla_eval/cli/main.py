@@ -140,7 +140,7 @@ def _resolve_dev_src() -> Path:
     # 1. CWD (running from repo root)
     cwd_src = Path.cwd() / "src"
     if (cwd_src / "vla_eval").is_dir():
-        return cwd_src
+        return cwd_src.resolve()
     # 2. Editable install: __file__ lives under src/vla_eval/
     import vla_eval
 
