@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any, Dict
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
 
 # ---------------------------------------------------------------------------
 # Wire protocol types
 # ---------------------------------------------------------------------------
 
-Observation: TypeAlias = dict[str, Any]
+Observation: TypeAlias = Dict[str, Any]
 """Observation dict passed from benchmark to model server over the wire.
 
 The structure is intentionally open — benchmarks decide what keys to include.
@@ -32,7 +35,7 @@ Example (LIBERO, ManiSkill, RoboCasa, …)::
     }
 """
 
-Action: TypeAlias = dict[str, Any]
+Action: TypeAlias = Dict[str, Any]
 """Action dict returned by the model server in response to an observation.
 
 Common practice:
@@ -40,7 +43,7 @@ Common practice:
         Raw action vector ``(action_dim,)`` or action chunk ``(chunk_size, action_dim)``.
 """
 
-Task: TypeAlias = dict[str, Any]
+Task: TypeAlias = Dict[str, Any]
 """Task descriptor returned by ``Benchmark.get_tasks()`` and threaded
 through the episode lifecycle (``start_episode``, ``make_obs``, runners).
 
@@ -49,7 +52,7 @@ Common practice:
     suite (str): Task suite / category grouping.
 """
 
-EpisodeResult: TypeAlias = dict[str, Any]
+EpisodeResult: TypeAlias = Dict[str, Any]
 """Episode result dict returned by ``Benchmark.get_result()``.
 
 At minimum contains ``{"success": bool}``.  Benchmarks may include
