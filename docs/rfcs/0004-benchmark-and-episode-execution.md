@@ -159,7 +159,7 @@ benchmarks:
       hold_policy: repeat_last
 ```
 
-The full config is saved alongside results for reproducibility. `vla-eval validate --config ...` checks that all `benchmark` import paths resolve to valid `Benchmark` subclasses.
+The full config is saved alongside results for reproducibility. `vla-eval test --validate` checks that all `benchmark` import paths resolve to valid `Benchmark` subclasses.
 
 ## Error Handling
 
