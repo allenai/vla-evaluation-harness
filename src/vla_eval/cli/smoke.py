@@ -670,14 +670,12 @@ def print_list(
 
         # Summary
         pulled = sum(1 for ok, _ in image_status.values() if ok)
-        console.print(
-            f"\nPrerequisites: {_prereq_str(uv_ok, 'uv', uv_msg)}  |  {_prereq_str(docker_ok, 'docker', docker_msg)}"
-        )
+
+    console.print(
+        f"\nPrerequisites: {_prereq_str(uv_ok, 'uv', uv_msg)}  |  {_prereq_str(docker_ok, 'docker', docker_msg)}"
+    )
+    if benchmark_tests:
         console.print(f"  {pulled} of {len(image_status)} unique Docker images pulled")
-    else:
-        console.print(
-            f"\nPrerequisites: {_prereq_str(uv_ok, 'uv', uv_msg)}  |  {_prereq_str(docker_ok, 'docker', docker_msg)}"
-        )
     console.print()
 
 
