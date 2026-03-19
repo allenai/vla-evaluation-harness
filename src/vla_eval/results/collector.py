@@ -96,16 +96,24 @@ class ResultCollector:
 
     def print_summary(self) -> None:
         """Print a human-readable summary table."""
+        from rich.console import Console
+
+        console = Console(highlight=False)
         result = self.get_benchmark_result()
-        print(f"\n{'=' * 60}")
-        print(f"Benchmark: {result['benchmark']} (mode: {result['mode']})")
-        print(f"{'=' * 60}")
+        rate = result["overall_success_rate"]
+        rate_color = "green" if rate >= 0.5 else "red"
+
+        console.print(f"\n{'=' * 60}")
+        console.print(f"[bold]Benchmark: {result['benchmark']}[/bold] (mode: {result['mode']})")
+        console.print(f"{'=' * 60}")
         for task in result["tasks"]:
             n = len(task["episodes"])
-            print(f"  {task['task']:40s} {task['success_rate']:6.1%} ({int(task['success_rate'] * n)}/{n})")
-        print(f"{'─' * 60}")
-        print(f"  {'Overall':40s} {result['overall_success_rate']:6.1%}")
-        print(f"{'=' * 60}\n")
+            tr = task["success_rate"]
+            tc = "green" if tr >= 0.5 else "red"
+            console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
+        console.print(f"{'─' * 60}")
+        console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+        console.print(f"{'=' * 60}\n")
 
     def to_json(self, config: dict[str, Any] | None = None) -> str:
         """Serialize benchmark result to JSON."""
