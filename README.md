@@ -71,6 +71,8 @@ vla-eval run --config configs/libero_smoke_test.yaml
 
 Results are saved to `results/` as JSON. The benchmark runs inside Docker by default — pass `--no-docker` for local development.
 
+### Full Evaluation
+
 For full evaluation (10 tasks × 50 episodes):
 
 ```bash

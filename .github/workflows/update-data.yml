@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
   workflow_dispatch:
+    inputs:
+      source:
+        description: 'External source to sync (leave empty for all)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -22,9 +27,16 @@ jobs:
         run: pip install jsonschema
 
       - name: Sync external leaderboards
-        run: python leaderboard/scripts/sync_external.py --apply
+        id: sync
+        run: |
+          SOURCE_ARG=""
+          if [ -n "${{ inputs.source }}" ]; then
+            SOURCE_ARG="--source ${{ inputs.source }}"
+          fi
+          python leaderboard/scripts/sync_external.py --apply $SOURCE_ARG
 
       - name: Fetch coverage and citations
+        id: stats
         continue-on-error: true
         env:
           SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
@@ -43,8 +55,14 @@ jobs:
           body: |
             Automated weekly leaderboard data update.
 
-            - Synced external leaderboard scores
-            - Updated citation counts and coverage stats
+            ### External leaderboards
+            ${{ steps.sync.outputs.sync_summary || '- No changes' }}
+
+            ### Citations
+            ${{ steps.stats.outputs.citations_summary || '- Skipped or unchanged' }}
+
+            ### Coverage
+            ${{ steps.stats.outputs.coverage_summary || '- Skipped or unchanged' }}
 
             Validation passed. Review the diff for new/updated entries.
           branch: update-leaderboard-data

@@ -22,6 +22,15 @@ make test          # uv run pytest
 # Single test
 uv run pytest tests/test_protocol.py -v
 uv run pytest tests/test_protocol.py::test_name -v
+
+# Smoke tests (model servers, benchmarks, config validation)
+vla-eval test                                       # validate configs only (fast, default)
+vla-eval test --all                                 # run all categories (validate + server + benchmark)
+vla-eval test --list                                # show available tests + prerequisites
+vla-eval test --server                              # smoke-test all model servers
+vla-eval test --benchmark                           # smoke-test all benchmarks
+vla-eval test -c configs/model_servers/cogact.yaml  # smoke-test a specific config
+make smoke                                          # shortcut for vla-eval test --all
 ```
 
 Line length is **119** (configured in pyproject.toml for ruff and ty).

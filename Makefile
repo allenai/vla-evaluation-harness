@@ -1,4 +1,4 @@
-.PHONY: lint format check test
+.PHONY: lint format check test smoke smoke-list
 
 lint:
 	uv run ruff check --fix
@@ -14,5 +14,11 @@ check:
 
 test:
 	uv run pytest
+
+smoke:
+	uv run vla-eval test --all
+
+smoke-list:
+	uv run vla-eval test --list
 
 all: lint check test

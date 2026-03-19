@@ -1,0 +1,10 @@
+# Ignore everything by default, then whitelist
+*
+!pyproject.toml
+!README.md
+!src/
+!configs/
+!docker/calvin_validation_data/
+!docker/init_states/
+!docker/*_entrypoint.sh
+

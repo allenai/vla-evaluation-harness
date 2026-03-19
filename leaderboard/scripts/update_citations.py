@@ -126,6 +126,13 @@ def main():
     CITATIONS_PATH.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
     print(f"Wrote {len(papers)} citation entries to {CITATIONS_PATH}")
 
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        changed = sum(1 for aid, count in papers.items() if cached_papers.get(aid) != count)
+        summary = f"- {changed} of {len(papers)} papers updated"
+        with open(output_path, "a") as f:
+            f.write(f"citations_summary={summary}\n")
+
 
 if __name__ == "__main__":
     main()

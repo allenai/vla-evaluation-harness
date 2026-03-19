@@ -48,23 +48,11 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
-RUN uv pip install --no-cache-dir gymnasium .
+RUN uv pip install --no-cache-dir gymnasium -e .
 COPY configs/ configs/
 
 # ── Entrypoint: start Xvfb then run vla-eval ──────────────────────
-# CoppeliaSim needs an X display even in headless mode
-COPY <<'EOF' /rlbench_entrypoint.sh
-#!/bin/bash
-set -e
-Xvfb :99 -screen 0 1280x1024x24 +extension GLX +render -noreset &
-export DISPLAY=:99
-sleep 2
-# Activate conda env directly instead of `conda run` — conda run waits
-# for all child processes (including CoppeliaSim) which prevents exit.
-eval "$(conda shell.bash hook 2>/dev/null)"
-conda activate rlbench
-vla-eval "$@"
-EOF
+COPY docker/rlbench_entrypoint.sh /rlbench_entrypoint.sh
 RUN chmod +x /rlbench_entrypoint.sh
 
 # tini reaps orphaned CoppeliaSim processes so the container exits cleanly

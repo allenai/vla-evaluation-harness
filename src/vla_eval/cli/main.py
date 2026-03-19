@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
+import functools
 import logging
 import os
-import subprocess as _subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,6 +18,14 @@ from vla_eval.orchestrator import Orchestrator
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
+def _stderr_console():
+    """Return a shared Console that writes to stderr (lazy import)."""
+    from rich.console import Console
+
+    return Console(stderr=True, highlight=False)
+
+
 def _load_config(path: str) -> dict[str, Any]:
     """Load YAML config file."""
     with open(path) as f:
@@ -28,10 +35,11 @@ def _load_config(path: str) -> dict[str, Any]:
 def _setup_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
-        level=level,
+        level=logging.WARNING,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    logging.getLogger("vla_eval").setLevel(level)
 
 
 def _inside_docker() -> bool:
@@ -91,9 +99,8 @@ def _check_docker_daemon(docker: str) -> None:
 
     result = subprocess.run([docker, "info"], capture_output=True)
     if result.returncode != 0:
-        print(
-            "ERROR: Docker daemon is not running.\n  Start it with: sudo systemctl start docker",
-            file=sys.stderr,
+        _stderr_console().print(
+            "[red]ERROR: Docker daemon is not running.[/red]\n  Start it with: sudo systemctl start docker",
         )
         sys.exit(1)
 
@@ -113,33 +120,49 @@ def _ensure_docker_image(docker: str, image: str, auto_yes: bool) -> None:
     if _image_exists_locally(docker, image):
         return
 
-    print(f"\n⚠  Docker image '{image}' not found locally.", file=sys.stderr)
-    print("   Benchmark images are typically large (tens of GB).", file=sys.stderr)
-    print("   This may take a while and use significant disk space.\n", file=sys.stderr)
+    con = _stderr_console()
+    con.print(f"\n[yellow]⚠  Docker image '{image}' not found locally.[/yellow]")
+    con.print("   Benchmark images are typically large (tens of GB).")
+    con.print("   This may take a while and use significant disk space.\n")
 
     if not auto_yes:
         if not sys.stdin.isatty():
-            print(
-                "ERROR: Cannot confirm in non-interactive mode. Use --yes to skip confirmation.",
-                file=sys.stderr,
-            )
+            con.print("[red]ERROR: Cannot confirm in non-interactive mode. Use --yes to skip confirmation.[/red]")
             sys.exit(1)
         answer = input("Proceed with docker pull? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
-            print("Aborted.", file=sys.stderr)
+            con.print("Aborted.")
             sys.exit(0)
 
-    print(f"Pulling {image} ...", file=sys.stderr)
+    con.print(f"Pulling {image} ...")
     ret = subprocess.call([docker, "pull", image])
     if ret != 0:
-        print(f"ERROR: docker pull failed (exit code {ret}).", file=sys.stderr)
+        con.print(f"[red]ERROR: docker pull failed (exit code {ret}).[/red]")
         sys.exit(1)
+
+
+def _resolve_dev_src() -> Path:
+    """Find the host ``src/`` directory for ``--dev`` bind-mount."""
+    # 1. CWD (running from repo root)
+    cwd_src = Path.cwd() / "src"
+    if (cwd_src / "vla_eval").is_dir():
+        return cwd_src.resolve()
+    # 2. Editable install: __file__ lives under src/vla_eval/
+    import vla_eval
+
+    pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
+    if pkg_parent.name == "src" and (pkg_parent / "vla_eval").is_dir():
+        return pkg_parent
+
+    print("ERROR: --dev: cannot find src/vla_eval/ in cwd or via editable install", file=sys.stderr)
+    sys.exit(1)
 
 
 def _run_via_docker(
     config: dict[str, Any],
     *,
     auto_yes: bool = False,
+    dev: bool = False,
     shard_id: int | None = None,
     num_shards: int | None = None,
 ) -> None:
@@ -148,14 +171,16 @@ def _run_via_docker(
 
     docker = shutil.which("docker")
     if docker is None:
-        print("ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/", file=sys.stderr)
+        _stderr_console().print(
+            "[red]ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/[/red]"
+        )
         sys.exit(1)
 
     _check_docker_daemon(docker)
 
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     if docker_cfg.image is None:
-        print("ERROR: 'docker.image' must be set in config", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
         sys.exit(1)
 
     _ensure_docker_image(docker, docker_cfg.image, auto_yes)
@@ -190,6 +215,12 @@ def _run_via_docker(
         "-v", f"{docker_config_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
+
+    # Dev mode: mount host src/ into container (requires editable install in image)
+    if dev:
+        src_dir = _resolve_dev_src()
+        cmd.extend(["-v", f"{src_dir}:/workspace/src"])
+        logger.info("Dev mode: mounting %s -> /workspace/src", src_dir)
 
     # Extra volumes from config
     for vol in docker_cfg.volumes:
@@ -226,15 +257,15 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Validate shard args
     if (shard_id is None) != (num_shards is None):
-        print("ERROR: --shard-id and --num-shards must be used together", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: --shard-id and --num-shards must be used together[/red]")
         sys.exit(1)
     if num_shards is not None:
         if num_shards < 1:
-            print("ERROR: --num-shards must be >= 1", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: --num-shards must be >= 1[/red]")
             sys.exit(1)
         assert shard_id is not None
         if shard_id < 0 or shard_id >= num_shards:
-            print(f"ERROR: --shard-id must be in [0, {num_shards})", file=sys.stderr)
+            _stderr_console().print(f"[red]ERROR: --shard-id must be in [0, {num_shards})[/red]")
             sys.exit(1)
 
     # CLI overrides for docker resource allocation
@@ -255,6 +286,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         _run_via_docker(
             config,
             auto_yes=getattr(args, "yes", False),
+            dev=getattr(args, "dev", False),
             shard_id=shard_id,
             num_shards=num_shards,
         )
@@ -276,13 +308,13 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     uv = shutil.which("uv")
     if uv is None:
-        print("ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/[/red]")
         sys.exit(1)
 
     config = _load_config(args.config)
     script = Path(config["script"]).resolve()
     if not script.exists():
-        print(f"ERROR: Script not found: {script}", file=sys.stderr)
+        _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
     cmd: list[str] = [uv, "run", str(script)]
@@ -318,7 +350,7 @@ def _discover_shard_groups(config_path: str) -> dict[str, list[Path]]:
             continue
         matched = sorted(output_dir.glob(f"{safe_name}_shard*of*.json"))
         if not matched:
-            print(f"WARNING: no shard files found for {safe_name} in {output_dir}", file=sys.stderr)
+            _stderr_console().print(f"[yellow]WARNING: no shard files found for {safe_name} in {output_dir}[/yellow]")
         groups[safe_name] = matched
     return groups
 
@@ -331,7 +363,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
     from vla_eval.results.merge import load_shard_files, merge_shards, print_merge_report
 
     if not args.files and not args.config:
-        print("ERROR: provide shard files or --config/-c to auto-discover", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: provide shard files or --config/-c to auto-discover[/red]")
         sys.exit(1)
 
     # When --config is given, merge each sub-benchmark separately.
@@ -346,7 +378,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 groups["_extra"] = extra
 
         if not any(groups.values()):
-            print("ERROR: no shard files found", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: no shard files found[/red]")
             sys.exit(1)
 
         output_base = Path(args.output) if args.output else None
@@ -358,7 +390,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 shards = load_shard_files(paths)
                 merged = merge_shards(shards)
             except ValueError as e:
-                print(f"ERROR ({name}): {e}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR ({name}): {e}[/red]")
                 sys.exit(1)
             print_merge_report(merged)
             if output_base:
@@ -368,13 +400,13 @@ def cmd_merge(args: argparse.Namespace) -> None:
                     out = output_base.parent / f"{output_base.stem}_{name}{output_base.suffix}"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(json.dumps(merged, indent=2, default=str))
-                print(f"Merged result saved to {out}", file=sys.stderr)
+                _stderr_console().print(f"Merged result saved to {out}")
             else:
                 print(json.dumps(merged, indent=2, default=str))
             merged_count += 1
 
         if merged_count == 0:
-            print("ERROR: no shard files found", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: no shard files found[/red]")
             sys.exit(1)
         return
 
@@ -383,18 +415,18 @@ def cmd_merge(args: argparse.Namespace) -> None:
     for pattern in args.files:
         matched = sorted(glob.glob(pattern))
         if not matched:
-            print(f"WARNING: no files matched: {pattern}", file=sys.stderr)
+            _stderr_console().print(f"[yellow]WARNING: no files matched: {pattern}[/yellow]")
         paths.extend(Path(p) for p in matched)
 
     if not paths:
-        print("ERROR: no shard files found", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: no shard files found[/red]")
         sys.exit(1)
 
     try:
         shards = load_shard_files(paths)
         merged = merge_shards(shards)
     except ValueError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
+        _stderr_console().print(f"[red]ERROR: {e}[/red]")
         sys.exit(1)
 
     print_merge_report(merged)
@@ -403,331 +435,232 @@ def cmd_merge(args: argparse.Namespace) -> None:
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(merged, indent=2, default=str))
-        print(f"Merged result saved to {output}", file=sys.stderr)
+        _stderr_console().print(f"Merged result saved to {output}")
     else:
         print(json.dumps(merged, indent=2, default=str))
 
 
-def cmd_validate(args: argparse.Namespace) -> None:
-    """Validate config file."""
-    config = _load_config(args.config)
-    from vla_eval.benchmarks.base import Benchmark
-    from vla_eval.registry import resolve_import_string
+def cmd_test(args: argparse.Namespace) -> None:
+    """Run smoke tests across CLI commands."""
+    from vla_eval.cli.smoke import (
+        BENCHMARK_REGISTRY,
+        SERVER_REGISTRY,
+        SmokeResult,
+        SmokeTest,
+        check_docker,
+        check_uv,
+        discover_benchmark_tests,
+        discover_server_tests,
+        discover_validate_tests,
+        print_list,
+        print_report,
+        run_benchmark_test,
+        run_server_test,
+        run_validate,
+        smoke_test_from_path,
+    )
 
-    errors = []
-    for bench in config.get("benchmarks", []):
-        import_path = bench.get("benchmark", "")
-        if not import_path or ":" not in import_path:
-            errors.append(f"Missing or invalid 'benchmark' import path: {import_path!r}")
-            continue
-        try:
-            cls = resolve_import_string(import_path)
-            if not (isinstance(cls, type) and issubclass(cls, Benchmark)):
-                errors.append(f"{import_path!r} is not a Benchmark subclass")
-        except Exception as e:
-            errors.append(f"Cannot resolve {import_path!r}: {e}")
-    if errors:
-        for e in errors:
-            print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    else:
-        print("Config is valid.")
-
-
-def cmd_test_benchmark(args: argparse.Namespace) -> None:
-    """Smoke-test a benchmark: start EchoModelServer on host, run benchmark via Docker for 1 episode."""
-    import shutil
-    import socket
-    import subprocess
-    import tempfile
-
-    from vla_eval.model_servers.predict import PredictModelServer
-    from vla_eval.model_servers.serve import serve_async
-
-    config = _load_config(args.config)
-
-    # Require docker config
-    docker_cfg = DockerConfig.from_dict(config.get("docker"))
-    if not docker_cfg.image:
-        print("ERROR: Config has no docker.image — test-benchmark requires a Docker benchmark.", file=sys.stderr)
-        sys.exit(1)
-
-    docker = shutil.which("docker")
-    if docker is None:
-        print("ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/", file=sys.stderr)
-        sys.exit(1)
-
-    _check_docker_daemon(docker)
-    _ensure_docker_image(docker, docker_cfg.image, auto_yes=getattr(args, "yes", False))
-
-    # Pick a free port for the echo server
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("0.0.0.0", 0))
-        port = s.getsockname()[1]
-
-    # Write a temporary config with 1 task, 1 episode, pointing to our echo server
-    smoke_config = dict(config)
-    # --network host: container shares host network, so 127.0.0.1 works
-    smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
-    smoke_config.pop("docker", None)
-    for bench in smoke_config.get("benchmarks", []):
-        bench["episodes_per_task"] = 1
-        bench["max_tasks"] = 1
-
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
-    yaml.dump(smoke_config, tmp)
-    tmp.close()
-
-    # Infer action_dim from benchmark config (default 7)
-    action_dim = 7
-    for bench in smoke_config.get("benchmarks", []):
-        action_dim = bench.get("action_dim", action_dim)
-
-    class _EchoModelServer(PredictModelServer):
-        def predict(self, obs, ctx):
-            import numpy as np
-
-            return {"actions": np.zeros(action_dim, dtype=np.float32)}
-
-    # Suppress websocket noise from the echo server (handshake errors from TCP
-    # readiness probes, connection lifecycle messages).  The echo server is a
-    # short-lived test helper, so its websocket logs are never useful.
-    import time
-
-    logging.getLogger("websockets").setLevel(logging.CRITICAL)
-
-    # Start echo server in a daemon thread so it dies automatically when
-    # the main thread exits — no portal cleanup needed.
-    import asyncio
-    import threading
-
-    def _run_echo_server():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(serve_async(_EchoModelServer(), host="0.0.0.0", port=port))
-
-    server_thread = threading.Thread(target=_run_echo_server, daemon=True)
-    server_thread.start()
-
-    # Wait for echo server to be ready
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                break
-        except OSError:
-            time.sleep(0.1)
-
-    # Run Docker container
-    results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
-    container_name = f"vla-eval-test-{os.getpid()}"
-
-    from vla_eval.docker_resources import gpu_docker_flag
-
-    cmd: list[str] = [
-        docker,
-        "run",
-        "--rm",
-        "--name",
-        container_name,
-        "--network",
-        "host",
-        "-v",
-        f"{results_dir}:/workspace/results",
-        "-v",
-        f"{tmp.name}:/tmp/eval_config.yaml:ro",
-    ]
-    cmd.extend(gpu_docker_flag(docker_cfg.gpus))
-    for vol in docker_cfg.volumes:
-        cmd.extend(["-v", vol])
-    for env_str in docker_cfg.env:
-        cmd.extend(["-e", env_str])
-    cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
-
-    print(f"Starting echo server on port {port}")
-    print(f"Running: {' '.join(cmd)}")
-
-    try:
-        rc = subprocess.call(cmd)
-    finally:
-        os.unlink(tmp.name)
-
-    if rc != 0:
-        print(f"❌ Benchmark test failed (exit code {rc})", file=sys.stderr)
-        sys.exit(1)
-
-    # Check results
-    import glob
-    import json
-
-    json_files = glob.glob(os.path.join(results_dir, "*.json"))
-    if json_files:
-        result = json.loads(Path(json_files[0]).read_text())
-        rate = result.get("overall_success_rate", 0)
-        print(f"✅ Benchmark test passed: success_rate={rate:.0%}")
-    else:
-        print("✅ Benchmark test completed (no result file — check benchmark output above)")
-
-
-def cmd_test_server(args: argparse.Namespace) -> None:
-    """Smoke-test a model server: launch it via uv run, run StubBenchmark for 1 episode."""
-    import shutil
-    import socket
-    import time
-
-    from vla_eval.benchmarks.base import StepBenchmark, StepResult
-    from vla_eval.types import Observation, Task
-    from vla_eval.connection import Connection
-    from vla_eval.runners.sync_runner import SyncEpisodeRunner
-
-    uv = shutil.which("uv")
-    if uv is None:
-        print("ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/", file=sys.stderr)
-        sys.exit(1)
-
-    config = _load_config(args.config)
-    script = Path(config["script"]).resolve()
-    if not script.exists():
-        print(f"ERROR: Script not found: {script}", file=sys.stderr)
-        sys.exit(1)
-
-    # Pick a free port
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-
-    # Build uv run command with --port override
-    cmd: list[str] = [uv, "run", str(script)]
-    for key, value in config.get("args", {}).items():
-        flag = f"--{key}"
-        if key == "port":
-            continue  # we override port
-        if isinstance(value, bool):
-            if value:
-                cmd.append(flag)
-        else:
-            cmd.extend([flag, str(value)])
-    cmd.extend(["--port", str(port)])
-
-    print(f"Starting model server: {' '.join(cmd)}")
-
-    # Extract suite from config for servers that use chunk_size_map
-    import json as _json
-
-    task: Task = {"name": "smoke_test"}
-    args_cfg = config.get("args", {})
-    chunk_map_raw = args_cfg.get("chunk_size_map")
-    if chunk_map_raw:
-        chunk_map = _json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
-        if chunk_map:
-            task["suite"] = next(iter(chunk_map.keys()))
-
-    # Minimal benchmark that sends realistic observations
-    class _StubBenchmark(StepBenchmark):
-        def __init__(self):
-            super().__init__()
-            self._step = 0
-
-        @staticmethod
-        def _dummy_obs() -> dict[str, Any]:
-            import numpy as np
-
-            return {
-                "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
-                "task_description": "smoke test",
-            }
-
-        def get_tasks(self):
-            return [task]
-
-        def reset(self, task: Task) -> Any:
-            self._step = 0
-            return None
-
-        def step(self, action):
-            self._step += 1
-            done = self._step >= 3
-            return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
-
-        def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-            return self._dummy_obs()
-
-        def check_done(self, step_result):
-            return step_result.done
-
-        def get_step_result(self, step_result):
-            return {"success": step_result.done}
-
-        def get_metadata(self):
-            return {"max_steps": 50}
-
-    import anyio
-
-    async def _run() -> dict:
-        # Use async subprocess to avoid pipe buffer deadlock — model servers
-        # can produce significant stdout/stderr during model loading.
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=_subprocess.DEVNULL,
-            stderr=_subprocess.PIPE,
-        )
-        stderr_chunks: list[bytes] = []
-
-        async def _drain_stderr() -> None:
-            assert proc.stderr
-            async for chunk in proc.stderr:
-                stderr_chunks.append(chunk)
-
-        drain_task = asyncio.create_task(_drain_stderr())
-
-        try:
-            url = f"ws://127.0.0.1:{port}"
-            # Wait for server to be ready via TCP check (no WebSocket handshake)
-            timeout = getattr(args, "timeout", 300)
-            deadline = time.monotonic() + timeout
-            while time.monotonic() < deadline:
-                if proc.returncode is not None:
-                    await drain_task
-                    stderr = b"".join(stderr_chunks).decode(errors="replace")
-                    raise RuntimeError(f"Model server exited early (rc={proc.returncode}):\n{stderr}")
-                try:
-                    with anyio.fail_after(1.0):
-                        stream = await anyio.connect_tcp("127.0.0.1", port)
-                        await stream.aclose()
-                    break
-                except (OSError, TimeoutError):
-                    await anyio.sleep(1.0)
+    # Explicit config paths via -c
+    if args.config:
+        validate_tests: list[SmokeTest] = []
+        server_tests: list[SmokeTest] = []
+        benchmark_tests: list[SmokeTest] = []
+        for config_path_str in args.config:
+            path = Path(config_path_str).resolve()
+            if not path.exists():
+                _stderr_console().print(f"[red]ERROR: config not found: {config_path_str}[/red]")
+                sys.exit(1)
+            try:
+                t = smoke_test_from_path(path)
+            except ValueError as e:
+                _stderr_console().print(f"[red]ERROR: {e}[/red]")
+                sys.exit(1)
+            if t.category == "server":
+                server_tests.append(t)
             else:
-                raise TimeoutError(f"Model server did not start within {timeout}s")
+                benchmark_tests.append(t)
+    else:
+        # Normalize: --server/--benchmark with no value → all; None → not requested
+        server_name = None if args.server is None else (args.server if args.server != "*" else None)
+        benchmark_name = None if args.benchmark is None else (args.benchmark if args.benchmark != "*" else None)
+        has_filter = args.all or args.validate_only or args.server is not None or args.benchmark is not None
 
-            benchmark = _StubBenchmark()
-            runner = SyncEpisodeRunner()
-            async with Connection(url) as conn:
-                return await runner.run_episode(benchmark, task, conn, max_steps=50)
-        finally:
-            try:
-                proc.terminate()
-            except ProcessLookupError:
-                pass
-            try:
-                with anyio.fail_after(10):
-                    await proc.wait()
-            except TimeoutError:
-                proc.kill()
-            drain_task.cancel()
+        # --list/--dry-run always discover everything; otherwise default to validate only
+        show_all = args.list or args.dry_run
+        run_validate_flag = show_all or args.all or args.validate_only or not has_filter
+        run_server_flag = show_all or args.all or args.server is not None
+        run_benchmark_flag = show_all or args.all or args.benchmark is not None
 
-    try:
-        result = anyio.run(_run)
-        success = result.get("success", False)
-        steps = result.get("steps", 0)
-        if success:
-            print(f"✅ Model server OK: {steps} steps, success={success}")
+        validate_tests = discover_validate_tests() if run_validate_flag else []
+
+        if run_server_flag:
+            if server_name and server_name not in SERVER_REGISTRY:
+                names = ", ".join(SERVER_REGISTRY.keys())
+                _stderr_console().print(f"[red]ERROR: unknown server '{server_name}'. Available: {names}[/red]")
+                sys.exit(1)
+            server_tests = discover_server_tests(name=server_name)
         else:
-            print(f"❌ Model server FAIL: {steps} steps, success={success}", file=sys.stderr)
-            sys.exit(1)
-    except Exception as e:
-        print(f"❌ Model server test failed: {e}", file=sys.stderr)
+            server_tests = []
+
+        if run_benchmark_flag:
+            if benchmark_name and benchmark_name not in BENCHMARK_REGISTRY:
+                names = ", ".join(BENCHMARK_REGISTRY.keys())
+                _stderr_console().print(f"[red]ERROR: unknown benchmark '{benchmark_name}'. Available: {names}[/red]")
+                sys.exit(1)
+            benchmark_tests = discover_benchmark_tests(name=benchmark_name)
+        else:
+            benchmark_tests = []
+
+    if args.list or args.dry_run:
+        print_list(validate_tests, server_tests, benchmark_tests)
+        if args.dry_run and not args.list:
+            total = len(validate_tests) + len(server_tests) + len(benchmark_tests)
+            print(f"Would run {total} test(s). Use without --dry-run to execute.")
+        return
+
+    import queue
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from contextlib import nullcontext
+
+    from vla_eval.docker_resources import parse_gpus
+
+    # --- resolve parallelism ---
+    gpu_queue: queue.Queue[str] | None = None
+    if args.parallel is not None:
+        gpu_ids = parse_gpus(None)  # auto-detect via nvidia-smi
+        if args.parallel == "auto":
+            workers = len(gpu_ids)
+        else:
+            try:
+                n = int(args.parallel)
+                if n <= 0:
+                    raise ValueError("must be positive")
+                workers = min(n, len(gpu_ids))
+            except ValueError:
+                print(
+                    f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr
+                )
+                sys.exit(1)
+        if workers > 1:
+            gpu_queue = queue.Queue()
+            for gid in gpu_ids[:workers]:
+                gpu_queue.put(gid)
+    else:
+        workers = 1
+
+    from vla_eval.cli.smoke import REPO_ROOT as _REPO_ROOT
+    from vla_eval.cli.smoke import _SYM, console
+
+    results: list[SmokeResult] = []
+    print_lock = threading.Lock() if workers > 1 else nullcontext()
+    log_dir: Path | None = None
+
+    def _ensure_log_dir() -> Path:
+        """Lazily create and return the smoke-log directory."""
+        nonlocal log_dir
+        if log_dir is None:
+            log_dir = _REPO_ROOT / "results" / "smoke-logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir
+
+    def _record(r: SmokeResult) -> bool:
+        """Record result, print progress, save log on failure."""
+        sym = _SYM.get(r.status, "?")
+        dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
+        log_path: Path | None = None
+        if r.status == "fail" and r.stderr:
+            d = _ensure_log_dir()
+            log_path = d / f"{r.test.category}_{r.test.name}.log"
+        with print_lock:
+            results.append(r)
+            console.print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
+            if log_path is not None:
+                console.print(f"    [dim]\u2192 log: {log_path.relative_to(_REPO_ROOT)}[/dim]")
+        # Write file outside lock to avoid blocking other threads
+        if log_path is not None:
+            log_path.write_text(r.stderr)
+        return r.status == "fail" and args.fail_fast
+
+    def _run_with_gpu(runner, test, timeout):
+        """Acquire a GPU slot, run the test, release the slot."""
+        if gpu_queue is not None:
+            gid = gpu_queue.get()
+            try:
+                return runner(test, timeout, gpu_id=gid)
+            finally:
+                gpu_queue.put(gid)
+        return runner(test, timeout)
+
+    def _run_parallel(tests: list[SmokeTest], runner) -> bool:
+        """Run tests in parallel via thread pool, or sequentially if workers <= 1."""
+        if workers <= 1:
+            for t in tests:
+                r = _run_with_gpu(runner, t, args.timeout)
+                if _record(r):
+                    return True
+            return False
+
+        pool = ThreadPoolExecutor(max_workers=workers)
+        try:
+            futures = {pool.submit(_run_with_gpu, runner, t, args.timeout): t for t in tests}
+            stopped = False
+            for future in as_completed(futures):
+                if stopped:
+                    break
+                r = future.result()
+                if _record(r):
+                    stopped = True
+                    for f in futures:
+                        f.cancel()
+            return stopped
+        except KeyboardInterrupt:
+            for f in futures:
+                f.cancel()
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
+        else:
+            pool.shutdown(wait=True)
+
+    stopped = False
+    try:
+        # --- validate ---
+        if validate_tests:
+            console.print("[bold]Running validate tests...[/bold]")
+            r = run_validate(validate_tests)
+            stopped = _record(r)
+
+        # --- server (prerequisite: uv) ---
+        if server_tests and not stopped:
+            uv_ok, uv_msg = check_uv()
+            if not uv_ok:
+                console.print(f"[yellow]Skipping {len(server_tests)} server test(s): {uv_msg}[/yellow]")
+                for t in server_tests:
+                    results.append(SmokeResult(t, "skip", uv_msg))
+            else:
+                par = f", {workers} parallel" if workers > 1 else ""
+                console.print(f"[bold]Running {len(server_tests)} server test(s){par}...[/bold]")
+                stopped = _run_parallel(server_tests, run_server_test)
+
+        # --- benchmark (prerequisite: docker) ---
+        if benchmark_tests and not stopped:
+            docker_ok, docker_msg = check_docker()
+            if not docker_ok:
+                console.print(f"[yellow]Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}[/yellow]")
+                for t in benchmark_tests:
+                    results.append(SmokeResult(t, "skip", docker_msg))
+            else:
+                par = f", {workers} parallel" if workers > 1 else ""
+                console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
+                _run_parallel(benchmark_tests, run_benchmark_test)
+    except KeyboardInterrupt:
+        console.print("\n\n[yellow]Interrupted by user.[/yellow]")
+
+    if not results:
+        _stderr_console().print("[red]No tests to run. Use --list to see available tests.[/red]")
         sys.exit(1)
+
+    print_report(results)
 
 
 def main() -> None:
@@ -791,6 +724,9 @@ execution flow:
         default=None,
         help="CPU range for benchmark containers, e.g. '0-31' (overrides docker.cpus in config)",
     )
+    run_parser.add_argument(
+        "--dev", action="store_true", help="Mount local src/ into the container (skip image rebuild on code changes)"
+    )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
 
@@ -842,67 +778,64 @@ examples:
     merge_parser.add_argument("--verbose", "-v", action="store_true")
     merge_parser.set_defaults(func=cmd_merge)
 
-    # validate command
-    val_parser = sub.add_parser(
-        "validate",
-        help="Validate config file",
+    # test command
+    test_parser = sub.add_parser(
+        "test",
+        help="Run smoke tests (validate configs, test servers, test benchmarks)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-Checks that all 'benchmark' import strings (module:Class format) in the
-config resolve to valid Benchmark subclasses.
+Discovers configs, checks resource prerequisites, and runs smoke tests.
 
-Note: this does NOT check whether benchmark dependencies (e.g. robosuite,
-mani_skill2) are installed — only that the import path is well-formed and
-the class exists in the current Python environment.
+  categories:
+    validate   — resolve import strings in all benchmark configs (fast, no deps)
+    server     — launch model server, send dummy observations, check actions
+                 (needs uv + model weights + GPU)
+    benchmark  — start EchoModelServer, run benchmark in Docker for 1 episode
+                 (needs Docker + image + GPU)
+
+  By default, runs only fast validation. Use --all for everything, or
+  --server / --benchmark to select expensive categories explicitly.
+  Use -c to test specific config files (auto-detects server vs benchmark).
+
+examples:
+  vla-eval test                                     validate configs (fast, default)
+  vla-eval test --all                               run all categories
+  vla-eval test --all -x                            run all, stop at first failure
+  vla-eval test --server --parallel                 test servers in parallel (one per GPU)
+  vla-eval test --server --parallel 2               test servers, max 2 at a time
+  vla-eval test --list                              show available tests
+  vla-eval test --server                            test all model servers
+  vla-eval test --server cogact                     test a specific server by registry name
+  vla-eval test --benchmark libero                  test a specific benchmark by registry name
+  vla-eval test -c configs/model_servers/cogact.yaml   test an arbitrary config file
+  vla-eval test --dry-run                           preview what would run
 """,
     )
-    val_parser.add_argument("--config", "-c", required=True, help="Path to YAML config file")
-    val_parser.set_defaults(func=cmd_validate)
-
-    # test-benchmark command
-    tb_parser = sub.add_parser(
-        "test-benchmark",
-        help="Smoke-test a benchmark (EchoModelServer + 1 episode)",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Verifies that a benchmark Docker image works end-to-end.
-
-  What it does:
-    1. Starts an EchoModelServer on the host (returns zero actions)
-    2. Launches the benchmark Docker container (1 task, 1 episode)
-    3. Reports pass/fail based on whether the episode completes
-
-  Requires: Docker (docker.image must be set in config).
-  Does NOT require: a real model or GPU inference.
-""",
+    test_parser.add_argument(
+        "-c", "--config", action="append", default=None, metavar="PATH", help="Config YAML path(s) to test"
     )
-    tb_parser.add_argument("--config", "-c", required=True, help="Path to benchmark YAML config")
-    tb_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
-    tb_parser.add_argument("--verbose", "-v", action="store_true")
-    tb_parser.set_defaults(func=cmd_test_benchmark)
-
-    # test-server command
-    ts_parser = sub.add_parser(
-        "test-server",
-        help="Smoke-test a model server (StubBenchmark + 1 episode)",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Verifies that a model server starts and responds to observations.
-
-  What it does:
-    1. Launches the model server via 'uv run <script>'
-    2. Waits for TCP readiness (up to --timeout seconds)
-    3. Sends dummy observations from a StubBenchmark (3 steps)
-    4. Reports pass/fail based on whether actions are received
-
-  Requires: uv on PATH, model server config with 'script' key.
-  Does NOT require: Docker or a real benchmark environment.
-""",
+    test_parser.add_argument("--list", action="store_true", help="Show available tests and prerequisites")
+    test_parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
+    test_parser.add_argument("--all", action="store_true", help="Run all categories (validate + server + benchmark)")
+    test_parser.add_argument("--validate", dest="validate_only", action="store_true", help="Validate configs only")
+    test_parser.add_argument(
+        "--server", nargs="?", const="*", default=None, metavar="NAME", help="Server tests (exact registry name)"
     )
-    ts_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")
-    ts_parser.add_argument("--timeout", "-t", type=int, default=300, help="Seconds to wait for server startup")
-    ts_parser.add_argument("--verbose", "-v", action="store_true")
-    ts_parser.set_defaults(func=cmd_test_server)
+    test_parser.add_argument(
+        "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
+    )
+    test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument(
+        "--parallel",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="N",
+        help="Run server/benchmark tests in parallel (default: one per GPU, auto-detected)",
+    )
+    test_parser.add_argument("-x", "--fail-fast", action="store_true", help="Stop at first failure")
+    test_parser.add_argument("--verbose", "-v", action="store_true")
+    test_parser.set_defaults(func=cmd_test)
 
     args = parser.parse_args()
     _setup_logging(getattr(args, "verbose", False))

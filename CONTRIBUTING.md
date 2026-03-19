@@ -12,8 +12,25 @@ uv sync --python 3.11 --all-extras --dev
 ## Running Tests
 
 ```bash
-make test              # all tests
+make test              # unit tests (pytest)
+make smoke             # smoke tests across all CLI commands (vla-eval test)
 ```
+
+### Smoke Tests
+
+`vla-eval test` is a unified CLI for smoke-testing model servers and benchmarks:
+
+```bash
+vla-eval test --list                                    # show available tests + prerequisites
+vla-eval test --validate                                # validate all benchmark config import strings
+vla-eval test --server                                  # smoke-test all model servers
+vla-eval test --benchmark                               # smoke-test all benchmarks
+vla-eval test -c configs/model_servers/cogact.yaml      # smoke-test a specific config
+vla-eval test --dry-run                                 # preview what would run
+vla-eval test                                           # run all available tests
+```
+
+Server tests require `uv` + model weights + GPU. Benchmark tests require Docker + the benchmark image (pulled via `docker pull`). Unavailable tests are auto-skipped.
 
 ## Linting, Formatting & Type Checking
 
@@ -55,7 +72,7 @@ src/vla_eval/
 6. Add a config YAML in `configs/`
 7. Add a Dockerfile in `docker/Dockerfile.<name>`
 8. Register the name in the `BENCHMARKS` array in `docker/build.sh` and the `IMAGES` array in `docker/push.sh`
-9. Smoke-test: `vla-eval test-benchmark --config configs/<name>.yaml` (runs 1 episode with an EchoModelServer — no real model or GPU needed, but requires the benchmark's simulation dependencies)
+9. Smoke-test: `vla-eval test -c configs/<name>.yaml` (runs 1 episode with an EchoModelServer — no real model or GPU needed, but requires Docker + the benchmark image)
 
 See `benchmarks/libero/` for a complete reference implementation.
 
@@ -66,7 +83,7 @@ See `benchmarks/libero/` for a complete reference implementation.
 3. Implement `predict(obs, ctx) -> dict` (`PredictModelServer`) or `on_observation(obs, ctx)` (`ModelServer`)
 4. Reference via import string in config YAML
 5. Add a config YAML in `configs/model_servers/`
-6. Smoke-test: `vla-eval test-server --config configs/model_servers/<name>.yaml` (launches the server, sends dummy observations from a StubBenchmark, checks for actions — requires GPU and model weights but no simulation environment)
+6. Smoke-test: `vla-eval test -c configs/model_servers/<name>.yaml` (launches the server, sends dummy observations from a StubBenchmark, checks for actions — requires `uv` + GPU + model weights but no simulation environment)
 
 See `model_servers/dexbotic/cogact.py` for a complete reference implementation.
 
