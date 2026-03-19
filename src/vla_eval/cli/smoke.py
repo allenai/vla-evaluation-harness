@@ -63,9 +63,8 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
-def classify_config(path: Path) -> str:
-    """Classify a config file as 'server', 'benchmark', or 'unknown'."""
-    data = _load_yaml(path)
+def _classify_data(data: dict[str, Any]) -> str:
+    """Classify a loaded config dict as 'server', 'benchmark', or 'unknown'."""
     if "script" in data:
         return "server"
     if (data.get("docker") or {}).get("image"):
@@ -140,37 +139,52 @@ def discover_validate_tests() -> list[SmokeTest]:
     return tests
 
 
-def discover_server_tests() -> list[SmokeTest]:
-    """Return smoke tests from the server registry."""
-    tests: list[SmokeTest] = []
-    for name, rel_path in SERVER_REGISTRY.items():
-        path = REPO_ROOT / rel_path
-        if not path.exists():
-            continue
-        data = _load_yaml(path)
-        model = _extract_model_id(data)
-        tests.append(SmokeTest("server", name, path, model))
-    return tests
+def _server_test_from_registry(name: str, rel_path: str) -> SmokeTest | None:
+    """Build a SmokeTest for one server registry entry, or None if config missing."""
+    path = REPO_ROOT / rel_path
+    if not path.exists():
+        return None
+    data = _load_yaml(path)
+    return SmokeTest("server", name, path, _extract_model_id(data))
 
 
-def discover_benchmark_tests() -> list[SmokeTest]:
-    """Return smoke tests from the benchmark registry."""
-    tests: list[SmokeTest] = []
-    for name, rel_path in BENCHMARK_REGISTRY.items():
-        path = REPO_ROOT / rel_path
-        if not path.exists():
-            continue
-        data = _load_yaml(path)
-        image = (data.get("docker") or {}).get("image", "")
-        short = image.rsplit("/", 1)[-1] if "/" in image else image
-        tests.append(SmokeTest("benchmark", name, path, short, image=image))
-    return tests
+def _benchmark_test_from_registry(name: str, rel_path: str) -> SmokeTest | None:
+    """Build a SmokeTest for one benchmark registry entry, or None if config missing."""
+    path = REPO_ROOT / rel_path
+    if not path.exists():
+        return None
+    data = _load_yaml(path)
+    image = (data.get("docker") or {}).get("image", "")
+    short = image.rsplit("/", 1)[-1] if "/" in image else image
+    return SmokeTest("benchmark", name, path, short, image=image)
+
+
+def discover_server_tests(name: str | None = None) -> list[SmokeTest]:
+    """Return smoke tests from the server registry, optionally filtered by exact name."""
+    if name is not None:
+        rel = SERVER_REGISTRY.get(name)
+        if rel is None:
+            return []
+        t = _server_test_from_registry(name, rel)
+        return [t] if t else []
+    return [t for n, r in SERVER_REGISTRY.items() if (t := _server_test_from_registry(n, r)) is not None]
+
+
+def discover_benchmark_tests(name: str | None = None) -> list[SmokeTest]:
+    """Return smoke tests from the benchmark registry, optionally filtered by exact name."""
+    if name is not None:
+        rel = BENCHMARK_REGISTRY.get(name)
+        if rel is None:
+            return []
+        t = _benchmark_test_from_registry(name, rel)
+        return [t] if t else []
+    return [t for n, r in BENCHMARK_REGISTRY.items() if (t := _benchmark_test_from_registry(n, r)) is not None]
 
 
 def smoke_test_from_path(path: Path) -> SmokeTest:
     """Create a SmokeTest from an explicit config path (auto-detects category)."""
     data = _load_yaml(path)
-    cat = classify_config(path)
+    cat = _classify_data(data)
     if cat == "server":
         return SmokeTest("server", path.stem, path, _extract_model_id(data))
     if cat == "benchmark":
@@ -497,11 +511,14 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
     # Suppress websocket noise
     logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
-    # Start echo server in daemon thread
+    # Start echo server in daemon thread with a stoppable event loop
+    echo_loop: asyncio.AbstractEventLoop | None = None
+
     def _run_echo_server() -> None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(serve_async(echo_server, host="0.0.0.0", port=port))
+        nonlocal echo_loop
+        echo_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(echo_loop)
+        echo_loop.run_until_complete(serve_async(echo_server, host="0.0.0.0", port=port))
 
     server_thread = threading.Thread(target=_run_echo_server, daemon=True)
     server_thread.start()
@@ -537,6 +554,8 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
         docker_cmd.extend(["-e", env_str])
     docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
 
+    import shutil as _shutil
+
     try:
         result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
         rc = result.returncode
@@ -545,20 +564,27 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
         return SmokeResult(test, "fail", f"docker timeout after {timeout}s", dt)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+        # Stop echo server event loop
+        if echo_loop is not None:
+            echo_loop.call_soon_threadsafe(echo_loop.stop)
+            server_thread.join(timeout=2)
 
     dt = time.monotonic() - t0
 
-    if rc != 0:
-        err_lines = result.stderr.strip().splitlines()
-        msg = err_lines[-1] if err_lines else f"exit code {rc}"
-        return SmokeResult(test, "fail", msg, dt)
+    try:
+        if rc != 0:
+            err_lines = result.stderr.strip().splitlines()
+            msg = err_lines[-1] if err_lines else f"exit code {rc}"
+            return SmokeResult(test, "fail", msg, dt)
 
-    json_files = _glob.glob(os.path.join(results_dir, "*.json"))
-    if json_files:
-        data = json.loads(Path(json_files[0]).read_text())
-        rate = data.get("overall_success_rate", 0)
-        return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
-    return SmokeResult(test, "pass", "completed (no result file)", dt)
+        json_files = _glob.glob(os.path.join(results_dir, "*.json"))
+        if json_files:
+            data = json.loads(Path(json_files[0]).read_text())
+            rate = data.get("overall_success_rate", 0)
+            return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
+        return SmokeResult(test, "pass", "completed (no result file)", dt)
+    finally:
+        _shutil.rmtree(results_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
