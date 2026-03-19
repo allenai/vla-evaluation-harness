@@ -512,11 +512,26 @@ def cmd_test(args: argparse.Namespace) -> None:
     else:
         workers = 1
 
+    from vla_eval.cli.smoke import REPO_ROOT as _REPO_ROOT
+
     results: list[SmokeResult] = []
     print_lock = threading.Lock() if workers > 1 else nullcontext()
+    log_dir: Path | None = None
+
+    def _save_log(r: SmokeResult) -> None:
+        """Save stderr to log file on failure (called inside print_lock)."""
+        nonlocal log_dir
+        if not r.stderr:
+            return
+        if log_dir is None:
+            log_dir = _REPO_ROOT / "results" / "smoke-logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{r.test.category}_{r.test.name}.log"
+        log_path.write_text(r.stderr)
+        print(f"    \u2192 log: {log_path.relative_to(_REPO_ROOT)}")
 
     def _record(r: SmokeResult) -> bool:
-        """Record result, print progress, return True if should stop."""
+        """Record result, print progress, save log on failure."""
         sym = {
             "pass": "\u2713",
             "fail": "\u2717",
@@ -526,6 +541,8 @@ def cmd_test(args: argparse.Namespace) -> None:
         with print_lock:
             results.append(r)
             print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
+            if r.status == "fail":
+                _save_log(r)
         return r.status == "fail" and args.fail_fast
 
     def _run_with_gpu(runner, test, timeout):
@@ -560,41 +577,44 @@ def cmd_test(args: argparse.Namespace) -> None:
                         f.cancel()
             return stopped
 
-    # --- validate ---
-    if validate_tests:
-        print("Running validate tests...")
-        r = run_validate(validate_tests)
-        if _record(r):
-            print_report(results)
-            return
-
-    # --- server (prerequisite: uv) ---
-    if server_tests:
-        uv_ok, uv_msg = check_uv()
-        if not uv_ok:
-            print(f"Skipping {len(server_tests)} server test(s): {uv_msg}")
-            for t in server_tests:
-                results.append(SmokeResult(t, "skip", uv_msg))
-        else:
-            par = f", {workers} parallel" if workers > 1 else ""
-            print(f"Running {len(server_tests)} server test(s){par}...")
-            if _run_parallel(server_tests, run_server_test):
+    try:
+        # --- validate ---
+        if validate_tests:
+            print("Running validate tests...")
+            r = run_validate(validate_tests)
+            if _record(r):
                 print_report(results)
                 return
 
-    # --- benchmark (prerequisite: docker) ---
-    if benchmark_tests:
-        docker_ok, docker_msg = check_docker()
-        if not docker_ok:
-            print(f"Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}")
-            for t in benchmark_tests:
-                results.append(SmokeResult(t, "skip", docker_msg))
-        else:
-            par = f", {workers} parallel" if workers > 1 else ""
-            print(f"Running {len(benchmark_tests)} benchmark test(s){par}...")
-            if _run_parallel(benchmark_tests, run_benchmark_test):
-                print_report(results)
-                return
+        # --- server (prerequisite: uv) ---
+        if server_tests:
+            uv_ok, uv_msg = check_uv()
+            if not uv_ok:
+                print(f"Skipping {len(server_tests)} server test(s): {uv_msg}")
+                for t in server_tests:
+                    results.append(SmokeResult(t, "skip", uv_msg))
+            else:
+                par = f", {workers} parallel" if workers > 1 else ""
+                print(f"Running {len(server_tests)} server test(s){par}...")
+                if _run_parallel(server_tests, run_server_test):
+                    print_report(results)
+                    return
+
+        # --- benchmark (prerequisite: docker) ---
+        if benchmark_tests:
+            docker_ok, docker_msg = check_docker()
+            if not docker_ok:
+                print(f"Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}")
+                for t in benchmark_tests:
+                    results.append(SmokeResult(t, "skip", docker_msg))
+            else:
+                par = f", {workers} parallel" if workers > 1 else ""
+                print(f"Running {len(benchmark_tests)} benchmark test(s){par}...")
+                if _run_parallel(benchmark_tests, run_benchmark_test):
+                    print_report(results)
+                    return
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user.")
 
     if not results:
         print("No tests to run. Use --list to see available tests.", file=sys.stderr)
