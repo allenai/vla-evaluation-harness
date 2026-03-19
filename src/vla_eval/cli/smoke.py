@@ -493,13 +493,15 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
 
     port = _free_port()
 
-    # Write temp config: 1 task, 1 episode, pointing to echo server
+    # Write temp config: 1 task, 1 episode, capped steps, pointing to echo server
     smoke_config = dict(config)
     smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
     smoke_config.pop("docker", None)
     for bench in smoke_config.get("benchmarks", []):
         bench["episodes_per_task"] = 1
         bench["max_tasks"] = 1
+        if bench.get("max_steps") is None or bench["max_steps"] > 50:
+            bench["max_steps"] = 50
 
     tmp_fd, tmp_path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-smoke-")
     try:
