@@ -42,8 +42,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'data: sync external leaderboard scores'
-          title: ${{ steps.sync.outputs.pr_title || 'data: sync external leaderboard scores' }}
-          body: ${{ steps.sync.outputs.pr_body || 'Automated sync from external leaderboard APIs.' }}
+          title: "${{ steps.sync.outputs.pr_title || 'data: sync external leaderboard scores' }}"
+          body: "${{ steps.sync.outputs.pr_body || 'Automated sync from external leaderboard APIs.' }}"
           branch: sync-external-data
           delete-branch: true
           labels: data
