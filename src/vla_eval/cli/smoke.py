@@ -73,6 +73,46 @@ def classify_config(path: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Smoke test registry — (name, config path) pairs
+# ---------------------------------------------------------------------------
+
+# Each benchmark has exactly one designated smoke test config.
+# fmt: off
+BENCHMARK_REGISTRY: dict[str, str] = {
+    "libero":       "configs/libero_smoke_test.yaml",
+    "libero_pro":   "configs/libero_pro_eval.yaml",
+    "libero_mem":   "configs/libero_mem.yaml",
+    "calvin":       "configs/calvin_eval.yaml",
+    "maniskill2":   "configs/maniskill2_eval.yaml",
+    "simpler":      "configs/simpler_all_tasks.yaml",
+    "robocasa":     "configs/robocasa_eval.yaml",
+    "vlabench":     "configs/vlabench_eval.yaml",
+    "mikasa":       "configs/mikasa_eval.yaml",
+    "robotwin":     "configs/robotwin_eval.yaml",
+    "rlbench":      "configs/rlbench_eval.yaml",
+    "robocerebra":  "configs/robocerebra_eval.yaml",
+    "kinetix":      "configs/kinetix_eval.yaml",
+}
+
+# Each model server has one designated smoke test config.
+SERVER_REGISTRY: dict[str, str] = {
+    "cogact":               "configs/model_servers/cogact.yaml",
+    "openvla":              "configs/model_servers/openvla.yaml",
+    "groot":                "configs/model_servers/groot.yaml",
+    "pi0":                  "configs/model_servers/pi0_libero.yaml",
+    "oft":                  "configs/model_servers/oft_libero.yaml",
+    "xvla":                 "configs/model_servers/xvla_libero.yaml",
+    "rtc":                  "configs/model_servers/rtc_kinetix.yaml",
+    "db_cogact":            "configs/model_servers/dexbotic_cogact_libero.yaml",
+    "starvla_groot":        "configs/model_servers/starvla_groot_simpler.yaml",
+    "starvla_oft":          "configs/model_servers/starvla_oft_simpler.yaml",
+    "starvla_pi":           "configs/model_servers/starvla_pi_simpler.yaml",
+    "starvla_fast":         "configs/model_servers/starvla_fast_simpler.yaml",
+}
+# fmt: on
+
+
+# ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
 
@@ -98,25 +138,29 @@ def _extract_model_id(data: dict[str, Any]) -> str:
 
 
 def discover_server_tests() -> list[SmokeTest]:
-    """Find all model server configs in configs/model_servers/."""
+    """Return smoke tests from the server registry."""
     tests: list[SmokeTest] = []
-    for path in sorted(SERVER_CONFIGS_DIR.glob("*.yaml")):
+    for name, rel_path in SERVER_REGISTRY.items():
+        path = REPO_ROOT / rel_path
+        if not path.exists():
+            continue
         data = _load_yaml(path)
         model = _extract_model_id(data)
-        tests.append(SmokeTest("server", path.stem, path, model))
+        tests.append(SmokeTest("server", name, path, model))
     return tests
 
 
 def discover_benchmark_tests() -> list[SmokeTest]:
-    """Find all benchmark configs that have a docker image."""
+    """Return smoke tests from the benchmark registry."""
     tests: list[SmokeTest] = []
-    for path in sorted(CONFIGS_DIR.glob("*.yaml")):
-        data = _load_yaml(path)
-        image = (data.get("docker") or {}).get("image")
-        if not image:
+    for name, rel_path in BENCHMARK_REGISTRY.items():
+        path = REPO_ROOT / rel_path
+        if not path.exists():
             continue
+        data = _load_yaml(path)
+        image = (data.get("docker") or {}).get("image", "")
         short = image.rsplit("/", 1)[-1] if "/" in image else image
-        tests.append(SmokeTest("benchmark", path.stem, path, short))
+        tests.append(SmokeTest("benchmark", name, path, short))
     return tests
 
 
