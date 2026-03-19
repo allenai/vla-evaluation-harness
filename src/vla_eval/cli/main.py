@@ -499,7 +499,10 @@ def cmd_test(args: argparse.Namespace) -> None:
             workers = len(gpu_ids)
         else:
             try:
-                workers = min(int(args.parallel), len(gpu_ids))
+                n = int(args.parallel)
+                if n <= 0:
+                    raise ValueError("must be positive")
+                workers = min(n, len(gpu_ids))
             except ValueError:
                 print(
                     f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr
