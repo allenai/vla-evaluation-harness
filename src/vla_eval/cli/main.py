@@ -410,7 +410,6 @@ def cmd_test(args: argparse.Namespace) -> None:
     """Run smoke tests across CLI commands."""
     from vla_eval.cli.smoke import (
         SmokeTest,
-        classify_config,
         discover_benchmark_tests,
         discover_server_tests,
         discover_validate_tests,
@@ -419,6 +418,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         run_benchmark_test,
         run_server_test,
         run_validate,
+        smoke_test_from_path,
     )
 
     # Explicit config paths via -c take priority over category flags
@@ -431,21 +431,15 @@ def cmd_test(args: argparse.Namespace) -> None:
             if not path.exists():
                 print(f"ERROR: config not found: {config_path_str}", file=sys.stderr)
                 sys.exit(1)
-            cat = classify_config(path)
-            if cat == "server":
-                from vla_eval.cli.smoke import _extract_model_id, _load_yaml
-
-                data = _load_yaml(path)
-                server_tests.append(SmokeTest("server", path.stem, path, _extract_model_id(data)))
-            elif cat == "benchmark":
-                from vla_eval.cli.smoke import _benchmark_image
-
-                image = _benchmark_image(path) or ""
-                short = image.rsplit("/", 1)[-1] if "/" in image else image
-                benchmark_tests.append(SmokeTest("benchmark", path.stem, path, short))
-            else:
-                print(f"ERROR: cannot classify config: {config_path_str}", file=sys.stderr)
+            try:
+                t = smoke_test_from_path(path)
+            except ValueError as e:
+                print(f"ERROR: {e}", file=sys.stderr)
                 sys.exit(1)
+            if t.category == "server":
+                server_tests.append(t)
+            else:
+                benchmark_tests.append(t)
     else:
         # Category flags
         run_all = not args.validate_only and not args.server and not args.benchmark

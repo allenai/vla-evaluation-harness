@@ -8,6 +8,8 @@ delegation to other CLI subcommands.
 from __future__ import annotations
 
 import asyncio
+import glob as _glob
+import json
 import logging
 import os
 import shutil
@@ -40,6 +42,7 @@ class SmokeTest:
     name: str
     config_path: Path | None
     description: str
+    image: str = ""  # full Docker image string (benchmark only)
 
 
 @dataclass
@@ -117,6 +120,15 @@ SERVER_REGISTRY: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+def _extract_model_id(data: dict[str, Any]) -> str:
+    """Extract model identifier from a server config, checking common key names."""
+    args = data.get("args", {})
+    for key in ("model_path", "checkpoint", "pretrained_checkpoint", "checkpoint_dir"):
+        if key in args:
+            return str(args[key])
+    return "unknown"
+
+
 def discover_validate_tests() -> list[SmokeTest]:
     """Find all benchmark configs that have a 'benchmarks' key."""
     tests: list[SmokeTest] = []
@@ -126,15 +138,6 @@ def discover_validate_tests() -> list[SmokeTest]:
             n = len(data["benchmarks"])
             tests.append(SmokeTest("validate", path.stem, path, f"{n} benchmark(s)"))
     return tests
-
-
-def _extract_model_id(data: dict[str, Any]) -> str:
-    """Extract model identifier from a server config, checking common key names."""
-    args = data.get("args", {})
-    for key in ("model_path", "checkpoint", "pretrained_checkpoint", "checkpoint_dir"):
-        if key in args:
-            return str(args[key])
-    return "unknown"
 
 
 def discover_server_tests() -> list[SmokeTest]:
@@ -160,8 +163,21 @@ def discover_benchmark_tests() -> list[SmokeTest]:
         data = _load_yaml(path)
         image = (data.get("docker") or {}).get("image", "")
         short = image.rsplit("/", 1)[-1] if "/" in image else image
-        tests.append(SmokeTest("benchmark", name, path, short))
+        tests.append(SmokeTest("benchmark", name, path, short, image=image))
     return tests
+
+
+def smoke_test_from_path(path: Path) -> SmokeTest:
+    """Create a SmokeTest from an explicit config path (auto-detects category)."""
+    data = _load_yaml(path)
+    cat = classify_config(path)
+    if cat == "server":
+        return SmokeTest("server", path.stem, path, _extract_model_id(data))
+    if cat == "benchmark":
+        image = (data.get("docker") or {}).get("image", "")
+        short = image.rsplit("/", 1)[-1] if "/" in image else image
+        return SmokeTest("benchmark", path.stem, path, short, image=image)
+    raise ValueError(f"Cannot classify config: {path}")
 
 
 # ---------------------------------------------------------------------------
@@ -193,10 +209,11 @@ def check_docker_image(image: str) -> tuple[bool, str]:
     return True, "image ready"
 
 
-def _benchmark_image(config_path: Path) -> str | None:
-    """Extract docker.image from a benchmark config."""
-    data = _load_yaml(config_path)
-    return (data.get("docker") or {}).get("image")
+def _free_port(host: str = "127.0.0.1") -> int:
+    """Return an OS-assigned free TCP port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, 0))
+        return s.getsockname()[1]
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +261,69 @@ def run_validate(tests: list[SmokeTest]) -> SmokeResult:
 
 
 # ---------------------------------------------------------------------------
+# Test doubles for smoke tests
+# ---------------------------------------------------------------------------
+
+
+def _make_stub_benchmark(task: dict[str, Any]) -> Any:
+    """Create a StubBenchmark that sends realistic image observations."""
+    import numpy as np
+
+    from vla_eval.benchmarks.base import StepBenchmark, StepResult
+    from vla_eval.types import Observation, Task
+
+    _DUMMY_OBS: dict[str, Any] = {
+        "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
+        "task_description": "smoke test",
+    }
+
+    class _StubBenchmark(StepBenchmark):
+        def __init__(self) -> None:
+            super().__init__()
+            self._step = 0
+
+        def get_tasks(self) -> list[dict[str, Any]]:
+            return [task]
+
+        def reset(self, task: Task) -> Any:
+            self._step = 0
+            return None
+
+        def step(self, action: Any) -> StepResult:
+            self._step += 1
+            done = self._step >= 3
+            return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
+
+        def make_obs(self, raw_obs: Any, task: Task) -> Observation:
+            return _DUMMY_OBS
+
+        def check_done(self, step_result: StepResult) -> bool:
+            return step_result.done
+
+        def get_step_result(self, step_result: StepResult) -> dict[str, Any]:
+            return {"success": step_result.done}
+
+        def get_metadata(self) -> dict[str, Any]:
+            return {"max_steps": 50}
+
+    return _StubBenchmark()
+
+
+def _make_echo_server(action_dim: int) -> Any:
+    """Create an EchoModelServer that returns zero actions."""
+    import numpy as np
+
+    from vla_eval.model_servers.base import SessionContext
+    from vla_eval.model_servers.predict import PredictModelServer
+
+    class _EchoModelServer(PredictModelServer):
+        def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+            return {"actions": np.zeros(action_dim, dtype=np.float32)}
+
+    return _EchoModelServer()
+
+
+# ---------------------------------------------------------------------------
 # Execution — server smoke test
 # ---------------------------------------------------------------------------
 
@@ -264,10 +344,7 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
     uv = shutil.which("uv")
     assert uv is not None
 
-    # Pick a free port
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
+    port = _free_port()
 
     # Build uv run command with --port override
     cmd: list[str] = [uv, "run", str(script)]
@@ -283,61 +360,13 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
     cmd.extend(["--port", str(port)])
 
     # Extract suite for servers with chunk_size_map
-    import json as _json
-
-    from vla_eval.types import Task
-
-    task: Task = {"name": "smoke_test"}
+    task: dict[str, Any] = {"name": "smoke_test"}
     args_cfg = config.get("args", {})
     chunk_map_raw = args_cfg.get("chunk_size_map")
     if chunk_map_raw:
-        chunk_map = _json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
+        chunk_map = json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
         if chunk_map:
             task["suite"] = next(iter(chunk_map.keys()))
-
-    # Inline StubBenchmark
-    import numpy as np
-
-    from vla_eval.benchmarks.base import StepBenchmark, StepResult
-    from vla_eval.types import Observation
-
-    class _StubBenchmark(StepBenchmark):
-        def __init__(self) -> None:
-            super().__init__()
-            self._step = 0
-
-        @staticmethod
-        def _dummy_obs() -> dict[str, Any]:
-            return {
-                "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
-                "task_description": "smoke test",
-            }
-
-        def get_tasks(self) -> list[dict[str, Any]]:
-            return [task]
-
-        def reset(self, task: Task) -> Any:
-            self._step = 0
-            return None
-
-        def step(self, action: Any) -> StepResult:
-            self._step += 1
-            done = self._step >= 3
-            return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
-
-        def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-            return self._dummy_obs()
-
-        def check_done(self, step_result: StepResult) -> bool:
-            return step_result.done
-
-        def get_step_result(self, step_result: StepResult) -> dict[str, Any]:
-            return {"success": step_result.done}
-
-        def get_metadata(self) -> dict[str, Any]:
-            return {"max_steps": 50}
-
-    import subprocess as _subprocess
 
     import anyio
 
@@ -349,8 +378,8 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
     async def _run() -> dict:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
-            stdout=_subprocess.DEVNULL,
-            stderr=_subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
         stderr_chunks: list[bytes] = []
 
@@ -379,7 +408,7 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
             else:
                 raise TimeoutError(f"Model server did not start within {timeout}s")
 
-            benchmark = _StubBenchmark()
+            benchmark = _make_stub_benchmark(task)
             runner = SyncEpisodeRunner()
             async with Connection(url) as conn:
                 return await runner.run_episode(benchmark, task, conn, max_steps=50)
@@ -438,12 +467,12 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
     if not img_ok:
         return SmokeResult(test, "skip", f"{img_msg}: {test.description}")
 
+    # Extract action_dim before mutating config
+    action_dim = next((b.get("action_dim", 7) for b in config.get("benchmarks", [])), 7)
+
     t0 = time.monotonic()
 
-    # Pick a free port for echo server
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("0.0.0.0", 0))
-        port = s.getsockname()[1]
+    port = _free_port()
 
     # Write temp config: 1 task, 1 episode, pointing to echo server
     smoke_config = dict(config)
@@ -461,19 +490,9 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
         os.close(tmp_fd)
         raise
 
-    # Infer action_dim (default 7)
-    action_dim = 7
-    for bench in smoke_config.get("benchmarks", []):
-        action_dim = bench.get("action_dim", action_dim)
-
-    import numpy as np
-
-    from vla_eval.model_servers.predict import PredictModelServer
     from vla_eval.model_servers.serve import serve_async
 
-    class _EchoModelServer(PredictModelServer):
-        def predict(self, obs: Any, ctx: Any) -> dict[str, Any]:
-            return {"actions": np.zeros(action_dim, dtype=np.float32)}
+    echo_server = _make_echo_server(action_dim)
 
     # Suppress websocket noise
     logging.getLogger("websockets").setLevel(logging.CRITICAL)
@@ -482,7 +501,7 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
     def _run_echo_server() -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(serve_async(_EchoModelServer(), host="0.0.0.0", port=port))
+        loop.run_until_complete(serve_async(echo_server, host="0.0.0.0", port=port))
 
     server_thread = threading.Thread(target=_run_echo_server, daemon=True)
     server_thread.start()
@@ -534,10 +553,6 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600) -> SmokeResult:
         msg = err_lines[-1] if err_lines else f"exit code {rc}"
         return SmokeResult(test, "fail", msg, dt)
 
-    # Check results
-    import glob as _glob
-    import json
-
     json_files = _glob.glob(os.path.join(results_dir, "*.json"))
     if json_files:
         data = json.loads(Path(json_files[0]).read_text())
@@ -577,37 +592,37 @@ def print_list(
         for t in server_tests:
             print(f"  {t.name:<{w}s}{t.description}")
 
-    # Benchmark
+    # Benchmark — check each unique image once
     docker_ok, docker_msg = check_docker()
     print(f"\nBENCHMARK -- Docker + GPU ({len(benchmark_tests)} configs)")
     if not docker_ok:
         print(f"  prerequisite: {docker_msg}")
     if benchmark_tests:
+        # Cache image status to avoid repeated `docker image inspect` calls
+        image_status: dict[str, tuple[bool, str]] = {}
+        for t in benchmark_tests:
+            if t.image and t.image not in image_status:
+                if docker_ok:
+                    image_status[t.image] = check_docker_image(t.image)
+                else:
+                    image_status[t.image] = (False, "docker unavailable")
+
         w = max(len(t.name) for t in benchmark_tests) + 2
         dw = max(len(t.description) for t in benchmark_tests) + 2
         for t in benchmark_tests:
-            assert t.config_path is not None
-            image = _benchmark_image(t.config_path)
-            if image and docker_ok:
-                img_ok, img_msg = check_docker_image(image)
-                status = f"[{img_msg}]"
-            elif not docker_ok:
-                status = "[docker unavailable]"
+            if t.image:
+                ok, msg = image_status[t.image]
+                status = f"[{msg}]"
             else:
                 status = "[no image]"
             print(f"  {t.name:<{w}s}{t.description:<{dw}s}{status}")
 
-    # Summary
-    print(f"\nPrerequisites: uv {'ok' if uv_ok else uv_msg}  |  docker {'ok' if docker_ok else docker_msg}")
-    if docker_ok:
-        images = set()
-        for t in benchmark_tests:
-            assert t.config_path is not None
-            img = _benchmark_image(t.config_path)
-            if img:
-                images.add(img)
-        pulled = sum(1 for img in images if check_docker_image(img)[0])
-        print(f"  {pulled} of {len(images)} unique Docker images pulled")
+        # Summary
+        pulled = sum(1 for ok, _ in image_status.values() if ok)
+        print(f"\nPrerequisites: uv {'ok' if uv_ok else uv_msg}  |  docker {'ok' if docker_ok else docker_msg}")
+        print(f"  {pulled} of {len(image_status)} unique Docker images pulled")
+    else:
+        print(f"\nPrerequisites: uv {'ok' if uv_ok else uv_msg}  |  docker {'ok' if docker_ok else docker_msg}")
     print()
 
 
