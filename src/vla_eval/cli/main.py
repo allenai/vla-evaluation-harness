@@ -11,10 +11,22 @@ from typing import Any
 
 import yaml
 
+from rich.console import Console
+
 from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
 
 logger = logging.getLogger(__name__)
+
+_stderr_con: Console | None = None
+
+
+def _stderr_console() -> Console:
+    """Return a shared Console that writes to stderr."""
+    global _stderr_con  # noqa: PLW0603
+    if _stderr_con is None:
+        _stderr_con = Console(stderr=True, highlight=False)
+    return _stderr_con
 
 
 def _load_config(path: str) -> dict[str, Any]:
@@ -90,9 +102,8 @@ def _check_docker_daemon(docker: str) -> None:
 
     result = subprocess.run([docker, "info"], capture_output=True)
     if result.returncode != 0:
-        print(
-            "ERROR: Docker daemon is not running.\n  Start it with: sudo systemctl start docker",
-            file=sys.stderr,
+        _stderr_console().print(
+            "[red]ERROR: Docker daemon is not running.[/red]\n  Start it with: sudo systemctl start docker",
         )
         sys.exit(1)
 
@@ -112,26 +123,24 @@ def _ensure_docker_image(docker: str, image: str, auto_yes: bool) -> None:
     if _image_exists_locally(docker, image):
         return
 
-    print(f"\n⚠  Docker image '{image}' not found locally.", file=sys.stderr)
-    print("   Benchmark images are typically large (tens of GB).", file=sys.stderr)
-    print("   This may take a while and use significant disk space.\n", file=sys.stderr)
+    con = _stderr_console()
+    con.print(f"\n[yellow]⚠  Docker image '{image}' not found locally.[/yellow]")
+    con.print("   Benchmark images are typically large (tens of GB).")
+    con.print("   This may take a while and use significant disk space.\n")
 
     if not auto_yes:
         if not sys.stdin.isatty():
-            print(
-                "ERROR: Cannot confirm in non-interactive mode. Use --yes to skip confirmation.",
-                file=sys.stderr,
-            )
+            con.print("[red]ERROR: Cannot confirm in non-interactive mode. Use --yes to skip confirmation.[/red]")
             sys.exit(1)
         answer = input("Proceed with docker pull? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
-            print("Aborted.", file=sys.stderr)
+            con.print("Aborted.")
             sys.exit(0)
 
-    print(f"Pulling {image} ...", file=sys.stderr)
+    con.print(f"Pulling {image} ...")
     ret = subprocess.call([docker, "pull", image])
     if ret != 0:
-        print(f"ERROR: docker pull failed (exit code {ret}).", file=sys.stderr)
+        con.print(f"[red]ERROR: docker pull failed (exit code {ret}).[/red]")
         sys.exit(1)
 
 
@@ -165,14 +174,16 @@ def _run_via_docker(
 
     docker = shutil.which("docker")
     if docker is None:
-        print("ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/", file=sys.stderr)
+        _stderr_console().print(
+            "[red]ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/[/red]"
+        )
         sys.exit(1)
 
     _check_docker_daemon(docker)
 
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     if docker_cfg.image is None:
-        print("ERROR: 'docker.image' must be set in config", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
         sys.exit(1)
 
     _ensure_docker_image(docker, docker_cfg.image, auto_yes)
@@ -249,15 +260,15 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Validate shard args
     if (shard_id is None) != (num_shards is None):
-        print("ERROR: --shard-id and --num-shards must be used together", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: --shard-id and --num-shards must be used together[/red]")
         sys.exit(1)
     if num_shards is not None:
         if num_shards < 1:
-            print("ERROR: --num-shards must be >= 1", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: --num-shards must be >= 1[/red]")
             sys.exit(1)
         assert shard_id is not None
         if shard_id < 0 or shard_id >= num_shards:
-            print(f"ERROR: --shard-id must be in [0, {num_shards})", file=sys.stderr)
+            _stderr_console().print(f"[red]ERROR: --shard-id must be in [0, {num_shards})[/red]")
             sys.exit(1)
 
     # CLI overrides for docker resource allocation
@@ -300,13 +311,13 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     uv = shutil.which("uv")
     if uv is None:
-        print("ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: 'uv' not found. Install it: https://docs.astral.sh/uv/[/red]")
         sys.exit(1)
 
     config = _load_config(args.config)
     script = Path(config["script"]).resolve()
     if not script.exists():
-        print(f"ERROR: Script not found: {script}", file=sys.stderr)
+        _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
     cmd: list[str] = [uv, "run", str(script)]
@@ -342,7 +353,7 @@ def _discover_shard_groups(config_path: str) -> dict[str, list[Path]]:
             continue
         matched = sorted(output_dir.glob(f"{safe_name}_shard*of*.json"))
         if not matched:
-            print(f"WARNING: no shard files found for {safe_name} in {output_dir}", file=sys.stderr)
+            _stderr_console().print(f"[yellow]WARNING: no shard files found for {safe_name} in {output_dir}[/yellow]")
         groups[safe_name] = matched
     return groups
 
@@ -355,7 +366,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
     from vla_eval.results.merge import load_shard_files, merge_shards, print_merge_report
 
     if not args.files and not args.config:
-        print("ERROR: provide shard files or --config/-c to auto-discover", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: provide shard files or --config/-c to auto-discover[/red]")
         sys.exit(1)
 
     # When --config is given, merge each sub-benchmark separately.
@@ -370,7 +381,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 groups["_extra"] = extra
 
         if not any(groups.values()):
-            print("ERROR: no shard files found", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: no shard files found[/red]")
             sys.exit(1)
 
         output_base = Path(args.output) if args.output else None
@@ -382,7 +393,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 shards = load_shard_files(paths)
                 merged = merge_shards(shards)
             except ValueError as e:
-                print(f"ERROR ({name}): {e}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR ({name}): {e}[/red]")
                 sys.exit(1)
             print_merge_report(merged)
             if output_base:
@@ -392,13 +403,13 @@ def cmd_merge(args: argparse.Namespace) -> None:
                     out = output_base.parent / f"{output_base.stem}_{name}{output_base.suffix}"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text(json.dumps(merged, indent=2, default=str))
-                print(f"Merged result saved to {out}", file=sys.stderr)
+                _stderr_console().print(f"Merged result saved to {out}")
             else:
                 print(json.dumps(merged, indent=2, default=str))
             merged_count += 1
 
         if merged_count == 0:
-            print("ERROR: no shard files found", file=sys.stderr)
+            _stderr_console().print("[red]ERROR: no shard files found[/red]")
             sys.exit(1)
         return
 
@@ -407,18 +418,18 @@ def cmd_merge(args: argparse.Namespace) -> None:
     for pattern in args.files:
         matched = sorted(glob.glob(pattern))
         if not matched:
-            print(f"WARNING: no files matched: {pattern}", file=sys.stderr)
+            _stderr_console().print(f"[yellow]WARNING: no files matched: {pattern}[/yellow]")
         paths.extend(Path(p) for p in matched)
 
     if not paths:
-        print("ERROR: no shard files found", file=sys.stderr)
+        _stderr_console().print("[red]ERROR: no shard files found[/red]")
         sys.exit(1)
 
     try:
         shards = load_shard_files(paths)
         merged = merge_shards(shards)
     except ValueError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
+        _stderr_console().print(f"[red]ERROR: {e}[/red]")
         sys.exit(1)
 
     print_merge_report(merged)
@@ -427,7 +438,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(merged, indent=2, default=str))
-        print(f"Merged result saved to {output}", file=sys.stderr)
+        _stderr_console().print(f"Merged result saved to {output}")
     else:
         print(json.dumps(merged, indent=2, default=str))
 
@@ -460,12 +471,12 @@ def cmd_test(args: argparse.Namespace) -> None:
         for config_path_str in args.config:
             path = Path(config_path_str).resolve()
             if not path.exists():
-                print(f"ERROR: config not found: {config_path_str}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR: config not found: {config_path_str}[/red]")
                 sys.exit(1)
             try:
                 t = smoke_test_from_path(path)
             except ValueError as e:
-                print(f"ERROR: {e}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR: {e}[/red]")
                 sys.exit(1)
             if t.category == "server":
                 server_tests.append(t)
@@ -488,7 +499,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         if run_server_flag:
             if server_name and server_name not in SERVER_REGISTRY:
                 names = ", ".join(SERVER_REGISTRY.keys())
-                print(f"ERROR: unknown server '{server_name}'. Available: {names}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR: unknown server '{server_name}'. Available: {names}[/red]")
                 sys.exit(1)
             server_tests = discover_server_tests(name=server_name)
         else:
@@ -497,7 +508,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         if run_benchmark_flag:
             if benchmark_name and benchmark_name not in BENCHMARK_REGISTRY:
                 names = ", ".join(BENCHMARK_REGISTRY.keys())
-                print(f"ERROR: unknown benchmark '{benchmark_name}'. Available: {names}", file=sys.stderr)
+                _stderr_console().print(f"[red]ERROR: unknown benchmark '{benchmark_name}'. Available: {names}[/red]")
                 sys.exit(1)
             benchmark_tests = discover_benchmark_tests(name=benchmark_name)
         else:
@@ -655,7 +666,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         console.print("\n\n[yellow]Interrupted by user.[/yellow]")
 
     if not results:
-        print("No tests to run. Use --list to see available tests.", file=sys.stderr)
+        _stderr_console().print("[red]No tests to run. Use --list to see available tests.[/red]")
         sys.exit(1)
 
     print_report(results)

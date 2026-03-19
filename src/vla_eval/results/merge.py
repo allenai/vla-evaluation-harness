@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -130,32 +129,39 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
 
 def print_merge_report(merged: dict[str, Any]) -> None:
     """Print a human-readable merge report to stderr."""
+    from rich.console import Console
+
+    con = Console(stderr=True, highlight=False)
     info = merged["merge_info"]
     total_shards = info["num_shards"]
     found = info["shards_found"]
     missing = info["shards_missing"]
     total_eps = info["total_episodes"]
     rate = merged["overall_success_rate"]
+    rate_color = "green" if rate >= 0.5 else "red"
 
-    out = sys.stderr
     if missing:
-        print(f"\n⚠  Missing shards: {missing} (expected 0..{total_shards - 1})", file=out)
-        print(f"Coverage: {total_eps} episodes (shards {len(found)}/{total_shards})", file=out)
-        print(f"Merged result (PARTIAL): {rate:.1%}", file=out)
+        con.print(f"\n[yellow]⚠  Missing shards: {missing} (expected 0..{total_shards - 1})[/yellow]")
+        con.print(f"Coverage: {total_eps} episodes (shards {len(found)}/{total_shards})")
+        con.print(f"Merged result ([yellow]PARTIAL[/yellow]): [{rate_color}]{rate:.1%}[/{rate_color}]")
         for sid in missing:
-            print(f"  To complete: vla-eval run -c <config> --shard-id {sid} --num-shards {total_shards}", file=out)
+            con.print(
+                f"  To complete: [dim]vla-eval run -c <config> --shard-id {sid} --num-shards {total_shards}[/dim]"
+            )
     else:
-        print(f"\nAll {total_shards} shards complete. {total_eps} episodes.", file=out)
-        print(f"Overall success rate: {rate:.1%}", file=out)
+        con.print(f"\n[green]All {total_shards} shards complete.[/green] {total_eps} episodes.")
+        con.print(f"Overall success rate: [{rate_color}]{rate:.1%}[/{rate_color}]")
 
     # Per-task summary
-    print(f"\n{'=' * 60}", file=out)
-    print(f"Benchmark: {merged['benchmark']}", file=out)
-    print(f"{'=' * 60}", file=out)
+    con.print(f"\n{'=' * 60}")
+    con.print(f"[bold]Benchmark: {merged['benchmark']}[/bold]")
+    con.print(f"{'=' * 60}")
     for task in merged["tasks"]:
         n = len(task["episodes"])
         s = int(task["success_rate"] * n)
-        print(f"  {task['task']:40s} {task['success_rate']:6.1%} ({s}/{n})", file=out)
-    print(f"{'─' * 60}", file=out)
-    print(f"  {'Overall':40s} {rate:6.1%}", file=out)
-    print(f"{'=' * 60}\n", file=out)
+        tr = task["success_rate"]
+        tc = "green" if tr >= 0.5 else "red"
+        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({s}/{n})")
+    con.print(f"{'─' * 60}")
+    con.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    con.print(f"{'=' * 60}\n")
