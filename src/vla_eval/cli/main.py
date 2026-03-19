@@ -542,6 +542,7 @@ def cmd_test(args: argparse.Namespace) -> None:
         workers = 1
 
     from vla_eval.cli.smoke import REPO_ROOT as _REPO_ROOT
+    from vla_eval.cli.smoke import console
 
     results: list[SmokeResult] = []
     print_lock = threading.Lock() if workers > 1 else nullcontext()
@@ -555,13 +556,15 @@ def cmd_test(args: argparse.Namespace) -> None:
             log_dir.mkdir(parents=True, exist_ok=True)
         return log_dir
 
+    _SYM_INLINE = {
+        "pass": "[green]\u2713[/green]",
+        "fail": "[red]\u2717[/red]",
+        "skip": "[yellow]-[/yellow]",
+    }
+
     def _record(r: SmokeResult) -> bool:
         """Record result, print progress, save log on failure."""
-        sym = {
-            "pass": "\u2713",
-            "fail": "\u2717",
-            "skip": "-",
-        }.get(r.status, "?")
+        sym = _SYM_INLINE.get(r.status, "?")
         dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
         log_path: Path | None = None
         if r.status == "fail" and r.stderr:
@@ -569,9 +572,9 @@ def cmd_test(args: argparse.Namespace) -> None:
             log_path = d / f"{r.test.category}_{r.test.name}.log"
         with print_lock:
             results.append(r)
-            print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
+            console.print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
             if log_path is not None:
-                print(f"    \u2192 log: {log_path.relative_to(_REPO_ROOT)}")
+                console.print(f"    [dim]\u2192 log: {log_path.relative_to(_REPO_ROOT)}[/dim]")
         # Write file outside lock to avoid blocking other threads
         if log_path is not None:
             log_path.write_text(r.stderr)
@@ -621,7 +624,7 @@ def cmd_test(args: argparse.Namespace) -> None:
     try:
         # --- validate ---
         if validate_tests:
-            print("Running validate tests...")
+            console.print("[bold]Running validate tests...[/bold]")
             r = run_validate(validate_tests)
             stopped = _record(r)
 
@@ -629,27 +632,27 @@ def cmd_test(args: argparse.Namespace) -> None:
         if server_tests and not stopped:
             uv_ok, uv_msg = check_uv()
             if not uv_ok:
-                print(f"Skipping {len(server_tests)} server test(s): {uv_msg}")
+                console.print(f"[yellow]Skipping {len(server_tests)} server test(s): {uv_msg}[/yellow]")
                 for t in server_tests:
                     results.append(SmokeResult(t, "skip", uv_msg))
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
-                print(f"Running {len(server_tests)} server test(s){par}...")
+                console.print(f"[bold]Running {len(server_tests)} server test(s){par}...[/bold]")
                 stopped = _run_parallel(server_tests, run_server_test)
 
         # --- benchmark (prerequisite: docker) ---
         if benchmark_tests and not stopped:
             docker_ok, docker_msg = check_docker()
             if not docker_ok:
-                print(f"Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}")
+                console.print(f"[yellow]Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}[/yellow]")
                 for t in benchmark_tests:
                     results.append(SmokeResult(t, "skip", docker_msg))
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
-                print(f"Running {len(benchmark_tests)} benchmark test(s){par}...")
+                console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
                 _run_parallel(benchmark_tests, run_benchmark_test)
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user.")
+        console.print("\n\n[yellow]Interrupted by user.[/yellow]")
 
     if not results:
         print("No tests to run. Use --list to see available tests.", file=sys.stderr)
