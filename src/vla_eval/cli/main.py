@@ -518,17 +518,13 @@ def cmd_test(args: argparse.Namespace) -> None:
     print_lock = threading.Lock() if workers > 1 else nullcontext()
     log_dir: Path | None = None
 
-    def _save_log(r: SmokeResult) -> None:
-        """Save stderr to log file on failure (called inside print_lock)."""
+    def _ensure_log_dir() -> Path:
+        """Lazily create and return the smoke-log directory."""
         nonlocal log_dir
-        if not r.stderr:
-            return
         if log_dir is None:
             log_dir = _REPO_ROOT / "results" / "smoke-logs"
             log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / f"{r.test.category}_{r.test.name}.log"
-        log_path.write_text(r.stderr)
-        print(f"    \u2192 log: {log_path.relative_to(_REPO_ROOT)}")
+        return log_dir
 
     def _record(r: SmokeResult) -> bool:
         """Record result, print progress, save log on failure."""
@@ -538,11 +534,18 @@ def cmd_test(args: argparse.Namespace) -> None:
             "skip": "-",
         }.get(r.status, "?")
         dur = f" ({r.duration:.1f}s)" if r.duration > 0 else ""
+        log_path: Path | None = None
+        if r.status == "fail" and r.stderr:
+            d = _ensure_log_dir()
+            log_path = d / f"{r.test.category}_{r.test.name}.log"
         with print_lock:
             results.append(r)
             print(f"  {sym} {r.test.category}/{r.test.name}: {r.message}{dur}")
-            if r.status == "fail":
-                _save_log(r)
+            if log_path is not None:
+                print(f"    \u2192 log: {log_path.relative_to(_REPO_ROOT)}")
+        # Write file outside lock to avoid blocking other threads
+        if log_path is not None:
+            log_path.write_text(r.stderr)
         return r.status == "fail" and args.fail_fast
 
     def _run_with_gpu(runner, test, timeout):
@@ -577,17 +580,16 @@ def cmd_test(args: argparse.Namespace) -> None:
                         f.cancel()
             return stopped
 
+    stopped = False
     try:
         # --- validate ---
         if validate_tests:
             print("Running validate tests...")
             r = run_validate(validate_tests)
-            if _record(r):
-                print_report(results)
-                return
+            stopped = _record(r)
 
         # --- server (prerequisite: uv) ---
-        if server_tests:
+        if server_tests and not stopped:
             uv_ok, uv_msg = check_uv()
             if not uv_ok:
                 print(f"Skipping {len(server_tests)} server test(s): {uv_msg}")
@@ -596,12 +598,10 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 print(f"Running {len(server_tests)} server test(s){par}...")
-                if _run_parallel(server_tests, run_server_test):
-                    print_report(results)
-                    return
+                stopped = _run_parallel(server_tests, run_server_test)
 
         # --- benchmark (prerequisite: docker) ---
-        if benchmark_tests:
+        if benchmark_tests and not stopped:
             docker_ok, docker_msg = check_docker()
             if not docker_ok:
                 print(f"Skipping {len(benchmark_tests)} benchmark test(s): {docker_msg}")
@@ -610,9 +610,7 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 print(f"Running {len(benchmark_tests)} benchmark test(s){par}...")
-                if _run_parallel(benchmark_tests, run_benchmark_test):
-                    print_report(results)
-                    return
+                _run_parallel(benchmark_tests, run_benchmark_test)
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")
 
