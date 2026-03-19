@@ -272,7 +272,7 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
         def get_tasks(self) -> list[dict[str, Any]]:
             return [task]
 
-        def reset(self, task_: Task) -> Any:
+        def reset(self, task: Task) -> Any:
             self._step = 0
             return None
 
@@ -281,7 +281,7 @@ def run_server_test(test: SmokeTest, timeout: int) -> SmokeResult:
             done = self._step >= 3
             return StepResult(obs=None, reward=1.0 if done else 0.0, done=done, info={})
 
-        def make_obs(self, raw_obs: Any, task_: Task) -> Observation:
+        def make_obs(self, raw_obs: Any, task: Task) -> Observation:
             return self._dummy_obs()
 
         def check_done(self, step_result: StepResult) -> bool:
