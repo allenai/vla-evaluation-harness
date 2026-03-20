@@ -87,8 +87,9 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ## CI/CD
 
-- **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `leaderboard/`
-- **`pages.yml`**: Deploys to GitHub Pages on push to main; regenerates `coverage.json`
+- **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `results.json` or `citations.json`
+- **`pages.yml`**: Deploys to GitHub Pages on push to main; regenerates `coverage.json` and `citations.json`
+- **`update-data.yml`**: Syncs external leaderboard sources weekly (Monday 06:00 UTC) and opens a PR with updates. Can also be triggered manually via `workflow_dispatch`.
 
 ## Benchmark-Specific Caveats
 
