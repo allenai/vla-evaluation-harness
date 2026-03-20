@@ -1,0 +1,41 @@
+.omx/
+.omc/
+.env
+.env.*
+/results
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# hatch-vcs generated
+src/vla_eval/_version.py
+
