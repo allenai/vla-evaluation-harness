@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate results.json against the JSON schema and check score ranges."""
 
+import argparse
 import json
 import re
 import sys
@@ -12,6 +13,11 @@ SCHEMA_PATH = DATA_DIR / "schema.json"
 CITATIONS_PATH = DATA_DIR / "citations.json"
 
 ARXIV_ID_RE = re.compile(r"^\d{4}\.\d{4,5}$")
+
+
+def canonical_json(data: dict) -> str:
+    """Return the canonical JSON serialization for results data."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def validate_schema(data: dict, schema: dict) -> list[str]:
@@ -91,6 +97,21 @@ def validate_score_ranges(data: dict) -> list[str]:
     return errors
 
 
+def validate_sort_and_format(data: dict, raw_text: str) -> list[str]:
+    """Check that results are sorted by (benchmark, model) and file uses canonical format."""
+    errors = []
+    results = data["results"]
+    pairs = [(r["benchmark"], r["model"]) for r in results]
+    if pairs != sorted(pairs):
+        errors.append("results array is not sorted by (benchmark, model) — run with --fix to auto-sort")
+
+    expected = canonical_json(data)
+    if raw_text != expected and pairs == sorted(pairs):
+        errors.append("file format does not match canonical style (indent=2, trailing newline) — run with --fix")
+
+    return errors
+
+
 def validate_official_leaderboard_policy(data: dict) -> list[str]:
     """Benchmarks with official_leaderboard must only have API-synced entries."""
     errors = []
@@ -153,16 +174,32 @@ def validate_citations(data: dict) -> list[str]:
 
 
 def main() -> int:
-    results_path = Path(sys.argv[1]) if len(sys.argv) > 1 else RESULTS_PATH
+    parser = argparse.ArgumentParser(description="Validate results.json against schema and leaderboard rules.")
+    parser.add_argument("results_file", nargs="?", default=None, help="Path to results.json (default: auto-detect)")
+    parser.add_argument("--fix", action="store_true", help="Auto-fix sort order and canonical formatting")
+    args = parser.parse_args()
 
-    with open(results_path) as f:
-        data = json.load(f)
+    results_path = Path(args.results_file) if args.results_file else RESULTS_PATH
+    raw_text = results_path.read_text()
+    data = json.loads(raw_text)
+
     with open(SCHEMA_PATH) as f:
         schema = json.load(f)
+
+    if args.fix:
+        data["results"].sort(key=lambda r: (r["benchmark"], r["model"]))
+        fixed_text = canonical_json(data)
+        if fixed_text != raw_text:
+            results_path.write_text(fixed_text)
+            raw_text = fixed_text
+            print(f"Fixed: sorted results and wrote canonical format to {results_path}")
+        else:
+            print("Nothing to fix: already sorted and canonical.")
 
     errors = (
         validate_schema(data, schema)
         + validate_score_ranges(data)
+        + validate_sort_and_format(data, raw_text)
         + validate_official_leaderboard_policy(data)
         + validate_papers_reviewed(data)
         + validate_citations(data)

@@ -75,6 +75,7 @@ When adding scores, correctly attribute **who ran the evaluation**:
 1. **Add entries** to the `results` array (sorted by `benchmark, model`). Keep `display_name` and `params` consistent across entries for the same model.
 
 2. **Validate**: `python leaderboard/scripts/validate.py`
+   - Auto-fix sort order and formatting: `python leaderboard/scripts/validate.py --fix`
 
 3. **Update coverage** (optional): `python leaderboard/scripts/update_coverage.py [--fetch]`
    - `papers_reviewed` lists all arxiv IDs reviewed per benchmark (with or without results).
