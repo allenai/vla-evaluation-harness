@@ -10,9 +10,11 @@ All data lives in `leaderboard/data/results.json` — the single source of truth
 
 | Benchmark | Metric | Unit | Range |
 |-----------|--------|------|-------|
-| LIBERO, LIBERO-Plus, LIBERO-Pro, LIBERO-Mem | success_rate | % | 0–100 |
+| LIBERO, LIBERO-Plus, LIBERO-Pro | success_rate | % | 0–100 |
+| LIBERO-Mem | subgoal_completion_rate | % | 0–100 |
 | CALVIN | avg_len | subtasks | 0–5 |
-| SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin 1.0, RoboTwin 2.0, VLABench, MIKASA, Kinetix, RoboCerebra | success_rate | % | 0–100 |
+| SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin 1.0, RoboTwin 2.0, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboChallenge | success_rate | % | 0–100 |
+| RoboArena | elo_rating | Elo | 0–2000 |
 
 Each benchmark declares its metric, range, and optionally `suites`/`tasks`. See the JSON for the full registry.
 
@@ -74,13 +76,15 @@ When adding scores, correctly attribute **who ran the evaluation**:
 
 1. **Add entries** to the `results` array (sorted by `benchmark, model`). Keep `display_name` and `params` consistent across entries for the same model.
 
-2. **Validate**: `python leaderboard/scripts/validate.py`
+2. **Update `last_updated`**: Set `last_updated` in `results.json` to today's date (`YYYY-MM-DD`) when adding or modifying result data. This is displayed on the frontend and must reflect the latest data change.
+
+3. **Validate**: `python leaderboard/scripts/validate.py`
    - Auto-fix sort order and formatting: `python leaderboard/scripts/validate.py --fix`
 
-3. **Update coverage** (optional): `python leaderboard/scripts/update_coverage.py [--fetch]`
+4. **Update coverage** (optional): `python leaderboard/scripts/update_coverage.py [--fetch]`
    - `papers_reviewed` lists all arxiv IDs reviewed per benchmark (with or without results).
 
-4. **Test locally**: `cd leaderboard/site && python -m http.server`
+5. **Test locally**: `cd leaderboard/site && python -m http.server`
 
 ## Official Leaderboard Policy
 

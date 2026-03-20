@@ -12,6 +12,7 @@ import json
 import os
 import re
 import time
+from datetime import date
 import urllib.error
 import urllib.request
 from collections import Counter
@@ -76,7 +77,7 @@ def load_cached_coverage() -> dict:
     """Load existing coverage.json for cached citing_papers values."""
     if COVERAGE_PATH.exists():
         return json.loads(COVERAGE_PATH.read_text())
-    return {}
+    return {"last_updated": None, "benchmarks": {}}
 
 
 def main():
@@ -111,7 +112,7 @@ def main():
         fetched_counts = fetch_citation_counts_batch(list(bm_arxiv.values()))
 
     coverage = {
-        "last_updated": results_data.get("last_updated", "unknown"),
+        "last_updated": date.today().isoformat() if (args.fetch and fetched_counts) else cached.get("last_updated"),
         "total_models": len({r["model"] for r in results}),
         "total_results": len(results),
         "total_papers_reviewed": papers_reviewed,

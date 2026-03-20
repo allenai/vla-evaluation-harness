@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-04",
+  "last_updated": "2026-03-20",
   "benchmarks": {
     "libero": {
       "display_name": "LIBERO",
@@ -646,6 +646,7 @@
       },
       "paper_url": "https://arxiv.org/abs/2510.03827",
       "suites": [
+        "goal_env",
         "goal_lang_aug",
         "goal_obj",
         "goal_ori",
@@ -660,6 +661,7 @@
         "libero_goal",
         "libero_object",
         "libero_spatial",
+        "long_env",
         "long_obj",
         "long_ori",
         "long_pos",
@@ -678,6 +680,7 @@
         "pos_goal",
         "pos_object",
         "pos_spatial",
+        "spatial_env",
         "spatial_lang_aug",
         "spatial_obj",
         "spatial_ori",
@@ -8839,7 +8842,7 @@
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": null,
+      "overall_score": 57.5,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
@@ -8879,7 +8882,7 @@
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": null,
+      "overall_score": 54.6,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
@@ -8919,7 +8922,7 @@
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": null,
+      "overall_score": 62.0,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
@@ -9009,7 +9012,7 @@
       "model_paper": "https://arxiv.org/abs/2602.18224",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": null,
+      "overall_score": 58.6,
       "suite_scores": {
         "spatial_ori": 99.0,
         "spatial_obj": 98.0,

@@ -16,6 +16,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
@@ -120,7 +121,7 @@ def main():
                 papers[aid] = cached_papers[aid]
 
     output = {
-        "last_updated": results_data.get("last_updated"),
+        "last_updated": date.today().isoformat() if (args.fetch and fetched) else cached.get("last_updated"),
         "papers": papers,
     }
     CITATIONS_PATH.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
