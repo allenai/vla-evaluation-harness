@@ -96,7 +96,7 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ### SimplerEnv
 
-- **Standard protocol**: 3 independent evaluation dimensions — **never average across them**. `overall_score` = always `null`; use `suite_scores` only.
+- **Standard protocol**: 3 independent evaluation dimensions — **never average across them**. `overall_score` = always `null`; use `suite_scores` only. Store the paper's reported aggregate (if any) in `task_scores.reported_avg` per the global rule (see Result Fields).
 
 | Dimension | Robot | Protocol | Benchmark key |
 |-----------|-------|----------|---------------|
@@ -112,42 +112,66 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 - **Standard protocol**: ABC→D split (train on A/B/C, eval on D), 1000 eval chains. ABCD→D inflates scores — do not add.
 - Metric: avg completed subtasks in chain of 5 (0–5), not success rate.
-- Note deviations from 1000 chains.
+- Record deviations from 1000 chains in `notes`.
 
 ### LIBERO
 
 - **Standard protocol**: 4-suite average (`spatial`, `object`, `goal`, `10`). Always include `suite_scores`. A 5th suite (`90`) exists but many papers skip it.
-- `overall_score` = arithmetic mean of evaluated suites.
+- `overall_score` = arithmetic mean of the **4 standard suites only** (`spatial`, `object`, `goal`, `10`). Do NOT include `90` in the overall mean even when reported — store it in `suite_scores.libero_90` only. Entries reporting only a subset of the 4 standard suites must set `overall_score = null`.
 - LIBERO-Plus, LIBERO-Pro and LIBERO-Mem are **separate benchmarks**.
 
 ### LIBERO-Plus
 
 - Robustness benchmark ([2510.13626](https://arxiv.org/abs/2510.13626)) with **7 perturbation dimensions**: Camera, Robot, Language, Light, Background, Noise, Layout.
 - Models are trained on standard LIBERO and evaluated **zero-shot** under perturbations.
-- `overall_score` = arithmetic mean of 7 perturbation dimensions. Always include `suite_scores`.
+- `overall_score` = arithmetic mean of **all 7** perturbation dimensions. Always include `suite_scores`. Entries with fewer than 7 dimensions must set `overall_score = null`.
 - `weight_type`: `"shared"` for zero-shot models (LIBERO-trained); `"finetuned"` for models trained on LIBERO-Plus data.
 - Some papers (e.g. JEPA-VLA) use reduced training data (1/10 LIBERO) — record in `notes`.
-- Partial evaluations (fewer than 7 dimensions) should NOT be filed under `libero_plus`.
+
+### LIBERO-Pro
+
+- Robustness benchmark ([2510.03827](https://arxiv.org/abs/2510.03827)) evaluating generalization under perturbations across LIBERO suites.
+- **Standard protocol**: 4 suites × 5 core perturbations = **20 cells**.
+  - Suites: `goal`, `spatial`, `long`, `object`
+  - Core perturbations: `original` (ori), `object_swap` (obj), `position` (pos), `semantic` (sem), `task`
+  - Optional 6th perturbation: `environment` (env) — only available for `object` suite
+- **suite_scores key format**: `{suite}_{perturbation}` (e.g., `goal_ori`, `spatial_obj`, `long_pos`). Use canonical short names: `ori`, `obj`, `pos`, `sem`, `task`, `env`.
+- `overall_score` = arithmetic mean of the **20 core cells only** (excluding optional `env`). Set `overall_score = null` if any of the 20 core cells are absent.
+- Non-standard perturbation types (e.g., `lang_aug`, `vision_aug`) should NOT be filed under `libero_pro`. Use a separate benchmark or omit.
+- 50 evaluation episodes per task, consistent with standard LIBERO.
+
+### LIBERO-Mem
+
+- Memory benchmark ([2511.11478](https://arxiv.org/abs/2511.11478)) with **10 tasks** (T1–T10) across 4 types: OM (T1–T2), OS (T3–T5), OR (T6–T8), OO (T9–T10).
+- **Metric**: subgoal completion rate (%), NOT task success rate. 20 rollouts per task.
+- `overall_score` = unweighted arithmetic mean of T1–T10. Always include `task_scores`.
+- Models using oracle subgoal information must note this in `notes`.
 
 ### ManiSkill2
 
 - **Standard protocol**: 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB). `overall_score` = `null` for other task subsets.
-- Averaging varies (weighted vs arithmetic). Note method if known.
+- Always record the averaging method (weighted vs arithmetic) in `notes`. If unknown, note `'averaging method unknown'`.
 
 ### RLBench
 
-- **Standard protocol**: 18-task (PerAct) subset. `overall_score` = `null` for non-18-task evaluations. Record task count in `notes`.
-- Multi-variation (e.g. 25 per task) vs single variation significantly affects scores.
+- **Standard protocol**: 18-task PerAct subset ([2209.05451](https://arxiv.org/abs/2209.05451)), 249 total language-goal variations across the 18 tasks, 25 evaluation episodes per task (450 total), 100 training demos per task.
+- `overall_score` = mean success rate across 18 tasks. Set `overall_score = null` for non-18-task evaluations. Always record task count in `notes`.
+- **Variation count matters**: Multi-variation (e.g. 25 per task) vs single variation significantly affects scores. Record variation count in `notes` when known.
+- Entries using single-task learning (training a separate policy per task) are not comparable to multi-task entries. Note the training regime.
 
 ### RoboCasa
 
-- Papers may evaluate on different task subsets and episode counts. Record what was included.
+- **Standard protocol**: 24 atomic tasks from the RoboCasa benchmark ([2406.02523](https://arxiv.org/abs/2406.02523)). `overall_score` = mean success rate across evaluated tasks.
+- **Training data varies widely** (50–300 demos/task across papers). Always record `demos_per_task` and `task_count` in `notes`. Scores from different training budgets are not directly comparable.
+- Entries evaluating non-standard task counts (e.g., 8 tasks, composite tasks) should note the deviation. Prefer `overall_score = null` for significantly non-standard subsets.
+- Record episode count when known.
 
 ### RoboTwin
 
 - **v1 and v2 are separate benchmarks**. v1 = `robotwin_v1` ([2409.02920](https://arxiv.org/abs/2409.02920), ECCV 2024), v2 = `robotwin_v2` ([2506.18088](https://arxiv.org/abs/2506.18088), 2025).
 - **v2 standard protocol**: `overall_score` = always `null`; use `suite_scores: {"easy": X, "hard": Y}`. Report both Easy (clean scenes) and Hard (5-axis domain randomization) when available.
-- Task counts vary (v1: 4–17, v2: 3–50). Record task count in `notes`.
+- **v1**: No standard task set — entries evaluate 4–17 tasks. Set `overall_score = null` unless the entry matches the original paper's exact task set. Always record task count in `notes`. Entries with different task counts are not comparable.
+- **v2**: Task counts vary (3–50). Record task count in `notes`.
 - Do not file CVPR 2025 Challenge results under standard v2 (different protocol).
 - **Two v2 training protocols exist** — scores across them are **not comparable**:
 
@@ -163,18 +187,23 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ### MIKASA-Robo
 
+- **Task set fragmentation**: Multiple incompatible task subsets coexist. Papers evaluate different subsets of MIKASA's 32 tasks with **zero overlap** between some groups. `overall_score` = always `null` — entries from different task sets cannot be ranked against each other. Store the paper's reported aggregate in `suite_scores.reported_avg` per the global rule (see Result Fields).
+- Always include `task_scores` with per-task breakdowns. Record which tasks were evaluated in `notes`.
 - Some scores are third-party reproductions (e.g. MemoryVLA paper). Check `notes`.
-- Ensure overall score reflects the paper's full aggregate, not a selective subset.
 
 ### RoboCerebra
 
-- Includes both end-to-end VLAs and hierarchical systems (VLM planner + controller) — not directly comparable.
-- Typical scores: 5–20%. Small absolute differences may be meaningful.
+- Embodied reasoning benchmark ([2506.06677](https://arxiv.org/abs/2506.06677)) with **6 evaluation dimensions**: ideal, memory_execution, memory_exploration, mix, observation_mismatching, random_disturbance.
+- `overall_score` = arithmetic mean of all 6 dimensions. Set `overall_score = null` if fewer than 6 dimensions are reported. Always include `suite_scores` when available.
+- **Architecture types**: Entries include end-to-end VLAs, hierarchical systems (VLM planner + controller), and oracle (GT-Plan) upper bounds. These are not directly comparable. Note the architecture type in `notes`.
+- Oracle entries (GT-Plan + VLA) represent non-deployable upper bounds. They should be clearly marked.
+- Typical scores: 5–20%. Small absolute differences may be meaningful. All current entries are from the original paper (600 rollouts, same protocol).
 
 ### Kinetix
 
 - **Not the Kinetix simulator** — it's the 12-task eval protocol from the RTC paper ([2506.07339](https://arxiv.org/abs/2506.07339)). State-based, no vision/language.
-- Scores depend on `(inference_delay, execution_horizon)` settings. Always record in `notes`.
+- Scores depend on `(inference_delay d, execution_horizon e)` settings. Always record both in `notes`.
+- Entries at different `d` values are **not directly comparable** (e.g., d=0 scores ~11pp higher than d=4 for the same method). Prefer grouping by `d` when comparing.
 
 ### VLABench
 
@@ -187,9 +216,21 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
   - Track 6: `unseen_texture` — visual robustness (optional)
 - **Two metrics**: IS (Intention Score, approached correct object) and PS (Progress Score, task completion). IS ≥ PS always.
 - **Leaderboard standard**: `overall_score` = **Track 1-4 PS average**. Track 5-6 and IS values go in `suite_scores` as supplementary data.
+- **Canonical suite_scores keys**: Use the track-based naming: `in_dist_IS`, `in_dist_PS`, `cross_category_IS`, `cross_category_PS`, `commonsense_IS`, `commonsense_PS`, `semantic_instruction_IS`, `semantic_instruction_PS`, `unseen_texture_IS`, `unseen_texture_PS`. Pre-track-system entries (2412.18194) use legacy keys (`seen_base`, `unseen_commonsense`, etc.) with `overall_score: null`.
 - Original VLABench paper (2412.18194) uses a pre-track-system IS-based protocol (seen/unseen × base/commonsense). These entries have `overall_score: null`.
 - Non-standard task subsets (e.g. cherry-picked tasks outside the official tracks) must NOT be filed under `vlabench`.
 - Different papers evaluating the same model produce different scores due to fine-tuning setup and eval seeds. Use separate `model` keys per source paper (e.g. `pi0_acot_vlabench`, `pi0_xvla_vlabench`).
+
+### RoboArena
+
+- Elo-based pairwise comparison benchmark. Scores are Elo ratings (not success rates). Higher is better.
+- All entries are API-synced (`curated_by` ends with `-api`). Manual entries are not accepted.
+- Entries with fewer than 15 pairwise evaluations have high variance (std > 120 Elo) and should be interpreted cautiously.
+
+### RoboChallenge
+
+- Multi-task challenge benchmark with two scores: `overall_score` (success rate, binary task completion) and `suite_scores.progress_score` (partial credit for sub-goal progress).
+- All entries are API-synced. Manual entries are not accepted.
 
 ## Schema
 
