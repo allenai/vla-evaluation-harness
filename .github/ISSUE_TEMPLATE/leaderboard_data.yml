@@ -6,49 +6,10 @@ body:
     attributes:
       value: |
         Thanks for helping improve the leaderboard! Please read [leaderboard/CONTRIBUTING.md](https://github.com/allenai/vla-evaluation-harness/blob/main/leaderboard/CONTRIBUTING.md) before submitting.
-  - type: dropdown
-    id: type
-    attributes:
-      label: Type
-      options:
-        - Add missing score
-        - Correct existing score
-        - Protocol clarification
-        - Other
-    validations:
-      required: true
-  - type: input
-    id: model
-    attributes:
-      label: Model name
-      placeholder: e.g. OpenVLA, π₀, CogACT
-    validations:
-      required: true
-  - type: input
-    id: benchmark
-    attributes:
-      label: Benchmark
-      placeholder: e.g. LIBERO, CALVIN, SimplerEnv
-    validations:
-      required: true
-  - type: input
-    id: score
-    attributes:
-      label: Score
-      placeholder: e.g. 85.7% success rate
-    validations:
-      required: false
-  - type: input
-    id: source
-    attributes:
-      label: Source paper or URL
-      placeholder: e.g. https://arxiv.org/abs/...
-    validations:
-      required: true
   - type: textarea
-    id: details
+    id: description
     attributes:
-      label: Additional details
-      description: Source table, weight type (shared/finetuned), protocol notes, etc.
+      label: Description
+      description: Describe the missing/incorrect scores, include source paper links and table references. Screenshots are welcome.
     validations:
-      required: false
+      required: true
