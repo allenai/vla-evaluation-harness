@@ -1,14 +1,14 @@
 {
   "last_updated": "2026-03-04",
   "total_models": 509,
-  "total_results": 657,
+  "total_results": 658,
   "total_papers_reviewed": 1704,
   "benchmarks": {
     "libero": {
       "display_name": "LIBERO",
       "arxiv_id": "2306.03310",
       "citing_papers": 622,
-      "leaderboard_entries": 165,
+      "leaderboard_entries": 166,
       "papers_reviewed": 551
     },
     "libero_plus": {

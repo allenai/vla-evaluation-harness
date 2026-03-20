@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-04",
+  "last_updated": "2026-03-20",
   "benchmarks": {
     "libero": {
       "display_name": "LIBERO",
@@ -576,7 +576,7 @@
       "expand_suites": true,
       "avg_position": 4,
       "avg_label": "Avg (w/o 90)",
-      "detail_notes": "Avg is the mean of spatial, object, goal, and 10 suites (the standard 4-suite protocol used by ~82% of entries). Suite 90 is excluded as most papers skip it. Entries without suite breakdown may use different subsets — check notes. LIBERO-Plus, LIBERO-Pro, and LIBERO-Mem are separate benchmarks."
+      "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
     },
     "libero_plus": {
       "display_name": "LIBERO-Plus",
@@ -646,6 +646,7 @@
       },
       "paper_url": "https://arxiv.org/abs/2510.03827",
       "suites": [
+        "goal_env",
         "goal_lang_aug",
         "goal_obj",
         "goal_ori",
@@ -660,6 +661,7 @@
         "libero_goal",
         "libero_object",
         "libero_spatial",
+        "long_env",
         "long_obj",
         "long_ori",
         "long_pos",
@@ -678,6 +680,7 @@
         "pos_goal",
         "pos_object",
         "pos_spatial",
+        "spatial_env",
         "spatial_lang_aug",
         "spatial_obj",
         "spatial_ori",
@@ -712,12 +715,12 @@
         "2602.13193",
         "2602.18224"
       ],
-      "detail_notes": "LIBERO-Pro (<a href='https://arxiv.org/abs/2510.03827'>2510.03827</a>). Professional-difficulty variant of LIBERO. Separate benchmark from standard LIBERO."
+      "detail_notes": "LIBERO-Pro robustness benchmark (<a href='https://arxiv.org/abs/2510.03827'>2510.03827</a>). Standard protocol: 4 suites (goal, spatial, long, object) × 5 perturbations (original, object_swap, position, semantic, task) = 20 cells. Optional 6th perturbation: environment (object suite only). <code>overall_score</code> = mean of 20 core cells (excl env). Null if &lt;20 cells reported."
     },
     "libero_mem": {
       "display_name": "LIBERO-Mem",
       "metric": {
-        "name": "success_rate",
+        "name": "subgoal_completion_rate",
         "unit": "%",
         "range": [
           0,
@@ -744,7 +747,7 @@
         "2512.11362",
         "2512.24638"
       ],
-      "detail_notes": "LIBERO-Mem (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). Memory-augmented variant of LIBERO. Separate benchmark from standard LIBERO."
+      "detail_notes": "LIBERO-Mem memory benchmark (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). 10 tasks (T1–T10). Metric: <strong>subgoal completion rate</strong> (not task success rate). 20 rollouts per task."
     },
     "calvin": {
       "display_name": "CALVIN",
@@ -1504,12 +1507,7 @@
         "TurnFaucet",
         "TurnFaucetLeft",
         "TurnFaucetRight",
-        "Write",
-        "peg_insertion_side",
-        "pick_cube",
-        "plug_charger",
-        "push_cube",
-        "stack_cube"
+        "Write"
       ],
       "suites": [
         "PickClutterYCB",
@@ -2457,7 +2455,7 @@
         "2603.02115",
         "2603.02139"
       ],
-      "detail_notes": "18-task (PerAct) subset is the dominant standard (~67% of entries). Other common sets: 10-task, 74-task, 249-task. <strong>Different task sets are not directly comparable</strong> — check notes for task count and variation count. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked.",
+      "detail_notes": "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores.",
       "results": [
         {
           "model": "tgm-vla",
@@ -2856,7 +2854,7 @@
         "2603.01229",
         "2603.01549"
       ],
-      "detail_notes": "No standardized task subset exists. Papers evaluate on different task subsets and episode counts. <strong>No entries currently include task-level breakdown</strong> — all report overall scores only. Check notes for what was included."
+      "detail_notes": "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>). <strong>Training data varies widely</strong> (50–300 demos/task). Check <em>notes</em> for <code>demos_per_task</code> and <code>task_count</code>. Scores from different training budgets are not directly comparable."
     },
     "robotwin_v1": {
       "display_name": "RoboTwin 1.0",
@@ -2882,6 +2880,7 @@
         "blocks_stack_easy",
         "blocks_stack_easy_20demo",
         "blocks_stack_easy_50demo",
+        "blocks_stack_hard",
         "blocks_stack_hard_20demo",
         "blocks_stack_hard_50demo",
         "bottle_adjust",
@@ -2895,6 +2894,7 @@
         "dual_bottles_pick_hard",
         "dual_shoes_place",
         "empty_cup_place",
+        "empty_cup_place_messy",
         "mug_hanging_easy",
         "mug_hanging_hard",
         "mug_hanging_hard_20demo",
@@ -3260,13 +3260,10 @@
       "tasks": [
         "InterceptMedium",
         "RememberColor3",
-        "RememberColor3-v0",
         "RememberColor5",
-        "RememberColor5-v0",
         "RememberColor9",
-        "RememberColor9-v0",
         "ShellGameTouch",
-        "TakeItBack-v0"
+        "TakeItBack"
       ],
       "papers_reviewed": [
         "2412.06531",
@@ -3281,7 +3278,7 @@
         "2601.14232",
         "2601.15086"
       ],
-      "detail_notes": "MIKASA-Robo (<a href='https://arxiv.org/abs/2502.10550'>2502.10550</a>). Some scores are third-party reproductions — check notes. Ensure overall score reflects the paper's full aggregate, not a selective subset."
+      "detail_notes": "<strong>Task set fragmentation</strong>: Multiple incompatible task subsets coexist across papers with zero overlap between some groups. <code>overall_score</code> is always null — entries from different task sets cannot be ranked against each other. Check <em>notes</em> for which task set each entry uses."
     },
     "kinetix": {
       "display_name": "Kinetix",
@@ -3357,7 +3354,7 @@
         "2602.22088",
         "2602.23901"
       ],
-      "detail_notes": "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based control — no vision or language input. Scores depend on (inference_delay, execution_horizon) settings. <strong>Not the Kinetix simulator</strong> — it is a specific evaluation protocol."
+      "detail_notes": "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based, no vision/language. Scores depend on (inference_delay <em>d</em>, execution_horizon <em>e</em>). Entries at different <em>d</em> values are <strong>not directly comparable</strong> (~11pp gap between d=0 and d=4 for the same method)."
     },
     "robocerebra": {
       "display_name": "RoboCerebra",
@@ -3400,7 +3397,7 @@
         "2602.18812",
         "2603.01229"
       ],
-      "detail_notes": "Includes both end-to-end VLAs and hierarchical systems (VLM planner + controller) — not directly comparable. Typical scores: 5–20%. Small absolute differences may be meaningful."
+      "detail_notes": "Embodied reasoning benchmark (<a href='https://arxiv.org/abs/2506.06677'>2506.06677</a>) with 6 evaluation dimensions. <code>overall_score</code> = mean of 6 dimensions. <strong>Architecture types</strong>: end-to-end VLAs, hierarchical (VLM+controller), and oracle (GT-Plan) upper bounds are not directly comparable. Check <em>notes</em> for architecture type."
     },
     "roboarena": {
       "display_name": "RoboArena",
@@ -3630,7 +3627,7 @@
         "4_tasks": 57.5,
         "5_tasks": 45.4
       },
-      "source_paper": "https://arxiv.org/abs/2501.17685",
+      "source_paper": "https://arxiv.org/abs/2409.09016",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -3666,7 +3663,7 @@
         "5_tasks": 68.4
       },
       "num_episodes": 1000,
-      "source_paper": "https://arxiv.org/abs/2411.19650",
+      "source_paper": "https://arxiv.org/abs/2510.23511",
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4045,17 +4042,17 @@
       "weight_type": "finetuned",
       "overall_score": 4.01,
       "suite_scores": {
-        "1_task": 96.0,
-        "2_tasks": 83.5,
-        "3_tasks": 70.8,
-        "4_tasks": 57.5,
-        "5_tasks": 45.4
+        "1_task": 96.1,
+        "2_tasks": 88.6,
+        "3_tasks": 80.5,
+        "4_tasks": 72.3,
+        "5_tasks": 63.6
       },
       "source_paper": "https://arxiv.org/abs/2510.20406",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "PMP-xyz variant, trained from scratch on CALVIN ABC→D"
+      "notes": "ABC->D, 1000 chains. Suite_scores corrected (previously stored CLOVER's chain data)."
     },
     {
       "model": "rd_vla",
@@ -4254,7 +4251,7 @@
         "4_tasks": 77.8,
         "5_tasks": 70.4
       },
-      "source_paper": "https://arxiv.org/abs/2410.07474",
+      "source_paper": "https://arxiv.org/abs/2412.14058",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4317,7 +4314,7 @@
         "4_tasks": 38.0,
         "5_tasks": 26.0
       },
-      "source_paper": "https://arxiv.org/abs/2404.04012",
+      "source_paper": "https://arxiv.org/abs/2310.10639",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4349,7 +4346,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "CALVIN ABC->D. Applied to LLaVA-VLA backbone, improves baseline 3.55->3.67 (+0.12). 500 rollout evaluation."
+      "notes": "Non-standard: 500 rollouts (standard is 1000). CALVIN ABC->D. Applied to LLaVA-VLA backbone, improves baseline 3.55->3.67 (+0.12). 500 rollout evaluation."
     },
     {
       "model": "univla",
@@ -4366,7 +4363,7 @@
         "4_tasks": 66.9,
         "5_tasks": 56.5
       },
-      "source_paper": "https://arxiv.org/abs/2505.13111",
+      "source_paper": "https://arxiv.org/abs/2505.06111",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4387,7 +4384,7 @@
         "4_tasks": 76.9,
         "5_tasks": 69.9
       },
-      "source_paper": "https://arxiv.org/abs/2503.02495",
+      "source_paper": "https://arxiv.org/abs/2501.18867",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4468,7 +4465,7 @@
       "source_table": "Table (main results)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
+      "notes": "Paper reports avg_len=4.73; suite_scores sum to 4.575 (0.155 diff — may be rounding or different eval run). CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
     },
     {
       "model": "vlm4vla_qwen25vl_3b",
@@ -4502,7 +4499,9 @@
       "suite_scores": {
         "1_task": 93.5,
         "2_tasks": 86.4,
-        "3_tasks": 69.3
+        "3_tasks": 80.7,
+        "4_tasks": 75.8,
+        "5_tasks": 69.3
       },
       "source_paper": "https://arxiv.org/abs/2601.03309",
       "source_table": "Table 1 (Calvin ABC-D)",
@@ -4520,7 +4519,10 @@
       "overall_score": 4.142,
       "suite_scores": {
         "1_task": 94.3,
-        "2_tasks": 88.2
+        "2_tasks": 88.2,
+        "3_tasks": 83.1,
+        "4_tasks": 77.6,
+        "5_tasks": 71.0
       },
       "source_paper": "https://arxiv.org/abs/2601.03309",
       "source_table": "Table 1 (Calvin ABC-D)",
@@ -4538,7 +4540,10 @@
       "overall_score": 3.943,
       "suite_scores": {
         "1_task": 93.3,
-        "2_tasks": 85.7
+        "2_tasks": 85.7,
+        "3_tasks": 79.0,
+        "4_tasks": 71.9,
+        "5_tasks": 64.4
       },
       "source_paper": "https://arxiv.org/abs/2601.03309",
       "source_table": "Table 1 (Calvin ABC-D)",
@@ -6268,7 +6273,7 @@
       "model_paper": "https://arxiv.org/abs/2407.05996",
       "benchmark": "libero",
       "weight_type": "finetuned",
-      "overall_score": 74.3,
+      "overall_score": 76.1,
       "suite_scores": {
         "libero_spatial": 78.5,
         "libero_object": 87.5,
@@ -6280,7 +6285,7 @@
       "source_table": "Table II",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "MDT with L_CLA + L_MGF auxiliary losses, 2% language annotations. libero_10 not reported. Overall = mean of 5 reported suites."
+      "notes": "overall_score corrected to 4-suite mean (was 74.3, 5-suite incl libero_90). MDT with L_CLA + L_MGF auxiliary losses, 2% language annotations. libero_10 not reported. Overall = mean of 5 reported suites."
     },
     {
       "model": "memory_vla",
@@ -6289,7 +6294,7 @@
       "model_paper": "https://arxiv.org/abs/2508.19236",
       "benchmark": "libero",
       "weight_type": "shared",
-      "overall_score": 96.5,
+      "overall_score": 96.7,
       "suite_scores": {
         "libero_spatial": 98.4,
         "libero_object": 98.4,
@@ -6301,7 +6306,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Memory-augmented VLA. Reports both Long-10=93.4 and Long-90=95.6. overall_score=96.5 is paper-stated average over 4 suites (Spatial/Object/Goal/Long-10)."
+      "notes": "overall_score corrected to 4-suite mean (was 96.5, 5-suite incl libero_90). Memory-augmented VLA. Reports both Long-10=93.4 and Long-90=95.6. overall_score=96.5 is paper-stated average over 4 suites (Spatial/Object/Goal/Long-10)."
     },
     {
       "model": "metavla_nora_long",
@@ -7275,7 +7280,7 @@
       "model_paper": "https://arxiv.org/abs/2410.08208",
       "benchmark": "libero",
       "weight_type": "finetuned",
-      "overall_score": 52.9,
+      "overall_score": 58.0,
       "suite_scores": {
         "libero_spatial": 50.0,
         "libero_object": 76.7,
@@ -7287,7 +7292,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "SPA visual encoder used with LIBERO transformer policy, finetuned per suite. Overall = mean of 5 suites: (50.0+76.7+65.3+40.2+32.2)/5."
+      "notes": "overall_score corrected to 4-suite mean (was 52.9, 5-suite incl libero_90). SPA visual encoder used with LIBERO transformer policy, finetuned per suite. Overall = mean of 5 suites: (50.0+76.7+65.3+40.2+32.2)/5."
     },
     {
       "model": "spatial_forcing",
@@ -7355,17 +7360,19 @@
       "model_paper": "https://arxiv.org/abs/2506.03863",
       "benchmark": "libero",
       "weight_type": "finetuned",
-      "overall_score": 93.6,
+      "overall_score": 94.3,
       "suite_scores": {
         "libero_spatial": 95.5,
         "libero_object": 98.3,
         "libero_goal": 95.0,
-        "libero_10": 88.5
+        "libero_10": 88.5,
+        "libero_90": 90.8
       },
       "source_paper": "https://arxiv.org/abs/2506.03863",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
-      "date_added": "2026-03-04"
+      "date_added": "2026-03-04",
+      "notes": "overall_score corrected to 4-suite mean 94.3 (was 93.6). "
     },
     {
       "model": "streamvla",
@@ -7615,7 +7622,7 @@
       "weight_type": "finetuned",
       "overall_score": 79.4,
       "suite_scores": {
-        "libero_spatial": 87.6,
+        "libero_spatial": 84.8,
         "libero_object": 91.6,
         "libero_goal": 84.2,
         "libero_10": 57.0
@@ -7624,7 +7631,7 @@
       "source_table": "Table 4 (Appendix, plan-execute 8-4)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "VISTA LIBERO plan-execute 8-4 setting without RHC (Appendix Table 4). Main Table 2 with RHC not rendered. CALVIN avg_len=3.34."
+      "notes": "libero_spatial corrected 87.6->84.8 (was object score). VISTA LIBERO plan-execute 8-4 setting without RHC (Appendix Table 4). Main Table 2 with RHC not rendered. CALVIN avg_len=3.34."
     },
     {
       "model": "vita_vla",
@@ -8611,12 +8618,15 @@
       "model_paper": "https://arxiv.org/abs/2602.17951",
       "benchmark": "libero_plus",
       "weight_type": "shared",
-      "overall_score": 81.7,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2602.17951",
       "source_table": "Figure 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "Per-dim scores reported only in figures (not extractable). Base model: OpenVLA-7B."
+      "notes": "overall_score set to null (no suite_scores; was 81.7). Per-dim scores reported only in figures (not extractable). Base model: OpenVLA-7B.",
+      "suite_scores": {
+        "reported_avg": 81.7
+      }
     },
     {
       "model": "srpo",
@@ -8741,7 +8751,10 @@
       "suite_scores": {
         "object_obj": 96.0,
         "object_pos": 21.0,
-        "object_env": 81.0
+        "object_env": 81.0,
+        "object_ori": 99.0,
+        "object_sem": 98.0,
+        "object_task": 10.0
       },
       "source_paper": "https://arxiv.org/abs/2512.11218",
       "source_table": "Table 2",
@@ -8829,12 +8842,38 @@
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": 0.0,
+      "overall_score": 57.5,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "0% under LIBERO-PRO generalized perturbation (vs >90% standard LIBERO)"
+      "notes": "Full 24-cell data from Tables 2-5. 20-core mean=57.5% (excl env). Near-complete failure on position and task perturbations.",
+      "suite_scores": {
+        "goal_ori": 98,
+        "goal_obj": 96,
+        "goal_pos": 0,
+        "goal_sem": 98,
+        "goal_task": 0,
+        "goal_env": 98,
+        "spatial_ori": 98,
+        "spatial_obj": 97,
+        "spatial_pos": 0,
+        "spatial_sem": 97,
+        "spatial_task": 0,
+        "spatial_env": 89,
+        "long_ori": 93,
+        "long_obj": 81,
+        "long_pos": 0,
+        "long_sem": 96,
+        "long_task": 0,
+        "long_env": 85,
+        "object_ori": 99,
+        "object_obj": 98,
+        "object_pos": 0,
+        "object_sem": 98,
+        "object_task": 0,
+        "object_env": 0
+      }
     },
     {
       "model": "pi0",
@@ -8843,12 +8882,38 @@
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": 0.0,
+      "overall_score": 54.6,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "0% under LIBERO-PRO generalized perturbation (vs >90% standard LIBERO)"
+      "notes": "Full 24-cell data from Tables 2-5. 20-core mean=54.6% (excl env). Near-complete failure on position and task perturbations.",
+      "suite_scores": {
+        "goal_ori": 92,
+        "goal_obj": 94,
+        "goal_pos": 0,
+        "goal_sem": 93,
+        "goal_task": 0,
+        "goal_env": 39,
+        "spatial_ori": 97,
+        "spatial_obj": 95,
+        "spatial_pos": 0,
+        "spatial_sem": 97,
+        "spatial_task": 0,
+        "spatial_env": 60,
+        "long_ori": 82,
+        "long_obj": 79,
+        "long_pos": 0,
+        "long_sem": 82,
+        "long_task": 0,
+        "long_env": 27,
+        "object_ori": 98,
+        "object_obj": 94,
+        "object_pos": 0,
+        "object_sem": 90,
+        "object_task": 0,
+        "object_env": 29
+      }
     },
     {
       "model": "pi0_5",
@@ -8857,12 +8922,38 @@
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": 0.0,
+      "overall_score": 62.0,
       "source_paper": "https://arxiv.org/abs/2510.03827",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "0% under LIBERO-PRO generalized perturbation (vs >90% standard LIBERO)"
+      "notes": "Full 24-cell data from Tables 2-5. 20-core mean=62.0% (excl env). Best baseline on position/task perturbations.",
+      "suite_scores": {
+        "goal_ori": 97,
+        "goal_obj": 97,
+        "goal_pos": 38,
+        "goal_sem": 97,
+        "goal_task": 0,
+        "goal_env": 46,
+        "spatial_ori": 98,
+        "spatial_obj": 97,
+        "spatial_pos": 20,
+        "spatial_sem": 97,
+        "spatial_task": 1,
+        "spatial_env": 46,
+        "long_ori": 93,
+        "long_obj": 92,
+        "long_pos": 8,
+        "long_sem": 93,
+        "long_task": 1,
+        "long_env": 46,
+        "object_ori": 98,
+        "object_obj": 98,
+        "object_pos": 17,
+        "object_sem": 96,
+        "object_task": 1,
+        "object_env": 73
+      }
     },
     {
       "model": "pi0_5_lerobot",
@@ -8871,7 +8962,7 @@
       "model_paper": "https://arxiv.org/abs/2602.03973",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": 23.69,
+      "overall_score": null,
       "suite_scores": {
         "task_goal": 12.0,
         "task_spatial": 48.5,
@@ -8880,13 +8971,14 @@
         "pos_goal": 29.0,
         "pos_spatial": 41.0,
         "pos_10": 11.0,
-        "pos_object": 16.0
+        "pos_object": 16.0,
+        "reported_avg": 23.69
       },
       "source_paper": "https://arxiv.org/abs/2602.03973",
       "source_table": "Table I",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "pi0.5 (LeRobot) without VLS steering. Overall avg across task+position perturbations only (2 of 5 LIBERO-PRO perturbation dimensions)."
+      "notes": "overall_score set to null (only 8 of 20 core cells; was 23.69). pi0.5 (LeRobot) without VLS steering. Overall avg across task+position perturbations only (2 of 5 LIBERO-PRO perturbation dimensions)."
     },
     {
       "model": "pi0_5_vls",
@@ -8895,7 +8987,7 @@
       "model_paper": "https://arxiv.org/abs/2602.03973",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": 36.81,
+      "overall_score": null,
       "suite_scores": {
         "goal_position": 47.0,
         "goal_task": 30.0,
@@ -8904,13 +8996,14 @@
         "long_position": 43.0,
         "long_task": 39.0,
         "object_position": 35.0,
-        "object_task": 34.0
+        "object_task": 34.0,
+        "reported_avg": 36.81
       },
       "source_paper": "https://arxiv.org/abs/2602.03973",
       "source_table": "Table I",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "pi0.5 with Visual Language Supervision on LIBERO-Pro Position and Task perturbations. Average = 36.81%. Already in DB."
+      "notes": "overall_score set to null (only 8 of 20 core cells; was 36.81). pi0.5 with Visual Language Supervision on LIBERO-Pro Position and Task perturbations. Average = 36.81%. Already in DB."
     },
     {
       "model": "simvla",
@@ -8919,7 +9012,7 @@
       "model_paper": "https://arxiv.org/abs/2602.18224",
       "benchmark": "libero_pro",
       "weight_type": "shared",
-      "overall_score": null,
+      "overall_score": 58.6,
       "suite_scores": {
         "spatial_ori": 99.0,
         "spatial_obj": 98.0,
@@ -9174,7 +9267,7 @@
       "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "maniskill2",
       "weight_type": "shared",
-      "overall_score": 69.0,
+      "overall_score": 70.0,
       "task_scores": {
         "PickCube": 95.0,
         "StackCube": 90.0,
@@ -9382,7 +9475,7 @@
       "model_paper": "https://arxiv.org/abs/2410.15959",
       "benchmark": "maniskill2",
       "weight_type": "shared",
-      "overall_score": 57.6,
+      "overall_score": 58.6,
       "task_scores": {
         "PickCube": 87.0,
         "StackCube": 73.6,
@@ -9444,19 +9537,20 @@
       "model_paper": "https://arxiv.org/abs/2503.19757",
       "benchmark": "maniskill2",
       "weight_type": "shared",
-      "overall_score": 72.0,
-      "suite_scores": {
-        "PickCube": 65.8,
-        "StackCube": 79.0,
-        "PickSingleYCB": 80.0,
-        "PickClutterYCB": 62.0,
-        "PickSingleEGAD": 36.0
-      },
+      "overall_score": 65.8,
+      "suite_scores": {},
       "source_paper": "https://arxiv.org/abs/2503.19757",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Novel camera view generalization benchmark; 5 tasks from ManiSkill2 with 300K random camera pool. Overall 72.0% is avg across 5 tasks reported in rightmost column of Table 4."
+      "notes": "Column shift error corrected: overall was 72.0 (actually PickSingleEGAD). Correct overall=65.8%.",
+      "task_scores": {
+        "PickCube": 79.0,
+        "StackCube": 80.0,
+        "PickSingleYCB": 62.0,
+        "PickClutterYCB": 36.0,
+        "PickSingleEGAD": 72.0
+      }
     },
     {
       "model": "dp_depth_h3dp_paper",
@@ -9772,7 +9866,7 @@
       "model_paper": "https://arxiv.org/abs/2510.23511",
       "benchmark": "maniskill2",
       "weight_type": "finetuned",
-      "overall_score": 21.0,
+      "overall_score": 19.0,
       "task_scores": {
         "PickCube": 40.0,
         "StackCube": 45.0,
@@ -10090,18 +10184,21 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 21.0,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 27.0,
-        "RememberColor5-v0": 12.0,
-        "RememberColor9-v0": 12.0,
-        "TakeItBack-v0": 33.0
+        "RememberColor3": 27.0,
+        "RememberColor5": 12.0,
+        "RememberColor9": 12.0,
+        "TakeItBack": 33.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (27+12+12+33)/4 = 21.0.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 21.0). overall_score = (27+12+12+33)/4 = 21.0.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 21.0
+      }
     },
     {
       "model": "cql_mlp_mikasa",
@@ -10110,18 +10207,21 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 15.75,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 29.0,
-        "RememberColor5-v0": 15.0,
-        "RememberColor9-v0": 15.0,
-        "TakeItBack-v0": 4.0
+        "RememberColor3": 29.0,
+        "RememberColor5": 15.0,
+        "RememberColor9": 15.0,
+        "TakeItBack": 4.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (29+15+15+4)/4 = 15.75.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 15.75). overall_score = (29+15+15+4)/4 = 15.75.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 15.75
+      }
     },
     {
       "model": "cronus_vla",
@@ -10130,12 +10230,15 @@
       "model_paper": "https://arxiv.org/abs/2506.19816",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 18.0,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 18.0). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 18.0
+      }
     },
     {
       "model": "dp_mikasa",
@@ -10144,18 +10247,21 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 16.0,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 32.0,
-        "RememberColor5-v0": 10.0,
-        "RememberColor9-v0": 17.0,
-        "TakeItBack-v0": 5.0
+        "RememberColor3": 32.0,
+        "RememberColor5": 10.0,
+        "RememberColor9": 17.0,
+        "TakeItBack": 5.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (32+10+17+5)/4 = 16.0.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 16.0). overall_score = (32+10+17+5)/4 = 16.0.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 16.0
+      }
     },
     {
       "model": "dt_mikasa",
@@ -10164,18 +10270,21 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 4.25,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 1.0,
-        "RememberColor5-v0": 7.0,
-        "RememberColor9-v0": 1.0,
-        "TakeItBack-v0": 8.0
+        "RememberColor3": 1.0,
+        "RememberColor5": 7.0,
+        "RememberColor9": 1.0,
+        "TakeItBack": 8.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (1+7+1+8)/4 = 4.25.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 4.25). overall_score = (1+7+1+8)/4 = 4.25.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 4.25
+      }
     },
     {
       "model": "elmur",
@@ -10184,18 +10293,21 @@
       "model_paper": null,
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 52.25,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 89.0,
-        "RememberColor5-v0": 19.0,
-        "RememberColor9-v0": 23.0,
-        "TakeItBack-v0": 78.0
+        "RememberColor3": 89.0,
+        "RememberColor5": 19.0,
+        "RememberColor9": 23.0,
+        "TakeItBack": 78.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Success rates (mean over 3 runs, 100 eval seeds). ELMUR nearly doubles baseline performance on MIKASA-Robo. overall_score is simple average of 4 task scores (89+19+23+78)/4 = 52.25. Note: MIKASA-Robo in the ELMUR paper uses 4 tasks (RememberColor3/5/9, TakeItBack), while MemoryVLA paper uses 5 tasks (adds ShellGame). Scores are NOT directly comparable across papers due to different task sets and eval setups.; Standard errors: RC3=0.07, RC5=0.03, RC9=0.02, TIB=0.03. Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 52.25). Success rates (mean over 3 runs, 100 eval seeds). ELMUR nearly doubles baseline performance on MIKASA-Robo. overall_score is simple average of 4 task scores (89+19+23+78)/4 = 52.25. Note: MIKASA-Robo in the ELMUR paper uses 4 tasks (RememberColor3/5/9, TakeItBack), while MemoryVLA paper uses 5 tasks (adds ShellGame). Scores are NOT directly comparable across papers due to different task sets and eval setups.; Standard errors: RC3=0.07, RC5=0.03, RC9=0.02, TIB=0.03. Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 52.25
+      }
     },
     {
       "model": "memory_vla",
@@ -10204,12 +10316,22 @@
       "model_paper": "https://arxiv.org/abs/2508.19236",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 41.2,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "MemoryVLA paper",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "41.2% on MIKASA-Robo; +11.8pp over previous SOTA"
+      "notes": "overall_score set to null (incompatible task sets; was 41.2). 41.2% on MIKASA-Robo; +11.8pp over previous SOTA",
+      "suite_scores": {
+        "reported_avg": 41.2
+      },
+      "task_scores": {
+        "ShellGameTouch": 88.0,
+        "InterceptMedium": 24.0,
+        "RememberColor3": 44.0,
+        "RememberColor5": 30.0,
+        "RememberColor9": 20.0
+      }
     },
     {
       "model": "octo_small",
@@ -10218,7 +10340,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 31.6,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 46.0,
         "InterceptMedium": 39.0,
@@ -10230,7 +10352,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1) not percentages. From source paper VLA baselines."
+      "notes": "overall_score set to null (incompatible task sets; was 31.6). Values reported as fractions (0-1) not percentages. From source paper VLA baselines.",
+      "suite_scores": {
+        "reported_avg": 31.6
+      }
     },
     {
       "model": "openvla_k_eq_4",
@@ -10239,7 +10364,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 11.2,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 12.0,
         "InterceptMedium": 6.0,
@@ -10251,7 +10376,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1). K=4 action chunking."
+      "notes": "overall_score set to null (incompatible task sets; was 11.2). Values reported as fractions (0-1). K=4 action chunking.",
+      "suite_scores": {
+        "reported_avg": 11.2
+      }
     },
     {
       "model": "openvla_k_eq_8",
@@ -10260,7 +10388,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 28.4,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 47.0,
         "InterceptMedium": 14.0,
@@ -10272,7 +10400,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1). K=8 action chunking."
+      "notes": "overall_score set to null (incompatible task sets; was 28.4). Values reported as fractions (0-1). K=8 action chunking.",
+      "suite_scores": {
+        "reported_avg": 28.4
+      }
     },
     {
       "model": "openvla_oft",
@@ -10281,12 +10412,15 @@
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 28.4,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 28.4). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 28.4
+      }
     },
     {
       "model": "pi0",
@@ -10295,12 +10429,15 @@
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 29.4,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 29.4). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 29.4
+      }
     },
     {
       "model": "rate_mikasa",
@@ -10309,18 +10446,21 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 32.25,
+      "overall_score": null,
       "task_scores": {
-        "RememberColor3-v0": 65.0,
-        "RememberColor5-v0": 13.0,
-        "RememberColor9-v0": 9.0,
-        "TakeItBack-v0": 42.0
+        "RememberColor3": 65.0,
+        "RememberColor5": 13.0,
+        "RememberColor9": 9.0,
+        "TakeItBack": 42.0
       },
       "source_paper": "https://arxiv.org/abs/2510.07151",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Second-best overall on MIKASA-Robo. overall_score = (65+13+9+42)/4 = 32.25.; Standard errors: RC3=0.04, RC5=0.03, RC9=0.02, TIB=0.24. Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 32.25). Second-best overall on MIKASA-Robo. overall_score = (65+13+9+42)/4 = 32.25.; Standard errors: RC3=0.04, RC5=0.03, RC9=0.02, TIB=0.24. Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 32.25
+      }
     },
     {
       "model": "spatialvla",
@@ -10329,12 +10469,15 @@
       "model_paper": "https://arxiv.org/abs/2501.15830",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 21.0,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 21.0). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 21.0
+      }
     },
     {
       "model": "3d_diffuser_actor",
@@ -10780,7 +10923,7 @@
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "18-task multi-variation, history-aware transformer, 18-task RLBench evaluation."
+      "notes": "18-task score (45.3%) reported by subsequent papers (PolarNet, ActiveVLA), not in original HiveFormer paper (which evaluates 10-task single-task and 74-task). 18-task multi-variation, history-aware transformer, 18-task RLBench evaluation."
     },
     {
       "model": "hybridvla",
@@ -10794,7 +10937,7 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Non-standard task count — not comparable to 18-task standard. 20-task multi-task RLBench. Comparisons: ManipLLM 38%, OpenVLA 41%, pi0 55%, CogACT 60%, HybridVLA(2.7B) 58%.",
+      "notes": "Non-standard task count — not comparable to 18-task standard. 10-task non-standard RLBench. Comparisons: ManipLLM 38%, OpenVLA 41%, pi0 55%, CogACT 60%, HybridVLA(2.7B) 58%.",
       "task_scores": {
         "reported_avg": 74.0
       }
@@ -10848,12 +10991,26 @@
       "model_paper": "https://arxiv.org/abs/2406.11815",
       "benchmark": "rlbench",
       "weight_type": "shared",
-      "overall_score": 43.3,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2406.11815",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "12 tasks, 25 episodes each, 2D vision-action instruction tuning; 18-task RLBench evaluation."
+      "notes": "12-task evaluation (not 18-task standard). overall_score set to null. Paper reports 43.3%.",
+      "task_scores": {
+        "open_drawer": 60,
+        "meat_off_grill": 80,
+        "turn_tap": 56,
+        "put_money": 44,
+        "push_buttons": 56,
+        "sweep_to_dustpan": 84,
+        "slide_block": 100,
+        "close_jar": 28,
+        "screw_bulb": 8,
+        "place_wine": 12,
+        "reach_and_drag": 52,
+        "stack_blocks": 0
+      }
     },
     {
       "model": "mtp",
@@ -10904,7 +11061,7 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "18 tasks, 100 demos/task, Perceiver Transformer with voxel representation; 18-task RLBench evaluation."
+      "notes": "Score 49.4% is from RVT's re-evaluation (2306.14896), not original PerAct paper (~42.7%). 18 tasks, 100 demos/task, Perceiver Transformer with voxel representation; 18-task RLBench evaluation."
     },
     {
       "model": "pointflowmatch",
@@ -10963,7 +11120,7 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "Non-standard task count — not comparable to 18-task standard. 4 short-horizon tasks, model-based RL approach (not IL). 75.58% average.",
+      "notes": "Non-standard task count — not comparable to 18-task standard. 10-task non-standard (4 short-horizon + 6 long-horizon), model-based RL approach (not IL). 75.58% average.",
       "task_scores": {
         "reported_avg": 75.6
       }
@@ -11210,12 +11367,27 @@
       "model_paper": "https://arxiv.org/abs/2411.00965",
       "benchmark": "rlbench",
       "weight_type": "shared",
-      "overall_score": 79.4,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2411.00965",
       "source_table": "Table I",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "Single-view evaluation. SE(3) pose trajectory diffusion for 6-DoF manipulation."
+      "notes": "13-task evaluation (excludes 5 tasks from standard 18). overall_score set to null.",
+      "task_scores": {
+        "close_jar": 98.7,
+        "drag_stick": 80.0,
+        "insert_peg": 78.7,
+        "meat_off_grill": 100.0,
+        "place_cups": 62.7,
+        "place_wine": 100.0,
+        "put_in_cupboard": 42.7,
+        "put_in_safe": 100.0,
+        "screw_bulb": 48.0,
+        "sort_shape": 32.0,
+        "stack_blocks": 94.0,
+        "stack_cups": 96.0,
+        "turn_tap": 100.0
+      }
     },
     {
       "model": "tudp",
@@ -11252,12 +11424,15 @@
       "model_paper": null,
       "benchmark": "rlbench",
       "weight_type": "shared",
-      "overall_score": 83.6,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2512.16724",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "18-task multi-view evaluation (17 tasks shown in Table I), 100 demos per task"
+      "notes": "17-task evaluation (not 18-task standard). overall_score set to null (was 83.6).",
+      "suite_scores": {
+        "reported_avg": 83.6
+      }
     },
     {
       "model": "vidman",
@@ -11756,7 +11931,7 @@
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "3000 demos/task (significantly more training data than other methods). Referenced in Cosmos Policy Table 2.; DP-VLA from Cosmos Policy comparison. Uses 3000 demos vs 300 for most others."
+      "notes": "Score 57.3% sourced from Cosmos Policy (2601.16163) Table 2 cross-reference; original DP-VLA paper not linked. 3000 demos/task (extreme outlier). 3000 demos/task (significantly more training data than other methods). Referenced in Cosmos Policy Table 2.; DP-VLA from Cosmos Policy comparison. Uses 3000 demos vs 300 for most others."
     },
     {
       "model": "dreamgen_groot_n1_100",
@@ -11780,7 +11955,7 @@
       "benchmark": "robocasa",
       "weight_type": "shared",
       "overall_score": 58.5,
-      "source_paper": "https://arxiv.org/abs/2510.27607",
+      "source_paper": "https://arxiv.org/abs/2601.16163",
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -11854,7 +12029,7 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "24 kitchen tasks (Panda arm), 100 demos/task. Official GR00T N1 paper evaluation. Baselines in same table: BC-Transformer 26.3%, Diffusion Policy 25.6%."
+      "notes": "24 kitchen tasks (Panda arm), 3000 MimicGen demos/task. Official GR00T N1 paper evaluation. Baselines in same table: BC-Transformer 26.3%, Diffusion Policy 25.6%."
     },
     {
       "model": "groot_n1_5",
@@ -12129,12 +12304,15 @@
       "model_paper": "https://arxiv.org/abs/2601.14945",
       "benchmark": "robocasa",
       "weight_type": "shared",
-      "overall_score": 50.94,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2601.14945",
       "source_table": "Table I",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "8 tasks from official RoboCasa-GR1 benchmark. TIDAL with GR00T-N1.5-3B. Baseline open-loop = 59.25%."
+      "notes": "overall_score set to null (8 of 24 tasks; was 50.94). 8 tasks from RoboCasa-GR1 benchmark. Open-loop GR00T N1.5 baseline=59.25% on same tasks.",
+      "suite_scores": {
+        "reported_avg": 50.94
+      }
     },
     {
       "model": "twinbrainvla_qwen25vl",
@@ -12190,7 +12368,7 @@
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "1000 demos/task. Referenced in Cosmos Policy Table 2 comparison.; UWM (Unified World Model) from Cosmos Policy paper. Uses 1000 demos."
+      "notes": "Score 60.8% sourced from Cosmos Policy (2601.16163) Table 2 and FLARE cross-references; original UWM paper not linked. 1000 demos/task. 1000 demos/task. Referenced in Cosmos Policy Table 2 comparison.; UWM (Unified World Model) from Cosmos Policy paper. Uses 1000 demos."
     },
     {
       "model": "video_policy",
@@ -12232,7 +12410,15 @@
       "source_table": "Table 7",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions."
+      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 10.79,
+        "memory_execution": 7.31,
+        "memory_exploration": 5.55,
+        "mix": 8.73,
+        "observation_mismatching": 10.45,
+        "random_disturbance": 7.63
+      }
     },
     {
       "model": "gpt4o",
@@ -12246,7 +12432,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VLM planner + OpenVLA controller. Best standalone VLM planner.; VLM used as planner with scripted low-level actions."
+      "notes": "VLM planner + OpenVLA controller. Best standalone VLM planner.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 21.92,
+        "memory_execution": 16.69,
+        "memory_exploration": 8.04,
+        "mix": 11.48,
+        "observation_mismatching": 19.45,
+        "random_disturbance": 18.63
+      }
     },
     {
       "model": "gpt4o_blind",
@@ -12260,7 +12454,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "GPT-4o without visual input; VLM used as planner with scripted low-level actions."
+      "notes": "GPT-4o without visual input; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 20.0,
+        "memory_execution": 16.09,
+        "memory_exploration": 7.02,
+        "mix": 10.48,
+        "observation_mismatching": 17.03,
+        "random_disturbance": 20.0
+      }
     },
     {
       "model": "gpt4o_blind_pi0fast",
@@ -12362,7 +12564,15 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Full Hierarchical Planning and Execution framework - best system in paper; Hierarchical system (VLM planner + low-level controller), not an end-to-end VLA."
+      "notes": "Full Hierarchical Planning and Execution framework - best system in paper; Hierarchical system (VLM planner + low-level controller), not an end-to-end VLA.",
+      "suite_scores": {
+        "ideal": 21.1,
+        "memory_execution": 17.83,
+        "memory_exploration": 9.06,
+        "mix": 13.21,
+        "observation_mismatching": 19.18,
+        "random_disturbance": 18.63
+      }
     },
     {
       "model": "llava_next_blind",
@@ -12376,7 +12586,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "LLaVA-Next without visual input; VLM used as planner with scripted low-level actions."
+      "notes": "LLaVA-Next without visual input; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 14.25,
+        "memory_execution": 3.54,
+        "memory_exploration": 3.54,
+        "mix": 0.37,
+        "observation_mismatching": 12.33,
+        "random_disturbance": 13.97
+      }
     },
     {
       "model": "llava_next_blind_pi0fast",
@@ -12412,7 +12630,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions."
+      "notes": "VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 19.73,
+        "memory_execution": 10.87,
+        "memory_exploration": 1.07,
+        "mix": 3.7,
+        "observation_mismatching": 16.16,
+        "random_disturbance": 16.71
+      }
     },
     {
       "model": "llava_next_video_pi0fast",
@@ -12456,7 +12682,15 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Fine-tuned on RoboCerebra training data (200K steps)."
+      "notes": "Fine-tuned on RoboCerebra training data (200K steps).",
+      "suite_scores": {
+        "ideal": 7.84,
+        "memory_execution": 2.06,
+        "memory_exploration": 1.06,
+        "mix": 0.0,
+        "observation_mismatching": 8.65,
+        "random_disturbance": 7.84
+      }
     },
     {
       "model": "openvla_libero100",
@@ -12470,7 +12704,15 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "OpenVLA pretrained on Libero100, not fine-tuned on RoboCerebra; End-to-end VLA model (fine-tuned)."
+      "notes": "OpenVLA pretrained on Libero100, not fine-tuned on RoboCerebra; End-to-end VLA model (fine-tuned).",
+      "suite_scores": {
+        "ideal": 4.05,
+        "memory_execution": 1.86,
+        "memory_exploration": 0.18,
+        "mix": 0.0,
+        "observation_mismatching": 1.35,
+        "random_disturbance": 4.59
+      }
     },
     {
       "model": "planner_plus_openvla_fine_tuned",
@@ -12492,7 +12734,15 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Planner baseline with fine-tuned OpenVLA as System 1."
+      "notes": "Planner baseline with fine-tuned OpenVLA as System 1.",
+      "suite_scores": {
+        "ideal": 21.92,
+        "memory_execution": 16.69,
+        "memory_exploration": 8.04,
+        "mix": 11.48,
+        "observation_mismatching": 19.45,
+        "random_disturbance": 18.63
+      }
     },
     {
       "model": "qwen25_vl_7b",
@@ -12506,7 +12756,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions."
+      "notes": "VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 16.71,
+        "memory_execution": 12.61,
+        "memory_exploration": 2.63,
+        "mix": 6.67,
+        "observation_mismatching": 14.25,
+        "random_disturbance": 14.25
+      }
     },
     {
       "model": "qwen25_vl_7b_blind",
@@ -12520,7 +12778,15 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Qwen2.5-VL without visual input; VLM used as planner with scripted low-level actions."
+      "notes": "Qwen2.5-VL without visual input; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 18.9,
+        "memory_execution": 10.87,
+        "memory_exploration": 7.02,
+        "mix": 2.55,
+        "observation_mismatching": 12.88,
+        "random_disturbance": 18.9
+      }
     },
     {
       "model": "qwen25_vl_7b_sft",
@@ -12592,7 +12858,15 @@
       "source_table": "Table 7",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions."
+      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 16.05,
+        "memory_execution": 10.96,
+        "memory_exploration": 9.92,
+        "mix": 7.27,
+        "observation_mismatching": 12.06,
+        "random_disturbance": 12.11
+      }
     },
     {
       "model": "vebrain",
@@ -12606,7 +12880,15 @@
       "source_table": "Table 7",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions."
+      "notes": "Specialized embodied VLM planner + OpenVLA controller.; VLM used as planner with scripted low-level actions.",
+      "suite_scores": {
+        "ideal": 16.32,
+        "memory_execution": 3.65,
+        "memory_exploration": 7.06,
+        "mix": 4.21,
+        "observation_mismatching": 12.35,
+        "random_disturbance": 12.89
+      }
     },
     {
       "model": "cogact",
@@ -12973,7 +13255,15 @@
         "mug_hanging_hard": 3.0,
         "pick_apple_messy": 70.3,
         "put_apple_cabinet": 93.7,
-        "shoe_place": 66.0
+        "shoe_place": 66.0,
+        "block_hammer_beat": 96.7,
+        "block_handover": 100.0,
+        "blocks_stack_easy": 70.7,
+        "blocks_stack_hard": 37.7,
+        "bottle_adjust": 53.3,
+        "container_place": 53.7,
+        "diverse_bottles_pick": 27.3,
+        "dual_bottles_pick_easy": 94.7
       }
     },
     {
@@ -13200,7 +13490,8 @@
         "blocks_stack": 80.2,
         "empty_cup_place": 94.8,
         "mug_hanging_easy": 88.6,
-        "pick_apple_messy": 71.8
+        "pick_apple_messy": 71.8,
+        "empty_cup_place_messy": 60.4
       }
     },
     {
