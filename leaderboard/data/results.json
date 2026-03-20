@@ -3624,7 +3624,7 @@
         "4_tasks": 57.5,
         "5_tasks": 45.4
       },
-      "source_paper": "https://arxiv.org/abs/2501.17685",
+      "source_paper": "https://arxiv.org/abs/2409.09016",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -3660,7 +3660,7 @@
         "5_tasks": 68.4
       },
       "num_episodes": 1000,
-      "source_paper": "https://arxiv.org/abs/2411.19650",
+      "source_paper": "https://arxiv.org/abs/2510.23511",
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4248,7 +4248,7 @@
         "4_tasks": 77.8,
         "5_tasks": 70.4
       },
-      "source_paper": "https://arxiv.org/abs/2410.07474",
+      "source_paper": "https://arxiv.org/abs/2412.14058",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4311,7 +4311,7 @@
         "4_tasks": 38.0,
         "5_tasks": 26.0
       },
-      "source_paper": "https://arxiv.org/abs/2404.04012",
+      "source_paper": "https://arxiv.org/abs/2310.10639",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4343,7 +4343,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "CALVIN ABC->D. Applied to LLaVA-VLA backbone, improves baseline 3.55->3.67 (+0.12). 500 rollout evaluation."
+      "notes": "Non-standard: 500 rollouts (standard is 1000). CALVIN ABC->D. Applied to LLaVA-VLA backbone, improves baseline 3.55->3.67 (+0.12). 500 rollout evaluation."
     },
     {
       "model": "univla",
@@ -4360,7 +4360,7 @@
         "4_tasks": 66.9,
         "5_tasks": 56.5
       },
-      "source_paper": "https://arxiv.org/abs/2505.13111",
+      "source_paper": "https://arxiv.org/abs/2505.06111",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4381,7 +4381,7 @@
         "4_tasks": 76.9,
         "5_tasks": 69.9
       },
-      "source_paper": "https://arxiv.org/abs/2503.02495",
+      "source_paper": "https://arxiv.org/abs/2501.18867",
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -4462,7 +4462,7 @@
       "source_table": "Table (main results)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
+      "notes": "Paper reports avg_len=4.73; suite_scores sum to 4.575 (0.155 diff — may be rounding or different eval run). CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
     },
     {
       "model": "vlm4vla_qwen25vl_3b",
@@ -10920,7 +10920,7 @@
       "source_table": null,
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "18-task multi-variation, history-aware transformer, 18-task RLBench evaluation."
+      "notes": "18-task score (45.3%) reported by subsequent papers (PolarNet, ActiveVLA), not in original HiveFormer paper (which evaluates 10-task single-task and 74-task). 18-task multi-variation, history-aware transformer, 18-task RLBench evaluation."
     },
     {
       "model": "hybridvla",
@@ -10934,7 +10934,7 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Non-standard task count — not comparable to 18-task standard. 20-task multi-task RLBench. Comparisons: ManipLLM 38%, OpenVLA 41%, pi0 55%, CogACT 60%, HybridVLA(2.7B) 58%.",
+      "notes": "Non-standard task count — not comparable to 18-task standard. 10-task non-standard RLBench. Comparisons: ManipLLM 38%, OpenVLA 41%, pi0 55%, CogACT 60%, HybridVLA(2.7B) 58%.",
       "task_scores": {
         "reported_avg": 74.0
       }
@@ -11058,7 +11058,7 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "18 tasks, 100 demos/task, Perceiver Transformer with voxel representation; 18-task RLBench evaluation."
+      "notes": "Score 49.4% is from RVT's re-evaluation (2306.14896), not original PerAct paper (~42.7%). 18 tasks, 100 demos/task, Perceiver Transformer with voxel representation; 18-task RLBench evaluation."
     },
     {
       "model": "pointflowmatch",
@@ -11117,7 +11117,7 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "Non-standard task count — not comparable to 18-task standard. 4 short-horizon tasks, model-based RL approach (not IL). 75.58% average.",
+      "notes": "Non-standard task count — not comparable to 18-task standard. 10-task non-standard (4 short-horizon + 6 long-horizon), model-based RL approach (not IL). 75.58% average.",
       "task_scores": {
         "reported_avg": 75.6
       }
