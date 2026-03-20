@@ -111,7 +111,9 @@ def sync_robochallenge(data: dict) -> list[str]:
         }
 
         if pair in existing:
-            old_score = results[existing[pair]].get("overall_score")
+            old = results[existing[pair]]
+            old_score = old.get("overall_score")
+            result_entry["date_added"] = old.get("date_added", today)
             results[existing[pair]] = result_entry
             changes.append(f"  UPDATE: {model_key}/robochallenge {old_score} -> {overall}")
         else:
@@ -189,7 +191,9 @@ def sync_roboarena(data: dict) -> list[str]:
         }
 
         if pair in existing:
-            old_score = results[existing[pair]].get("overall_score")
+            old = results[existing[pair]]
+            old_score = old.get("overall_score")
+            result_entry["date_added"] = old.get("date_added", today)
             results[existing[pair]] = result_entry
             changes.append(f"  UPDATE: {model_key}/roboarena {old_score} -> {elo}")
         else:
