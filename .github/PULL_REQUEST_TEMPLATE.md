@@ -18,6 +18,6 @@ Smoke test commands run:
 ```
 
 **Leaderboard data changes:**
-- [ ] `python leaderboard/scripts/validate.py` passes
+- [ ] `python leaderboard/scripts/validate.py` passes (use `--fix` to auto-sort and format)
 
 <!-- Delete whichever section doesn't apply to your PR. -->

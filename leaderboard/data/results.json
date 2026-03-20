@@ -5576,6 +5576,26 @@
       "date_added": "2026-03-04"
     },
     {
+      "model": "ee_vla",
+      "display_name": "EE-VLA",
+      "params": "0.4B",
+      "model_paper": "https://arxiv.org/abs/2509.14630",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.38,
+      "suite_scores": {
+        "libero_spatial": 97.6,
+        "libero_object": 99.8,
+        "libero_goal": 93.7,
+        "libero_10": 94.4
+      },
+      "source_paper": "https://arxiv.org/abs/2509.14630",
+      "source_table": "Table III",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "0.4B trainable action expert params; column order in paper: Spatial/Goal/Object/Long"
+    },
+    {
       "model": "enerverse",
       "display_name": "EnerVerse",
       "params": null,
@@ -5613,6 +5633,26 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04"
+    },
+    {
+      "model": "everydayvla",
+      "display_name": "EveryDayVLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2511.05397",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 91.35,
+      "suite_scores": {
+        "libero_spatial": 96.8,
+        "libero_object": 95.6,
+        "libero_goal": 91.0,
+        "libero_10": 82.0
+      },
+      "source_paper": "https://arxiv.org/abs/2511.05397",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "AdaHorizon variant (best); Cont-L1+AR baseline: Spatial 96.4/Object 95.0/Goal 90.0/Long 80.8"
     },
     {
       "model": "evo_1",
@@ -6037,6 +6077,26 @@
       "notes": "V-JEPA 2 visual representations integrated into OpenVLA-OFT (mainstream VLA setting)"
     },
     {
+      "model": "joint_mid_pi05",
+      "display_name": "Joint MID (π0.5)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2512.18007",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 97.45,
+      "suite_scores": {
+        "libero_spatial": 98.4,
+        "libero_object": 99.2,
+        "libero_goal": 96.0,
+        "libero_10": 96.2
+      },
+      "source_paper": "https://arxiv.org/abs/2512.18007",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "Joint motion image diffusion training on π0.5 backbone"
+    },
+    {
       "model": "kivla_generalist",
       "display_name": "KI-VLA (from generalist)",
       "params": null,
@@ -6175,6 +6235,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "avg of 4 suites (Goal/Object/Spatial/Long)"
+    },
+    {
+      "model": "mantis_dvf",
+      "display_name": "Mantis (DVF)",
+      "params": "5.8B",
+      "model_paper": "https://arxiv.org/abs/2511.16175",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.15,
+      "suite_scores": {
+        "libero_spatial": 98.4,
+        "libero_object": 99.0,
+        "libero_goal": 94.0,
+        "libero_10": 93.2
+      },
+      "source_paper": "https://arxiv.org/abs/2511.16175",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "pretrained-DVF (best ablation variant); abstract reports 96.7% avg for Mantis-ATE variant"
     },
     {
       "model": "mdt",
@@ -6851,6 +6931,26 @@
       "notes": "RGB-only evaluation (depth/raymap masked); avg of 4 suites"
     },
     {
+      "model": "qdepth_vla",
+      "display_name": "QDepth-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2510.14836",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 85.35,
+      "suite_scores": {
+        "libero_spatial": 86.0,
+        "libero_object": 88.8,
+        "libero_goal": 94.0,
+        "libero_10": 72.6
+      },
+      "source_paper": "https://arxiv.org/abs/2510.14836",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "Single-view depth-augmented supervision"
+    },
+    {
       "model": "quantvla_groot_n15",
       "display_name": "QuantVLA (GR00T N1.5, W4A8)",
       "params": null,
@@ -6909,6 +7009,26 @@
       "task_scores": {
         "reported_avg": 88.6
       }
+    },
+    {
+      "model": "quest_ript",
+      "display_name": "QueST + RIPT",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2505.17016",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 93.55,
+      "suite_scores": {
+        "libero_spatial": 95.6,
+        "libero_object": 98.4,
+        "libero_goal": 92.7,
+        "libero_10": 87.5
+      },
+      "source_paper": "https://arxiv.org/abs/2505.17016",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RIPT-VLA RL fine-tuning applied to QueST backbone"
     },
     {
       "model": "quest_robocasa",
@@ -7542,6 +7662,26 @@
       "notes": "avg of 4 suites"
     },
     {
+      "model": "vla2",
+      "display_name": "VLA²",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2510.14902",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 80.05,
+      "suite_scores": {
+        "libero_spatial": 86.4,
+        "libero_object": 86.2,
+        "libero_goal": 83.2,
+        "libero_10": 64.4
+      },
+      "source_paper": "https://arxiv.org/abs/2510.14902",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "Hierarchical VLA² framework with VLM planner + controller"
+    },
+    {
       "model": "vla_4d",
       "display_name": "VLA-4D",
       "params": null,
@@ -7601,6 +7741,26 @@
       "notes": "OpenVLA-OFT with adaptive token caching; efficiency method on top of OFT"
     },
     {
+      "model": "vla_jepa",
+      "display_name": "VLA-JEPA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2602.10098",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.1,
+      "suite_scores": {
+        "libero_spatial": 94.8,
+        "libero_object": 99.8,
+        "libero_goal": 95.8,
+        "libero_10": 94.0
+      },
+      "source_paper": "https://arxiv.org/abs/2602.10098",
+      "source_table": "Table 4",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "T=8 future video horizon (best configuration per ablation)"
+    },
+    {
       "model": "vla_os",
       "display_name": "VLA-OS",
       "params": "0.5B",
@@ -7619,6 +7779,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "Efficient 0.5B VLA"
+    },
+    {
+      "model": "vla_reasoner",
+      "display_name": "VLA-Reasoner",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2509.22643",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 81.0,
+      "suite_scores": {
+        "libero_spatial": 91.2,
+        "libero_object": 90.6,
+        "libero_goal": 82.4,
+        "libero_10": 59.8
+      },
+      "source_paper": "https://arxiv.org/abs/2509.22643",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "Plug-and-play reasoner module applied to OpenVLA-SFT backbone"
     },
     {
       "model": "vla_rft",
@@ -7769,6 +7949,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "Only LIBERO-Long (LIBERO-10) evaluated, not all 4 suites. overall_score is null; single suite score in libero_90."
+    },
+    {
+      "model": "vote_1t",
+      "display_name": "VOTE-1T",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2509.11480",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.88,
+      "suite_scores": {
+        "libero_spatial": 98.0,
+        "libero_object": 99.5,
+        "libero_goal": 96.0,
+        "libero_10": 94.0
+      },
+      "source_paper": "https://arxiv.org/abs/2509.11480",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "notes": "1-token efficient variant; VOTE-2T: 96.0/98.5/94.0/91.0; VOTE-MLP4: 93.5/98.5/92.0/92.0"
     },
     {
       "model": "vote_vla",
@@ -12661,6 +12861,30 @@
       }
     },
     {
+      "model": "cf_sdp",
+      "display_name": "CF-SDP (100 demos)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2504.09927",
+      "benchmark": "robotwin_v1",
+      "weight_type": "shared",
+      "overall_score": null,
+      "source_paper": null,
+      "source_table": "Table 2",
+      "curated_by": "sonnet 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RoboTwin 1.0, Table 2. Classifier-Free Shortcut Diffusion Policy with 10 denoising steps and 100 demos. CVPR 2025. Per-task SDP-10 (100 demos): BHB=81.0, BH=82.3, Blocks Stack Easy=25.3, Blocks Stack Hard=3.33.",
+      "task_scores": {
+        "block_hammer_beat_50demo": 76.0,
+        "block_hammer_beat": 81.0,
+        "block_handover_50demo": 72.7,
+        "block_handover": 82.3,
+        "blocks_stack_easy_50demo": 17.0,
+        "blocks_stack_easy": 25.3,
+        "blocks_stack_hard_20demo": 3.67,
+        "blocks_stack_hard_50demo": 3.33
+      }
+    },
+    {
       "model": "cogrobot",
       "display_name": "CogRobot",
       "params": null,
@@ -12798,6 +13022,20 @@
       "notes": "H3DP on RoboTwin (8 tasks). Average success rate = 54.8 from Table 1. Already tracked for maniskill; this is additional robotwin result."
     },
     {
+      "model": "hycodepolicy",
+      "display_name": "HyCodePolicy",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2508.02629",
+      "benchmark": "robotwin_v1",
+      "weight_type": "shared",
+      "overall_score": 63.9,
+      "source_paper": null,
+      "source_table": "Table 1",
+      "curated_by": "sonnet 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RoboTwin 1.0, Table 1. HyCodePolicy (closed-loop language-conditioned policy). ASR=63.9%, Top-5 ASR=74.2%, CR-Iter=2.42 (w/ RoboTwin 1.0 interface). Hybrid code synthesis + VLM monitoring + repair."
+    },
+    {
       "model": "maniflow_2d",
       "display_name": "ManiFlow (2D)",
       "params": null,
@@ -12830,6 +13068,47 @@
         "blocks_stack_easy": 12.3,
         "dual_bottles_pick_easy": 80.5,
         "pick_apple_messy": 70.5
+      }
+    },
+    {
+      "model": "mcdp",
+      "display_name": "MCDP",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2503.12466",
+      "benchmark": "robotwin_v1",
+      "weight_type": "shared",
+      "overall_score": null,
+      "source_paper": null,
+      "source_table": "Table 1",
+      "curated_by": "sonnet 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RoboTwin 1.0, Table 1. Modality-Composable Diffusion Policy (ICLR 2025 workshop). Compositions of DPimg+DPpcd at inference time. Best results per task at optimal weight: ECP=0.86, DBP_Easy=0.85, PAM=0.25. No single overall average reported across all tasks.",
+      "task_scores": {
+        "dual_bottles_pick_easy": 85.0,
+        "empty_cup_place": 86.0,
+        "pick_apple_messy": 25.0
+      }
+    },
+    {
+      "model": "pasg",
+      "display_name": "PASG",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2508.05976",
+      "benchmark": "robotwin_v1",
+      "weight_type": "shared",
+      "overall_score": 77.8,
+      "source_paper": null,
+      "source_table": "Table 2",
+      "curated_by": "sonnet 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RoboTwin 1.0, 6 tasks, 100 evals each. PASG (Primitive-Aware Semantic Grounding). Avg 77.83%. BHB=Block Hammer Beat, CP=Container Place, DBP=Diverse Bottles Pick, ECP=Empty Cup Place, PAM=Pick Apple Messy, SP=Shoe Place.",
+      "task_scores": {
+        "block_hammer_beat": 82.0,
+        "container_place": 89.0,
+        "diverse_bottles_pick": 70.0,
+        "empty_cup_place": 76.0,
+        "pick_apple_messy": 81.0,
+        "shoe_place": 69.0
       }
     },
     {
@@ -12876,6 +13155,27 @@
         "mug_hanging_hard_50demo": 16.2,
         "pick_apple_messy_20demo": 9.3,
         "pick_apple_messy_50demo": 31.5
+      }
+    },
+    {
+      "model": "prism",
+      "display_name": "PRISM",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2507.04633",
+      "benchmark": "robotwin_v1",
+      "weight_type": "shared",
+      "overall_score": 82.0,
+      "source_paper": null,
+      "source_table": "Table II",
+      "curated_by": "sonnet 4.6",
+      "date_added": "2026-03-04",
+      "notes": "RoboTwin 1.0, 6 tasks, 100 demos. Table II ablation (w/ transformer encoder). Pointcloud Reintegrated Inference via Segmentation and Cross-Attention for Manipulation.",
+      "task_scores": {
+        "block_hammer_beat": 96.4,
+        "blocks_stack": 80.2,
+        "empty_cup_place": 94.8,
+        "mug_hanging_easy": 88.6,
+        "pick_apple_messy": 71.8
       }
     },
     {
@@ -12957,104 +13257,21 @@
       }
     },
     {
-      "model": "prism",
-      "display_name": "PRISM",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2507.04633",
-      "benchmark": "robotwin_v1",
-      "weight_type": "shared",
-      "overall_score": 82.0,
-      "source_paper": null,
-      "source_table": "Table II",
-      "curated_by": "sonnet 4.6",
-      "date_added": "2026-03-04",
-      "notes": "RoboTwin 1.0, 6 tasks, 100 demos. Table II ablation (w/ transformer encoder). Pointcloud Reintegrated Inference via Segmentation and Cross-Attention for Manipulation.",
-      "task_scores": {
-        "block_hammer_beat": 96.4,
-        "blocks_stack": 80.2,
-        "empty_cup_place": 94.8,
-        "mug_hanging_easy": 88.6,
-        "pick_apple_messy": 71.8
-      }
-    },
-    {
-      "model": "pasg",
-      "display_name": "PASG",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2508.05976",
-      "benchmark": "robotwin_v1",
-      "weight_type": "shared",
-      "overall_score": 77.8,
-      "source_paper": null,
-      "source_table": "Table 2",
-      "curated_by": "sonnet 4.6",
-      "date_added": "2026-03-04",
-      "notes": "RoboTwin 1.0, 6 tasks, 100 evals each. PASG (Primitive-Aware Semantic Grounding). Avg 77.83%. BHB=Block Hammer Beat, CP=Container Place, DBP=Diverse Bottles Pick, ECP=Empty Cup Place, PAM=Pick Apple Messy, SP=Shoe Place.",
-      "task_scores": {
-        "block_hammer_beat": 82.0,
-        "container_place": 89.0,
-        "diverse_bottles_pick": 70.0,
-        "empty_cup_place": 76.0,
-        "pick_apple_messy": 81.0,
-        "shoe_place": 69.0
-      }
-    },
-    {
-      "model": "cf_sdp",
-      "display_name": "CF-SDP (100 demos)",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2504.09927",
-      "benchmark": "robotwin_v1",
-      "weight_type": "shared",
+      "model": "abot_m0",
+      "display_name": "ABot-M0",
+      "benchmark": "robotwin_v2",
       "overall_score": null,
-      "source_paper": null,
+      "suite_scores": {
+        "easy": 80.42,
+        "hard": 81.16
+      },
+      "source_paper": "https://arxiv.org/abs/2602.11236",
       "source_table": "Table 2",
-      "curated_by": "sonnet 4.6",
+      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=80.42%, randomized=81.16%.",
       "date_added": "2026-03-04",
-      "notes": "RoboTwin 1.0, Table 2. Classifier-Free Shortcut Diffusion Policy with 10 denoising steps and 100 demos. CVPR 2025. Per-task SDP-10 (100 demos): BHB=81.0, BH=82.3, Blocks Stack Easy=25.3, Blocks Stack Hard=3.33.",
-      "task_scores": {
-        "block_hammer_beat_50demo": 76.0,
-        "block_hammer_beat": 81.0,
-        "block_handover_50demo": 72.7,
-        "block_handover": 82.3,
-        "blocks_stack_easy_50demo": 17.0,
-        "blocks_stack_easy": 25.3,
-        "blocks_stack_hard_20demo": 3.67,
-        "blocks_stack_hard_50demo": 3.33
-      }
-    },
-    {
-      "model": "mcdp",
-      "display_name": "MCDP",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2503.12466",
-      "benchmark": "robotwin_v1",
-      "weight_type": "shared",
-      "overall_score": null,
-      "source_paper": null,
-      "source_table": "Table 1",
-      "curated_by": "sonnet 4.6",
-      "date_added": "2026-03-04",
-      "notes": "RoboTwin 1.0, Table 1. Modality-Composable Diffusion Policy (ICLR 2025 workshop). Compositions of DPimg+DPpcd at inference time. Best results per task at optimal weight: ECP=0.86, DBP_Easy=0.85, PAM=0.25. No single overall average reported across all tasks.",
-      "task_scores": {
-        "dual_bottles_pick_easy": 85.0,
-        "empty_cup_place": 86.0,
-        "pick_apple_messy": 25.0
-      }
-    },
-    {
-      "model": "hycodepolicy",
-      "display_name": "HyCodePolicy",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2508.02629",
-      "benchmark": "robotwin_v1",
-      "weight_type": "shared",
-      "overall_score": 63.9,
-      "source_paper": null,
-      "source_table": "Table 1",
-      "curated_by": "sonnet 4.6",
-      "date_added": "2026-03-04",
-      "notes": "RoboTwin 1.0, Table 1. HyCodePolicy (closed-loop language-conditioned policy). ASR=63.9%, Top-5 ASR=74.2%, CR-Iter=2.42 (w/ RoboTwin 1.0 interface). Hybrid code synthesis + VLM monitoring + repair."
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2602.11236"
     },
     {
       "model": "act",
@@ -13248,6 +13465,108 @@
       }
     },
     {
+      "model": "h_rdt",
+      "display_name": "H-RDT",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 68.7,
+        "hard": 25.6
+      },
+      "source_paper": "https://arxiv.org/abs/2507.23523",
+      "source_table": "Table 2",
+      "notes": "Protocol A (50 demos/task, single-task). 13 tasks (non-standard subset). Easy=68.7%, Hard=25.6%.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2507.23523"
+    },
+    {
+      "model": "halo",
+      "display_name": "HALO",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 80.5,
+        "hard": 26.4
+      },
+      "source_paper": "https://arxiv.org/abs/2602.21157",
+      "source_table": "Table 1",
+      "notes": "Protocol A (50 demos/task, single-task). 50 tasks.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2602.21157"
+    },
+    {
+      "model": "holobrain_gd",
+      "display_name": "HoloBrain-0 (GD)",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 91.3,
+        "hard": 90.8
+      },
+      "source_paper": "https://arxiv.org/abs/2602.12062",
+      "source_table": "Table 1",
+      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Gemini Diffusion backbone.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2602.12062"
+    },
+    {
+      "model": "holobrain_qw",
+      "display_name": "HoloBrain-0 (QW)",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 91.9,
+        "hard": 92.3
+      },
+      "source_paper": "https://arxiv.org/abs/2602.12062",
+      "source_table": "Table 1",
+      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Qwen backbone.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2602.12062"
+    },
+    {
+      "model": "interndata_a1_pi0",
+      "display_name": "pi0 + InternData-A1",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 60.0,
+        "hard": 26.5
+      },
+      "source_paper": "https://arxiv.org/abs/2511.16651",
+      "source_table": "Table 2",
+      "notes": "Protocol A (50 demos/task, single-task). 49 tasks. pi0 finetuned with InternData-A1 dataset.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2511.16651"
+    },
+    {
+      "model": "internvla_a1",
+      "display_name": "InternVLA-A1",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 89.4,
+        "hard": 87.0
+      },
+      "source_paper": "https://arxiv.org/abs/2601.02456",
+      "source_table": "Table 1",
+      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2601.02456"
+    },
+    {
       "model": "lingbot_va",
       "display_name": "LingBot-VA",
       "params": null,
@@ -13316,6 +13635,39 @@
       "suite_scores": {
         "easy": 58.0
       }
+    },
+    {
+      "model": "motus",
+      "display_name": "Motus",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 88.66,
+        "hard": 87.02
+      },
+      "source_paper": "https://arxiv.org/abs/2512.13030",
+      "source_table": "Table 1",
+      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=88.66%, randomized=87.02%.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2512.13030"
+    },
+    {
+      "model": "nf_pgr",
+      "display_name": "NF-PGR",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 38.06
+      },
+      "source_paper": "https://arxiv.org/abs/2509.21073",
+      "source_table": "Figure 4",
+      "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Easy only (no Hard evaluation). NF-P with gradient refinement.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2509.21073"
     },
     {
       "model": "notvla",
@@ -13525,6 +13877,40 @@
         "easy": 71.3,
         "hard": 37.2
       }
+    },
+    {
+      "model": "twinvla",
+      "display_name": "TwinVLA",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 42.0,
+        "hard": 10.0
+      },
+      "source_paper": "https://arxiv.org/abs/2511.05275",
+      "source_table": "Figure 6",
+      "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Approximate values from figure (RDT-1B: Easy=34.5%→+7.5% ≈42.0%; Hard: 13.7%−3.7% ≈10.0%).",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2511.05275"
+    },
+    {
+      "model": "vidar",
+      "display_name": "Vidar",
+      "benchmark": "robotwin_v2",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 65.8,
+        "hard": 17.5
+      },
+      "source_paper": "https://arxiv.org/abs/2507.12898",
+      "source_table": "Table 1",
+      "notes": "Protocol A (50 demos/task). 50 tasks.",
+      "date_added": "2026-03-04",
+      "curated_by": "claude-sonnet-4-6",
+      "weight_type": "finetuned",
+      "model_paper": "https://arxiv.org/abs/2507.12898"
     },
     {
       "model": "vlaser",
@@ -15728,392 +16114,6 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "VLABench Track 1-4 Progress Score avg. 4 tracks: in_distribution 67.8, cross_category 25.1, common_sense 48.2, semantic_instruction 63.1. From Table 3."
-    },
-    {
-      "model": "vla_jepa",
-      "display_name": "VLA-JEPA",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2602.10098",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 96.1,
-      "suite_scores": {
-        "libero_spatial": 94.8,
-        "libero_object": 99.8,
-        "libero_goal": 95.8,
-        "libero_10": 94.0
-      },
-      "source_paper": "https://arxiv.org/abs/2602.10098",
-      "source_table": "Table 4",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "T=8 future video horizon (best configuration per ablation)"
-    },
-    {
-      "model": "joint_mid_pi05",
-      "display_name": "Joint MID (π0.5)",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2512.18007",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 97.45,
-      "suite_scores": {
-        "libero_spatial": 98.4,
-        "libero_object": 99.2,
-        "libero_goal": 96.0,
-        "libero_10": 96.2
-      },
-      "source_paper": "https://arxiv.org/abs/2512.18007",
-      "source_table": "Table 1",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "Joint motion image diffusion training on π0.5 backbone"
-    },
-    {
-      "model": "vla_reasoner",
-      "display_name": "VLA-Reasoner",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2509.22643",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 81.0,
-      "suite_scores": {
-        "libero_spatial": 91.2,
-        "libero_object": 90.6,
-        "libero_goal": 82.4,
-        "libero_10": 59.8
-      },
-      "source_paper": "https://arxiv.org/abs/2509.22643",
-      "source_table": "Table I",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "Plug-and-play reasoner module applied to OpenVLA-SFT backbone"
-    },
-    {
-      "model": "quest_ript",
-      "display_name": "QueST + RIPT",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2505.17016",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 93.55,
-      "suite_scores": {
-        "libero_spatial": 95.6,
-        "libero_object": 98.4,
-        "libero_goal": 92.7,
-        "libero_10": 87.5
-      },
-      "source_paper": "https://arxiv.org/abs/2505.17016",
-      "source_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "RIPT-VLA RL fine-tuning applied to QueST backbone"
-    },
-    {
-      "model": "ee_vla",
-      "display_name": "EE-VLA",
-      "params": "0.4B",
-      "model_paper": "https://arxiv.org/abs/2509.14630",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 96.38,
-      "suite_scores": {
-        "libero_spatial": 97.6,
-        "libero_object": 99.8,
-        "libero_goal": 93.7,
-        "libero_10": 94.4
-      },
-      "source_paper": "https://arxiv.org/abs/2509.14630",
-      "source_table": "Table III",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "0.4B trainable action expert params; column order in paper: Spatial/Goal/Object/Long"
-    },
-    {
-      "model": "vote_1t",
-      "display_name": "VOTE-1T",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2509.11480",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 96.88,
-      "suite_scores": {
-        "libero_spatial": 98.0,
-        "libero_object": 99.5,
-        "libero_goal": 96.0,
-        "libero_10": 94.0
-      },
-      "source_paper": "https://arxiv.org/abs/2509.11480",
-      "source_table": "Table I",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "1-token efficient variant; VOTE-2T: 96.0/98.5/94.0/91.0; VOTE-MLP4: 93.5/98.5/92.0/92.0"
-    },
-    {
-      "model": "mantis_dvf",
-      "display_name": "Mantis (DVF)",
-      "params": "5.8B",
-      "model_paper": "https://arxiv.org/abs/2511.16175",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 96.15,
-      "suite_scores": {
-        "libero_spatial": 98.4,
-        "libero_object": 99.0,
-        "libero_goal": 94.0,
-        "libero_10": 93.2
-      },
-      "source_paper": "https://arxiv.org/abs/2511.16175",
-      "source_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "pretrained-DVF (best ablation variant); abstract reports 96.7% avg for Mantis-ATE variant"
-    },
-    {
-      "model": "qdepth_vla",
-      "display_name": "QDepth-VLA",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2510.14836",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 85.35,
-      "suite_scores": {
-        "libero_spatial": 86.0,
-        "libero_object": 88.8,
-        "libero_goal": 94.0,
-        "libero_10": 72.6
-      },
-      "source_paper": "https://arxiv.org/abs/2510.14836",
-      "source_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "Single-view depth-augmented supervision"
-    },
-    {
-      "model": "everydayvla",
-      "display_name": "EveryDayVLA",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2511.05397",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 91.35,
-      "suite_scores": {
-        "libero_spatial": 96.8,
-        "libero_object": 95.6,
-        "libero_goal": 91.0,
-        "libero_10": 82.0
-      },
-      "source_paper": "https://arxiv.org/abs/2511.05397",
-      "source_table": "Table I",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "AdaHorizon variant (best); Cont-L1+AR baseline: Spatial 96.4/Object 95.0/Goal 90.0/Long 80.8"
-    },
-    {
-      "model": "vla2",
-      "display_name": "VLA²",
-      "params": null,
-      "model_paper": "https://arxiv.org/abs/2510.14902",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 80.05,
-      "suite_scores": {
-        "libero_spatial": 86.4,
-        "libero_object": 86.2,
-        "libero_goal": 83.2,
-        "libero_10": 64.4
-      },
-      "source_paper": "https://arxiv.org/abs/2510.14902",
-      "source_table": "Table I",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04",
-      "notes": "Hierarchical VLA² framework with VLM planner + controller"
-    },
-    {
-      "model": "halo",
-      "display_name": "HALO",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 80.5,
-        "hard": 26.4
-      },
-      "source_paper": "https://arxiv.org/abs/2602.21157",
-      "source_table": "Table 1",
-      "notes": "Protocol A (50 demos/task, single-task). 50 tasks.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2602.21157"
-    },
-    {
-      "model": "internvla_a1",
-      "display_name": "InternVLA-A1",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 89.4,
-        "hard": 87.0
-      },
-      "source_paper": "https://arxiv.org/abs/2601.02456",
-      "source_table": "Table 1",
-      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2601.02456"
-    },
-    {
-      "model": "holobrain_gd",
-      "display_name": "HoloBrain-0 (GD)",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 91.3,
-        "hard": 90.8
-      },
-      "source_paper": "https://arxiv.org/abs/2602.12062",
-      "source_table": "Table 1",
-      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Gemini Diffusion backbone.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2602.12062"
-    },
-    {
-      "model": "holobrain_qw",
-      "display_name": "HoloBrain-0 (QW)",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 91.9,
-        "hard": 92.3
-      },
-      "source_paper": "https://arxiv.org/abs/2602.12062",
-      "source_table": "Table 1",
-      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Qwen backbone.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2602.12062"
-    },
-    {
-      "model": "abot_m0",
-      "display_name": "ABot-M0",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 80.42,
-        "hard": 81.16
-      },
-      "source_paper": "https://arxiv.org/abs/2602.11236",
-      "source_table": "Table 2",
-      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=80.42%, randomized=81.16%.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2602.11236"
-    },
-    {
-      "model": "twinvla",
-      "display_name": "TwinVLA",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 42.0,
-        "hard": 10.0
-      },
-      "source_paper": "https://arxiv.org/abs/2511.05275",
-      "source_table": "Figure 6",
-      "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Approximate values from figure (RDT-1B: Easy=34.5%→+7.5% ≈42.0%; Hard: 13.7%−3.7% ≈10.0%).",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2511.05275"
-    },
-    {
-      "model": "h_rdt",
-      "display_name": "H-RDT",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 68.7,
-        "hard": 25.6
-      },
-      "source_paper": "https://arxiv.org/abs/2507.23523",
-      "source_table": "Table 2",
-      "notes": "Protocol A (50 demos/task, single-task). 13 tasks (non-standard subset). Easy=68.7%, Hard=25.6%.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2507.23523"
-    },
-    {
-      "model": "vidar",
-      "display_name": "Vidar",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 65.8,
-        "hard": 17.5
-      },
-      "source_paper": "https://arxiv.org/abs/2507.12898",
-      "source_table": "Table 1",
-      "notes": "Protocol A (50 demos/task). 50 tasks.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2507.12898"
-    },
-    {
-      "model": "interndata_a1_pi0",
-      "display_name": "pi0 + InternData-A1",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 60.0,
-        "hard": 26.5
-      },
-      "source_paper": "https://arxiv.org/abs/2511.16651",
-      "source_table": "Table 2",
-      "notes": "Protocol A (50 demos/task, single-task). 49 tasks. pi0 finetuned with InternData-A1 dataset.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2511.16651"
-    },
-    {
-      "model": "motus",
-      "display_name": "Motus",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 88.66,
-        "hard": 87.02
-      },
-      "source_paper": "https://arxiv.org/abs/2512.13030",
-      "source_table": "Table 1",
-      "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=88.66%, randomized=87.02%.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2512.13030"
-    },
-    {
-      "model": "nf_pgr",
-      "display_name": "NF-PGR",
-      "benchmark": "robotwin_v2",
-      "overall_score": null,
-      "suite_scores": {
-        "easy": 38.06
-      },
-      "source_paper": "https://arxiv.org/abs/2509.21073",
-      "source_table": "Figure 4",
-      "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Easy only (no Hard evaluation). NF-P with gradient refinement.",
-      "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
-      "weight_type": "finetuned",
-      "model_paper": "https://arxiv.org/abs/2509.21073"
     }
   ]
 }
