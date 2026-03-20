@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+import jsonschema
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 RESULTS_PATH = DATA_DIR / "results.json"
 SCHEMA_PATH = DATA_DIR / "schema.json"
@@ -22,13 +24,6 @@ def canonical_json(data: dict) -> str:
 
 def validate_schema(data: dict, schema: dict) -> list[str]:
     """Validate data against JSON schema. Returns list of error messages."""
-    try:
-        import jsonschema
-    except ImportError:
-        print("WARNING: jsonschema not installed, skipping schema validation")
-        print("  Install with: uv pip install jsonschema")
-        return []
-
     validator = jsonschema.Draft7Validator(schema)
     return [f"{'.'.join(str(p) for p in e.absolute_path)}: {e.message}" for e in validator.iter_errors(data)]
 
@@ -87,6 +82,11 @@ def validate_score_ranges(data: dict) -> list[str]:
                 errors.append(f"{prefix}: task_scores.{task} not in declared tasks {sorted(declared_tasks)}")
             if not (0 <= val <= 100):
                 errors.append(f"{prefix}: task_scores.{task} = {val} outside range [0, 100]")
+            if bm_key == "simpler_env" and not (task.endswith("_vm") or task.endswith("_va")):
+                errors.append(
+                    f"{prefix}: simpler_env task_scores key '{task}' "
+                    "must end with _vm or _va to indicate evaluation protocol"
+                )
 
         # Check no duplicate (model, benchmark, weight_type)
         pair = (result["model"], bm_key, result.get("weight_type", "shared"))
