@@ -717,7 +717,7 @@
     "libero_mem": {
       "display_name": "LIBERO-Mem",
       "metric": {
-        "name": "success_rate",
+        "name": "subgoal_completion_rate",
         "unit": "%",
         "range": [
           0,
@@ -1504,12 +1504,7 @@
         "TurnFaucet",
         "TurnFaucetLeft",
         "TurnFaucetRight",
-        "Write",
-        "peg_insertion_side",
-        "pick_cube",
-        "plug_charger",
-        "push_cube",
-        "stack_cube"
+        "Write"
       ],
       "suites": [
         "PickClutterYCB",
@@ -6268,7 +6263,7 @@
       "model_paper": "https://arxiv.org/abs/2407.05996",
       "benchmark": "libero",
       "weight_type": "finetuned",
-      "overall_score": 74.3,
+      "overall_score": 76.1,
       "suite_scores": {
         "libero_spatial": 78.5,
         "libero_object": 87.5,
@@ -6280,7 +6275,7 @@
       "source_table": "Table II",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "MDT with L_CLA + L_MGF auxiliary losses, 2% language annotations. libero_10 not reported. Overall = mean of 5 reported suites."
+      "notes": "overall_score corrected to 4-suite mean (was 74.3, 5-suite incl libero_90). MDT with L_CLA + L_MGF auxiliary losses, 2% language annotations. libero_10 not reported. Overall = mean of 5 reported suites."
     },
     {
       "model": "memory_vla",
@@ -6289,7 +6284,7 @@
       "model_paper": "https://arxiv.org/abs/2508.19236",
       "benchmark": "libero",
       "weight_type": "shared",
-      "overall_score": 96.5,
+      "overall_score": 96.7,
       "suite_scores": {
         "libero_spatial": 98.4,
         "libero_object": 98.4,
@@ -6301,7 +6296,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Memory-augmented VLA. Reports both Long-10=93.4 and Long-90=95.6. overall_score=96.5 is paper-stated average over 4 suites (Spatial/Object/Goal/Long-10)."
+      "notes": "overall_score corrected to 4-suite mean (was 96.5, 5-suite incl libero_90). Memory-augmented VLA. Reports both Long-10=93.4 and Long-90=95.6. overall_score=96.5 is paper-stated average over 4 suites (Spatial/Object/Goal/Long-10)."
     },
     {
       "model": "metavla_nora_long",
@@ -7275,7 +7270,7 @@
       "model_paper": "https://arxiv.org/abs/2410.08208",
       "benchmark": "libero",
       "weight_type": "finetuned",
-      "overall_score": 52.9,
+      "overall_score": 58.0,
       "suite_scores": {
         "libero_spatial": 50.0,
         "libero_object": 76.7,
@@ -7287,7 +7282,7 @@
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "SPA visual encoder used with LIBERO transformer policy, finetuned per suite. Overall = mean of 5 suites: (50.0+76.7+65.3+40.2+32.2)/5."
+      "notes": "overall_score corrected to 4-suite mean (was 52.9, 5-suite incl libero_90). SPA visual encoder used with LIBERO transformer policy, finetuned per suite. Overall = mean of 5 suites: (50.0+76.7+65.3+40.2+32.2)/5."
     },
     {
       "model": "spatial_forcing",
@@ -8611,12 +8606,15 @@
       "model_paper": "https://arxiv.org/abs/2602.17951",
       "benchmark": "libero_plus",
       "weight_type": "shared",
-      "overall_score": 81.7,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2602.17951",
       "source_table": "Figure 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "Per-dim scores reported only in figures (not extractable). Base model: OpenVLA-7B."
+      "notes": "overall_score set to null (no suite_scores; was 81.7). Per-dim scores reported only in figures (not extractable). Base model: OpenVLA-7B.",
+      "suite_scores": {
+        "reported_avg": 81.7
+      }
     },
     {
       "model": "srpo",
@@ -10090,7 +10088,7 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 21.0,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 27.0,
         "RememberColor5-v0": 12.0,
@@ -10101,7 +10099,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (27+12+12+33)/4 = 21.0.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 21.0). overall_score = (27+12+12+33)/4 = 21.0.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 21.0
+      }
     },
     {
       "model": "cql_mlp_mikasa",
@@ -10110,7 +10111,7 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 15.75,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 29.0,
         "RememberColor5-v0": 15.0,
@@ -10121,7 +10122,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (29+15+15+4)/4 = 15.75.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 15.75). overall_score = (29+15+15+4)/4 = 15.75.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 15.75
+      }
     },
     {
       "model": "cronus_vla",
@@ -10130,12 +10134,15 @@
       "model_paper": "https://arxiv.org/abs/2506.19816",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 18.0,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 18.0). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 18.0
+      }
     },
     {
       "model": "dp_mikasa",
@@ -10144,7 +10151,7 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 16.0,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 32.0,
         "RememberColor5-v0": 10.0,
@@ -10155,7 +10162,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (32+10+17+5)/4 = 16.0.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 16.0). overall_score = (32+10+17+5)/4 = 16.0.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 16.0
+      }
     },
     {
       "model": "dt_mikasa",
@@ -10164,7 +10174,7 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 4.25,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 1.0,
         "RememberColor5-v0": 7.0,
@@ -10175,7 +10185,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score = (1+7+1+8)/4 = 4.25.; Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 4.25). overall_score = (1+7+1+8)/4 = 4.25.; Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 4.25
+      }
     },
     {
       "model": "elmur",
@@ -10184,7 +10197,7 @@
       "model_paper": null,
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 52.25,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 89.0,
         "RememberColor5-v0": 19.0,
@@ -10195,7 +10208,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Success rates (mean over 3 runs, 100 eval seeds). ELMUR nearly doubles baseline performance on MIKASA-Robo. overall_score is simple average of 4 task scores (89+19+23+78)/4 = 52.25. Note: MIKASA-Robo in the ELMUR paper uses 4 tasks (RememberColor3/5/9, TakeItBack), while MemoryVLA paper uses 5 tasks (adds ShellGame). Scores are NOT directly comparable across papers due to different task sets and eval setups.; Standard errors: RC3=0.07, RC5=0.03, RC9=0.02, TIB=0.03. Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 52.25). Success rates (mean over 3 runs, 100 eval seeds). ELMUR nearly doubles baseline performance on MIKASA-Robo. overall_score is simple average of 4 task scores (89+19+23+78)/4 = 52.25. Note: MIKASA-Robo in the ELMUR paper uses 4 tasks (RememberColor3/5/9, TakeItBack), while MemoryVLA paper uses 5 tasks (adds ShellGame). Scores are NOT directly comparable across papers due to different task sets and eval setups.; Standard errors: RC3=0.07, RC5=0.03, RC9=0.02, TIB=0.03. Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 52.25
+      }
     },
     {
       "model": "memory_vla",
@@ -10204,12 +10220,15 @@
       "model_paper": "https://arxiv.org/abs/2508.19236",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 41.2,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "MemoryVLA paper",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "41.2% on MIKASA-Robo; +11.8pp over previous SOTA"
+      "notes": "overall_score set to null (incompatible task sets; was 41.2). 41.2% on MIKASA-Robo; +11.8pp over previous SOTA",
+      "suite_scores": {
+        "reported_avg": 41.2
+      }
     },
     {
       "model": "octo_small",
@@ -10218,7 +10237,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 31.6,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 46.0,
         "InterceptMedium": 39.0,
@@ -10230,7 +10249,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1) not percentages. From source paper VLA baselines."
+      "notes": "overall_score set to null (incompatible task sets; was 31.6). Values reported as fractions (0-1) not percentages. From source paper VLA baselines.",
+      "suite_scores": {
+        "reported_avg": 31.6
+      }
     },
     {
       "model": "openvla_k_eq_4",
@@ -10239,7 +10261,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 11.2,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 12.0,
         "InterceptMedium": 6.0,
@@ -10251,7 +10273,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1). K=4 action chunking."
+      "notes": "overall_score set to null (incompatible task sets; was 11.2). Values reported as fractions (0-1). K=4 action chunking.",
+      "suite_scores": {
+        "reported_avg": 11.2
+      }
     },
     {
       "model": "openvla_k_eq_8",
@@ -10260,7 +10285,7 @@
       "model_paper": "https://arxiv.org/abs/2502.10550",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 28.4,
+      "overall_score": null,
       "task_scores": {
         "ShellGameTouch": 47.0,
         "InterceptMedium": 14.0,
@@ -10272,7 +10297,10 @@
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Values reported as fractions (0-1). K=8 action chunking."
+      "notes": "overall_score set to null (incompatible task sets; was 28.4). Values reported as fractions (0-1). K=8 action chunking.",
+      "suite_scores": {
+        "reported_avg": 28.4
+      }
     },
     {
       "model": "openvla_oft",
@@ -10281,12 +10309,15 @@
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 28.4,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 28.4). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 28.4
+      }
     },
     {
       "model": "pi0",
@@ -10295,12 +10326,15 @@
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 29.4,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 29.4). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 29.4
+      }
     },
     {
       "model": "rate_mikasa",
@@ -10309,7 +10343,7 @@
       "model_paper": "https://arxiv.org/abs/2510.07151",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 32.25,
+      "overall_score": null,
       "task_scores": {
         "RememberColor3-v0": 65.0,
         "RememberColor5-v0": 13.0,
@@ -10320,7 +10354,10 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Second-best overall on MIKASA-Robo. overall_score = (65+13+9+42)/4 = 32.25.; Standard errors: RC3=0.04, RC5=0.03, RC9=0.02, TIB=0.24. Values converted from 0-1 to %."
+      "notes": "overall_score set to null (incompatible task sets; was 32.25). Second-best overall on MIKASA-Robo. overall_score = (65+13+9+42)/4 = 32.25.; Standard errors: RC3=0.04, RC5=0.03, RC9=0.02, TIB=0.24. Values converted from 0-1 to %.",
+      "suite_scores": {
+        "reported_avg": 32.25
+      }
     },
     {
       "model": "spatialvla",
@@ -10329,12 +10366,15 @@
       "model_paper": "https://arxiv.org/abs/2501.15830",
       "benchmark": "mikasa",
       "weight_type": "shared",
-      "overall_score": 21.0,
+      "overall_score": null,
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores."
+      "notes": "overall_score set to null (incompatible task sets; was 21.0). Reproduced by MemoryVLA authors; Reproduced by MemoryVLA authors using their evaluation setup; may differ from official scores.",
+      "suite_scores": {
+        "reported_avg": 21.0
+      }
     },
     {
       "model": "3d_diffuser_actor",
