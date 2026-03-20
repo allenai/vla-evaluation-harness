@@ -11928,7 +11928,7 @@
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "3000 demos/task (significantly more training data than other methods). Referenced in Cosmos Policy Table 2.; DP-VLA from Cosmos Policy comparison. Uses 3000 demos vs 300 for most others."
+      "notes": "Score 57.3% sourced from Cosmos Policy (2601.16163) Table 2 cross-reference; original DP-VLA paper not linked. 3000 demos/task (extreme outlier). 3000 demos/task (significantly more training data than other methods). Referenced in Cosmos Policy Table 2.; DP-VLA from Cosmos Policy comparison. Uses 3000 demos vs 300 for most others."
     },
     {
       "model": "dreamgen_groot_n1_100",
@@ -11952,7 +11952,7 @@
       "benchmark": "robocasa",
       "weight_type": "shared",
       "overall_score": 58.5,
-      "source_paper": "https://arxiv.org/abs/2510.27607",
+      "source_paper": "https://arxiv.org/abs/2601.16163",
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
@@ -12306,7 +12306,7 @@
       "source_table": "Table I",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "overall_score set to null (8 of 24 tasks; was 50.94). 8 tasks from official RoboCasa-GR1 benchmark. TIDAL with GR00T-N1.5-3B. Baseline open-loop = 59.25%.",
+      "notes": "overall_score set to null (8 of 24 tasks; was 50.94). 8 tasks from RoboCasa-GR1 benchmark. Open-loop GR00T N1.5 baseline=59.25% on same tasks.",
       "suite_scores": {
         "reported_avg": 50.94
       }
@@ -12365,7 +12365,7 @@
       "source_table": "Table 2 (Cosmos Policy paper, arxiv:2601.16163)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "1000 demos/task. Referenced in Cosmos Policy Table 2 comparison.; UWM (Unified World Model) from Cosmos Policy paper. Uses 1000 demos."
+      "notes": "Score 60.8% sourced from Cosmos Policy (2601.16163) Table 2 and FLARE cross-references; original UWM paper not linked. 1000 demos/task. 1000 demos/task. Referenced in Cosmos Policy Table 2 comparison.; UWM (Unified World Model) from Cosmos Policy paper. Uses 1000 demos."
     },
     {
       "model": "video_policy",
