@@ -5,6 +5,7 @@
 script: "src/vla_eval/model_servers/starvla.py"
 args:
   checkpoint: StarVLA/Qwen-GR00T-Bridge-RT-1
+  unnorm_key: oxe_bridge
   use_bf16: true
   chunk_size: 1
   port: 8000

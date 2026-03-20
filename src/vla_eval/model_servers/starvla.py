@@ -60,9 +60,10 @@ class StarVLAModelServer(PredictModelServer):
     chunk_size = 1
     action_ensemble: str = "newest"
 
-    def __init__(self, checkpoint: str, *, use_bf16: bool = False) -> None:
+    def __init__(self, checkpoint: str, *, unnorm_key: str | None = None, use_bf16: bool = False) -> None:
         super().__init__()
         self.checkpoint = checkpoint
+        self.unnorm_key = unnorm_key
         self.use_bf16 = use_bf16
         self._model = None
 
@@ -258,7 +259,22 @@ class StarVLAModelServer(PredictModelServer):
             self._model = self._model.to(torch.bfloat16)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._model = self._model.to(device).eval()
-        logger.info("Model loaded on %s", device)
+
+        # Resolve unnorm_key and cache action stats for unnormalization.
+        # get_action_stats() is mis-decorated as @classmethod in starVLA,
+        # so we access norm_stats on the instance directly.
+        norm_stats = self._model.norm_stats
+        unnorm_key = self.unnorm_key
+        if unnorm_key is None:
+            if len(norm_stats) != 1:
+                raise ValueError(
+                    f"Model trained on multiple datasets, pass unnorm_key from: {list(norm_stats.keys())}"
+                )
+            unnorm_key = next(iter(norm_stats))
+        if unnorm_key not in norm_stats:
+            raise ValueError(f"unnorm_key={unnorm_key!r} not found, available: {list(norm_stats.keys())}")
+        self._action_stats = norm_stats[unnorm_key]["action"]
+        logger.info("Model loaded on %s (unnorm_key=%s)", device, unnorm_key)
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from PIL import Image as PILImage
@@ -298,6 +314,12 @@ class StarVLAModelServer(PredictModelServer):
 
         # First batch item
         actions = np.asarray(actions[0])
+
+        # Unnormalize: map [-1, 1] back to original action space using q01/q99 stats
+        from starVLA.model.framework.base_framework import baseframework
+
+        actions = baseframework.unnormalize_actions(actions, self._action_stats)
+
         return {"actions": actions}
 
 
@@ -307,6 +329,9 @@ if __name__ == "__main__":
         "--checkpoint",
         required=True,
         help="HuggingFace model ID (e.g. StarVLA/Qwen-PI-Bridge-RT-1) or local path to .pt file",
+    )
+    parser.add_argument(
+        "--unnorm_key", default=None, help="Dataset key for action unnormalization (auto-detected if single dataset)"
     )
     parser.add_argument("--chunk_size", type=int, default=1, help="Action chunk size (replan steps)")
     parser.add_argument("--action_ensemble", default="newest")
@@ -321,7 +346,7 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
 
-    server = StarVLAModelServer(args.checkpoint, use_bf16=args.use_bf16)
+    server = StarVLAModelServer(args.checkpoint, unnorm_key=args.unnorm_key, use_bf16=args.use_bf16)
     server.chunk_size = args.chunk_size
     server.action_ensemble = args.action_ensemble
 
