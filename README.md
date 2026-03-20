@@ -23,7 +23,7 @@
 | **Batch Parallel Evaluation** | Episode sharding + batched GPU inference → **47× throughput** (2 000 LIBERO episodes in 18 min on 1× H100). [Details](#batch-parallel-evaluation) |
 | **Zero Setup** | Benchmarks in Docker, model servers as single-file [uv scripts](https://docs.astral.sh/uv/guides/scripts/) — no dependency conflicts. |
 | **AI-Assisted Integration** | Built-in [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for [adding benchmarks](.claude/skills/add-benchmark/) and [model servers](.claude/skills/add-model-server/) — scaffold new integrations in minutes, not hours. |
-| **[Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/)** | The largest unified VLA comparison — 500+ models × 17 benchmarks, aggregated from 1,700+ papers. [Browse →](https://allenai.github.io/vla-evaluation-harness/leaderboard/) |
+| **[Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/)** | The largest unified VLA comparison — 500+ models × 17 benchmarks, aggregated from 1,700+ papers. |
 
 ---
 
