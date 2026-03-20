@@ -6,6 +6,7 @@
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Docker Images](https://img.shields.io/badge/Docker_Images-ghcr.io-2496ED.svg?logo=docker)](https://ghcr.io/allenai/vla-evaluation-harness)
+[![Leaderboard](https://img.shields.io/badge/Leaderboard-Live-orange)](https://allenai.github.io/vla-evaluation-harness/leaderboard/)
 
 | | |
 |:--|:--|
