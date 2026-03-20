@@ -576,7 +576,7 @@
       "expand_suites": true,
       "avg_position": 4,
       "avg_label": "Avg (w/o 90)",
-      "detail_notes": "Avg is the mean of spatial, object, goal, and 10 suites (the standard 4-suite protocol used by ~82% of entries). Suite 90 is excluded as most papers skip it. Entries without suite breakdown may use different subsets — check notes. LIBERO-Plus, LIBERO-Pro, and LIBERO-Mem are separate benchmarks."
+      "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
     },
     "libero_plus": {
       "display_name": "LIBERO-Plus",
@@ -712,7 +712,7 @@
         "2602.13193",
         "2602.18224"
       ],
-      "detail_notes": "LIBERO-Pro (<a href='https://arxiv.org/abs/2510.03827'>2510.03827</a>). Professional-difficulty variant of LIBERO. Separate benchmark from standard LIBERO."
+      "detail_notes": "LIBERO-Pro robustness benchmark (<a href='https://arxiv.org/abs/2510.03827'>2510.03827</a>). Standard protocol: 4 suites (goal, spatial, long, object) × 5 perturbations (original, object_swap, position, semantic, task) = 20 cells. Optional 6th perturbation: environment (object suite only). <code>overall_score</code> = mean of 20 core cells (excl env). Null if &lt;20 cells reported."
     },
     "libero_mem": {
       "display_name": "LIBERO-Mem",
@@ -744,7 +744,7 @@
         "2512.11362",
         "2512.24638"
       ],
-      "detail_notes": "LIBERO-Mem (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). Memory-augmented variant of LIBERO. Separate benchmark from standard LIBERO."
+      "detail_notes": "LIBERO-Mem memory benchmark (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). 10 tasks (T1–T10). Metric: <strong>subgoal completion rate</strong> (not task success rate). 20 rollouts per task."
     },
     "calvin": {
       "display_name": "CALVIN",
@@ -2452,7 +2452,7 @@
         "2603.02115",
         "2603.02139"
       ],
-      "detail_notes": "18-task (PerAct) subset is the dominant standard (~67% of entries). Other common sets: 10-task, 74-task, 249-task. <strong>Different task sets are not directly comparable</strong> — check notes for task count and variation count. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked.",
+      "detail_notes": "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores.",
       "results": [
         {
           "model": "tgm-vla",
@@ -2851,7 +2851,7 @@
         "2603.01229",
         "2603.01549"
       ],
-      "detail_notes": "No standardized task subset exists. Papers evaluate on different task subsets and episode counts. <strong>No entries currently include task-level breakdown</strong> — all report overall scores only. Check notes for what was included."
+      "detail_notes": "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>). <strong>Training data varies widely</strong> (50–300 demos/task). Check <em>notes</em> for <code>demos_per_task</code> and <code>task_count</code>. Scores from different training budgets are not directly comparable."
     },
     "robotwin_v1": {
       "display_name": "RoboTwin 1.0",
@@ -3275,7 +3275,7 @@
         "2601.14232",
         "2601.15086"
       ],
-      "detail_notes": "MIKASA-Robo (<a href='https://arxiv.org/abs/2502.10550'>2502.10550</a>). Some scores are third-party reproductions — check notes. Ensure overall score reflects the paper's full aggregate, not a selective subset."
+      "detail_notes": "<strong>Task set fragmentation</strong>: Multiple incompatible task subsets coexist across papers with zero overlap between some groups. <code>overall_score</code> is always null — entries from different task sets cannot be ranked against each other. Check <em>notes</em> for which task set each entry uses."
     },
     "kinetix": {
       "display_name": "Kinetix",
@@ -3351,7 +3351,7 @@
         "2602.22088",
         "2602.23901"
       ],
-      "detail_notes": "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based control — no vision or language input. Scores depend on (inference_delay, execution_horizon) settings. <strong>Not the Kinetix simulator</strong> — it is a specific evaluation protocol."
+      "detail_notes": "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based, no vision/language. Scores depend on (inference_delay <em>d</em>, execution_horizon <em>e</em>). Entries at different <em>d</em> values are <strong>not directly comparable</strong> (~11pp gap between d=0 and d=4 for the same method)."
     },
     "robocerebra": {
       "display_name": "RoboCerebra",
@@ -3394,7 +3394,7 @@
         "2602.18812",
         "2603.01229"
       ],
-      "detail_notes": "Includes both end-to-end VLAs and hierarchical systems (VLM planner + controller) — not directly comparable. Typical scores: 5–20%. Small absolute differences may be meaningful."
+      "detail_notes": "Embodied reasoning benchmark (<a href='https://arxiv.org/abs/2506.06677'>2506.06677</a>) with 6 evaluation dimensions. <code>overall_score</code> = mean of 6 dimensions. <strong>Architecture types</strong>: end-to-end VLAs, hierarchical (VLM+controller), and oracle (GT-Plan) upper bounds are not directly comparable. Check <em>notes</em> for architecture type."
     },
     "roboarena": {
       "display_name": "RoboArena",
