@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing Guide
+    url: https://github.com/allenai/vla-evaluation-harness/blob/main/CONTRIBUTING.md
+    about: Read before contributing to the harness
+  - name: Leaderboard Contributing Guide
+    url: https://github.com/allenai/vla-evaluation-harness/blob/main/leaderboard/CONTRIBUTING.md
+    about: Read before adding or correcting leaderboard scores

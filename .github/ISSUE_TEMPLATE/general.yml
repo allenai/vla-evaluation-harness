@@ -1,0 +1,29 @@
+name: General
+description: Bug reports, feature requests, questions, or anything else
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for opening an issue! Please read [CONTRIBUTING.md](https://github.com/allenai/vla-evaluation-harness/blob/main/CONTRIBUTING.md) before submitting.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue, feature request, or question.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce (if applicable)
+      description: How can we reproduce the issue?
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (if applicable)
+      description: "OS, Python version, GPU, Docker version, etc."
+    validations:
+      required: false
