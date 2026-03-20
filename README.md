@@ -147,14 +147,14 @@ All benchmark environments are packaged as standalone Docker images based on `ba
 
 | Image | Size | Benchmark | Python | Base |
 |-------|------|-----------|--------|------|
-| [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) | 3.3 GB | — | 3.10 | `nvidia/cuda:12.1.1-runtime-ubuntu22.04` |
+| [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) | 3.3 GB | — | — | `nvidia/cuda:12.1.1-runtime-ubuntu22.04` |
 | [`rlbench`](https://ghcr.io/allenai/vla-evaluation-harness/rlbench) | 4.7 GB | RLBench | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`simpler`](https://ghcr.io/allenai/vla-evaluation-harness/simpler) | 4.9 GB | SimplerEnv | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`libero`](https://ghcr.io/allenai/vla-evaluation-harness/libero) | 6.0 GB | LIBERO | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`libero-pro`](https://ghcr.io/allenai/vla-evaluation-harness/libero-pro) | 6.2 GB | LIBERO-Pro | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`robocerebra`](https://ghcr.io/allenai/vla-evaluation-harness/robocerebra) | 6.3 GB | RoboCerebra | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`calvin`](https://ghcr.io/allenai/vla-evaluation-harness/calvin) | 9.5 GB | CALVIN | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
-| [`kinetix`](https://ghcr.io/allenai/vla-evaluation-harness/kinetix) | 9.5 GB | Kinetix | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
+| [`kinetix`](https://ghcr.io/allenai/vla-evaluation-harness/kinetix) | 10.0 GB | Kinetix | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`maniskill2`](https://ghcr.io/allenai/vla-evaluation-harness/maniskill2) | 9.8 GB | ManiSkill2 | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`mikasa-robo`](https://ghcr.io/allenai/vla-evaluation-harness/mikasa-robo) | 10.1 GB | MIKASA-Robo | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`libero-mem`](https://ghcr.io/allenai/vla-evaluation-harness/libero-mem) | 11.3 GB | LIBERO-Mem | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
