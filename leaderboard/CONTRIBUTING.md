@@ -191,8 +191,9 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ### MIKASA-Robo
 
-- **Task set fragmentation**: Multiple incompatible task subsets coexist. Papers evaluate different subsets of MIKASA's 32 tasks with **zero overlap** between some groups. `overall_score` = always `null` — entries from different task sets cannot be ranked against each other. Store the paper's reported aggregate in `suite_scores.reported_avg` per the global rule (see Result Fields).
-- Always include `task_scores` with per-task breakdowns. Record which tasks were evaluated in `notes`.
+- **Standard protocol**: 5-task VLA evaluation ([2502.10550](https://arxiv.org/abs/2502.10550)): ShellGameTouch, InterceptMedium, RememberColor3, RememberColor5, RememberColor9. Endorsed as the standard by MemoryVLA (ICLR 2026). 100 evaluation episodes per task.
+- `overall_score` = arithmetic mean of 5 task success rates. Always include `task_scores`.
+- Entries using non-standard task sets (e.g., ELMUR 4-task: RC3/5/9 + TakeItBack) must set `overall_score = null`. Store the paper's reported aggregate in `suite_scores.reported_avg`.
 - Some scores are third-party reproductions (e.g. MemoryVLA paper). Check `notes`.
 
 ### RoboCerebra
