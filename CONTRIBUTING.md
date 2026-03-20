@@ -1,5 +1,23 @@
 # Contributing
 
+## Ways to Contribute
+
+We'd love your help — especially with reproducibility, which we care about most.
+
+1. **Reproduction reports** — If you've run an evaluation and can compare against published scores, we'd appreciate a report. No code required — just copy the [template](docs/reproductions/_TEMPLATE.md). See [db-cogact.md](docs/reproductions/db-cogact.md) for an example.
+
+2. **Bug reports and fixes** — If something doesn't look right during evaluation, please let us know. Filing an issue or opening a PR helps a lot.
+
+3. **New benchmark integrations** — Adding a benchmark lets everyone reproduce results on it. See [Adding a Benchmark](#adding-a-benchmark) for the step-by-step guide.
+
+4. **New model server integrations** — Adding a model server opens up new evaluation combinations. See [Adding a Model Server](#adding-a-model-server) for the guide.
+
+5. **Leaderboard data** — Missing scores, corrections, or protocol notes are all helpful. See [leaderboard/CONTRIBUTING.md](leaderboard/CONTRIBUTING.md).
+
+We're also open to contributions that improve the harness itself — new evaluation metrics, video recording, visualization tools, and similar enhancements are all welcome.
+
+---
+
 ## Dev Environment
 
 ```bash
