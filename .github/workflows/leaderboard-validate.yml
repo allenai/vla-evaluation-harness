@@ -4,6 +4,7 @@ on:
     paths:
       - 'leaderboard/data/results.json'
       - 'leaderboard/data/citations.json'
+      - 'leaderboard/scripts/validate.py'
 
 jobs:
   validate:

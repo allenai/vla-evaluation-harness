@@ -1179,17 +1179,22 @@
       ],
       "_note": "Three independent evaluation dimensions. Do NOT average across them.",
       "tasks": [
-        "close_drawer",
-        "move_near",
-        "open_close_drawer",
-        "open_drawer",
-        "open_top_drawer_place_apple",
-        "pick_coke_can",
-        "place_apple_in_drawer",
-        "put_carrot_on_plate",
-        "put_eggplant_in_basket",
-        "put_spoon_on_towel",
-        "stack_block"
+        "close_drawer_va",
+        "move_near_va",
+        "move_near_vm",
+        "open_close_drawer_va",
+        "open_close_drawer_vm",
+        "open_drawer_va",
+        "open_top_drawer_place_apple_vm",
+        "pick_coke_can_va",
+        "pick_coke_can_vm",
+        "place_apple_in_drawer_va",
+        "place_apple_in_drawer_vm",
+        "put_carrot_on_plate_vm",
+        "put_eggplant_in_basket_vm",
+        "put_spoon_on_towel_vm",
+        "reported_avg",
+        "stack_block_vm"
       ],
       "papers_reviewed": [
         "2312.10807",
@@ -1461,7 +1466,7 @@
         "2603.00926",
         "2603.01229"
       ],
-      "detail_notes": "3 independent evaluation dimensions (Google Robot VM, Google Robot VA, WidowX VM). Scores should never be averaged across them. <strong>Google Robot VM</strong> is standardized to the <strong>3-task average</strong> (Pick Coke Can, Move Near, Open/Close Drawer) for consistent ranking. Papers reporting 4 tasks (adding Place Apple in Drawer) have the 4th task shown in sub-scores; original 4-task averages are recorded in Notes."
+      "detail_notes": "3 independent evaluation dimensions (Google Robot VM, Google Robot VA, WidowX VM). Scores should never be averaged across them. <strong>Google Robot VM</strong> and <strong>VA</strong> are both standardized to the <strong>3-task average</strong> (Pick Coke Can, Move Near, Open/Close Drawer) for consistent ranking. Papers reporting 4 tasks (adding Place Apple in Drawer) have the 4th task shown in sub-scores; original 4-task averages are recorded in Notes. All <code>task_scores</code> keys must end with <code>_vm</code> or <code>_va</code> to indicate the evaluation protocol."
     },
     "maniskill2": {
       "display_name": "ManiSkill2",
@@ -8049,6 +8054,26 @@
       "date_added": "2026-03-02"
     },
     {
+      "model": "xiaomi_robotics_0",
+      "display_name": "Xiaomi-Robotics-0",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2602.12684",
+      "benchmark": "libero",
+      "weight_type": "shared",
+      "overall_score": 98.7,
+      "suite_scores": {
+        "libero_spatial": 98.8,
+        "libero_object": 100.0,
+        "libero_goal": 98.8,
+        "libero_10": 97.2
+      },
+      "source_paper": "https://arxiv.org/abs/2602.12684",
+      "source_table": "Table 1",
+      "curated_by": "human",
+      "date_added": "2026-03-20",
+      "notes": "LIBERO 4-suite avg=98.7%. Libero-Long=97.2% is state-of-the-art."
+    },
+    {
       "model": "naive_embodied_slotssm",
       "display_name": "Naive Embodied Slotssm",
       "params": null,
@@ -13991,10 +14016,10 @@
         "widowx_vm": 65.2
       },
       "task_scores": {
-        "put_spoon_on_towel": 71.7,
-        "put_carrot_on_plate": 64.2,
-        "stack_block": 55.0,
-        "put_eggplant_in_basket": 70.0
+        "put_spoon_on_towel_vm": 71.7,
+        "put_carrot_on_plate_vm": 64.2,
+        "stack_block_vm": 55.0,
+        "put_eggplant_in_basket_vm": 70.0
       },
       "source_paper": "https://arxiv.org/abs/2602.15397",
       "source_table": "Table 2",
@@ -14014,10 +14039,10 @@
         "widowx_vm": 71.0
       },
       "task_scores": {
-        "put_carrot_on_plate": 54.0,
-        "put_spoon_on_towel": 91.0,
-        "stack_block": 46.0,
-        "put_eggplant_in_basket": 93.0
+        "put_carrot_on_plate_vm": 54.0,
+        "put_spoon_on_towel_vm": 91.0,
+        "stack_block_vm": 46.0,
+        "put_eggplant_in_basket_vm": 93.0
       },
       "source_paper": "https://arxiv.org/abs/2512.11769",
       "source_table": "Table 3",
@@ -14037,10 +14062,10 @@
         "widowx_vm": 51.3
       },
       "task_scores": {
-        "put_spoon_on_towel": 71.7,
-        "put_carrot_on_plate": 50.8,
-        "put_eggplant_in_basket": 67.5,
-        "stack_block": 15.0
+        "put_spoon_on_towel_vm": 71.7,
+        "put_carrot_on_plate_vm": 50.8,
+        "put_eggplant_in_basket_vm": 67.5,
+        "stack_block_vm": 15.0
       },
       "source_paper": "https://arxiv.org/abs/2510.13778",
       "source_table": "Table 2",
@@ -14057,14 +14082,24 @@
       "weight_type": "finetuned",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 75.5,
-        "google_robot_va": 63.0
+        "google_robot_vm": 83.1,
+        "google_robot_va": 68.3
       },
       "source_paper": "https://arxiv.org/abs/2602.00686",
       "source_table": "Table 3",
-      "notes": "CogACT base model with LAC (learnable adaptive caching) inference acceleration. Google Robot only; per-task scores not reported.",
+      "notes": "CogACT + LAC. VM 3-task avg=83.1% (orig 4-task=75.5%); VA 3-task avg=68.3% (orig 4-task=63.0%). Table 3.",
       "curated_by": "opus 4.6",
-      "date_added": "2026-03-04"
+      "date_added": "2026-03-04",
+      "task_scores": {
+        "pick_coke_can_vm": 92.3,
+        "move_near_vm": 84.2,
+        "open_close_drawer_vm": 72.7,
+        "place_apple_in_drawer_vm": 52.8,
+        "pick_coke_can_va": 92.1,
+        "move_near_va": 81.5,
+        "open_close_drawer_va": 31.2,
+        "place_apple_in_drawer_va": 47.1
+      }
     },
     {
       "model": "cogact_vla_cache",
@@ -14075,20 +14110,24 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 74.8,
-        "google_robot_va": 61.3
+        "google_robot_vm": 82.7,
+        "google_robot_va": 66.2
       },
       "task_scores": {
-        "pick_coke_can": 91.3,
-        "move_near": 85.0,
-        "open_close_drawer": 71.8,
-        "open_top_drawer_place_apple": 50.9
+        "pick_coke_can_vm": 91.3,
+        "move_near_vm": 85.0,
+        "open_close_drawer_vm": 71.8,
+        "place_apple_in_drawer_vm": 50.9,
+        "pick_coke_can_va": 89.6,
+        "move_near_va": 80.8,
+        "open_close_drawer_va": 28.3,
+        "place_apple_in_drawer_va": 46.6
       },
       "source_paper": "https://arxiv.org/abs/2502.02175",
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "Google Robot VM (91.3/85.0/71.8/50.9 avg=74.8%) and VA (89.6/80.8/28.3/46.6 avg=61.3%) reported by VLA-Cache paper as CogACT baseline."
+      "notes": "CogACT baseline from VLA-Cache paper Table 3. VM 3-task avg=82.7% (orig 4-task=74.8%); VA 3-task avg=66.2% (orig 4-task=61.3%)."
     },
     {
       "model": "contextvla_groot_n15",
@@ -14102,10 +14141,10 @@
         "widowx_vm": 31.8
       },
       "task_scores": {
-        "put_spoon_on_towel": 28.0,
-        "put_carrot_on_plate": 29.3,
-        "put_eggplant_in_basket": 50.3,
-        "stack_block": 14.7
+        "put_spoon_on_towel_vm": 28.0,
+        "put_carrot_on_plate_vm": 29.3,
+        "put_eggplant_in_basket_vm": 50.3,
+        "stack_block_vm": 14.7
       },
       "source_paper": "https://arxiv.org/abs/2510.04246",
       "source_table": "Table 2",
@@ -14125,10 +14164,10 @@
         "widowx_vm": 56.2
       },
       "task_scores": {
-        "put_spoon_on_towel": 53.3,
-        "put_carrot_on_plate": 56.0,
-        "put_eggplant_in_basket": 74.0,
-        "stack_block": 41.3
+        "put_spoon_on_towel_vm": 53.3,
+        "put_carrot_on_plate_vm": 56.0,
+        "put_eggplant_in_basket_vm": 74.0,
+        "stack_block_vm": 41.3
       },
       "source_paper": "https://arxiv.org/abs/2510.04246",
       "source_table": "Table 2",
@@ -14148,10 +14187,10 @@
         "widowx_vm": 70.7
       },
       "task_scores": {
-        "put_spoon_on_towel": 60.7,
-        "put_carrot_on_plate": 81.3,
-        "put_eggplant_in_basket": 62.0,
-        "stack_block": 78.7
+        "put_spoon_on_towel_vm": 60.7,
+        "put_carrot_on_plate_vm": 81.3,
+        "put_eggplant_in_basket_vm": 62.0,
+        "stack_block_vm": 78.7
       },
       "source_paper": "https://arxiv.org/abs/2510.04246",
       "source_table": "Table 2",
@@ -14185,19 +14224,27 @@
       "weight_type": "finetuned",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 81.0,
-        "google_robot_va": 83.0,
+        "google_robot_vm": 85.0,
+        "google_robot_va": 80.0,
         "widowx_vm": 71.0
       },
       "task_scores": {
-        "pick_coke_can": 98.0,
-        "move_near": 74.0,
-        "open_close_drawer": 68.0,
-        "open_top_drawer_place_apple": 84.0
+        "pick_coke_can_vm": 96.0,
+        "move_near_vm": 84.0,
+        "open_close_drawer_vm": 75.0,
+        "place_apple_in_drawer_vm": 78.0,
+        "pick_coke_can_va": 98.0,
+        "move_near_va": 74.0,
+        "open_close_drawer_va": 68.0,
+        "place_apple_in_drawer_va": 84.0,
+        "put_spoon_on_towel_vm": 88.0,
+        "put_carrot_on_plate_vm": 71.0,
+        "stack_block_vm": 25.0,
+        "put_eggplant_in_basket_vm": 100.0
       },
       "source_paper": "https://arxiv.org/abs/2603.00926",
       "source_table": "Table I, Table II, Table III",
-      "notes": "Dynamic Action Model VLA. Scores reported as percentages rounded to integers. Task scores are for google_robot_vm suite only.",
+      "notes": "VM/VA scores corrected per paper Tables I-III. VM 3-task avg=85.0% (orig 4-task=83%); VA 3-task avg=80.0% (orig 4-task=81%). WidowX 4-task avg=71.0%.",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04"
     },
@@ -14210,20 +14257,20 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 74.8
+        "google_robot_vm": 82.7
       },
       "task_scores": {
-        "pick_coke_can": 91.3,
-        "move_near": 85.0,
-        "open_close_drawer": 71.8,
-        "open_top_drawer_place_apple": 50.9
+        "pick_coke_can_vm": 91.3,
+        "move_near_vm": 85.0,
+        "open_close_drawer_vm": 71.8,
+        "open_top_drawer_place_apple_vm": 50.9
       },
       "num_episodes": 96,
       "source_paper": "https://arxiv.org/abs/2411.19650",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Google Robot Visual Matching, 4-task standard SimplerEnv protocol (CogACT paper); Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=82.7% (orig 4-task=74.8%). Google Robot Visual Matching, 4-task standard SimplerEnv protocol (CogACT paper); Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
       "model": "depthvla",
@@ -14237,10 +14284,10 @@
         "widowx_vm": 74.8
       },
       "task_scores": {
-        "put_spoon_on_towel": 75.8,
-        "put_carrot_on_plate": 71.7,
-        "stack_block": 62.5,
-        "put_eggplant_in_basket": 89.2
+        "put_spoon_on_towel_vm": 75.8,
+        "put_carrot_on_plate_vm": 71.7,
+        "stack_block_vm": 62.5,
+        "put_eggplant_in_basket_vm": 89.2
       },
       "source_paper": "https://arxiv.org/abs/2510.13375",
       "source_table": "Table I",
@@ -14260,9 +14307,9 @@
         "google_robot_vm": 71.2
       },
       "task_scores": {
-        "pick_coke_can": 85.4,
-        "move_near": 67.5,
-        "open_close_drawer": 60.6
+        "pick_coke_can_vm": 85.4,
+        "move_near_vm": 67.5,
+        "open_close_drawer_vm": 60.6
       },
       "source_paper": "https://arxiv.org/abs/2508.20072",
       "source_table": "Table 2",
@@ -14282,10 +14329,10 @@
         "google_robot_vm": 79.6
       },
       "task_scores": {
-        "pick_coke_can": 83.7,
-        "move_near": 85.5,
-        "open_drawer": 76.0,
-        "close_drawer": 73.0
+        "pick_coke_can_vm": 83.7,
+        "move_near_vm": 85.5,
+        "open_drawer_vm": 76.0,
+        "close_drawer_vm": 73.0
       },
       "source_paper": "https://arxiv.org/abs/2503.19757",
       "source_table": "Table 4",
@@ -14307,15 +14354,15 @@
         "widowx_vm": 71.4
       },
       "task_scores": {
-        "pick_coke_can": 80.3,
-        "move_near": 78.3,
-        "open_close_drawer": 40.7
+        "pick_coke_can_vm": 80.3,
+        "move_near_vm": 78.3,
+        "open_close_drawer_vm": 40.7
       },
       "source_paper": "https://arxiv.org/abs/2512.22615",
       "source_table": "Table 8",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Google Robot VM (3-task: Pick Coke, Move Near, Drawer) and VA (3-task); WidowX VM 4-task (71.4% avg). 3-task VM/VA not directly comparable to 4-task entries."
+      "notes": "VM 3-task avg=66.5%; VA 3-task avg=54.6% (Table 8). WidowX overall=71.4% uses (Grasp+Success)/2 metric, not pure success rate (pure SR avg=60.4%). Table 7."
     },
     {
       "model": "dualvla",
@@ -14331,9 +14378,9 @@
         "widowx_vm": 36.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 50.0,
-        "put_carrot_on_plate": 50.0,
-        "stack_block": 8.3
+        "put_spoon_on_towel_vm": 50.0,
+        "put_carrot_on_plate_vm": 50.0,
+        "stack_block_vm": 8.3
       },
       "source_paper": "https://arxiv.org/abs/2511.22134",
       "source_table": "Table 2",
@@ -14353,10 +14400,10 @@
         "widowx_vm": 56.2
       },
       "task_scores": {
-        "put_spoon_on_towel": 62.5,
-        "put_carrot_on_plate": 68.0,
-        "stack_block": 36.1,
-        "put_eggplant_in_basket": 58.3
+        "put_spoon_on_towel_vm": 62.5,
+        "put_carrot_on_plate_vm": 68.0,
+        "stack_block_vm": 36.1,
+        "put_eggplant_in_basket_vm": 58.3
       },
       "source_paper": "https://arxiv.org/abs/2508.18269",
       "source_table": "Table 2",
@@ -14373,24 +14420,24 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 62.9,
+        "google_robot_vm": 69.9,
         "widowx_vm": 56.3
       },
       "task_scores": {
-        "pick_coke_can": 90.7,
-        "move_near": 79.2,
-        "put_spoon_on_towel": 62.5,
-        "put_carrot_on_plate": 41.7,
-        "stack_block": 20.8,
-        "put_eggplant_in_basket": 100.0,
-        "open_close_drawer": 39.8,
-        "open_top_drawer_place_apple": 41.7
+        "pick_coke_can_vm": 90.7,
+        "move_near_vm": 79.2,
+        "put_spoon_on_towel_vm": 62.5,
+        "put_carrot_on_plate_vm": 41.7,
+        "stack_block_vm": 20.8,
+        "put_eggplant_in_basket_vm": 100.0,
+        "open_close_drawer_vm": 39.8,
+        "open_top_drawer_place_apple_vm": 41.7
       },
       "source_paper": "https://arxiv.org/abs/2510.17439",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "Google Robot 4-task VM (Pick Can 90.7%, Move Near 79.2%, Drawer 39.8%, Place Apple 41.7%); WidowX 4-task VM (Spoon 62.5%, Carrot 41.7%, Stack 20.8%, Eggplant 100.0%)."
+      "notes": "VM 3-task avg=69.9% (orig 4-task=62.9%). Google Robot 4-task VM (Pick Can 90.7%, Move Near 79.2%, Drawer 39.8%, Place Apple 41.7%); WidowX 4-task VM (Spoon 62.5%, Carrot 41.7%, Stack 20.8%, Eggplant 100.0%)."
     },
     {
       "model": "fast_thinkact",
@@ -14401,20 +14448,14 @@
       "weight_type": "finetuned",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_va": 68.7,
-        "widowx_vm": 43.8
+        "reported_avg": 68.7
       },
       "source_paper": "https://arxiv.org/abs/2601.09708",
       "source_table": "Table 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "SimplerEnv-Google benchmark overall average 68.7%. Reported as aggregate Google Robot score; no per-task breakdown available in Table 5. Mapped to google_robot_va suite key. WidowX VM scores from FlowVLA paper comparison table (2508.18269).",
-      "task_scores": {
-        "put_spoon_on_towel": 58.3,
-        "put_carrot_on_plate": 37.5,
-        "stack_block": 8.7,
-        "put_eggplant_in_basket": 70.8
-      }
+      "notes": "Fast-ThinkAct paper (Table 5) reports SimplerEnv-Google combined score 68.7% (mean of VM and VA 3-task averages, not separable). No per-protocol breakdown available. WidowX results are NOT reported in this paper (previously listed scores were from ThinkAct, a different model).",
+      "task_scores": {}
     },
     {
       "model": "flower",
@@ -14428,10 +14469,10 @@
         "widowx_vm": 45.0
       },
       "task_scores": {
-        "put_carrot_on_plate": 8.0,
-        "put_spoon_on_towel": 71.0,
-        "stack_block": 8.0,
-        "put_eggplant_in_basket": 88.0
+        "put_carrot_on_plate_vm": 8.0,
+        "put_spoon_on_towel_vm": 71.0,
+        "stack_block_vm": 8.0,
+        "put_eggplant_in_basket_vm": 88.0
       },
       "source_paper": "https://arxiv.org/abs/2509.04996",
       "source_table": "Table 11",
@@ -14451,10 +14492,10 @@
         "widowx_vm": 74.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 70.8,
-        "put_carrot_on_plate": 62.5,
-        "stack_block": 62.5,
-        "put_eggplant_in_basket": 100.0
+        "put_spoon_on_towel_vm": 70.8,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 62.5,
+        "put_eggplant_in_basket_vm": 100.0
       },
       "source_paper": "https://arxiv.org/abs/2508.18269",
       "source_table": "Table 2",
@@ -14474,10 +14515,10 @@
         "widowx_vm": 40.6
       },
       "task_scores": {
-        "put_spoon_on_towel": 41.7,
-        "put_carrot_on_plate": 50.0,
-        "stack_block": 33.3,
-        "put_eggplant_in_basket": 37.5
+        "put_spoon_on_towel_vm": 41.7,
+        "put_carrot_on_plate_vm": 50.0,
+        "stack_block_vm": 33.3,
+        "put_eggplant_in_basket_vm": 37.5
       },
       "source_paper": "https://arxiv.org/abs/2505.08548",
       "source_table": "Table 4",
@@ -14497,10 +14538,10 @@
         "widowx_vm": 63.5
       },
       "task_scores": {
-        "put_spoon_on_towel": 75.0,
-        "put_carrot_on_plate": 62.5,
-        "stack_block": 16.7,
-        "put_eggplant_in_basket": 100.0
+        "put_spoon_on_towel_vm": 75.0,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 16.7,
+        "put_eggplant_in_basket_vm": 100.0
       },
       "source_paper": null,
       "source_table": "Table 3",
@@ -14537,9 +14578,9 @@
         "google_robot_vm": 78.7
       },
       "task_scores": {
-        "pick_coke_can": 97.0,
-        "move_near": 80.4,
-        "open_close_drawer": 58.8
+        "pick_coke_can_vm": 97.0,
+        "move_near_vm": 80.4,
+        "open_close_drawer_vm": 58.8
       },
       "source_paper": "https://arxiv.org/abs/2505.21432",
       "source_table": "Table 2",
@@ -14559,10 +14600,10 @@
         "widowx_vm": 40.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 48.0,
-        "put_carrot_on_plate": 21.0,
-        "stack_block": 39.0,
-        "put_eggplant_in_basket": 52.0
+        "put_spoon_on_towel_vm": 48.0,
+        "put_carrot_on_plate_vm": 21.0,
+        "stack_block_vm": 39.0,
+        "put_eggplant_in_basket_vm": 52.0
       },
       "source_paper": "https://arxiv.org/abs/2510.04898",
       "source_table": "Table 1",
@@ -14583,10 +14624,10 @@
         "widowx_vm": 71.7
       },
       "task_scores": {
-        "pick_coke_can": 86.1,
-        "move_near": 82.0,
-        "open_close_drawer": 72.0,
-        "place_apple_in_drawer": 64.0
+        "pick_coke_can_vm": 86.1,
+        "move_near_vm": 82.0,
+        "open_close_drawer_vm": 72.0,
+        "place_apple_in_drawer_vm": 64.0
       },
       "source_paper": "https://arxiv.org/abs/2510.13778",
       "source_table": "Table 1",
@@ -14640,10 +14681,10 @@
         "widowx_vm": 55.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 56.9,
-        "put_carrot_on_plate": 76.3,
-        "stack_block": 30.6,
-        "put_eggplant_in_basket": 58.3
+        "put_spoon_on_towel_vm": 56.9,
+        "put_carrot_on_plate_vm": 76.3,
+        "stack_block_vm": 30.6,
+        "put_eggplant_in_basket_vm": 58.3
       },
       "source_paper": "https://arxiv.org/abs/2509.06932",
       "source_table": "Table 1",
@@ -14661,20 +14702,28 @@
       "overall_score": null,
       "suite_scores": {
         "google_robot_vm": 73.0,
-        "google_robot_va": 54.6,
+        "google_robot_va": 67.7,
         "widowx_vm": 71.9
       },
       "task_scores": {
-        "pick_coke_can": 88.0,
-        "move_near": 71.7,
-        "open_close_drawer": 59.3,
-        "place_apple_in_drawer": 26.9
+        "pick_coke_can_vm": 88.0,
+        "move_near_vm": 71.7,
+        "open_close_drawer_vm": 59.3,
+        "place_apple_in_drawer_vm": 26.9,
+        "pick_coke_can_va": 83.2,
+        "move_near_va": 56.7,
+        "open_close_drawer_va": 63.2,
+        "place_apple_in_drawer_va": 15.3,
+        "put_spoon_on_towel_vm": 95.8,
+        "put_carrot_on_plate_vm": 58.3,
+        "stack_block_vm": 54.2,
+        "put_eggplant_in_basket_vm": 79.2
       },
       "source_paper": "https://arxiv.org/abs/2512.20166",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VM 3-task avg=73.0% (standardized); original 4-task avg=61.5%. Google Robot VM (4-task) and VA (4-task); WidowX VM (4-task). All from Table 1 and Table 2 of source paper."
+      "notes": "VM 3-task avg=73.0% (orig 4-task=61.5%); VA 3-task avg=67.7% (orig 4-task=54.6%). WidowX 4-task avg=71.9%. Tables 1-2."
     },
     {
       "model": "maniagent",
@@ -14688,10 +14737,10 @@
         "widowx_vm": 86.8
       },
       "task_scores": {
-        "put_spoon_on_towel": 87.5,
-        "put_carrot_on_plate": 95.8,
-        "stack_block": 91.7,
-        "put_eggplant_in_basket": 72.2
+        "put_spoon_on_towel_vm": 87.5,
+        "put_carrot_on_plate_vm": 95.8,
+        "stack_block_vm": 91.7,
+        "put_eggplant_in_basket_vm": 72.2
       },
       "source_paper": "https://arxiv.org/abs/2510.11660",
       "source_table": "Table I",
@@ -14712,10 +14761,10 @@
         "widowx_vm": 71.9
       },
       "task_scores": {
-        "pick_coke_can": 90.7,
-        "move_near": 88.0,
-        "open_close_drawer": 84.7,
-        "place_apple_in_drawer": 47.2
+        "pick_coke_can_vm": 90.7,
+        "move_near_vm": 88.0,
+        "open_close_drawer_vm": 84.7,
+        "place_apple_in_drawer_vm": 47.2
       },
       "source_paper": "https://arxiv.org/abs/2508.19236",
       "source_table": "Table 2",
@@ -14735,10 +14784,10 @@
         "widowx_vm": 46.9
       },
       "task_scores": {
-        "put_carrot_on_plate": 37.5,
-        "put_spoon_on_towel": 37.5,
-        "stack_block": 12.5,
-        "put_eggplant_in_basket": 100.0
+        "put_carrot_on_plate_vm": 37.5,
+        "put_spoon_on_towel_vm": 37.5,
+        "stack_block_vm": 12.5,
+        "put_eggplant_in_basket_vm": 100.0
       },
       "source_paper": "https://arxiv.org/abs/2512.15692",
       "source_table": "Table I",
@@ -14758,9 +14807,9 @@
         "google_robot_vm": 71.6
       },
       "task_scores": {
-        "pick_coke_can": 77.7,
-        "move_near": 77.1,
-        "open_close_drawer": 60.0
+        "pick_coke_can_vm": 77.7,
+        "move_near_vm": 77.1,
+        "open_close_drawer_vm": 60.0
       },
       "source_paper": "https://arxiv.org/abs/2508.07917",
       "source_table": "Table 1",
@@ -14782,9 +14831,9 @@
       "date_added": "2026-03-03",
       "notes": "Google Robot Visual Matching only. Per-task: Pick Coke Can 74.0%, Move Near 60.4%, Open/Close Drawer 43.1%. Average 61.4%.",
       "task_scores": {
-        "pick_coke_can": 74.0,
-        "move_near": 60.4,
-        "open_close_drawer": 43.1
+        "pick_coke_can_vm": 74.0,
+        "move_near_vm": 60.4,
+        "open_close_drawer_vm": 43.1
       },
       "suite_scores": {
         "google_robot_vm": 61.4
@@ -14802,10 +14851,10 @@
         "widowx_vm": 68.2
       },
       "task_scores": {
-        "put_carrot_on_plate": 54.1,
-        "put_eggplant_in_basket": 97.9,
-        "put_spoon_on_towel": 72.9,
-        "stack_block": 47.9
+        "put_carrot_on_plate_vm": 54.1,
+        "put_eggplant_in_basket_vm": 97.9,
+        "put_spoon_on_towel_vm": 72.9,
+        "stack_block_vm": 47.9
       },
       "source_paper": "https://arxiv.org/abs/2509.19958",
       "source_table": "Table 1",
@@ -14825,10 +14874,10 @@
         "widowx_vm": 60.4
       },
       "task_scores": {
-        "stack_block": 33.3,
-        "put_carrot_on_plate": 66.7,
-        "put_spoon_on_towel": 66.7,
-        "put_eggplant_in_basket": 75.0
+        "stack_block_vm": 33.3,
+        "put_carrot_on_plate_vm": 66.7,
+        "put_spoon_on_towel_vm": 66.7,
+        "put_eggplant_in_basket_vm": 75.0
       },
       "source_paper": "https://arxiv.org/abs/2602.03668",
       "source_table": "Table 1",
@@ -14848,10 +14897,10 @@
         "widowx_vm": 65.9
       },
       "task_scores": {
-        "put_spoon_on_towel": 90.3,
-        "put_carrot_on_plate": 58.3,
-        "stack_block": 34.7,
-        "put_eggplant_in_basket": 80.6
+        "put_spoon_on_towel_vm": 90.3,
+        "put_carrot_on_plate_vm": 58.3,
+        "stack_block_vm": 34.7,
+        "put_eggplant_in_basket_vm": 80.6
       },
       "source_paper": "https://arxiv.org/abs/2512.16793",
       "source_table": "Table 2",
@@ -14871,10 +14920,10 @@
         "widowx_vm": 67.4
       },
       "task_scores": {
-        "put_spoon_on_towel": 77.8,
-        "put_carrot_on_plate": 62.5,
-        "stack_block": 34.8,
-        "put_eggplant_in_basket": 94.8
+        "put_spoon_on_towel_vm": 77.8,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 34.8,
+        "put_eggplant_in_basket_vm": 94.8
       },
       "source_paper": "https://arxiv.org/abs/2512.16793",
       "source_table": "Table 2",
@@ -14912,10 +14961,10 @@
         "widowx_vm": 79.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 82.8,
-        "put_carrot_on_plate": 82.0,
-        "stack_block": 53.3,
-        "put_eggplant_in_basket": 98.2
+        "put_spoon_on_towel_vm": 82.8,
+        "put_carrot_on_plate_vm": 82.0,
+        "stack_block_vm": 53.3,
+        "put_eggplant_in_basket_vm": 98.2
       },
       "source_paper": "https://arxiv.org/abs/2510.25889",
       "source_table": "Table 8",
@@ -14935,10 +14984,10 @@
         "widowx_vm": 86.7
       },
       "task_scores": {
-        "put_spoon_on_towel": 91.6,
-        "put_carrot_on_plate": 95.7,
-        "stack_block": 63.0,
-        "put_eggplant_in_basket": 96.7
+        "put_spoon_on_towel_vm": 91.6,
+        "put_carrot_on_plate_vm": 95.7,
+        "stack_block_vm": 63.0,
+        "put_eggplant_in_basket_vm": 96.7
       },
       "source_paper": "https://arxiv.org/abs/2510.25889",
       "source_table": "Table 8",
@@ -14958,10 +15007,10 @@
         "widowx_vm": 29.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 62.0,
-        "put_carrot_on_plate": 21.0,
-        "stack_block": 7.0,
-        "put_eggplant_in_basket": 23.0
+        "put_spoon_on_towel_vm": 62.0,
+        "put_carrot_on_plate_vm": 21.0,
+        "stack_block_vm": 7.0,
+        "put_eggplant_in_basket_vm": 23.0
       },
       "source_paper": "https://arxiv.org/abs/2601.05241",
       "source_table": "Table 1",
@@ -14998,10 +15047,10 @@
         "widowx_vm": 50.3
       },
       "task_scores": {
-        "put_spoon_on_towel": 69.4,
-        "put_carrot_on_plate": 75.0,
-        "stack_block": 43.1,
-        "put_eggplant_in_basket": 13.9
+        "put_spoon_on_towel_vm": 69.4,
+        "put_carrot_on_plate_vm": 75.0,
+        "stack_block_vm": 43.1,
+        "put_eggplant_in_basket_vm": 13.9
       },
       "source_paper": "https://arxiv.org/abs/2510.05681",
       "source_table": "Table 2",
@@ -15021,10 +15070,10 @@
         "widowx_vm": 39.3
       },
       "task_scores": {
-        "put_spoon_on_towel": 41.7,
-        "put_carrot_on_plate": 27.8,
-        "stack_block": 0.0,
-        "put_eggplant_in_basket": 87.5
+        "put_spoon_on_towel_vm": 41.7,
+        "put_carrot_on_plate_vm": 27.8,
+        "stack_block_vm": 0.0,
+        "put_eggplant_in_basket_vm": 87.5
       },
       "source_paper": "https://arxiv.org/abs/2410.10394",
       "source_table": "Table 10",
@@ -15045,10 +15094,10 @@
         "widowx_vm": 68.5
       },
       "task_scores": {
-        "put_spoon_on_towel": 82.0,
-        "put_carrot_on_plate": 57.5,
-        "stack_block": 39.6,
-        "put_eggplant_in_basket": 95.0
+        "put_spoon_on_towel_vm": 82.0,
+        "put_carrot_on_plate_vm": 57.5,
+        "stack_block_vm": 39.6,
+        "put_eggplant_in_basket_vm": 95.0
       },
       "source_paper": "https://arxiv.org/abs/2510.14836",
       "source_table": "Table 3, Table 4",
@@ -15068,10 +15117,10 @@
         "widowx_vm": 14.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 21.1,
-        "put_carrot_on_plate": 24.4,
-        "stack_block": 0.0,
-        "put_eggplant_in_basket": 10.7
+        "put_spoon_on_towel_vm": 21.1,
+        "put_carrot_on_plate_vm": 24.4,
+        "stack_block_vm": 0.0,
+        "put_eggplant_in_basket_vm": 10.7
       },
       "source_paper": "https://arxiv.org/abs/2512.08548",
       "source_table": "Table 4",
@@ -15091,10 +15140,10 @@
         "widowx_vm": 19.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 30.8,
-        "put_carrot_on_plate": 20.8,
-        "stack_block": 0.0,
-        "put_eggplant_in_basket": 24.4
+        "put_spoon_on_towel_vm": 30.8,
+        "put_carrot_on_plate_vm": 20.8,
+        "stack_block_vm": 0.0,
+        "put_eggplant_in_basket_vm": 24.4
       },
       "source_paper": "https://arxiv.org/abs/2512.08548",
       "source_table": "Table 4",
@@ -15114,10 +15163,10 @@
         "widowx_vm": 35.3
       },
       "task_scores": {
-        "put_spoon_on_towel": 44.0,
-        "put_carrot_on_plate": 36.2,
-        "stack_block": 0.0,
-        "put_eggplant_in_basket": 61.1
+        "put_spoon_on_towel_vm": 44.0,
+        "put_carrot_on_plate_vm": 36.2,
+        "stack_block_vm": 0.0,
+        "put_eggplant_in_basket_vm": 61.1
       },
       "source_paper": "https://arxiv.org/abs/2512.08548",
       "source_table": "Table 4",
@@ -15137,10 +15186,10 @@
         "widowx_vm": 60.5
       },
       "task_scores": {
-        "put_spoon_on_towel": 66.0,
-        "put_carrot_on_plate": 54.0,
-        "stack_block": 52.0,
-        "put_eggplant_in_basket": 70.0
+        "put_spoon_on_towel_vm": 66.0,
+        "put_carrot_on_plate_vm": 54.0,
+        "stack_block_vm": 52.0,
+        "put_eggplant_in_basket_vm": 70.0
       },
       "source_paper": "https://arxiv.org/abs/2510.10912",
       "source_table": "Table V",
@@ -15192,19 +15241,19 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 52.3
+        "google_robot_vm": 67.6
       },
       "task_scores": {
-        "pick_coke_can": 85.7,
-        "move_near": 44.2,
-        "open_close_drawer": 73.0,
-        "open_top_drawer_place_apple": 6.5
+        "pick_coke_can_vm": 85.7,
+        "move_near_vm": 44.2,
+        "open_close_drawer_vm": 73.0,
+        "open_top_drawer_place_apple_vm": 6.5
       },
       "source_paper": "https://arxiv.org/abs/2405.05941",
       "source_table": "TABLE IV",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "RT-1 Converged, Google Robot Visual Matching; Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=67.6% (orig 4-task=52.3%). RT-1 Converged, Google Robot Visual Matching; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
       "model": "rt1x",
@@ -15215,19 +15264,19 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 42.4
+        "google_robot_vm": 49.4
       },
       "task_scores": {
-        "pick_coke_can": 56.7,
-        "move_near": 31.7,
-        "open_close_drawer": 59.7,
-        "open_top_drawer_place_apple": 21.3
+        "pick_coke_can_vm": 56.7,
+        "move_near_vm": 31.7,
+        "open_close_drawer_vm": 59.7,
+        "open_top_drawer_place_apple_vm": 21.3
       },
       "source_paper": "https://arxiv.org/abs/2405.05941",
       "source_table": "TABLE IV",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "RT-1-X, Google Robot Visual Matching, cross-validated with CogACT Table 1; Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=49.4% (orig 4-task=42.4%). RT-1-X, Google Robot Visual Matching, cross-validated with CogACT Table 1; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
       "model": "sd_vla",
@@ -15242,9 +15291,9 @@
         "google_robot_va": 70.8
       },
       "task_scores": {
-        "pick_coke_can": 92.7,
-        "move_near": 88.8,
-        "open_close_drawer": 75.0
+        "pick_coke_can_vm": 92.7,
+        "move_near_vm": 88.8,
+        "open_close_drawer_vm": 75.0
       },
       "source_paper": "https://arxiv.org/abs/2602.03983",
       "source_table": "Table 2",
@@ -15265,14 +15314,19 @@
         "google_robot_va": 76.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 100.0,
-        "put_eggplant_in_basket": 100.0
+        "pick_coke_can_va": 87.4,
+        "move_near_va": 65.2,
+        "open_close_drawer_va": 75.9,
+        "put_spoon_on_towel_vm": 100.0,
+        "put_eggplant_in_basket_vm": 100.0,
+        "put_carrot_on_plate_vm": 91.7,
+        "stack_block_vm": 91.7
       },
       "source_paper": "https://arxiv.org/abs/2602.18224",
       "source_table": "Table 4, Table 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "WidowX VM avg=95.8% (spoon=100%, eggplant=100%; carrot/stack not parseable from PDF). Google Robot VA avg=76.1% (Pick=?, Move=?, Open=?; per-task not parseable). Florence-2 backbone, no robotic pre-training."
+      "notes": "VA 3-task avg=76.1% (Table 5); WidowX 4-task avg=95.8% (Table 4). Florence-2 backbone, no robotic pre-training."
     },
     {
       "model": "sofar",
@@ -15283,22 +15337,27 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_va": 67.6,
         "google_robot_vm": 74.9,
+        "google_robot_va": 67.6,
         "widowx_vm": 58.3
       },
       "task_scores": {
-        "pick_coke_can": 90.7,
-        "put_spoon_on_towel": 58.3,
-        "put_carrot_on_plate": 66.7,
-        "stack_block": 70.8,
-        "put_eggplant_in_basket": 37.5
+        "pick_coke_can_vm": 92.3,
+        "move_near_vm": 91.7,
+        "open_close_drawer_vm": 40.3,
+        "pick_coke_can_va": 90.7,
+        "move_near_va": 74.0,
+        "open_close_drawer_va": 29.7,
+        "put_spoon_on_towel_vm": 58.3,
+        "put_carrot_on_plate_vm": 66.7,
+        "stack_block_vm": 70.8,
+        "put_eggplant_in_basket_vm": 37.5
       },
       "source_paper": "https://arxiv.org/abs/2502.13143",
       "source_table": "Table 4, Table 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "Zero-shot. Google Robot: VA avg=67.6% (pick_coke_can=90.7%), VM avg=74.9%. WidowX VM: spoon=58.3%, carrot=66.7%, stack=70.8%, eggplant=37.5%, avg=58.3%."
+      "notes": "Zero-shot. VM 3-task avg=74.9% (Table 4); VA 3-task avg=67.6% (Table 4). WidowX 4-task avg=58.3% (Table 5). Note: SoFar averages use sub-score weighted means, not simple task means."
     },
     {
       "model": "spatialvla",
@@ -15331,10 +15390,10 @@
         "widowx_vm": 69.8
       },
       "task_scores": {
-        "put_spoon_on_towel": 87.5,
-        "put_carrot_on_plate": 62.5,
-        "stack_block": 50.0,
-        "put_eggplant_in_basket": 79.2
+        "put_spoon_on_towel_vm": 87.5,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 50.0,
+        "put_eggplant_in_basket_vm": 79.2
       },
       "source_paper": "https://arxiv.org/abs/2510.07975",
       "source_table": "Table 1",
@@ -15371,10 +15430,10 @@
         "widowx_vm": 38.1
       },
       "task_scores": {
-        "put_spoon_on_towel": 36.4,
-        "put_carrot_on_plate": 25.0,
-        "stack_block": 36.4,
-        "put_eggplant_in_basket": 54.5
+        "put_spoon_on_towel_vm": 36.4,
+        "put_carrot_on_plate_vm": 25.0,
+        "stack_block_vm": 36.4,
+        "put_eggplant_in_basket_vm": 54.5
       },
       "source_paper": "https://arxiv.org/abs/2508.09032",
       "source_table": "Table I",
@@ -15394,10 +15453,10 @@
         "widowx_vm": 51.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 79.2,
-        "put_carrot_on_plate": 50.0,
-        "stack_block": 12.5,
-        "put_eggplant_in_basket": 62.5
+        "put_spoon_on_towel_vm": 79.2,
+        "put_carrot_on_plate_vm": 50.0,
+        "stack_block_vm": 12.5,
+        "put_eggplant_in_basket_vm": 62.5
       },
       "source_paper": "https://arxiv.org/abs/2512.18477",
       "source_table": "Table in Section 5",
@@ -15465,19 +15524,19 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 75.7
+        "google_robot_vm": 85.2
       },
       "task_scores": {
-        "pick_coke_can": 95.0,
-        "move_near": 87.1,
-        "open_close_drawer": 73.6,
-        "open_top_drawer_place_apple": 47.2
+        "pick_coke_can_vm": 95.0,
+        "move_near_vm": 87.1,
+        "open_close_drawer_vm": 73.6,
+        "open_top_drawer_place_apple_vm": 47.2
       },
       "source_paper": "https://arxiv.org/abs/2602.18020",
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Google Robot Visual Matching, 4 tasks. UAOR inference-time method on CogACT.; Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=85.2% (orig 4-task=75.7%). Google Robot Visual Matching, 4 tasks. UAOR inference-time method on CogACT.; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
       "model": "ud_vla",
@@ -15491,10 +15550,10 @@
         "widowx_vm": 62.5
       },
       "task_scores": {
-        "put_spoon_on_towel": 58.3,
-        "put_carrot_on_plate": 62.5,
-        "stack_block": 54.1,
-        "put_eggplant_in_basket": 75.0
+        "put_spoon_on_towel_vm": 58.3,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 54.1,
+        "put_eggplant_in_basket_vm": 75.0
       },
       "source_paper": "https://arxiv.org/abs/2511.01718",
       "source_table": "Table 4",
@@ -15528,25 +15587,29 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 73.1,
-        "google_robot_va": 62.8,
+        "google_robot_vm": 80.5,
+        "google_robot_va": 64.0,
         "widowx_vm": 53.1
       },
       "task_scores": {
-        "pick_coke_can": 92.3,
-        "move_near": 82.9,
-        "open_close_drawer": 66.2,
-        "open_top_drawer_place_apple": 50.9,
-        "put_spoon_on_towel": 75.0,
-        "put_carrot_on_plate": 20.8,
-        "stack_block": 45.8,
-        "put_eggplant_in_basket": 70.8
+        "pick_coke_can_vm": 92.3,
+        "move_near_vm": 82.9,
+        "open_close_drawer_vm": 66.2,
+        "place_apple_in_drawer_vm": 50.9,
+        "pick_coke_can_va": 89.8,
+        "move_near_va": 73.3,
+        "open_close_drawer_va": 28.8,
+        "place_apple_in_drawer_va": 59.3,
+        "put_spoon_on_towel_vm": 75.0,
+        "put_carrot_on_plate_vm": 20.8,
+        "stack_block_vm": 45.8,
+        "put_eggplant_in_basket_vm": 70.8
       },
       "source_paper": "https://arxiv.org/abs/2512.06963",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "Google Robot 4-task VM avg 73.1%; VA avg 62.8% (Pick Can 89.8, Move Near 73.3, Drawer 28.8, Place Apple 59.3); WidowX 4-task VM avg 53.1%. Based on CogVideoX-5B backbone."
+      "notes": "VM 3-task avg=80.5% (orig 4-task=73.1%); VA 3-task avg=64.0% (orig 4-task=62.8%); WidowX 4-task avg=53.1%. CogVideoX-5B backbone. Table 1."
     },
     {
       "model": "villa_x",
@@ -15560,9 +15623,9 @@
         "google_robot_vm": 77.7
       },
       "task_scores": {
-        "pick_coke_can": 98.7,
-        "move_near": 75.0,
-        "open_close_drawer": 59.3
+        "pick_coke_can_vm": 98.7,
+        "move_near_vm": 75.0,
+        "open_close_drawer_vm": 59.3
       },
       "source_paper": "https://arxiv.org/abs/2507.23682",
       "source_table": "Table 2",
@@ -15582,9 +15645,9 @@
         "google_robot_vm": 57.4
       },
       "task_scores": {
-        "pick_coke_can": 60.7,
-        "move_near": 38.6,
-        "open_drawer": 57.5
+        "pick_coke_can_vm": 60.7,
+        "move_near_vm": 38.6,
+        "open_drawer_vm": 57.5
       },
       "source_paper": "https://arxiv.org/abs/2511.19859",
       "source_table": "Table 3",
@@ -15604,10 +15667,10 @@
         "widowx_vm": 23.3
       },
       "task_scores": {
-        "put_spoon_on_towel": 18.0,
-        "put_carrot_on_plate": 18.1,
-        "stack_block": 7.0,
-        "put_eggplant_in_basket": 50.0
+        "put_spoon_on_towel_vm": 18.0,
+        "put_carrot_on_plate_vm": 18.1,
+        "stack_block_vm": 7.0,
+        "put_eggplant_in_basket_vm": 50.0
       },
       "source_paper": "https://arxiv.org/abs/2511.20633",
       "source_table": "Table 5",
@@ -15627,10 +15690,10 @@
         "widowx_vm": 41.0
       },
       "task_scores": {
-        "put_spoon_on_towel": 33.3,
-        "put_carrot_on_plate": 36.1,
-        "stack_block": 15.3,
-        "put_eggplant_in_basket": 79.2
+        "put_spoon_on_towel_vm": 33.3,
+        "put_carrot_on_plate_vm": 36.1,
+        "stack_block_vm": 15.3,
+        "put_eggplant_in_basket_vm": 79.2
       },
       "source_paper": "https://arxiv.org/abs/2511.20633",
       "source_table": "Table 5",
@@ -15647,20 +15710,24 @@
       "weight_type": "finetuned",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 74.4,
+        "google_robot_vm": 81.9,
         "google_robot_va": 62.3
       },
       "task_scores": {
-        "pick_coke_can": 91.7,
-        "move_near": 79.3,
-        "open_drawer": 32.5,
-        "close_drawer": 45.8
+        "pick_coke_can_vm": 92.0,
+        "move_near_vm": 83.3,
+        "open_close_drawer_vm": 70.5,
+        "place_apple_in_drawer_vm": 51.6,
+        "pick_coke_can_va": 91.7,
+        "move_near_va": 79.3,
+        "open_drawer_va": 32.5,
+        "close_drawer_va": 45.8
       },
       "source_paper": "https://arxiv.org/abs/2502.02175",
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "VLA-Cache applied to CogACT on SimplerEnv Google Robot. Visual Matching (VM): PickCan=92.0%, MoveNear=83.3%, OpenDrawer=70.5%, CloseDrawer=51.6%, Avg=74.4%. Variant Aggregation (VA): PickCan=91.7%, MoveNear=79.3%, OpenDrawer=32.5%, CloseDrawer=45.8%, Avg=62.3%."
+      "notes": "VLA-Cache on CogACT. VM 3-task avg=81.9% (orig 4-task=74.4%). VA uses non-standard task split (Open/Close as separate tasks); 4-task avg=62.3% retained — cannot recalculate standard 3-task. Source: Table 3."
     },
     {
       "model": "vla_reasoner_octo_small",
@@ -15674,10 +15741,10 @@
         "widowx_vm": 37.3
       },
       "task_scores": {
-        "stack_block": 13.0,
-        "put_spoon_on_towel": 50.0,
-        "put_carrot_on_plate": 32.0,
-        "put_eggplant_in_basket": 54.0
+        "stack_block_vm": 13.0,
+        "put_spoon_on_towel_vm": 50.0,
+        "put_carrot_on_plate_vm": 32.0,
+        "put_eggplant_in_basket_vm": 54.0
       },
       "source_paper": "https://arxiv.org/abs/2509.22643",
       "source_table": "Table 1",
@@ -15697,10 +15764,10 @@
         "widowx_vm": 41.8
       },
       "task_scores": {
-        "stack_block": 29.0,
-        "put_spoon_on_towel": 35.0,
-        "put_carrot_on_plate": 28.0,
-        "put_eggplant_in_basket": 75.0
+        "stack_block_vm": 29.0,
+        "put_spoon_on_towel_vm": 35.0,
+        "put_carrot_on_plate_vm": 28.0,
+        "put_eggplant_in_basket_vm": 75.0
       },
       "source_paper": "https://arxiv.org/abs/2509.22643",
       "source_table": "Table 1",
@@ -15720,9 +15787,9 @@
         "google_robot_vm": 76.2
       },
       "task_scores": {
-        "pick_coke_can": 91.0,
-        "move_near": 85.4,
-        "open_close_drawer": 52.1
+        "pick_coke_can_vm": 91.0,
+        "move_near_vm": 85.4,
+        "open_close_drawer_vm": 52.1
       },
       "source_paper": "https://arxiv.org/abs/2510.11027",
       "source_table": "Table 3",
@@ -15742,10 +15809,10 @@
         "widowx_vm": 48.0
       },
       "task_scores": {
-        "put_carrot_on_plate": 20.8,
-        "put_eggplant_in_basket": 91.7,
-        "put_spoon_on_towel": 79.2,
-        "stack_block": 0.0
+        "put_carrot_on_plate_vm": 20.8,
+        "put_eggplant_in_basket_vm": 91.7,
+        "put_spoon_on_towel_vm": 79.2,
+        "stack_block_vm": 0.0
       },
       "source_paper": null,
       "source_table": "Table 2",
@@ -15765,10 +15832,10 @@
         "widowx_vm": 46.8
       },
       "task_scores": {
-        "put_carrot_on_plate": 12.5,
-        "put_eggplant_in_basket": 100.0,
-        "put_spoon_on_towel": 75.0,
-        "stack_block": 0.0
+        "put_carrot_on_plate_vm": 12.5,
+        "put_eggplant_in_basket_vm": 100.0,
+        "put_spoon_on_towel_vm": 75.0,
+        "stack_block_vm": 0.0
       },
       "source_paper": null,
       "source_table": "Table 2",
@@ -15788,10 +15855,10 @@
         "widowx_vm": 49.0
       },
       "task_scores": {
-        "put_carrot_on_plate": 20.8,
-        "put_eggplant_in_basket": 95.8,
-        "put_spoon_on_towel": 79.2,
-        "stack_block": 0.0
+        "put_carrot_on_plate_vm": 20.8,
+        "put_eggplant_in_basket_vm": 95.8,
+        "put_spoon_on_towel_vm": 79.2,
+        "stack_block_vm": 0.0
       },
       "source_paper": null,
       "source_table": "Table 2",
@@ -15811,10 +15878,10 @@
         "widowx_vm": 56.3
       },
       "task_scores": {
-        "put_carrot_on_plate": 54.2,
-        "put_eggplant_in_basket": 95.8,
-        "put_spoon_on_towel": 75.0,
-        "stack_block": 0.0
+        "put_carrot_on_plate_vm": 54.2,
+        "put_eggplant_in_basket_vm": 95.8,
+        "put_spoon_on_towel_vm": 75.0,
+        "stack_block_vm": 0.0
       },
       "source_paper": null,
       "source_table": "Table 2",
@@ -15836,15 +15903,22 @@
         "widowx_vm": 58.3
       },
       "task_scores": {
-        "pick_coke_can": 89.0,
-        "move_near": 78.8,
-        "open_close_drawer": 56.9
+        "pick_coke_can_vm": 89.0,
+        "move_near_vm": 78.8,
+        "open_close_drawer_vm": 56.9,
+        "pick_coke_can_va": 84.3,
+        "move_near_va": 82.5,
+        "open_close_drawer_va": 13.8,
+        "put_spoon_on_towel_vm": 58.3,
+        "put_carrot_on_plate_vm": 29.2,
+        "stack_block_vm": 50.0,
+        "put_eggplant_in_basket_vm": 95.8
       },
       "source_paper": "https://arxiv.org/abs/2507.05116",
       "source_table": "Table 1, Table 8",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
-      "notes": "Google Robot 3-task VM (Pick Can 89.0%, Move Near 78.8%, Drawer 56.9%) avg 74.9%; Google Robot 3-task VA (Pick Can 84.3%, Move Near 82.5%, Drawer 13.8%) avg 60.2%; WidowX VM avg 58.3% (per-task breakdown not reported)."
+      "notes": "VM 3-task avg=74.9% (Table 8); VA 3-task avg=60.2% (Table 8); WidowX 4-task avg=58.3% (Table 1)."
     },
     {
       "model": "x_vla",
@@ -15858,11 +15932,25 @@
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "X-VLA SimplerEnv results from Table 2. VM=80.4 (3 tasks), VA=75.7 (3 tasks), WidowX=95.8 (4 tasks).",
+      "notes": "X-VLA Table 12. VM 3-task avg=88.3% (orig 4-task=80.4%); VA 3-task avg=75.7% (orig 4-task=75.7%); WidowX 4-task avg=95.8%.",
       "suite_scores": {
-        "google_robot_vm": 80.4,
+        "google_robot_vm": 88.3,
         "google_robot_va": 75.7,
         "widowx_vm": 95.8
+      },
+      "task_scores": {
+        "pick_coke_can_vm": 98.3,
+        "move_near_vm": 97.1,
+        "open_close_drawer_vm": 69.5,
+        "place_apple_in_drawer_vm": 56.5,
+        "pick_coke_can_va": 85.5,
+        "move_near_va": 79.8,
+        "open_close_drawer_va": 61.9,
+        "place_apple_in_drawer_va": 75.7,
+        "put_spoon_on_towel_vm": 100.0,
+        "put_carrot_on_plate_vm": 91.7,
+        "stack_block_vm": 95.8,
+        "put_eggplant_in_basket_vm": 95.8
       }
     },
     {
@@ -15874,19 +15962,29 @@
       "weight_type": "shared",
       "overall_score": null,
       "suite_scores": {
-        "google_robot_vm": 89.0
+        "google_robot_vm": 89.0,
+        "google_robot_va": 77.4,
+        "widowx_vm": 79.2
       },
       "task_scores": {
-        "pick_coke_can": 98.7,
-        "move_near": 88.8,
-        "open_close_drawer": 79.6,
-        "place_apple_in_drawer": 75.0
+        "pick_coke_can_vm": 98.7,
+        "move_near_vm": 88.8,
+        "open_close_drawer_vm": 79.6,
+        "place_apple_in_drawer_vm": 75.0,
+        "pick_coke_can_va": 88.2,
+        "move_near_va": 76.8,
+        "open_close_drawer_va": 67.2,
+        "place_apple_in_drawer_va": 66.7,
+        "put_spoon_on_towel_vm": 95.8,
+        "put_carrot_on_plate_vm": 62.5,
+        "stack_block_vm": 75.0,
+        "put_eggplant_in_basket_vm": 83.3
       },
       "source_paper": "https://arxiv.org/abs/2602.12684",
-      "source_table": "Table 4",
+      "source_table": "Tables 4 and 5",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VM 3-task avg=89.0% (standardized); original 4-task avg=85.5%. Google Robot Visual Matching, 4 tasks; Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=89.0% (orig 4-task=85.5%, Table 5). VA 3-task avg=77.4% (orig 4-task=74.7%, Table 5). WidowX 4-task avg=79.2% (Table 4)."
     },
     {
       "model": "acot_vla",
