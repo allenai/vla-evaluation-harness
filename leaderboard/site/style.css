@@ -73,6 +73,11 @@ a:hover {
   font-size: 0.95rem;
 }
 
+.updated-monthly {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 /* Banner */
 .banner {
   background: var(--bg-secondary);
