@@ -10,7 +10,7 @@ import anyio
 import websockets
 from websockets.protocol import State as WebSocketState
 
-from vla_eval.protocol.messages import PROTOCOL_VERSION, Message, MessageType, pack_message, unpack_message
+from vla_eval.protocol.messages import Message, MessageType, make_hello_payload, pack_message, unpack_message
 from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ class Connection:
         self._seq: int = 0
         self._action_callback: Callable[[Action], None] | None = None
         self._listener_task: asyncio.Task[None] | None = None
+        self._benchmark: str | None = None
         self.server_info: dict[str, Any] = {}
 
     @property
@@ -75,17 +76,14 @@ class Connection:
 
     async def connect(self, *, benchmark: str | None = None) -> None:
         """Establish WebSocket connection with retry, backoff, and HELLO handshake."""
+        self._benchmark = benchmark
         await self._connect_with_backoff()
-        # Version handshake
-        from vla_eval import __version__
+        await self._hello_handshake()
 
-        hello_payload: dict[str, Any] = {
-            "harness_version": __version__,
-            "protocol_version": PROTOCOL_VERSION,
-        }
-        if benchmark:
-            hello_payload["benchmark"] = benchmark
-        await self.send(MessageType.HELLO, hello_payload)
+    async def _hello_handshake(self) -> None:
+        """Exchange HELLO messages with the server."""
+        payload = make_hello_payload(**({"benchmark": self._benchmark} if self._benchmark else {}))
+        await self.send(MessageType.HELLO, payload)
         reply = await self.recv(timeout=self.timeout)
         if reply.type != MessageType.HELLO:
             raise RuntimeError(f"Expected HELLO reply, got {reply.type}")
@@ -132,13 +130,14 @@ class Connection:
     # ── Convenience methods (all delegate to send / recv) ────────────
 
     async def reconnect(self) -> None:
-        """Close existing connection (if any) and reconnect with backoff.
+        """Close existing connection (if any) and reconnect with backoff + HELLO.
 
         Raises:
             ConnectionError: If all retry attempts are exhausted.
         """
         await self.close()
         await self._connect_with_backoff()
+        await self._hello_handshake()
 
     async def start_episode(self, config: dict[str, Any]) -> None:
         """Signal episode start to the server."""

@@ -39,7 +39,7 @@ import websockets
 
 from vla_eval.model_servers.base import ModelServer, SessionContext
 from vla_eval.types import Action
-from vla_eval.protocol.messages import Message, MessageType, pack_message, unpack_message
+from vla_eval.protocol.messages import Message, MessageType, make_hello_payload, pack_message, unpack_message
 
 logger = logging.getLogger(__name__)
 
@@ -89,22 +89,17 @@ async def _handle_connection(
             msg = await _run_in_thread(partial(unpack_message, raw_data), limiter=_DECODE_LIMITER)
 
             if msg.type == MessageType.HELLO:
-                from vla_eval import __version__
-                from vla_eval.protocol.messages import PROTOCOL_VERSION
-
-                reply_payload = {
-                    "harness_version": __version__,
-                    "protocol_version": PROTOCOL_VERSION,
-                    "model_server": type(model_server).__name__,
-                    "capabilities": {},
-                }
+                reply_payload = make_hello_payload(
+                    model_server=type(model_server).__name__,
+                    capabilities={},
+                )
                 reply = Message(type=MessageType.HELLO, payload=reply_payload, seq=msg.seq)
                 await ws.send(pack_message(reply))
                 logger.info(
                     "HELLO session=%s client=%s server=%s",
                     session_id[:8],
                     msg.payload.get("harness_version"),
-                    __version__,
+                    reply_payload["harness_version"],
                 )
                 continue
 

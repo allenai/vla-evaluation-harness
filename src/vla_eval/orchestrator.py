@@ -253,7 +253,6 @@ class Orchestrator:
             benchmark.cleanup()
             await conn.close()
 
-        collector.print_summary()
         return self._save_results(collector, cfg, partial=False, server_info=conn.server_info)
 
     def _save_results(
@@ -271,7 +270,7 @@ class Orchestrator:
         output_dir.mkdir(parents=True, exist_ok=True)
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
 
-        if server_info:
+        if server_info is not None:
             output["server_info"] = server_info
 
         if partial:

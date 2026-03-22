@@ -24,6 +24,13 @@ class MessageType(str, enum.Enum):
 PROTOCOL_VERSION = 1
 
 
+def make_hello_payload(**extra: Any) -> dict[str, Any]:
+    """Build the common HELLO payload fields. Callers add role-specific keys via *extra*."""
+    from vla_eval import __version__
+
+    return {"harness_version": __version__, "protocol_version": PROTOCOL_VERSION, **extra}
+
+
 @dataclass
 class Message:
     type: MessageType
