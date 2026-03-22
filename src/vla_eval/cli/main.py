@@ -18,7 +18,7 @@ from vla_eval.orchestrator import Orchestrator
 logger = logging.getLogger(__name__)
 
 
-@functools.cache
+@functools.lru_cache(maxsize=None)
 def _stderr_console():
     """Return a shared Console that writes to stderr (lazy import)."""
     from rich.console import Console
