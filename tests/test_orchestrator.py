@@ -61,8 +61,9 @@ async def test_orchestrator_saves_partial_on_server_death(tmp_path):
 
         def __init__(self, url, **kwargs):
             self.url = url
+            self.server_info = {}
 
-        async def connect(self):
+        async def connect(self, **kwargs):
             pass
 
         async def close(self):

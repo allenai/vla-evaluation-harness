@@ -33,6 +33,7 @@
 | **Status** | {`complete` / `draft`} |
 | **Date** | {YYYY-MM-DD} |
 | **Harness commit** | {git commit SHA or tag} |
+| **Docker image** | {image tag or digest, e.g. `ghcr.io/.../libero:v0.3.0` or `sha256:...`} |
 | **Benchmark** | {benchmark name, task count, episode count} |
 | **Hardware** | {GPU, node setup} |
 | **Action space** | {dimensionality, chunk size, max steps} |

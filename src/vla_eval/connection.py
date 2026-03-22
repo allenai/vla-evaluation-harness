@@ -10,7 +10,7 @@ import anyio
 import websockets
 from websockets.protocol import State as WebSocketState
 
-from vla_eval.protocol.messages import Message, MessageType, pack_message, unpack_message
+from vla_eval.protocol.messages import PROTOCOL_VERSION, Message, MessageType, pack_message, unpack_message
 from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
@@ -66,15 +66,30 @@ class Connection:
         self._seq: int = 0
         self._action_callback: Callable[[Action], None] | None = None
         self._listener_task: asyncio.Task[None] | None = None
+        self.server_info: dict[str, Any] = {}
 
     @property
     def is_connected(self) -> bool:
         """Return True if the WebSocket is open."""
         return self._ws is not None and self._ws.state is WebSocketState.OPEN
 
-    async def connect(self) -> None:
-        """Establish WebSocket connection with retry and backoff."""
+    async def connect(self, *, benchmark: str | None = None) -> None:
+        """Establish WebSocket connection with retry, backoff, and HELLO handshake."""
         await self._connect_with_backoff()
+        # Version handshake
+        from vla_eval import __version__
+
+        hello_payload: dict[str, Any] = {
+            "harness_version": __version__,
+            "protocol_version": PROTOCOL_VERSION,
+        }
+        if benchmark:
+            hello_payload["benchmark"] = benchmark
+        await self.send(MessageType.HELLO, hello_payload)
+        reply = await self.recv(timeout=self.timeout)
+        if reply.type != MessageType.HELLO:
+            raise RuntimeError(f"Expected HELLO reply, got {reply.type}")
+        self.server_info = reply.payload
 
     async def close(self) -> None:
         """Close WebSocket connection and stop listener if running."""

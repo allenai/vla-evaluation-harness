@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import math
@@ -82,6 +83,18 @@ class Orchestrator:
         # Resolve benchmark class from import string
         benchmark_cls = resolve_import_string(cfg.benchmark)
         benchmark = benchmark_cls(**cfg.params)
+
+        # Warn if benchmark supports seeding but config doesn't specify one
+        sig = inspect.signature(benchmark_cls.__init__)
+        if "seed" in sig.parameters and "seed" not in cfg.params:
+            default = sig.parameters["seed"].default
+            logger.warning(
+                "%s accepts 'seed' but config doesn't specify one (using default=%r). "
+                "Set seed explicitly in config params for reproducible results.",
+                name,
+                default,
+            )
+
         metadata = benchmark.get_metadata()
 
         # max_steps: config value wins; otherwise benchmark metadata; otherwise 300.
@@ -123,7 +136,7 @@ class Orchestrator:
 
         # Connect to model server
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
-        await conn.connect()
+        await conn.connect(benchmark=cfg.benchmark)
 
         total_items = len(work_items)
 
@@ -169,7 +182,7 @@ class Orchestrator:
                             "failure_reason": "server_unreachable",
                         },
                     )
-                    return self._save_results(collector, cfg, partial=True)
+                    return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
                     close_reason = exc.rcvd.reason if exc.rcvd else None
@@ -195,7 +208,7 @@ class Orchestrator:
                         await conn.reconnect()
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True)
+                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except TimeoutError:
                     logger.warning(
                         "  [%d/%d] %s ep%d: TimeoutError (act timeout=%ss)",
@@ -218,7 +231,7 @@ class Orchestrator:
                         await conn.reconnect()
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True)
+                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except Exception:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
@@ -241,7 +254,7 @@ class Orchestrator:
             await conn.close()
 
         collector.print_summary()
-        return self._save_results(collector, cfg, partial=False)
+        return self._save_results(collector, cfg, partial=False, server_info=conn.server_info)
 
     def _save_results(
         self,
@@ -249,6 +262,7 @@ class Orchestrator:
         cfg: EvalConfig,
         *,
         partial: bool,
+        server_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Save results to disk. Marks output as partial when the run was interrupted."""
         collector.print_summary()
@@ -256,6 +270,9 @@ class Orchestrator:
         output_dir = Path(self.config.get("output_dir", "./results"))
         output_dir.mkdir(parents=True, exist_ok=True)
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
+
+        if server_info:
+            output["server_info"] = server_info
 
         if partial:
             output["partial"] = True

@@ -36,6 +36,7 @@ benchmarks:
       obj_variation_mode: "episode"
       obj_episode_range: [0, 24]
       rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
 
   # Task 2: Put Carrot on Plate
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
@@ -57,6 +58,7 @@ benchmarks:
       obj_variation_mode: "episode"
       obj_episode_range: [0, 24]
       rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
 
   # Task 3: Put Spoon on Table Cloth
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
@@ -78,6 +80,7 @@ benchmarks:
       obj_variation_mode: "episode"
       obj_episode_range: [0, 24]
       rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
 
   # Task 4: Put Eggplant in Basket (different scene/robot/overlay/init pos)
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
@@ -99,4 +102,5 @@ benchmarks:
       obj_variation_mode: "episode"
       obj_episode_range: [0, 24]
       rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_sink.png"
+      seed: null
 

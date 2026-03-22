@@ -88,7 +88,27 @@ async def _handle_connection(
             _msg_count += 1
             msg = await _run_in_thread(partial(unpack_message, raw_data), limiter=_DECODE_LIMITER)
 
-            if msg.type == MessageType.EPISODE_START:
+            if msg.type == MessageType.HELLO:
+                from vla_eval import __version__
+                from vla_eval.protocol.messages import PROTOCOL_VERSION
+
+                reply_payload = {
+                    "harness_version": __version__,
+                    "protocol_version": PROTOCOL_VERSION,
+                    "model_server": type(model_server).__name__,
+                    "capabilities": {},
+                }
+                reply = Message(type=MessageType.HELLO, payload=reply_payload, seq=msg.seq)
+                await ws.send(pack_message(reply))
+                logger.info(
+                    "HELLO session=%s client=%s server=%s",
+                    session_id[:8],
+                    msg.payload.get("harness_version"),
+                    __version__,
+                )
+                continue
+
+            elif msg.type == MessageType.EPISODE_START:
                 episode_id = str(uuid.uuid4())
                 ctx = SessionContext(session_id=session_id, episode_id=episode_id, mode="sync")
                 ctx._send_action_fn = send_action

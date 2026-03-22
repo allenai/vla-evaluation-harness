@@ -13,11 +13,15 @@ from vla_eval.protocol.numpy_codec import decode_ndarray, encode_ndarray
 
 
 class MessageType(str, enum.Enum):
+    HELLO = "hello"
     OBSERVATION = "observation"
     ACTION = "action"
     EPISODE_START = "episode_start"
     EPISODE_END = "episode_end"
     ERROR = "error"
+
+
+PROTOCOL_VERSION = 1
 
 
 @dataclass
