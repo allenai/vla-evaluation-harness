@@ -103,3 +103,21 @@ Status: **Waiting** (server ready)
 | Pi0-FAST vs Pi0.5 | Pi0 | `pi0_fast_libero` has no reported numbers; switched to `pi05_libero` |
 | TF CUDA JIT on H100 | OFT-joint | 30+ min startup due to TF recompiling CUDA kernels for compute 9.0 |
 | `vla-eval` not in PATH after node change | All | Use `uv run vla-eval` instead of bare `vla-eval` |
+
+## Observations
+
+### Batch prediction impact on throughput
+
+No model server currently implements `predict_batch()`. All use single-observation `predict()`.
+
+| Model | predict_batch | 2000 ep (30 shards) | Per-episode |
+|---|---|---|---|
+| DB-CogACT | **Yes** | ~20 min | ~0.6s |
+| X-VLA | No | ~16 min (50 shards) | ~15s |
+| OFT-joint | No | ~35 min | ~30s |
+| OpenVLA base | No | ~3 hours | ~2.5 min |
+| Pi0.5 | No | ~3.5 hours | ~3 min |
+
+DB-CogACT's batch prediction gives **~5× throughput** over the next-fastest non-batch model.
+This is the single highest-impact optimization for evaluation speed. Priority: implement
+`predict_batch()` for OpenVLA, OFT, Pi0, and StarVLA model servers.
