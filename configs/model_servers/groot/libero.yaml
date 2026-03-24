@@ -1,0 +1,7 @@
+# GR00T N1.6 — LIBERO (community checkpoint by 0xAnkitSingh)
+script: "src/vla_eval/model_servers/groot.py"
+args:
+  model_path: 0xAnkitSingh/GR00T-N1.6-LIBERO
+  embodiment_tag: LIBERO_PANDA
+  chunk_size: 16
+  port: 8000

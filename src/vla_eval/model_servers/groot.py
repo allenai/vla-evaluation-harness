@@ -147,48 +147,51 @@ class GR00TModelServer(PredictModelServer):
             self._modality_config["action"].modality_keys,
         )
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         self._load_model()
         assert self._policy is not None and self._modality_config is not None
+        B = len(obs_batch)
 
-        # Determine video key: explicit arg or first from modality config
-        video_key = self.video_key
-        if video_key is None:
-            video_key = self._modality_config["video"].modality_keys[0]
+        video_keys = self._modality_config["video"].modality_keys
+        if self.video_key is not None:
+            video_keys = [self.video_key]
 
-        # Build GR00T observation dict
-        images_dict = obs.get("images", {})
-        img_array = next(iter(images_dict.values())) if isinstance(images_dict, dict) and images_dict else None
+        # Collect per-key image lists and language across batch
+        per_key_imgs: dict[str, list[np.ndarray]] = {k: [] for k in video_keys}
+        langs = []
+        for obs in obs_batch:
+            images_dict = obs.get("images", {})
+            img_values = list(images_dict.values()) if isinstance(images_dict, dict) else []
+            for idx, vk in enumerate(video_keys):
+                if idx < len(img_values):
+                    img = np.asarray(img_values[idx], dtype=np.uint8)
+                    if img.ndim == 3:
+                        img = img[np.newaxis, ...]  # (T=1, H, W, C)
+                else:
+                    img = np.zeros((1, 224, 224, 3), dtype=np.uint8)
+                per_key_imgs[vk].append(img)
+            langs.append([obs.get("task_description", "")])
 
+        # Stack into batched observation: video {key: (B, T=1, H, W, C)}, language (B, 1)
         observation: dict[str, Any] = {
-            "video": {},
+            "video": {k: np.stack(v, axis=0) for k, v in per_key_imgs.items()},
             "state": {},
-            "language": {self._language_key: [[obs.get("task_description", "")]]},
+            "language": {self._language_key: langs},
         }
 
-        # Video: (B=1, T=1, H, W, C=3) uint8
-        if img_array is not None:
-            img = np.asarray(img_array, dtype=np.uint8)
-            if img.ndim == 3:
-                img = img[np.newaxis, np.newaxis, ...]
-            observation["video"][video_key] = img
-
-        # State: fill ALL required keys (zeros if not provided)
         for state_key in self._modality_config["state"].modality_keys:
             dim = self._state_dims.get(state_key, 1)
-            observation["state"][state_key] = np.zeros((1, 1, dim), dtype=np.float32)
+            observation["state"][state_key] = np.zeros((B, 1, dim), dtype=np.float32)
 
         action_dict, _ = self._policy.get_action(observation)
 
-        # Concatenate action keys into single array, remove batch dim
         keys = self.action_keys or self._modality_config["action"].modality_keys
-        parts = [action_dict[k][0] for k in keys if k in action_dict]
-        if parts:
-            actions = np.concatenate(parts, axis=-1)
-        else:
-            actions = np.zeros((1, 7), dtype=np.float32)
-
-        return {"actions": actions}
+        outputs = []
+        for i in range(B):
+            parts = [action_dict[k][i] for k in keys if k in action_dict]
+            actions = np.concatenate(parts, axis=-1) if parts else np.zeros((1, 7), dtype=np.float32)
+            outputs.append({"actions": actions})
+        return outputs
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         if self._policy is not None:
@@ -205,6 +208,8 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--chunk_size", type=int, default=16)
     parser.add_argument("--action_ensemble", default="newest")
+    parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size for batched inference")
+    parser.add_argument("--max_wait_time", type=float, default=0.01, help="Seconds to wait for full batch")
     parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
     parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
     parser.add_argument("--hz", type=float, default=10.0)
@@ -219,6 +224,10 @@ if __name__ == "__main__":
     if args.laas and not args.ci:
         parser.error("--laas requires --ci")
 
+    kwargs: dict[str, Any] = {}
+    if args.max_batch_size > 1:
+        kwargs["max_batch_size"] = args.max_batch_size
+        kwargs["max_wait_time"] = args.max_wait_time
     server = GR00TModelServer(
         model_path=args.model_path,
         embodiment_tag=args.embodiment_tag,
@@ -228,6 +237,7 @@ if __name__ == "__main__":
         continuous_inference=args.ci,
         laas=args.laas,
         hz=args.hz,
+        **kwargs,
     )
 
     logger.info("Pre-loading model...")

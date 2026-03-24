@@ -60,8 +60,10 @@ class StarVLAModelServer(PredictModelServer):
     chunk_size = 1
     action_ensemble: str = "newest"
 
-    def __init__(self, checkpoint: str, *, unnorm_key: str | None = None, use_bf16: bool = False) -> None:
-        super().__init__()
+    def __init__(
+        self, checkpoint: str, *, unnorm_key: str | None = None, use_bf16: bool = False, **kwargs: Any
+    ) -> None:
+        super().__init__(**kwargs)
         self.checkpoint = checkpoint
         self.unnorm_key = unnorm_key
         self.use_bf16 = use_bf16
@@ -276,58 +278,51 @@ class StarVLAModelServer(PredictModelServer):
         self._action_stats = norm_stats[unnorm_key]["action"]
         logger.info("Model loaded on %s (unnorm_key=%s)", device, unnorm_key)
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         from PIL import Image as PILImage
 
         self._load_model()
         assert self._model is not None
 
-        # Convert harness observation format to starVLA format
         def _to_pil(img: Any) -> PILImage.Image:
             if isinstance(img, np.ndarray):
                 return PILImage.fromarray(img).convert("RGB")
             return img
 
-        images_source = obs.get("images", {})
-        if isinstance(images_source, dict):
-            pil_images = [_to_pil(v) for v in images_source.values()]
-        else:
-            pil_images = [_to_pil(images_source)]
-
-        task_description = obs.get("task_description", "")
-
-        example = {
-            "image": pil_images,
-            "lang": task_description,
-        }
-
-        # Add state if present (LIBERO sends "states", other benchmarks send "state")
-        state = obs.get("states", obs.get("state"))
-        if state is not None:
-            state = np.asarray(state, dtype=np.float32).flatten()
-            # LIBERO sends 8D [pos3, axisangle3, gripper_qpos2]; StarVLA expects 7D
-            # (gripper as single scalar). Average the 2D gripper qpos to 1D.
-            if len(state) == 8:
-                state = np.concatenate([state[:6], [state[6:8].mean()]])
-            example["state"] = state.reshape(1, -1)
-
-        result = self._model.predict_action([example])
-        actions = result["normalized_actions"]  # [B, T, action_dim]
-
-        # First batch item
-        actions = np.asarray(actions[0])
-
-        # Unnormalize: map [-1, 1] back to original action space using q01/q99 stats
         from starVLA.model.framework.base_framework import baseframework
 
-        actions = baseframework.unnormalize_actions(actions, self._action_stats)
+        examples = []
+        for obs in obs_batch:
+            images_source = obs.get("images", {})
+            if isinstance(images_source, dict):
+                pil_images = [_to_pil(v) for v in images_source.values()]
+            else:
+                pil_images = [_to_pil(images_source)]
 
-        # Convert gripper convention: StarVLA unnormalize_actions maps gripper to {0=open, 1=closed}.
-        # The harness binarizes via: <0 → closed (-1), ≥0 → open (+1).
-        # Apply: 1.0 - 2.0 * gripper → 0→+1.0 (open), 1→-1.0 (closed).
-        actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            example: dict[str, Any] = {
+                "image": pil_images,
+                "lang": obs.get("task_description", ""),
+            }
 
-        return {"actions": actions}
+            state = obs.get("states", obs.get("state"))
+            if state is not None:
+                state = np.asarray(state, dtype=np.float32).flatten()
+                if len(state) == 8:
+                    state = np.concatenate([state[:6], [state[6:8].mean()]])
+                example["state"] = state.reshape(1, -1)
+
+            examples.append(example)
+
+        result = self._model.predict_action(examples)
+        actions_batch = result["normalized_actions"]  # [B, T, action_dim]
+
+        outputs = []
+        for i in range(len(obs_batch)):
+            actions = np.asarray(actions_batch[i])
+            actions = baseframework.unnormalize_actions(actions, self._action_stats)
+            actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            outputs.append({"actions": actions})
+        return outputs
 
 
 if __name__ == "__main__":
@@ -343,6 +338,8 @@ if __name__ == "__main__":
     parser.add_argument("--chunk_size", type=int, default=1, help="Action chunk size (replan steps)")
     parser.add_argument("--action_ensemble", default="newest")
     parser.add_argument("--use_bf16", action="store_true", help="Use bfloat16 precision")
+    parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size for batched inference")
+    parser.add_argument("--max_wait_time", type=float, default=0.01, help="Seconds to wait for full batch")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -353,7 +350,11 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
 
-    server = StarVLAModelServer(args.checkpoint, unnorm_key=args.unnorm_key, use_bf16=args.use_bf16)
+    kwargs: dict[str, Any] = {}
+    if args.max_batch_size > 1:
+        kwargs["max_batch_size"] = args.max_batch_size
+        kwargs["max_wait_time"] = args.max_wait_time
+    server = StarVLAModelServer(args.checkpoint, unnorm_key=args.unnorm_key, use_bf16=args.use_bf16, **kwargs)
     server.chunk_size = args.chunk_size
     server.action_ensemble = args.action_ensemble
 

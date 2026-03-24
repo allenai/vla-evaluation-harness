@@ -1,0 +1,4 @@
+# StarVLA Qwen3-VL-OFT — LIBERO (all 4 suites)
+extends: _base.yaml
+args:
+  checkpoint: StarVLA/Qwen3-VL-OFT-LIBERO-4in1
