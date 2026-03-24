@@ -638,16 +638,21 @@ Quick reference for Stage 1 reproducibility audit. All models use 7D actions (6D
 
 | Model | Checkpoint | Weight type | unnorm_key / config | chunk_size | Input | Status |
 |---|---|---|---|---|---|---|
-| OpenVLA-OFT | `moojink/openvla-7b-oft-finetuned-libero-{suite}` | per-suite ft | `libero_{suite}_no_noops` | 10 | 1 img | Ready (4 configs) |
+| OpenVLA | `openvla/openvla-7b-finetuned-libero-{suite}` (×4) | per-suite ft (LoRA) | `libero_{suite}_no_noops` | 1 | 1 img | Config needed |
+| OpenVLA-OFT | `moojink/openvla-7b-oft-finetuned-libero-{suite}` (×4) | per-suite ft | `libero_{suite}_no_noops` | 10 | 1 img | Ready (4 configs) |
+| OpenVLA-OFT (joint) | `moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10` | shared (all 4) | TBD | 10 | 1 img | Config needed |
 | DB-CogACT | `Dexmal/libero-db-cogact` | per-suite ft | `chunk_size_map` per suite | 12/16/16/15 | 1 img | Ready |
 | Pi0.5 | GCS `pi05_libero` (via openpi) | per-suite ft | openpi config system | 10 | img + wrist + state(8D) | Ready |
-| X-VLA | `2toINF/X-VLA-Libero` | shared (all 4 suites) | `domain_id=3`, `benchmark_profile=libero` | 30 | profile-dep | Ready |
-| StarVLA Qwen3-PI | `StarVLA/Qwen3-VL-PI-LIBERO-4in1` | shared (all 4 suites) | TBD | 1 | 1 img | Config needed |
-| GR00T N1.6 | Finetune from `nvidia/GR00T-N1.6-3B` | per-suite ft | `embodiment_tag=LIBERO_PANDA` | 16 | 1 img | Blocked (no pretrained) |
-| OpenVLA | Not publicly available (LoRA) | per-suite ft | `libero_{suite}_no_noops` | 1 | 1 img | Blocked (no checkpoint) |
-| CogACT | N/A | N/A | N/A | N/A | N/A | No LIBERO checkpoint |
+| X-VLA | `2toINF/X-VLA-Libero` | shared (all 4) | `domain_id=3`, `benchmark_profile=libero` | 30 | profile-dep | Ready |
+| StarVLA Qwen2.5-FAST | `StarVLA/Qwen2.5-VL-FAST-LIBERO-4in1` | shared (all 4) | TBD | 1 | 1 img | Config needed |
+| StarVLA Qwen2.5-OFT | `StarVLA/Qwen2.5-VL-OFT-LIBERO-4in1` | shared (all 4) | TBD | 1 | 1 img | Config needed |
+| StarVLA Qwen2.5-GR00T | `StarVLA/Qwen2.5-VL-GR00T-LIBERO-4in1` | shared (all 4) | TBD | 1 | 1 img | Config needed |
+| StarVLA Qwen3-PI | `StarVLA/Qwen3-VL-PI-LIBERO-4in1` | shared (all 4) | TBD | 1 | 1 img | Config needed |
+| StarVLA Qwen3-OFT | `StarVLA/Qwen3-VL-OFT-LIBERO-4in1` | shared (all 4) | TBD | 1 | 1 img | Config needed |
+| GR00T N1.6 (community) | `0xAnkitSingh/GR00T-N1.6-LIBERO` | shared (all 4) | `embodiment_tag=LIBERO_PANDA` | 16 | 1 img | Config needed |
+| CogACT | N/A — no LIBERO checkpoint exists | — | — | — | — | Blocked |
 
 **Status legend:**
 - **Ready** = HF/GCS checkpoint available + vla-eval config exists
-- **Config needed** = checkpoint exists but vla-eval config not yet created
+- **Config needed** = checkpoint exists on HF but vla-eval config not yet created
 - **Blocked** = no publicly available finetuned checkpoint
