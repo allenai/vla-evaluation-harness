@@ -138,8 +138,10 @@ class OFTModelServer(PredictModelServer):
             oft_obs["wrist_image"] = np.asarray(images_dict[keys[1]], dtype=np.uint8)
 
         # Provide proprio state; fall back to zeros when missing
-        if "state" in obs:
-            oft_obs["state"] = np.asarray(obs["state"], dtype=np.float64)
+        # LIBERO sends "states" (plural), other benchmarks may use "state" (singular)
+        raw_state = obs.get("states", obs.get("state"))
+        if raw_state is not None:
+            oft_obs["state"] = np.asarray(raw_state, dtype=np.float64)
         elif self.use_proprio:
             oft_obs["state"] = np.zeros(PROPRIO_DIM, dtype=np.float64)
 
@@ -153,7 +155,10 @@ class OFTModelServer(PredictModelServer):
             self._action_head,
             self._proprio_projector,
         )
-        return {"actions": actions}
+        # Gripper: RLDS [0=close,1=open] → robosuite [-1=open,+1=close]
+        actions_arr = np.asarray(actions, dtype=np.float32)
+        actions_arr[..., -1] = -np.sign(2 * actions_arr[..., -1] - 1)
+        return {"actions": actions_arr}
 
 
 if __name__ == "__main__":

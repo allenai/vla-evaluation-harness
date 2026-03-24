@@ -84,27 +84,24 @@ class Pi0ModelServer(PredictModelServer):
         self._load_model()
         assert self._policy is not None
 
-        # Map harness obs to OpenPI format
         openpi_obs: dict[str, Any] = {}
 
-        # Images: extract from benchmark obs
         images_dict = obs.get("images", {})
         img_list = list(images_dict.values()) if isinstance(images_dict, dict) else []
         base_img = np.asarray(img_list[0], dtype=np.uint8) if img_list else np.zeros((256, 256, 3), dtype=np.uint8)
         openpi_obs[self.image_key] = base_img
 
-        # Wrist image: use second image if available, else zeros
         if self.wrist_image_key:
             wrist_img = np.asarray(img_list[1], dtype=np.uint8) if len(img_list) > 1 else np.zeros_like(base_img)
             openpi_obs[self.wrist_image_key] = wrist_img
 
-        # Task description → prompt
         openpi_obs["prompt"] = obs.get("task_description", "")
 
-        # State: use benchmark state if available, else zeros
+        # LIBERO sends "states" (plural), other benchmarks may use "state" (singular)
         if self.state_key:
-            if "state" in obs:
-                openpi_obs[self.state_key] = np.asarray(obs["state"], dtype=np.float64)
+            raw_state = obs.get("states", obs.get("state"))
+            if raw_state is not None:
+                openpi_obs[self.state_key] = np.asarray(raw_state, dtype=np.float64)
             else:
                 openpi_obs[self.state_key] = np.zeros(self.state_dim, dtype=np.float64)
 

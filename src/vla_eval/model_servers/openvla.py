@@ -100,7 +100,10 @@ class OpenVLAModelServer(PredictModelServer):
             kwargs["unnorm_key"] = self.unnorm_key
 
         action = self._model.predict_action(**inputs, **kwargs)
-        return {"actions": action}
+        # Gripper: RLDS [0=close,1=open] → robosuite [-1=open,+1=close]
+        action_arr = np.asarray(action, dtype=np.float32)
+        action_arr[..., -1] = -np.sign(2 * action_arr[..., -1] - 1)
+        return {"actions": action_arr}
 
 
 if __name__ == "__main__":

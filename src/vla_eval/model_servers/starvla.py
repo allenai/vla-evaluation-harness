@@ -301,13 +301,15 @@ class StarVLAModelServer(PredictModelServer):
             "lang": task_description,
         }
 
-        # Add state if present
-        state = obs.get("state")
+        # Add state if present (LIBERO sends "states", other benchmarks send "state")
+        state = obs.get("states", obs.get("state"))
         if state is not None:
-            if isinstance(state, np.ndarray):
-                example["state"] = state.reshape(1, -1)
-            else:
-                example["state"] = np.array(state).reshape(1, -1)
+            state = np.asarray(state, dtype=np.float32).flatten()
+            # LIBERO sends 8D [pos3, axisangle3, gripper_qpos2]; StarVLA expects 7D
+            # (gripper as single scalar). Average the 2D gripper qpos to 1D.
+            if len(state) == 8:
+                state = np.concatenate([state[:6], [state[6:8].mean()]])
+            example["state"] = state.reshape(1, -1)
 
         result = self._model.predict_action([example])
         actions = result["normalized_actions"]  # [B, T, action_dim]
@@ -319,6 +321,11 @@ class StarVLAModelServer(PredictModelServer):
         from starVLA.model.framework.base_framework import baseframework
 
         actions = baseframework.unnormalize_actions(actions, self._action_stats)
+
+        # Convert gripper convention: StarVLA unnormalize_actions maps gripper to {0=open, 1=closed}.
+        # The harness binarizes via: <0 → closed (-1), ≥0 → open (+1).
+        # Apply: 1.0 - 2.0 * gripper → 0→+1.0 (open), 1→-1.0 (closed).
+        actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
 
         return {"actions": actions}
 
