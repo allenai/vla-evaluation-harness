@@ -1,0 +1,6 @@
+# RTC model server — continuous inference + LAAS
+extends: _base.yaml
+args:
+  ci: true
+  laas: true
+  hz: 10.0

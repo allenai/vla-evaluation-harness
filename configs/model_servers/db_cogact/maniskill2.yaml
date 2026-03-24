@@ -1,0 +1,7 @@
+# DB-CogACT model server — ManiSkill2 checkpoint
+# Weight: Dexmal/maniskill2-db-cogact (HuggingFace)
+# Benchmark: ManiSkill2 (SAPIEN, PickCube-v0)
+extends: _base.yaml
+args:
+  model_path: Dexmal/maniskill2-db-cogact
+  chunk_size: 10

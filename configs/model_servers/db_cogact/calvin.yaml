@@ -1,0 +1,7 @@
+# DB-CogACT model server — CALVIN checkpoint
+# Weight: Dexmal/calvin-db-cogact (HuggingFace)
+# Benchmark: CALVIN (PyBullet, 5-task chain)
+extends: _base.yaml
+args:
+  model_path: Dexmal/calvin-db-cogact
+  chunk_size: 7

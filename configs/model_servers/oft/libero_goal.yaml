@@ -1,0 +1,5 @@
+# OpenVLA-OFT — LIBERO-Goal
+extends: _base.yaml
+args:
+  pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-goal
+  unnorm_key: libero_goal_no_noops

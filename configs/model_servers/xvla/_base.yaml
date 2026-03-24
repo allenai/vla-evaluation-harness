@@ -1,0 +1,5 @@
+# X-VLA model server — shared base
+script: "src/vla_eval/model_servers/xvla.py"
+args:
+  denoising_steps: 10
+  port: 8000

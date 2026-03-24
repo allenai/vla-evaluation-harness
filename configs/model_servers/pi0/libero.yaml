@@ -1,0 +1,17 @@
+# π₀-FAST model server — LIBERO (direct OpenPI inference)
+# Loads the policy checkpoint directly; no external server needed.
+#
+# Usage: vla-eval serve --config configs/model_servers/pi0/libero.yaml
+#
+# Available config_name values (see openpi repo):
+#   pi0_fast_libero, pi05_libero, pi0_fast_droid, pi05_droid, ...
+
+script: "src/vla_eval/model_servers/pi0.py"
+args:
+  config_name: pi0_fast_libero
+  image_key: "observation/image"
+  wrist_image_key: "observation/wrist_image"
+  state_key: "observation/state"
+  state_dim: 8
+  chunk_size: 10
+  port: 8000

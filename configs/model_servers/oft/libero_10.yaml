@@ -1,0 +1,5 @@
+# OpenVLA-OFT — LIBERO-10 (Long)
+extends: _base.yaml
+args:
+  pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-10
+  unnorm_key: libero_10_no_noops

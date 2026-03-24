@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
 
@@ -24,12 +25,6 @@ def _stderr_console():
     from rich.console import Console
 
     return Console(stderr=True, highlight=False)
-
-
-def _load_config(path: str) -> dict[str, Any]:
-    """Load YAML config file."""
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def _setup_logging(verbose: bool = False) -> None:
