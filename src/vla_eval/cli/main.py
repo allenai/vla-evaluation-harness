@@ -326,12 +326,28 @@ def cmd_serve(args: argparse.Namespace) -> None:
         _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
-    # CLI overrides for port and host
+    # CLI overrides
     server_args = dict(config.get("args", {}))
     if getattr(args, "port", None) is not None:
         server_args["port"] = args.port
     if getattr(args, "host", None) is not None:
         server_args["host"] = args.host
+    for override in getattr(args, "arg", None) or []:
+        key, _, value = override.partition("=")
+        if not key or not _:
+            _stderr_console().print(f"[red]ERROR: --arg must be KEY=VALUE, got {override!r}[/red]")
+            sys.exit(1)
+        # Auto-coerce types: bool, int, float
+        if value.lower() in ("true", "false"):
+            server_args[key] = value.lower() == "true"
+        else:
+            try:
+                server_args[key] = int(value)
+            except ValueError:
+                try:
+                    server_args[key] = float(value)
+                except ValueError:
+                    server_args[key] = value
 
     cmd: list[str] = [uv, "run", str(script)]
     for key, value in server_args.items():
@@ -779,6 +795,13 @@ Bool args become flags (--use_text_template), others become --key value.
         "--port", type=int, default=None, help="Override server port (default: from config or 8000)"
     )
     serve_parser.add_argument("--host", default=None, help="Override bind address (default: from config or 0.0.0.0)")
+    serve_parser.add_argument(
+        "--arg",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override model server args (applied on top of config). Repeatable. "
+        "e.g. --arg inference_delay=0.1 --arg ci=true",
+    )
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)
 

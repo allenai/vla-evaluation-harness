@@ -1,4 +1,0 @@
-# RTC model server — 200ms artificial inference delay (for delay sweep experiment)
-extends: _base.yaml
-args:
-  inference_delay: 0.2
