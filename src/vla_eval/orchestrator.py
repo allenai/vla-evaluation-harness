@@ -84,23 +84,27 @@ class Orchestrator:
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
         await conn.connect(benchmark=cfg.benchmark)
 
+        # Resolve benchmark class and inspect its __init__ signature once
+        benchmark_cls = resolve_import_string(cfg.benchmark)
+        sig = inspect.signature(benchmark_cls.__init__)
+
         # Merge server's observation_params into benchmark config.
         # Only fills in keys not already set (--param / YAML values take precedence).
         obs_params = conn.server_info.get("observation_params", {})
         merged_params = dict(cfg.params)
         if obs_params:
-            sig = inspect.signature(resolve_import_string(cfg.benchmark).__init__)
             for key, value in obs_params.items():
                 if key not in merged_params and key in sig.parameters:
                     merged_params[key] = value
                     logger.info("Auto-configured from model server: %s=%s", key, value)
 
-        # Resolve benchmark class from import string
-        benchmark_cls = resolve_import_string(cfg.benchmark)
-        benchmark = benchmark_cls(**merged_params)
+        try:
+            benchmark = benchmark_cls(**merged_params)
+        except Exception:
+            await conn.close()
+            raise
 
         # Warn if benchmark supports seeding but config doesn't specify one
-        sig = inspect.signature(benchmark_cls.__init__)
         if "seed" in sig.parameters and "seed" not in merged_params:
             default = sig.parameters["seed"].default
             logger.warning(

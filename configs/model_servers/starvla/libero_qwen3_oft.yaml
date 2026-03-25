@@ -1,7 +1,4 @@
 # StarVLA Qwen3-VL-OFT — LIBERO (all 4 suites)
-#
-# Required benchmark params (--param):
-#   send_wrist_image=true
 extends: _base.yaml
 args:
   checkpoint: StarVLA/Qwen3-VL-OFT-LIBERO-4in1

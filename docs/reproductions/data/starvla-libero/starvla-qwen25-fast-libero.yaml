@@ -2,7 +2,6 @@
 # Checkpoint: StarVLA/Qwen2.5-VL-FAST-LIBERO-4in1
 # Single policy trained on all 4 suites jointly (30K steps)
 # Reference: 95.2% avg (spatial 97.3%, object 97.2%, goal 96.1%, 10 90.2%)
-# CRITICAL: send_wrist_image must be true — model expects [primary, wrist] image pair
 server:
   url: "ws://HOST:PORT"
 docker:

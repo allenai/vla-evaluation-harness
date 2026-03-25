@@ -2,9 +2,6 @@
 # NOTE: unnorm_key must match the suite being evaluated. The joint checkpoint
 # contains stats for all 4 suites. Launch separate server instances with
 # different unnorm_keys for each suite, or use the per-suite configs below.
-#
-# Required benchmark params (--param):
-#   send_wrist_image=true send_state=true
 extends: _base.yaml
 args:
   pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10

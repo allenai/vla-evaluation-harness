@@ -3,9 +3,6 @@
 #
 # Usage: vla-eval serve --config configs/model_servers/pi0/libero.yaml
 #
-# Required benchmark params (--param):
-#   send_wrist_image=true send_state=true
-#
 # Available config_name values (see openpi repo):
 #   pi0_fast_libero, pi05_libero, pi0_fast_droid, pi05_droid, ...
 #

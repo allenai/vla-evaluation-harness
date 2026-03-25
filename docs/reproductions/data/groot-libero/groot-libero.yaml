@@ -1,7 +1,6 @@
 # GR00T N1.6 LIBERO reproduction config
 # Community checkpoint by 0xAnkitSingh (per-suite finetuned, 20K steps)
 # Reference: 97.0% average (spatial 97.65%, goal 97.5%, object 98.45%, 10 94.35%)
-# NOTE: requires use_sim_policy_wrapper=true in model server config
 server:
   url: "ws://HOST:PORT"
 docker:
