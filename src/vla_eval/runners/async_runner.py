@@ -136,7 +136,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
         elapsed = clock.time()
         episode_result = await benchmark.get_result()
         episode_result["steps"] = step_count
-        episode_result["elapsed_sec"] = elapsed
+        episode_result["elapsed_sec"] = round(elapsed, 3)
 
         # Real-time metrics
         metrics = action_buffer.get_metrics()

@@ -142,7 +142,7 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
         ],
     }
 
-    all_episode_ids: list[str] = []
+    all_episode_keys: list[tuple[str, int]] = []
     for shard_id in range(3):
         with patch(
             "vla_eval.orchestrator.resolve_import_string",
@@ -153,11 +153,11 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
 
         for task_result in results[0]["tasks"]:
             for ep in task_result["episodes"]:
-                all_episode_ids.append(ep["episode_id"])
+                all_episode_keys.append((task_result["task"], ep["episode_id"]))
 
     # 2 tasks × 3 episodes = 6 total, split across 3 shards
-    assert len(all_episode_ids) == 6
-    assert len(set(all_episode_ids)) == 6  # no duplicates
+    assert len(all_episode_keys) == 6
+    assert len(set(all_episode_keys)) == 6  # no duplicates
 
 
 @pytest.mark.anyio

@@ -52,7 +52,7 @@ class SyncEpisodeRunner(EpisodeRunner):
         elapsed = await benchmark.get_time()
         episode_result = await benchmark.get_result()
         episode_result["steps"] = step + 1
-        episode_result["elapsed_sec"] = elapsed
+        episode_result["elapsed_sec"] = round(elapsed, 3)
 
         await conn.end_episode(episode_result)
         return episode_result

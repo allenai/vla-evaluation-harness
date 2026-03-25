@@ -12,9 +12,9 @@ from vla_eval.results.merge import load_shard_files, merge_shards
 
 def test_result_collector():
     collector = ResultCollector("test_bench", mode="sync")
-    collector.record("task_a", {"task": "task_a", "episode_id": "task_a_ep0", "success": True, "steps": 10})
-    collector.record("task_a", {"task": "task_a", "episode_id": "task_a_ep1", "success": False, "steps": 20})
-    collector.record("task_b", {"task": "task_b", "episode_id": "task_b_ep0", "success": True, "steps": 5})
+    collector.record("task_a", {"episode_id": 0, "success": True, "steps": 10})
+    collector.record("task_a", {"episode_id": 1, "success": False, "steps": 20})
+    collector.record("task_b", {"episode_id": 0, "success": True, "steps": 5})
 
     result = collector.get_benchmark_result()
     assert result["benchmark"] == "test_bench"
@@ -35,7 +35,7 @@ def test_empty_collector():
 
 def test_to_json_returns_valid_json():
     collector = ResultCollector("json_bench", mode="sync")
-    collector.record("t1", {"task": "t1", "episode_id": "t1_ep0", "success": True, "steps": 5})
+    collector.record("t1", {"episode_id": 0, "success": True, "steps": 5})
     text = collector.to_json()
     parsed = json.loads(text)
     assert parsed["benchmark"] == "json_bench"
@@ -68,7 +68,7 @@ def test_merge_two_shards():
             {
                 "task": "A",
                 "episodes": [
-                    {"episode_id": "A_ep0", "success": True, "steps": 10},
+                    {"episode_id": 0, "success": True, "steps": 10},
                 ],
             },
         ],
@@ -80,7 +80,7 @@ def test_merge_two_shards():
             {
                 "task": "A",
                 "episodes": [
-                    {"episode_id": "A_ep1", "success": False, "steps": 20},
+                    {"episode_id": 1, "success": False, "steps": 20},
                 ],
             },
         ],
@@ -103,14 +103,14 @@ def test_merge_detects_missing_shard():
         0,
         3,
         [
-            {"task": "A", "episodes": [{"episode_id": "A_ep0", "success": True, "steps": 5}]},
+            {"task": "A", "episodes": [{"episode_id": 0, "success": True, "steps": 5}]},
         ],
     )
     shard2 = _make_shard(
         2,
         3,
         [
-            {"task": "A", "episodes": [{"episode_id": "A_ep2", "success": True, "steps": 5}]},
+            {"task": "A", "episodes": [{"episode_id": 2, "success": True, "steps": 5}]},
         ],
     )
 
@@ -125,14 +125,14 @@ def test_merge_rejects_duplicate_shard_ids():
         0,
         1,
         [
-            {"task": "A", "episodes": [{"episode_id": "A_ep0", "success": False, "steps": 10}]},
+            {"task": "A", "episodes": [{"episode_id": 0, "success": False, "steps": 10}]},
         ],
     )
     shard0_v2 = _make_shard(
         0,
         1,
         [
-            {"task": "A", "episodes": [{"episode_id": "A_ep0", "success": True, "steps": 5}]},
+            {"task": "A", "episodes": [{"episode_id": 0, "success": True, "steps": 5}]},
         ],
     )
 

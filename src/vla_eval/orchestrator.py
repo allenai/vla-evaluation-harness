@@ -132,7 +132,7 @@ class Orchestrator:
                 len(work_items),
             )
 
-        collector = ResultCollector(benchmark_name=name, mode=cfg.mode)
+        collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
 
         # Connect to model server
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
@@ -150,8 +150,7 @@ class Orchestrator:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
                     raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps)
-                    raw["task"] = task_name
-                    raw["episode_id"] = f"{task_name}_ep{ep}"
+                    raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
                     collector.record(task_name, ep_result)
                     status = "SUCCESS" if ep_result.get("success") else "FAIL"
@@ -176,8 +175,7 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
+                            "episode_id": ep,
                             "success": False,
                             "failure_reason": "server_unreachable",
                         },
@@ -198,8 +196,7 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
+                            "episode_id": ep,
                             "success": False,
                             "failure_reason": f"connection_closed_{close_code}",
                         },
@@ -221,8 +218,7 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
+                            "episode_id": ep,
                             "success": False,
                             "failure_reason": "timeout",
                         },
@@ -243,8 +239,7 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
+                            "episode_id": ep,
                             "success": False,
                             "failure_reason": "exception",
                         },
