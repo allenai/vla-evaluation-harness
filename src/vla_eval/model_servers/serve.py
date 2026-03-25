@@ -293,3 +293,126 @@ def serve(
 ) -> None:
     """Start a WebSocket server (blocking). Entry point for model server scripts."""
     anyio.run(serve_async, model_server, host, port)
+
+
+# ---------------------------------------------------------------------------
+# run_server: auto-argparse entrypoint for model server scripts
+# ---------------------------------------------------------------------------
+
+
+def _resolve_cli_type(
+    annotation: type,
+    default: object,
+) -> tuple[type | None, bool, bool]:
+    """Map a Python type annotation to an argparse type.
+
+    Returns ``(type_fn, is_bool, skip)``.
+    - ``is_bool=True`` → use ``store_true`` or ``BooleanOptionalAction``.
+    - ``skip=True``    → don't expose this parameter on the CLI.
+    """
+    import types as _types
+    import typing as _typing
+
+    _EMPTY = __import__("inspect").Parameter.empty
+
+    # Unwrap Optional / Union with None
+    origin = getattr(annotation, "__origin__", None)
+    args = getattr(annotation, "__args__", None)
+    if isinstance(annotation, _types.UnionType) or origin is _typing.Union:
+        non_none = [a for a in (args or ()) if a is not type(None)]
+        if len(non_none) == 1:
+            return _resolve_cli_type(non_none[0], default)
+        if str in non_none:
+            return (str, False, False)
+        return (None, False, True)  # complex union → skip
+
+    if annotation is bool or (annotation is _EMPTY and isinstance(default, bool)):
+        return (None, True, False)
+    if annotation is int or (annotation is _EMPTY and isinstance(default, int) and not isinstance(default, bool)):
+        return (int, False, False)
+    if annotation is float or (annotation is _EMPTY and isinstance(default, float)):
+        return (float, False, False)
+    if annotation is str or annotation is _EMPTY:
+        return (str, False, False)
+
+    return (None, False, True)  # unknown → skip
+
+
+def run_server(server_cls: type[ModelServer]) -> None:
+    """Standard entrypoint for model server scripts.
+
+    Builds an ``argparse.ArgumentParser`` from *server_cls*'s ``__init__``
+    signature (walking the MRO), always includes ``--port``, ``--host``,
+    and ``--verbose``, then instantiates the server and starts it.
+
+    Usage in each model server script::
+
+        if __name__ == "__main__":
+            from vla_eval.model_servers.serve import run_server
+            run_server(MyModelServer)
+    """
+    import argparse
+    import inspect
+
+    parser = argparse.ArgumentParser(
+        description=f"{server_cls.__name__} model server",
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="Bind address")
+    parser.add_argument("--port", type=int, default=8000, help="Server port")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+
+    import typing
+
+    _EMPTY = inspect.Parameter.empty
+    _SERVE_KEYS = {"host", "port", "verbose"}
+    seen = {"self"} | _SERVE_KEYS
+
+    for cls in server_cls.__mro__:
+        if cls is object:
+            break
+        init = cls.__dict__.get("__init__")
+        if init is None:
+            continue
+        # Resolve stringified annotations (from __future__ import annotations)
+        try:
+            hints = typing.get_type_hints(init)
+        except Exception:
+            hints = {}
+        for name, param in inspect.signature(init).parameters.items():
+            if name in seen or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+                continue
+            seen.add(name)
+
+            annotation = hints.get(name, param.annotation)
+            type_fn, is_bool, skip = _resolve_cli_type(annotation, param.default)
+            if skip:
+                continue
+
+            flag = f"--{name}"
+            if is_bool:
+                default = param.default if param.default is not _EMPTY else False
+                parser.add_argument(flag, action=argparse.BooleanOptionalAction, default=default)
+            else:
+                kwargs: dict[str, object] = {"type": type_fn}
+                if param.default is not _EMPTY:
+                    kwargs["default"] = param.default
+                else:
+                    kwargs["required"] = True
+                parser.add_argument(flag, **kwargs)
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+    )
+
+    ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
+    server = server_cls(**ctor_kwargs)
+
+    if hasattr(server, "_load_model"):
+        logger.info("Pre-loading model...")
+        server._load_model()
+
+    logger.info("Starting server on ws://%s:%d", args.host, args.port)
+    serve(server, host=args.host, port=args.port)

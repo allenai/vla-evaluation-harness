@@ -24,7 +24,6 @@ nvidia/GR00T-N1.6-3B foundation model (or fine-tuned checkpoints).
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 from typing import Any
@@ -35,7 +34,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -225,51 +223,6 @@ class GR00TModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="GR00T N1.6 model server (uv script)")
-    parser.add_argument("--model_path", default="nvidia/GR00T-N1.6-3B", help="HF model ID or local path")
-    parser.add_argument("--embodiment_tag", default="GR1", help="Embodiment tag (e.g. GR1, ROBOCASA_PANDA_OMRON)")
-    parser.add_argument("--video_key", default=None, help="Video modality key (auto-detected if omitted)")
-    parser.add_argument(
-        "--invert_gripper", action="store_true", help="Invert gripper: [0,1] (0=close) -> [-1,1] (-1=open)"
-    )
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=16)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size for batched inference")
-    parser.add_argument("--max_wait_time", type=float, default=0.01, help="Seconds to wait for full batch")
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    kwargs: dict[str, Any] = {}
-    if args.max_batch_size > 1:
-        kwargs["max_batch_size"] = args.max_batch_size
-        kwargs["max_wait_time"] = args.max_wait_time
-    server = GR00TModelServer(
-        model_path=args.model_path,
-        embodiment_tag=args.embodiment_tag,
-        video_key=args.video_key,
-        invert_gripper=args.invert_gripper,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-        **kwargs,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(GR00TModelServer)

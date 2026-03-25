@@ -335,12 +335,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     cmd: list[str] = [uv, "run", str(script)]
     for key, value in server_args.items():
-        flag = f"--{key}"
         if isinstance(value, bool):
-            if value:
-                cmd.append(flag)
+            cmd.append(f"--{key}" if value else f"--no-{key}")
         else:
-            cmd.extend([flag, str(value)])
+            cmd.extend([f"--{key}", str(value)])
 
     logger.info("Running: %s", " ".join(cmd))
     _exec_subprocess(cmd)

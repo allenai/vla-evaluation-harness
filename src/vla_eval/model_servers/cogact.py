@@ -23,7 +23,6 @@
 # ///
 from __future__ import annotations
 
-import argparse
 import logging
 from typing import Any
 
@@ -33,7 +32,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -139,64 +137,6 @@ class CogACTModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CogACT model server (uv script)")
-    parser.add_argument("--model_path", default="CogACT/CogACT-Base", help="HuggingFace model ID or local path")
-    parser.add_argument("--action_model_type", default="DiT-B", choices=["DiT-S", "DiT-B", "DiT-L"])
-    parser.add_argument("--future_action_window_size", type=int, default=15)
-    parser.add_argument("--unnorm_key", default=None, help="Dataset key for action denormalization")
-    parser.add_argument("--cfg_scale", type=float, default=1.5)
-    parser.add_argument("--use_ddim", action="store_true", default=True)
-    parser.add_argument("--no_ddim", dest="use_ddim", action="store_false")
-    parser.add_argument("--num_ddim_steps", type=int, default=10)
-    parser.add_argument("--chunk_size", type=int, default=16)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    # CI/LAAS flags — DRAFT, untested
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT, untested)")
-    parser.add_argument("--laas", action="store_true", help="Enable Latency-Aware Action Selection (DRAFT, untested)")
-    parser.add_argument("--hz", type=float, default=10.0, help="Environment Hz for LAAS delay computation")
-    parser.add_argument("--max_batch_size", type=int, default=16, help="Max batch size for batched inference")
-    parser.add_argument(
-        "--max_wait_time", type=float, default=0.05, help="Max wait time in seconds for batch accumulation"
-    )
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    kwargs: dict[str, Any] = {
-        "action_ensemble": args.action_ensemble,
-        "continuous_inference": args.ci,
-        "laas": args.laas,
-        "hz": args.hz,
-    }
-    if args.max_batch_size > 1:
-        kwargs["max_batch_size"] = args.max_batch_size
-        kwargs["max_wait_time"] = args.max_wait_time
-
-    server = CogACTModelServer(
-        model_path=args.model_path,
-        action_model_type=args.action_model_type,
-        future_action_window_size=args.future_action_window_size,
-        unnorm_key=args.unnorm_key,
-        cfg_scale=args.cfg_scale,
-        use_ddim=args.use_ddim,
-        num_ddim_steps=args.num_ddim_steps,
-        chunk_size=args.chunk_size,
-        **kwargs,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    mode = (
-        f"batch (max_batch={args.max_batch_size}, wait={args.max_wait_time}s)" if args.max_batch_size > 1 else "single"
-    )
-    logger.info("Model ready [%s], starting server on ws://%s:%d", mode, args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(CogACTModelServer)

@@ -38,7 +38,6 @@ Supported frameworks (auto-detected from checkpoint config):
 
 from __future__ import annotations
 
-import argparse
 import logging
 from pathlib import Path
 from typing import Any
@@ -49,7 +48,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -345,50 +343,6 @@ class StarVLAModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="starVLA model server (uv script)")
-    parser.add_argument(
-        "--checkpoint",
-        required=True,
-        help="HuggingFace model ID (e.g. StarVLA/Qwen-PI-Bridge-RT-1) or local path to .pt file",
-    )
-    parser.add_argument(
-        "--unnorm_key", default=None, help="Dataset key for action unnormalization (auto-detected if single dataset)"
-    )
-    parser.add_argument("--chunk_size", type=int, default=1, help="Action chunk size (replan steps)")
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--use_bf16", action="store_true", help="Use bfloat16 precision")
-    parser.add_argument(
-        "--observation_params",
-        default=None,
-        help="JSON dict of observation requirements, e.g. '{\"send_wrist_image\": true}'",
-    )
-    parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size for batched inference")
-    parser.add_argument("--max_wait_time", type=float, default=0.01, help="Seconds to wait for full batch")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    kwargs: dict[str, Any] = {}
-    if args.max_batch_size > 1:
-        kwargs["max_batch_size"] = args.max_batch_size
-        kwargs["max_wait_time"] = args.max_wait_time
-    server = StarVLAModelServer(
-        args.checkpoint,
-        unnorm_key=args.unnorm_key,
-        use_bf16=args.use_bf16,
-        observation_params=args.observation_params,
-        **kwargs,
-    )
-    server.chunk_size = args.chunk_size
-    server.action_ensemble = args.action_ensemble
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(StarVLAModelServer)

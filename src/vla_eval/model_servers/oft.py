@@ -26,7 +26,6 @@ action chunking and parallel decoding (26× faster, 3× lower latency).
 
 from __future__ import annotations
 
-import argparse
 import logging
 from typing import Any
 
@@ -36,7 +35,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -170,46 +168,6 @@ class OFTModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OpenVLA-OFT model server (uv script)")
-    parser.add_argument(
-        "--pretrained_checkpoint",
-        required=True,
-        help="HuggingFace model ID (e.g. moojink/openvla-7b-oft-finetuned-libero-spatial)",
-    )
-    parser.add_argument("--unnorm_key", default="", help="Unnormalization key")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=10)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument(
-        "--num_images_in_input", type=int, default=1, help="Number of input images (1=full_image only, 2=full+wrist)"
-    )
-    parser.add_argument("--use_diffusion", action="store_true")
-    parser.add_argument("--no_proprio", action="store_true")
-    parser.add_argument("--load_in_8bit", action="store_true")
-    parser.add_argument("--load_in_4bit", action="store_true")
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    server = OFTModelServer(
-        pretrained_checkpoint=args.pretrained_checkpoint,
-        unnorm_key=args.unnorm_key,
-        use_l1_regression=not args.use_diffusion,
-        use_diffusion=args.use_diffusion,
-        num_images_in_input=args.num_images_in_input,
-        use_proprio=not args.no_proprio,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        load_in_8bit=args.load_in_8bit,
-        load_in_4bit=args.load_in_4bit,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(OFTModelServer)

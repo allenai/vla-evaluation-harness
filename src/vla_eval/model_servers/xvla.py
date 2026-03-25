@@ -50,7 +50,6 @@ Proprioceptive state (closed-loop feedback):
 
 from __future__ import annotations
 
-import argparse
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -61,7 +60,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 from vla_eval.rotation import (
     axisangle_to_rot6d_contiguous as _axisangle_to_rot6d,
@@ -370,66 +368,6 @@ class XVLAModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="X-VLA model server (direct loading)")
-    parser.add_argument("--model_path", default="2toINF/X-VLA-Libero", help="HF model ID or local path")
-    parser.add_argument("--domain_id", type=int, default=0, help="Embodiment/domain identifier")
-    parser.add_argument("--denoising_steps", type=int, default=10, help="Flow-matching denoising steps")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=30, help="Action chunk size")
-    parser.add_argument(
-        "--benchmark_profile",
-        default=None,
-        choices=sorted(_BENCHMARK_PROFILES),
-        help="Benchmark-specific X-VLA defaults (image order, proprio mode, output action format)",
-    )
-    parser.add_argument(
-        "--output_action_dim", type=int, default=None, help="Convert to this action dim (7 for single-arm)"
-    )
-    parser.add_argument("--action_ensemble", default="newest")
-    proprio_group = parser.add_mutually_exclusive_group()
-    proprio_group.add_argument(
-        "--use-predicted-proprio",
-        dest="use_predicted_proprio",
-        action="store_true",
-        default=None,
-        help="Force closed-loop predicted proprio on chunk boundaries",
-    )
-    proprio_group.add_argument(
-        "--no-predicted-proprio",
-        dest="use_predicted_proprio",
-        action="store_false",
-        help="Always use fresh env state for proprio",
-    )
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    server = XVLAModelServer(
-        model_path=args.model_path,
-        domain_id=args.domain_id,
-        denoising_steps=args.denoising_steps,
-        benchmark_profile=args.benchmark_profile,
-        chunk_size=args.chunk_size,
-        output_action_dim=args.output_action_dim,
-        use_predicted_proprio=args.use_predicted_proprio,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(XVLAModelServer)

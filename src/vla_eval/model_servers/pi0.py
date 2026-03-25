@@ -23,7 +23,6 @@ in-process.  No external server required.
 
 from __future__ import annotations
 
-import argparse
 import logging
 from typing import Any
 
@@ -33,7 +32,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -132,60 +130,6 @@ class Pi0ModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="π₀/π₀-FAST model server (direct loading)")
-    parser.add_argument("--config_name", default="pi05_libero", help="OpenPI config name")
-    parser.add_argument("--checkpoint", default=None, help="Checkpoint path (GCS/local). Auto-resolved if omitted.")
-    parser.add_argument("--image_key", default="observation/image", help="OpenPI observation key for the image")
-    parser.add_argument(
-        "--wrist_image_key",
-        default="observation/wrist_image",
-        help="OpenPI observation key for wrist image (None to disable)",
-    )
-    parser.add_argument(
-        "--state_key", default="observation/state", help="OpenPI observation key for robot state (None to disable)"
-    )
-    parser.add_argument("--state_dim", type=int, default=8, help="Dimension of the state vector for zero-fill")
-    parser.add_argument(
-        "--image_resolution", type=int, default=None, help="Resize images to this resolution (e.g. 224 for pi05)"
-    )
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=10, help="Action chunk size")
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    # Convert "None" strings to actual None
-    wrist_key = None if args.wrist_image_key in (None, "None", "none") else args.wrist_image_key
-    state_key = None if args.state_key in (None, "None", "none") else args.state_key
-
-    server = Pi0ModelServer(
-        config_name=args.config_name,
-        checkpoint=args.checkpoint,
-        image_key=args.image_key,
-        wrist_image_key=wrist_key,
-        state_key=state_key,
-        state_dim=args.state_dim,
-        image_resolution=args.image_resolution,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(Pi0ModelServer)
