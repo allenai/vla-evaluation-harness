@@ -1,4 +1,4 @@
-# Reproduced Performance — LIBERO Stage 1
+# Stage 1 — LIBERO Reproducibility Audit
 
 > Evaluation date: 2026-03-24
 > Harness version: 0.0.4.dev8+g3e4c63d37
