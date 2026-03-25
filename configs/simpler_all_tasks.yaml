@@ -25,7 +25,7 @@ benchmarks:
       env_name: "StackGreenCubeOnYellowCubeBakedTexInScene-v0"
       scene_name: "bridge_table_1_v1"
       robot: "widowx"
-      image_size: [224, 224]
+
       control_freq: 5
       sim_freq: 500
       max_episode_steps: 120
@@ -47,7 +47,7 @@ benchmarks:
       env_name: "PutCarrotOnPlateInScene-v0"
       scene_name: "bridge_table_1_v1"
       robot: "widowx"
-      image_size: [224, 224]
+
       control_freq: 5
       sim_freq: 500
       max_episode_steps: 120
@@ -69,7 +69,7 @@ benchmarks:
       env_name: "PutSpoonOnTableClothInScene-v0"
       scene_name: "bridge_table_1_v1"
       robot: "widowx"
-      image_size: [224, 224]
+
       control_freq: 5
       sim_freq: 500
       max_episode_steps: 120
@@ -91,7 +91,7 @@ benchmarks:
       env_name: "PutEggplantInBasketScene-v0"
       scene_name: "bridge_table_1_v2"
       robot: "widowx_sink_camera_setup"
-      image_size: [224, 224]
+
       control_freq: 5
       sim_freq: 500
       max_episode_steps: 120

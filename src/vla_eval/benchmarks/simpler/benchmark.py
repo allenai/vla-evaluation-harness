@@ -45,7 +45,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         env_name: SimplerEnv environment ID.
         scene_name: SAPIEN scene identifier.
         robot: Robot model name (e.g. "widowx").
-        image_size: Camera resolution as ``[width, height]`` (default [256, 256]).
         control_freq: Control frequency in Hz.
         sim_freq: Simulation frequency in Hz.
         max_episode_steps: Max steps per episode.
@@ -63,7 +62,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         env_name: str = "StackGreenCubeOnYellowCubeBakedTexInScene-v0",
         scene_name: str = "bridge_table_1_v1",
         robot: str = "widowx",
-        image_size: list[int] | tuple[int, int] = (224, 224),
         control_freq: int = 5,
         sim_freq: int = 500,
         max_episode_steps: int = 120,
@@ -81,7 +79,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.env_name = env_name
         self.scene_name = scene_name
         self.robot = robot
-        self.image_size = tuple(image_size)
         self.control_freq = control_freq
         self.sim_freq = sim_freq
         self.max_episode_steps = max_episode_steps
@@ -122,12 +119,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         return (Pose(q=euler2quat(r, p, y)) * Pose(q=center)).q
 
     def _build_obs_dict(self, image: np.ndarray) -> dict[str, Any]:
-        """Resize image and wrap with task description."""
-        import cv2
-
-        if image.shape[:2] != self.image_size:
-            image = cv2.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
-
+        """Wrap image and task description into an Observation dict."""
         return {"images": {"primary": image}, "task_description": self._task_description}
 
     # ------------------------------------------------------------------

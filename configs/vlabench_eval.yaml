@@ -17,5 +17,4 @@ benchmarks:
         - "select_drink"
       robot: "franka"
       max_steps: 200
-      image_size: 256
 

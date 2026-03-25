@@ -80,7 +80,6 @@ class KinetixBenchmark(StepBenchmark):
 
     Args:
         tasks: Subset of task names to evaluate. None = all 12 RTC tasks.
-        image_size: Output image resolution (square). Default 128.
         max_episode_steps: Max steps per episode. Default 256 (RTC paper).
         seed: Base random seed.
         rtc_worlds_dir: Path to the RTC repo ``worlds/`` directory for custom
@@ -92,7 +91,6 @@ class KinetixBenchmark(StepBenchmark):
     def __init__(
         self,
         tasks: list[str] | None = None,
-        image_size: int = 128,
         max_episode_steps: int = MAX_TIMESTEPS,
         seed: int = 0,
         rtc_worlds_dir: str | None = None,
@@ -101,7 +99,6 @@ class KinetixBenchmark(StepBenchmark):
     ) -> None:
         super().__init__()
         self._task_names = tasks
-        self._image_size = image_size
         self._max_episode_steps = max_episode_steps
         self._seed = seed
         self._rtc_worlds_dir = rtc_worlds_dir
@@ -262,14 +259,6 @@ class KinetixBenchmark(StepBenchmark):
         # Convert float32 [0,1] to uint8 [0,255]
         if img.dtype != np.uint8:
             img = (np.clip(img, 0.0, 1.0) * 255).astype(np.uint8)
-
-        # Resize if needed (default Kinetix renders at 125×125)
-        if img.shape[0] != self._image_size or img.shape[1] != self._image_size:
-            from PIL import Image
-
-            pil_img = Image.fromarray(img)
-            pil_img = pil_img.resize((self._image_size, self._image_size), Image.Resampling.BILINEAR)
-            img = np.array(pil_img)
 
         obs_dict: dict[str, Any] = {
             "images": {"viewport": img},

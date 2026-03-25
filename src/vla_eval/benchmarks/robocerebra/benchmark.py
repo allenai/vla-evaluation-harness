@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
 from pathlib import Path
 from typing import Any
@@ -12,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.rotation import quat_to_axisangle
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -20,15 +20,6 @@ os.environ.setdefault("EGL_PLATFORM", "device")
 os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 
 _DUMMY_ACTION = [0.0] * 6 + [-1.0]
-
-
-def _quat2axisangle(quat: np.ndarray) -> np.ndarray:
-    q = quat.copy()
-    q[3] = max(-1.0, min(1.0, q[3]))
-    den = np.sqrt(1.0 - q[3] * q[3])
-    if math.isclose(den, 0.0):
-        return np.zeros(3)
-    return (q[:3] * 2.0 * math.acos(q[3])) / den
 
 
 class RoboCerebraBenchmark(StepBenchmark):
@@ -238,7 +229,7 @@ class RoboCerebraBenchmark(StepBenchmark):
             state = np.concatenate(
                 [
                     raw_obs["robot0_eef_pos"],
-                    _quat2axisangle(raw_obs["robot0_eef_quat"]),
+                    quat_to_axisangle(raw_obs["robot0_eef_quat"]),
                     raw_obs["robot0_gripper_qpos"],
                 ]
             )
