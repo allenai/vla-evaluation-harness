@@ -122,30 +122,61 @@ Result JSONs archived at `.claude/reproductions/oft-joint/`.
 ### StarVLA (4 variants) — 0% across all
 
 Tested: Qwen2.5-VL-{FAST, OFT, GR00T} and Qwen3-VL-OFT, all on LIBERO-4in1 checkpoints.
-`predict_batch()` implemented and working. Gripper double-transform removed. `send_state: true`
-and `absolute_action: true` tried.
 
-Action debug output shows absolute EEF positions `[0.86, 0.45, 0.05, ...]` with gripper=1.0.
-Values are nearly constant across steps — robot doesn't move.
+**Fixes applied** (all verified, none resolved 0%):
+- `predict_batch()` implemented (batch inference works, fast)
+- Gripper transform: `2.0 * actions[:, 6] - 1.0` (map {0,1} → {-1,+1})
+- `image_resolution: 224` (official eval uses 224)
+- `flip_image: false` (official eval does NOT flip)
+- `send_wrist_image: true` (official eval sends 2 images: agentview + wrist)
+- `send_state: true` tried (official eval collects state but doesn't pass to model)
 
-Root cause analysis:
-- `unnormalize_actions()` maps [-1,1] → q01/q99 range, but the resulting values may not
-  match LIBERO's expected action space
-- Need to compare with StarVLA's own LIBERO eval script (not found in public repo)
-- May need to bypass `unnormalize_actions()` entirely for LIBERO checkpoints
+**Official eval code comparison** (`examples/LIBERO/eval_files/`):
+- Code path is identical: `predict_action()` → `unnormalize_actions()` → `env.step()`
+- Action stats q01/q99 are delta-range values (correct for LIBERO delta actions)
+- Model outputs near-zero normalized actions → small but nonzero deltas after unnorm
+
+**Remaining hypothesis**: The model IS receiving different input than expected despite
+all visible preprocessing matching. Possible causes:
+1. **Image ordering**: model expects `[primary, wrist]` but harness sends dict values
+   in undefined order. Need to verify key ordering in `obs["images"]`.
+2. **editable=true not working**: server may use cached non-editable vla-eval package
+   that doesn't have our fixes. Need to clear uv cache and verify.
+3. **Tokenizer/processor mismatch**: model's internal image processor may expect
+   different normalization than raw uint8.
+
+**Resolution plan**:
+1. Run official StarVLA eval script (`examples/LIBERO/eval_files/eval_libero.py`)
+   directly → confirm it gets ~95% → then add debug logging to both scripts
+   and compare observations byte-for-byte.
+2. Alternative: add observation logging to harness and StarVLA's official eval,
+   save first observation from each, and diff.
 
 **StarVLA Qwen3-PI**: Server crash — DiT state_dict has 36 blocks, model config expects 16.
+Requires `num_layers` compat fix in `starvla.py`.
 
 ---
 
 ### GR00T N1.6 (community) — `0xAnkitSingh/GR00T-N1.6-LIBERO`
 
-0% success despite `send_wrist_image: true` + `send_state: true` + `predict_batch()`
-with multi-video-key support.
+Spatial: 1.2% (30 shards). Goal: 1 SUCCESS in quick test. Other suites ~0%.
 
-Community checkpoint may require specific observation preprocessing or action post-processing
-not documented. Official NVIDIA LIBERO finetuned checkpoint does not exist — this is a
-third-party checkpoint with unknown evaluation protocol.
+**Fixes applied**:
+- `send_wrist_image: true`, `send_state: true`
+- `predict_batch()` with multi-video-key and state decomposition (flat 8D → per-key)
+
+**Root cause identified** (from HuggingFace model card):
+- `Gr00tPolicy` must be initialized with **`use_sim_policy_wrapper=True`**
+- This wrapper handles observation preprocessing (image normalization, state formatting)
+  and action post-processing automatically
+- Our server creates `Gr00tPolicy` without this wrapper → raw obs/action mismatch
+
+**Resolution plan**:
+1. Add `use_sim_policy_wrapper: true` to `GR00TModelServer._load_model()`
+2. The wrapper likely handles all obs/action conversion internally,
+   making our manual state decomposition unnecessary
+3. Model path may also be wrong: card shows `0xAnkitSingh/GR00T-N1.6-3B_LIBERO`
+   vs our config `0xAnkitSingh/GR00T-N1.6-LIBERO` — verify correct HF repo
 
 ---
 
@@ -206,9 +237,34 @@ not left to the user to figure out per model.
 
 ### Next steps
 
-1. **Fix model-specific benchmark params**: Document required params per model server.
-   Consider adding a `benchmark_params` field to model server configs.
-2. **Debug Pi0.5 40%**: Investigate action normalization and observation preprocessing.
-3. **Debug StarVLA 0%**: Compare observation format with StarVLA's own eval script.
+#### Immediate (Stage 1 completion)
+
+1. **StarVLA 0% debug**: Run official eval script (`/tmp/StarVLA/examples/LIBERO/eval_files/eval_libero.py`)
+   directly on H100 → confirm ~95% → add observation logging to both scripts → byte-for-byte diff.
+   Key suspects: image dict key ordering, editable install not reflecting code changes.
+
+2. **GR00T fix**: Add `use_sim_policy_wrapper=True` to `Gr00tPolicy()` in `groot.py:125`.
+   Verify correct model path (`GR00T-N1.6-3B_LIBERO` vs `GR00T-N1.6-LIBERO`).
+   This is likely a 1-line fix that resolves the entire 0% issue.
+
+3. **Pi0.5 spatial gap (92.6% vs 98.8%)**: Investigate image flip — Pi0.5 official eval
+   flips images (`[::-1, ::-1]`) but our harness may apply different flip behavior for
+   the 224×224 path. Low priority since avg is already 96.4%.
+
+4. **OpenVLA base**: Implement `predict_batch()` for `openvla.py` model server, then
+   evaluate with 30 shards (currently ~3h without batch).
+
+#### Infrastructure (Stage 2 prep)
+
+5. **Benchmark profile system**: Generalize X-VLA's `benchmark_profile` pattern to all
+   model servers. Each model server config should declare required benchmark params
+   (`absolute_action`, `send_wrist_image`, `send_state`, `image_resolution`, `flip_image`,
+   `state_format`) so the eval config is auto-generated correctly.
+
+6. **predict_batch() for remaining servers**: OpenVLA, OFT (TensorFlow-based, harder).
+   Pi0 blocked by openpi's single-observation `infer()` API.
+
+7. **Stage 2 planning**: Expand to CALVIN, SimplerEnv, RoboTwin for top models
+   (X-VLA, OFT, DB-CogACT). Requires new benchmark Docker images + model server configs.
 4. **Fix OFT-joint**: Set `num_images_in_input: 2` and verify `unnorm_key`.
 5. **Implement predict_batch for OpenVLA/OFT**: Critical for reasonable eval times.
