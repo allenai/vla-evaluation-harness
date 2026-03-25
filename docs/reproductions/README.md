@@ -23,11 +23,13 @@ Verify as many supported models as possible on a single benchmark where most mod
 
 Full details: [stage1-libero.md](stage1-libero.md)
 
-### Stage 2 — Depth: top models, multiple benchmarks
+### Stage 2 — Depth: key models, multiple benchmarks
 
-Cross-validate 3-4 representative models across 3-4 representative benchmarks, confirming that the harness produces consistent results across the full evaluation matrix.
+Cross-validate key models across representative benchmarks, confirming that the harness's decoupled architecture (model server + benchmark container) does not introduce systematic bias.
 
-**Goal**: For each (model, benchmark) pair, reproduce published scores — establishing that the harness's decoupled architecture (model server + benchmark container) does not introduce systematic bias.
+**Models**: CogACT (DB-CogACT), Pi0/Pi0.5, GR00T, X-VLA — chosen to cover distinct ecosystems and architectures, not just top performance.
+
+**Goal**: For each (model, benchmark) pair, reproduce published scores across 3-4 benchmarks per model.
 
 **Status**: DB-CogACT complete. Others pending Stage 1 resolution.
 
@@ -35,8 +37,8 @@ Cross-validate 3-4 representative models across 3-4 representative benchmarks, c
 |-------|:------:|:------:|:----------:|:--------:|--------|
 | DB-CogACT | Reproduced | Reproduced | Reproduced | — | [db-cogact.md](db-cogact.md) |
 | X-VLA | Reproduced (S1) | — | — | — | Pending |
-| OFT-joint | Reproduced (S1) | — | — | — | Pending |
-| Pi0.5 | Reproduced (S1) | — | — | — | Pending |
+| Pi0 | Reproduced (S1) | — | — | — | Pending |
+| GR00T | Not yet (S1) | — | — | — | Pending |
 
 ## Reference Data
 
