@@ -328,6 +328,14 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     # CLI overrides
     server_args = dict(config.get("args", {}))
+    address = getattr(args, "address", None)
+    if address is not None:
+        if ":" in address:
+            host_part, port_part = address.rsplit(":", 1)
+            server_args["host"] = host_part
+            server_args["port"] = int(port_part)
+        else:
+            server_args["host"] = address
     if getattr(args, "port", None) is not None:
         server_args["port"] = args.port
     if getattr(args, "host", None) is not None:
@@ -791,6 +799,7 @@ Bool args become flags (--use_text_template), others become --key value.
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")
+    serve_parser.add_argument("--address", default=None, help="Override bind address as host:port (e.g. 0.0.0.0:8001)")
     serve_parser.add_argument(
         "--port", type=int, default=None, help="Override server port (default: from config or 8000)"
     )
