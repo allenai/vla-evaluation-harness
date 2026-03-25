@@ -9,1070 +9,1070 @@
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 30.083122128620744,
+          "elapsed_sec": 55.00530712865293,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep0"
         },
         {
           "success": true,
-          "steps": 78,
-          "elapsed_sec": 12.085826462134719,
+          "steps": 77,
+          "elapsed_sec": 18.006175415590405,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 71,
-          "elapsed_sec": 28.327265882864594,
+          "steps": 72,
+          "elapsed_sec": 48.09552851691842,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 73,
-          "elapsed_sec": 11.427147479727864,
+          "steps": 72,
+          "elapsed_sec": 17.78939309157431,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep40"
         },
         {
           "success": true,
           "steps": 77,
-          "elapsed_sec": 29.179336173459888,
+          "elapsed_sec": 51.62982992641628,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 74,
-          "elapsed_sec": 11.604115672409534,
+          "elapsed_sec": 17.039565924555063,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 76,
-          "elapsed_sec": 28.61976834386587,
+          "elapsed_sec": 48.18924488313496,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep12"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 12.186052702367306,
+          "elapsed_sec": 17.901945784687996,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 29.037850433960557,
+          "elapsed_sec": 73.4936979226768,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep13"
         },
         {
           "success": true,
           "steps": 74,
-          "elapsed_sec": 11.483256082981825,
+          "elapsed_sec": 24.648154091089964,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep43"
         },
         {
           "success": true,
           "steps": 84,
-          "elapsed_sec": 29.594207180663943,
+          "elapsed_sec": 50.82782297208905,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep14"
         },
         {
           "success": true,
           "steps": 69,
-          "elapsed_sec": 10.8844085149467,
+          "elapsed_sec": 15.8608317412436,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 77,
-          "elapsed_sec": 35.27528880536556,
+          "steps": 73,
+          "elapsed_sec": 54.36000995337963,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep15"
         },
         {
           "success": true,
           "steps": 75,
-          "elapsed_sec": 19.546809853985906,
+          "elapsed_sec": 17.868617163971066,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 45.227017007768154,
+          "elapsed_sec": 55.25037022866309,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 76,
-          "elapsed_sec": 23.136483795940876,
+          "elapsed_sec": 18.086785348132253,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 75,
-          "elapsed_sec": 43.48955445550382,
+          "elapsed_sec": 50.014415591955185,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep17"
         },
         {
           "success": true,
-          "steps": 108,
-          "elapsed_sec": 29.977649001404643,
+          "steps": 73,
+          "elapsed_sec": 17.719880694523454,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 85,
-          "elapsed_sec": 43.96422969177365,
+          "elapsed_sec": 57.00472099520266,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep18"
         },
         {
           "success": true,
-          "steps": 75,
-          "elapsed_sec": 22.519634937867522,
+          "steps": 77,
+          "elapsed_sec": 18.974119091406465,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 77,
-          "elapsed_sec": 44.76887338794768,
+          "elapsed_sec": 54.260747691616416,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 71,
-          "elapsed_sec": 20.94075231999159,
+          "elapsed_sec": 17.442961610853672,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep49"
         },
         {
           "success": true,
           "steps": 81,
-          "elapsed_sec": 29.845963902771473,
+          "elapsed_sec": 54.79272658005357,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 78,
-          "elapsed_sec": 12.005073299631476,
+          "elapsed_sec": 18.584627924486995,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep31"
         },
         {
           "success": true,
           "steps": 81,
-          "elapsed_sec": 44.200293185189366,
+          "elapsed_sec": 56.62558891996741,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 73,
-          "elapsed_sec": 43.691760474815965,
+          "elapsed_sec": 47.45924565568566,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 43.60095542855561,
+          "elapsed_sec": 54.71631238237023,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep22"
         },
         {
           "success": true,
           "steps": 76,
-          "elapsed_sec": 43.95799324475229,
+          "elapsed_sec": 52.43956502340734,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 75,
-          "elapsed_sec": 42.113802125677466,
+          "elapsed_sec": 54.741544775664806,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep24"
         },
         {
           "success": true,
           "steps": 72,
-          "elapsed_sec": 42.546084232628345,
+          "elapsed_sec": 50.50223440118134,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 75,
-          "elapsed_sec": 43.32585566304624,
+          "elapsed_sec": 64.03416073694825,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep26"
         },
         {
           "success": true,
           "steps": 78,
-          "elapsed_sec": 42.75102985650301,
+          "elapsed_sec": 47.18405894935131,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 76,
-          "elapsed_sec": 44.463406248018146,
+          "elapsed_sec": 53.33727360703051,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 74,
-          "elapsed_sec": 41.794359451159835,
+          "elapsed_sec": 64.58804198727012,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep29"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 30.062528977170587,
+          "elapsed_sec": 52.63376341573894,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 83,
-          "elapsed_sec": 12.451699383556843,
+          "steps": 82,
+          "elapsed_sec": 18.901585042476654,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 77,
-          "elapsed_sec": 29.688873410224915,
+          "elapsed_sec": 50.49872058071196,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 73,
-          "elapsed_sec": 11.462934276089072,
+          "steps": 72,
+          "elapsed_sec": 16.64388458803296,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 78,
-          "elapsed_sec": 28.531430959701538,
+          "elapsed_sec": 45.602345302700996,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep4"
         },
         {
           "success": true,
           "steps": 71,
-          "elapsed_sec": 10.788484586402774,
+          "elapsed_sec": 15.402704525738955,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 78,
-          "elapsed_sec": 29.56484656780958,
+          "elapsed_sec": 55.192649483680725,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 78,
-          "elapsed_sec": 11.96715129725635,
+          "elapsed_sec": 19.09778171032667,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep35"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 30.556033451110125,
+          "steps": 88,
+          "elapsed_sec": 65.94459124282002,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep6"
         },
         {
           "success": true,
-          "steps": 75,
-          "elapsed_sec": 11.543699245899916,
+          "steps": 76,
+          "elapsed_sec": 23.298440428450704,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep36"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 31.0891445428133,
+          "elapsed_sec": 59.02039519697428,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep7"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 12.001366835087538,
+          "elapsed_sec": 19.96004018187523,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep37"
         },
         {
           "success": true,
-          "steps": 81,
-          "elapsed_sec": 29.862439829856157,
+          "steps": 82,
+          "elapsed_sec": 51.605129804462194,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 77,
-          "elapsed_sec": 11.904586436226964,
+          "elapsed_sec": 17.443151008337736,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep38"
         },
         {
           "success": true,
-          "steps": 79,
-          "elapsed_sec": 28.47006404399872,
+          "steps": 82,
+          "elapsed_sec": 54.84111429750919,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 71,
-          "elapsed_sec": 11.02843583934009,
+          "elapsed_sec": 18.160130243748426,
           "task": "pick up the black bowl between the plate and the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl between the plate and the ramekin and place it on the plate_ep39"
         }
       ],
       "success_rate": 1.0,
-      "avg_steps": 78.04
+      "avg_steps": 77.32
     },
     {
       "task": "pick up the black bowl from table center and place it on the plate",
       "episodes": [
         {
           "success": true,
-          "steps": 95,
-          "elapsed_sec": 15.392833760008216,
+          "steps": 96,
+          "elapsed_sec": 25.4301737844944,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 15.660254064947367,
+          "elapsed_sec": 24.478023508563638,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep0"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 13.573738707229495,
+          "elapsed_sec": 21.740176828578115,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 97,
-          "elapsed_sec": 16.200536062940955,
+          "steps": 96,
+          "elapsed_sec": 24.240953739732504,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 13.808708190917969,
+          "elapsed_sec": 21.338003676384687,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep31"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 15.768678903579712,
+          "steps": 97,
+          "elapsed_sec": 23.10044757835567,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 13.49188076891005,
+          "steps": 91,
+          "elapsed_sec": 18.44191101565957,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 15.120571149513125,
+          "elapsed_sec": 33.38508783467114,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 13.557572616264224,
+          "steps": 95,
+          "elapsed_sec": 30.57122454419732,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 16.286854883655906,
+          "elapsed_sec": 23.097101820632815,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep4"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 13.944106213748455,
+          "elapsed_sec": 20.385245360434055,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 100,
-          "elapsed_sec": 28.353070091456175,
+          "elapsed_sec": 28.21344089694321,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep5"
         },
         {
           "success": true,
-          "steps": 90,
-          "elapsed_sec": 25.1958452090621,
+          "steps": 89,
+          "elapsed_sec": 21.73037224635482,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 27.511605201289058,
+          "elapsed_sec": 25.223811911419034,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep6"
         },
         {
           "success": true,
-          "steps": 99,
-          "elapsed_sec": 28.972353346645832,
+          "steps": 101,
+          "elapsed_sec": 23.249258706346154,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep36"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 31.965813724324107,
+          "elapsed_sec": 25.048266302794218,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep7"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 25.47626175172627,
+          "elapsed_sec": 20.739984054118395,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 28.701018953695893,
+          "elapsed_sec": 27.474138528108597,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 25.660215605050325,
+          "elapsed_sec": 22.8417324796319,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep38"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 30.349546728655696,
+          "elapsed_sec": 26.07118315435946,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 85,
-          "elapsed_sec": 26.242476854473352,
+          "elapsed_sec": 20.39739890024066,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep39"
         },
         {
           "success": true,
-          "steps": 95,
-          "elapsed_sec": 15.464857460930943,
+          "steps": 94,
+          "elapsed_sec": 25.073999812826514,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 29.017626443877816,
+          "elapsed_sec": 24.57303092814982,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep10"
         },
         {
           "success": true,
           "steps": 100,
-          "elapsed_sec": 28.22205944918096,
+          "elapsed_sec": 23.90621182322502,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep40"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 31.586307918652892,
+          "elapsed_sec": 22.03916726820171,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 25.57645270228386,
+          "elapsed_sec": 17.98266168870032,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 34.14860615134239,
+          "elapsed_sec": 28.831557830795646,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep12"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 26.39537268318236,
+          "steps": 90,
+          "elapsed_sec": 20.82488526776433,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep42"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 30.29959694482386,
+          "steps": 93,
+          "elapsed_sec": 25.22227354720235,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 26.350808180868626,
+          "steps": 95,
+          "elapsed_sec": 22.108653467148542,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep43"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 28.418275808915496,
+          "steps": 95,
+          "elapsed_sec": 25.906286388635635,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep14"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 26.42898542061448,
+          "elapsed_sec": 23.299480168148875,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep44"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 29.309090120717883,
+          "elapsed_sec": 24.027538733556867,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep15"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 27.065837536007166,
+          "steps": 97,
+          "elapsed_sec": 21.616703793406487,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 28.741319324821234,
+          "elapsed_sec": 27.3688897639513,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 26.751665446907282,
+          "elapsed_sec": 25.712797420099378,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 29.402433330193162,
+          "elapsed_sec": 23.109311997890472,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 26.005595318973064,
+          "elapsed_sec": 19.974306501448154,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 28.160602387040854,
+          "elapsed_sec": 25.118064455688,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep18"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 26.34761169180274,
+          "steps": 95,
+          "elapsed_sec": 21.757052732631564,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep48"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 28.07517030648887,
+          "steps": 100,
+          "elapsed_sec": 29.680392930284142,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep19"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 26.534223038703203,
+          "steps": 95,
+          "elapsed_sec": 24.086268367245793,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep49"
         },
         {
           "success": true,
-          "steps": 97,
-          "elapsed_sec": 15.822186784818769,
+          "steps": 96,
+          "elapsed_sec": 24.810746636241674,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep22"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 14.69983527623117,
+          "elapsed_sec": 22.06375377625227,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 100,
-          "elapsed_sec": 15.506487745791674,
+          "elapsed_sec": 22.95700403675437,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 14.840173916891217,
+          "steps": 89,
+          "elapsed_sec": 24.44734419323504,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 15.624691121280193,
+          "elapsed_sec": 31.271041816100478,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep26"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 15.396397972479463,
+          "elapsed_sec": 26.78891638107598,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 14.816441657021642,
+          "elapsed_sec": 23.502109184861183,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 16.671712869778275,
+          "elapsed_sec": 28.14466772042215,
           "task": "pick up the black bowl from table center and place it on the plate",
           "episode_id": "pick up the black bowl from table center and place it on the plate_ep29"
         }
       ],
       "success_rate": 1.0,
-      "avg_steps": 95.2
+      "avg_steps": 95.34
     },
     {
       "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
       "episodes": [
         {
           "success": true,
-          "steps": 126,
-          "elapsed_sec": 19.58893700502813,
+          "steps": 127,
+          "elapsed_sec": 30.613656602799892,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 121,
-          "elapsed_sec": 16.95141408778727,
+          "steps": 122,
+          "elapsed_sec": 25.802925502881408,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep40"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 30.26147715561092,
+          "elapsed_sec": 46.118479020893574,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 127,
-          "elapsed_sec": 18.94041743502021,
+          "elapsed_sec": 29.559610433876514,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 116,
-          "elapsed_sec": 17.67466614022851,
+          "elapsed_sec": 25.50601864233613,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep22"
         },
         {
           "success": true,
-          "steps": 127,
-          "elapsed_sec": 18.805818231776357,
+          "steps": 126,
+          "elapsed_sec": 41.25827988050878,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep23"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 18.17946400679648,
+          "steps": 121,
+          "elapsed_sec": 27.84269799850881,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 32.31346185691655,
+          "steps": 126,
+          "elapsed_sec": 30.75156388990581,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 120,
-          "elapsed_sec": 33.913045655936,
+          "elapsed_sec": 29.732053259387612,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep26"
         },
         {
           "success": true,
-          "steps": 123,
-          "elapsed_sec": 37.43499803356826,
+          "steps": 122,
+          "elapsed_sec": 28.57823983579874,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 123,
-          "elapsed_sec": 34.60463006794453,
+          "elapsed_sec": 31.456256117671728,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 128,
-          "elapsed_sec": 38.09425966255367,
+          "elapsed_sec": 31.822269536554813,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep29"
         },
         {
           "success": true,
-          "steps": 120,
-          "elapsed_sec": 18.806175887584686,
+          "steps": 121,
+          "elapsed_sec": 29.87716062180698,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep11"
         },
         {
           "success": true,
-          "steps": 125,
-          "elapsed_sec": 17.658943301066756,
+          "steps": 122,
+          "elapsed_sec": 27.650162735953927,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 126,
-          "elapsed_sec": 38.27114091068506,
+          "elapsed_sec": 31.773942967876792,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep0"
         },
         {
           "success": true,
           "steps": 129,
-          "elapsed_sec": 37.058880127966404,
+          "elapsed_sec": 28.416695227846503,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep30"
         },
         {
           "success": true,
           "steps": 117,
-          "elapsed_sec": 35.10701919160783,
+          "elapsed_sec": 25.797634003683925,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 128,
-          "elapsed_sec": 37.30251026712358,
+          "elapsed_sec": 24.019118640571833,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep31"
         },
         {
           "success": true,
-          "steps": 123,
-          "elapsed_sec": 36.31841062195599,
+          "steps": 122,
+          "elapsed_sec": 29.9577689319849,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 113,
-          "elapsed_sec": 32.978775376453996,
+          "steps": 112,
+          "elapsed_sec": 24.87397245131433,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep32"
         },
         {
           "success": true,
-          "steps": 133,
-          "elapsed_sec": 39.8135007917881,
+          "steps": 132,
+          "elapsed_sec": 31.625979512929916,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep3"
         },
         {
           "success": true,
           "steps": 116,
-          "elapsed_sec": 33.929615361616015,
+          "elapsed_sec": 27.099449798464775,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 35.1366662401706,
+          "elapsed_sec": 31.394492575898767,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 135,
-          "elapsed_sec": 38.49908583983779,
+          "steps": 134,
+          "elapsed_sec": 30.298138566315174,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep34"
         },
         {
           "success": true,
-          "steps": 127,
-          "elapsed_sec": 37.94455621577799,
+          "steps": 125,
+          "elapsed_sec": 29.888498831540346,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 125,
-          "elapsed_sec": 36.478186851367354,
+          "elapsed_sec": 26.33198493719101,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 136,
-          "elapsed_sec": 39.739753207191825,
+          "elapsed_sec": 38.56186402030289,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep6"
         },
         {
           "success": true,
-          "steps": 121,
-          "elapsed_sec": 35.59234431385994,
+          "steps": 123,
+          "elapsed_sec": 31.75519271194935,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep36"
         },
         {
           "success": true,
           "steps": 137,
-          "elapsed_sec": 39.76687518320978,
+          "elapsed_sec": 29.619588192552328,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep7"
         },
         {
           "success": true,
-          "steps": 130,
-          "elapsed_sec": 36.994762394577265,
+          "steps": 129,
+          "elapsed_sec": 24.990415632724762,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 125,
-          "elapsed_sec": 35.041268065571785,
+          "elapsed_sec": 29.242621624842286,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep8"
         },
         {
           "success": true,
-          "steps": 139,
-          "elapsed_sec": 38.72652365453541,
+          "steps": 140,
+          "elapsed_sec": 31.380511555820704,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep38"
         },
         {
           "success": true,
           "steps": 119,
-          "elapsed_sec": 34.43463912606239,
+          "elapsed_sec": 33.313659485429525,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep9"
         },
         {
           "success": true,
-          "steps": 130,
-          "elapsed_sec": 34.8078982103616,
+          "steps": 131,
+          "elapsed_sec": 30.20144278369844,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep39"
         },
         {
           "success": true,
           "steps": 134,
-          "elapsed_sec": 20.499421851709485,
+          "elapsed_sec": 30.906613694503903,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep12"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 16.466659422963858,
+          "elapsed_sec": 23.772094575688243,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep42"
         },
         {
           "success": true,
-          "steps": 134,
-          "elapsed_sec": 20.159897167235613,
+          "steps": 130,
+          "elapsed_sec": 29.523258313536644,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep13"
         },
         {
           "success": true,
           "steps": 116,
-          "elapsed_sec": 16.574092967435718,
+          "elapsed_sec": 24.01404494419694,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep43"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 18.284985093399882,
+          "elapsed_sec": 25.32797946408391,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep14"
         },
         {
           "success": true,
-          "steps": 120,
-          "elapsed_sec": 16.76944121159613,
+          "steps": 121,
+          "elapsed_sec": 22.355361822992563,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 123,
-          "elapsed_sec": 19.287279380485415,
+          "steps": 128,
+          "elapsed_sec": 31.583799021318555,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep15"
         },
         {
           "success": true,
           "steps": 126,
-          "elapsed_sec": 17.34960760548711,
+          "elapsed_sec": 29.108404643833637,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 18.762228900566697,
+          "elapsed_sec": 37.01777430064976,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 17.121614834293723,
+          "elapsed_sec": 32.751112308353186,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep46"
         },
         {
           "success": true,
-          "steps": 128,
-          "elapsed_sec": 19.537335738539696,
+          "steps": 129,
+          "elapsed_sec": 33.613770212978125,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 132,
-          "elapsed_sec": 18.021182920783758,
+          "elapsed_sec": 30.155114267021418,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 129,
-          "elapsed_sec": 19.560736490413547,
+          "elapsed_sec": 29.55485402420163,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep18"
         },
         {
           "success": true,
           "steps": 136,
-          "elapsed_sec": 18.57473467476666,
+          "elapsed_sec": 29.8931704480201,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep48"
         },
         {
           "success": true,
-          "steps": 130,
-          "elapsed_sec": 19.724385663866997,
+          "steps": 126,
+          "elapsed_sec": 31.423268884420395,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 117,
-          "elapsed_sec": 16.347876898944378,
+          "elapsed_sec": 26.938203155994415,
           "task": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate_ep49"
         }
       ],
       "success_rate": 0.98,
-      "avg_steps": 126.92
+      "avg_steps": 126.98
     },
     {
       "task": "pick up the black bowl next to the cookie box and place it on the plate",
@@ -1080,356 +1080,356 @@
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 17.356266988441348,
+          "elapsed_sec": 27.05206153355539,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep0"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 27.913637282326818,
+          "elapsed_sec": 43.228006057441235,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 109,
-          "elapsed_sec": 17.027545008808374,
+          "steps": 106,
+          "elapsed_sec": 25.630445322021842,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep10"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 13.837663739919662,
+          "elapsed_sec": 21.28682990372181,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep40"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 16.428802520036697,
+          "steps": 105,
+          "elapsed_sec": 26.12673557177186,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep11"
         },
         {
           "success": true,
-          "steps": 113,
-          "elapsed_sec": 15.931431310251355,
+          "steps": 111,
+          "elapsed_sec": 24.031969357281923,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep41"
         },
         {
           "success": true,
-          "steps": 108,
-          "elapsed_sec": 16.456997450441122,
+          "steps": 111,
+          "elapsed_sec": 25.222417963668704,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep12"
         },
         {
           "success": true,
-          "steps": 117,
-          "elapsed_sec": 16.372877601534128,
+          "steps": 114,
+          "elapsed_sec": 22.895188918337226,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 107,
-          "elapsed_sec": 15.726320015266538,
+          "elapsed_sec": 36.28117325901985,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep13"
         },
         {
-          "success": false,
-          "steps": 220,
-          "elapsed_sec": 28.050867123529315,
+          "success": true,
+          "steps": 102,
+          "elapsed_sec": 30.689560433849692,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep43"
         },
         {
           "success": true,
           "steps": 103,
-          "elapsed_sec": 16.11163628846407,
+          "elapsed_sec": 24.2110360506922,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep14"
         },
         {
           "success": true,
-          "steps": 98,
-          "elapsed_sec": 14.018819980323315,
+          "steps": 100,
+          "elapsed_sec": 20.460479024797678,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 28.63236060552299,
+          "steps": 100,
+          "elapsed_sec": 25.419699668884277,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep15"
         },
         {
           "success": true,
-          "steps": 104,
-          "elapsed_sec": 26.368662683293223,
+          "steps": 105,
+          "elapsed_sec": 23.513014124706388,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep45"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 27.036382779479027,
+          "steps": 93,
+          "elapsed_sec": 23.825208878144622,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep16"
         },
         {
           "success": true,
-          "steps": 109,
-          "elapsed_sec": 29.731458865106106,
+          "steps": 110,
+          "elapsed_sec": 23.605022571980953,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 29.721540048718452,
+          "elapsed_sec": 25.046625666320324,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 28.731956392526627,
+          "elapsed_sec": 21.910009430721402,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep47"
         },
         {
           "success": true,
-          "steps": 109,
-          "elapsed_sec": 32.631354397162795,
+          "steps": 113,
+          "elapsed_sec": 29.47308998182416,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep18"
         },
         {
           "success": true,
-          "steps": 108,
-          "elapsed_sec": 31.314709596335888,
+          "steps": 107,
+          "elapsed_sec": 25.800747480243444,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 29.62596513517201,
+          "elapsed_sec": 24.37400203756988,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 107,
-          "elapsed_sec": 30.015248054638505,
+          "elapsed_sec": 23.702901361510158,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep49"
         },
         {
           "success": true,
-          "steps": 111,
-          "elapsed_sec": 17.383507972583175,
+          "steps": 112,
+          "elapsed_sec": 29.262565679848194,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep1"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 27.93995748832822,
+          "elapsed_sec": 44.15094578452408,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep31"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 30.281433921307325,
+          "elapsed_sec": 26.84943371452391,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 112,
-          "elapsed_sec": 32.0330943595618,
+          "elapsed_sec": 22.72664421238005,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 29.61451809667051,
+          "elapsed_sec": 24.750110113993287,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep22"
         },
         {
-          "success": false,
-          "steps": 220,
-          "elapsed_sec": 59.43783404491842,
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 23.533138187602162,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 32.17623872309923,
+          "elapsed_sec": 26.601341446861625,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 104,
-          "elapsed_sec": 31.505852041766047,
+          "steps": 102,
+          "elapsed_sec": 24.84692852012813,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 31.2000081948936,
+          "elapsed_sec": 27.41143162176013,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep26"
         },
         {
           "success": true,
           "steps": 102,
-          "elapsed_sec": 31.941785311326385,
+          "elapsed_sec": 22.873044615611434,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 102,
-          "elapsed_sec": 31.348219791427255,
+          "elapsed_sec": 24.954551553353667,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep28"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 33.78864281438291,
+          "steps": 106,
+          "elapsed_sec": 29.394825560972095,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep29"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 15.201639080420136,
+          "steps": 94,
+          "elapsed_sec": 23.591783173382282,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 111,
-          "elapsed_sec": 15.023420844227076,
+          "steps": 113,
+          "elapsed_sec": 24.290223656222224,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 15.217706071212888,
+          "elapsed_sec": 23.271019142121077,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 105,
-          "elapsed_sec": 14.853147467598319,
+          "steps": 104,
+          "elapsed_sec": 21.845193775370717,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep33"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 15.545455008745193,
+          "steps": 103,
+          "elapsed_sec": 22.327166246250272,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 14.56371832638979,
+          "steps": 102,
+          "elapsed_sec": 19.600358271971345,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 16.678293395787477,
+          "elapsed_sec": 27.276178753003478,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep5"
         },
         {
           "success": true,
-          "steps": 110,
-          "elapsed_sec": 15.015627346932888,
+          "steps": 111,
+          "elapsed_sec": 25.53017391078174,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 17.24961238913238,
+          "elapsed_sec": 33.51833073422313,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 102,
-          "elapsed_sec": 14.469414051622152,
+          "elapsed_sec": 28.572803486138582,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep36"
         },
         {
           "success": true,
-          "steps": 100,
-          "elapsed_sec": 16.32214611582458,
+          "steps": 101,
+          "elapsed_sec": 27.00161881186068,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep7"
         },
         {
           "success": true,
-          "steps": 113,
-          "elapsed_sec": 15.730125976726413,
+          "steps": 130,
+          "elapsed_sec": 30.877728642895818,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 17.141515037044883,
+          "elapsed_sec": 25.608123110607266,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 15.041266964748502,
+          "elapsed_sec": 23.19097190722823,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep38"
         },
         {
           "success": true,
           "steps": 102,
-          "elapsed_sec": 15.752521567046642,
+          "elapsed_sec": 27.581803807988763,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep9"
         },
         {
           "success": true,
-          "steps": 108,
-          "elapsed_sec": 15.097022259607911,
+          "steps": 107,
+          "elapsed_sec": 24.960754968225956,
           "task": "pick up the black bowl next to the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl next to the cookie box and place it on the plate_ep39"
         }
       ],
-      "success_rate": 0.92,
-      "avg_steps": 113.9
+      "success_rate": 0.96,
+      "avg_steps": 109.26
     },
     {
       "task": "pick up the black bowl next to the plate and place it on the plate",
@@ -1437,356 +1437,356 @@
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 14.531739143654704,
+          "elapsed_sec": 24.406504523009062,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 16.114631420001388,
+          "elapsed_sec": 23.265648366883397,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep0"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 13.387777799740434,
+          "elapsed_sec": 22.184859957545996,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 95,
-          "elapsed_sec": 14.7262969519943,
+          "steps": 98,
+          "elapsed_sec": 24.357559025287628,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 13.256776195019484,
+          "elapsed_sec": 21.81930356658995,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep31"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 14.308475153520703,
+          "steps": 92,
+          "elapsed_sec": 22.85396241955459,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep2"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 12.7676075771451,
+          "elapsed_sec": 18.475561128929257,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 103,
-          "elapsed_sec": 16.174683997407556,
+          "elapsed_sec": 23.68292328156531,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 13.628900842741132,
+          "steps": 98,
+          "elapsed_sec": 19.675020227208734,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 17.531424621120095,
+          "elapsed_sec": 26.622781647369266,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 13.12768418341875,
+          "steps": 93,
+          "elapsed_sec": 20.04029915854335,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 27.903978504240513,
+          "elapsed_sec": 25.307595679536462,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 90,
-          "elapsed_sec": 25.206914169713855,
+          "elapsed_sec": 20.72896688245237,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 28.196006225422025,
+          "elapsed_sec": 23.89287393540144,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 28.609966414049268,
+          "elapsed_sec": 21.02553653344512,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep36"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 29.09614995494485,
+          "steps": 91,
+          "elapsed_sec": 22.818542543798685,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep7"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 27.949630392715335,
+          "elapsed_sec": 21.048873191699386,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 100,
-          "elapsed_sec": 30.340259663760662,
+          "elapsed_sec": 26.730616584420204,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 86,
-          "elapsed_sec": 24.513979135081172,
+          "elapsed_sec": 20.40047787874937,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep38"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 28.971174793317914,
+          "elapsed_sec": 25.064040958881378,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 28.703960729762912,
+          "elapsed_sec": 20.995160145685077,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep39"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 14.566158564761281,
+          "elapsed_sec": 24.020971095189452,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep21"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 29.669100273400545,
+          "steps": 97,
+          "elapsed_sec": 26.07315056398511,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 27.344943778589368,
+          "steps": 91,
+          "elapsed_sec": 19.145564548671246,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep40"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 27.69605536572635,
+          "steps": 93,
+          "elapsed_sec": 21.17925956659019,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 26.71890009753406,
+          "elapsed_sec": 16.611514315009117,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 93,
-          "elapsed_sec": 28.79507709480822,
+          "elapsed_sec": 25.572597675025463,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep12"
         },
         {
           "success": true,
           "steps": 92,
-          "elapsed_sec": 25.917630415409803,
+          "elapsed_sec": 20.66053068637848,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 29.82548062503338,
+          "elapsed_sec": 25.46258128248155,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep13"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 27.44217712059617,
+          "elapsed_sec": 19.58698266558349,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep43"
         },
         {
           "success": true,
-          "steps": 91,
-          "elapsed_sec": 28.67690170928836,
+          "steps": 92,
+          "elapsed_sec": 25.019699085503817,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep14"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 29.91543477959931,
+          "steps": 97,
+          "elapsed_sec": 16.36600076407194,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep44"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 33.96459309570491,
+          "elapsed_sec": 22.145243572071195,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep15"
         },
         {
           "success": true,
-          "steps": 98,
-          "elapsed_sec": 27.087508462369442,
+          "steps": 100,
+          "elapsed_sec": 15.978656562045217,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 103,
-          "elapsed_sec": 30.519094832241535,
+          "elapsed_sec": 19.424121847376227,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 86,
-          "elapsed_sec": 24.976057885214686,
+          "elapsed_sec": 17.181450260803103,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 30.204857625067234,
+          "elapsed_sec": 23.91352398134768,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 96,
-          "elapsed_sec": 27.665817556902766,
+          "elapsed_sec": 18.942457344383,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 90,
-          "elapsed_sec": 27.830360364168882,
+          "elapsed_sec": 23.870928524062037,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep18"
         },
         {
           "success": true,
           "steps": 93,
-          "elapsed_sec": 27.232748355716467,
+          "elapsed_sec": 20.707667347043753,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 31.840654335916042,
+          "elapsed_sec": 29.96725639142096,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep19"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 27.75719977170229,
+          "steps": 95,
+          "elapsed_sec": 23.28567187860608,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep49"
         },
         {
           "success": true,
           "steps": 93,
-          "elapsed_sec": 14.794911544770002,
+          "elapsed_sec": 23.162252608686686,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep22"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 15.502178892493248,
+          "elapsed_sec": 23.545657228678465,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep23"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 14.341446954756975,
+          "steps": 94,
+          "elapsed_sec": 19.946102099493146,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep24"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 15.643305325880647,
+          "elapsed_sec": 25.802407816052437,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 90,
-          "elapsed_sec": 14.341469842940569,
+          "elapsed_sec": 21.399762649089098,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep26"
         },
         {
           "success": true,
           "steps": 94,
-          "elapsed_sec": 14.924433892592788,
+          "elapsed_sec": 24.243318121880293,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 15.581548888236284,
+          "elapsed_sec": 23.913511980324984,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 15.685594622045755,
+          "elapsed_sec": 26.351103104650974,
           "task": "pick up the black bowl next to the plate and place it on the plate",
           "episode_id": "pick up the black bowl next to the plate and place it on the plate_ep29"
         }
       ],
       "success_rate": 1.0,
-      "avg_steps": 95.6
+      "avg_steps": 95.7
     },
     {
       "task": "pick up the black bowl next to the ramekin and place it on the plate",
@@ -1794,356 +1794,356 @@
         {
           "success": true,
           "steps": 112,
-          "elapsed_sec": 17.94456372782588,
+          "elapsed_sec": 27.587863087654114,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 99,
-          "elapsed_sec": 14.757723324000835,
+          "steps": 98,
+          "elapsed_sec": 21.682599660009146,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep40"
         },
         {
           "success": true,
-          "steps": 105,
-          "elapsed_sec": 17.260097147896886,
+          "steps": 107,
+          "elapsed_sec": 26.31142076663673,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep20"
         },
         {
           "success": true,
-          "steps": 100,
-          "elapsed_sec": 16.56803454644978,
+          "steps": 101,
+          "elapsed_sec": 24.965026119723916,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 17.463329875841737,
+          "elapsed_sec": 24.26727662049234,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep22"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 17.410312112420797,
+          "steps": 106,
+          "elapsed_sec": 37.406881185248494,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 17.363496333360672,
+          "elapsed_sec": 24.115940149873495,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep24"
         },
         {
           "success": true,
           "steps": 106,
-          "elapsed_sec": 30.602110536769032,
+          "elapsed_sec": 28.077597534283996,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 31.038700252771378,
+          "elapsed_sec": 27.447443269193172,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep26"
         },
         {
           "success": true,
           "steps": 106,
-          "elapsed_sec": 32.10380133241415,
+          "elapsed_sec": 25.63338889554143,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 31.294328700751066,
+          "elapsed_sec": 27.46876524016261,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep28"
         },
         {
           "success": true,
-          "steps": 112,
-          "elapsed_sec": 31.838261041790247,
+          "steps": 109,
+          "elapsed_sec": 27.9806702863425,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep29"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 17.575630528852344,
+          "elapsed_sec": 28.422037806361914,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep11"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 14.998783951625228,
+          "steps": 102,
+          "elapsed_sec": 23.894236475229263,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 32.213784359395504,
+          "elapsed_sec": 27.60605650395155,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep0"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 28.910024136304855,
+          "steps": 104,
+          "elapsed_sec": 24.750395815819502,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 98,
-          "elapsed_sec": 31.228454986587167,
+          "steps": 97,
+          "elapsed_sec": 22.614562084898353,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep1"
         },
         {
           "success": true,
-          "steps": 98,
-          "elapsed_sec": 28.281043158844113,
+          "steps": 99,
+          "elapsed_sec": 18.732419174164534,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep31"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 32.86332221888006,
+          "elapsed_sec": 28.067596251145005,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep2"
         },
         {
           "success": true,
           "steps": 107,
-          "elapsed_sec": 30.218297842890024,
+          "elapsed_sec": 23.150409633293748,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep32"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 31.073508724570274,
+          "steps": 103,
+          "elapsed_sec": 26.4387439340353,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 115,
-          "elapsed_sec": 32.31245705112815,
+          "steps": 114,
+          "elapsed_sec": 25.135819755494595,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 31.740313874557614,
+          "elapsed_sec": 27.746671983972192,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep4"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 28.887625029310584,
+          "elapsed_sec": 22.88375004939735,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 29.82744055427611,
+          "elapsed_sec": 25.62398855946958,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 106,
-          "elapsed_sec": 30.387438159435987,
+          "elapsed_sec": 23.221423281356692,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep35"
         },
         {
           "success": true,
-          "steps": 106,
-          "elapsed_sec": 32.35934234037995,
+          "steps": 107,
+          "elapsed_sec": 30.297270230948925,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 113,
-          "elapsed_sec": 31.730543058365583,
+          "elapsed_sec": 30.33194231428206,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep36"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 30.847083127126098,
+          "elapsed_sec": 23.415480613708496,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep7"
         },
         {
           "success": true,
           "steps": 117,
-          "elapsed_sec": 32.325256031006575,
+          "elapsed_sec": 21.45491604693234,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep37"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 29.361112534999847,
+          "steps": 94,
+          "elapsed_sec": 23.233481232076883,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep8"
         },
         {
           "success": true,
-          "steps": 103,
-          "elapsed_sec": 28.672358948737383,
+          "steps": 105,
+          "elapsed_sec": 22.526334116235375,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep38"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 31.301768511533737,
+          "elapsed_sec": 32.21904454566538,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 28.64601993188262,
+          "elapsed_sec": 26.185098469257355,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep39"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 17.692147698253393,
+          "elapsed_sec": 26.269197827205062,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep12"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 15.767818348482251,
+          "steps": 106,
+          "elapsed_sec": 21.61676601320505,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 17.74156679585576,
+          "elapsed_sec": 25.31882929429412,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 109,
-          "elapsed_sec": 15.989781172946095,
+          "steps": 107,
+          "elapsed_sec": 23.453684015199542,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep43"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 16.965056654065847,
+          "steps": 106,
+          "elapsed_sec": 23.425711100921035,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep14"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 14.692817941308022,
+          "elapsed_sec": 20.058331973850727,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep44"
         },
         {
           "success": true,
           "steps": 106,
-          "elapsed_sec": 17.590963698923588,
+          "elapsed_sec": 27.9369699023664,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep15"
         },
         {
           "success": true,
           "steps": 103,
-          "elapsed_sec": 15.18873268738389,
+          "elapsed_sec": 24.718881713226438,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 107,
-          "elapsed_sec": 17.758298160508275,
+          "elapsed_sec": 31.22407733462751,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep16"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 15.562197271734476,
+          "steps": 108,
+          "elapsed_sec": 29.584468392655253,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep46"
         },
         {
           "success": true,
-          "steps": 103,
-          "elapsed_sec": 16.60914371162653,
+          "steps": 101,
+          "elapsed_sec": 27.249492479488254,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep17"
         },
         {
           "success": true,
-          "steps": 108,
-          "elapsed_sec": 15.687575271353126,
+          "steps": 109,
+          "elapsed_sec": 25.31803092546761,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 17.721304312348366,
+          "elapsed_sec": 26.731274865567684,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep18"
         },
         {
           "success": true,
-          "steps": 109,
-          "elapsed_sec": 16.10254843905568,
+          "steps": 110,
+          "elapsed_sec": 24.56441282480955,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 105,
-          "elapsed_sec": 16.984481977298856,
+          "elapsed_sec": 26.889801172539592,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep19"
         },
         {
           "success": true,
-          "steps": 100,
-          "elapsed_sec": 14.528590694069862,
+          "steps": 102,
+          "elapsed_sec": 24.956896683201194,
           "task": "pick up the black bowl next to the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl next to the ramekin and place it on the plate_ep49"
         }
       ],
       "success_rate": 1.0,
-      "avg_steps": 105.7
+      "avg_steps": 105.82
     },
     {
       "task": "pick up the black bowl on the cookie box and place it on the plate",
@@ -2151,356 +2151,356 @@
         {
           "success": true,
           "steps": 81,
-          "elapsed_sec": 14.37967392615974,
+          "elapsed_sec": 21.954829251393676,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep0"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 12.732375828549266,
+          "steps": 87,
+          "elapsed_sec": 21.199503354728222,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep30"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 13.001797372475266,
+          "elapsed_sec": 21.11204887367785,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 85,
-          "elapsed_sec": 12.443036761134863,
+          "steps": 84,
+          "elapsed_sec": 18.9861840903759,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep40"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 13.388115286827087,
+          "elapsed_sec": 21.167190171778202,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 84,
-          "elapsed_sec": 12.372741002589464,
+          "elapsed_sec": 18.113253623247147,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 14.018745478242636,
+          "elapsed_sec": 21.349596183747053,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep12"
         },
         {
           "success": true,
-          "steps": 86,
-          "elapsed_sec": 12.44311578758061,
+          "steps": 85,
+          "elapsed_sec": 18.95489382185042,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 12.958593122661114,
+          "elapsed_sec": 30.093166133388877,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 79,
-          "elapsed_sec": 11.762047681957483,
+          "steps": 78,
+          "elapsed_sec": 25.04138808324933,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep43"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 14.36210454814136,
+          "steps": 88,
+          "elapsed_sec": 22.43749548494816,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep14"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 11.580944411456585,
+          "elapsed_sec": 17.163344698026776,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 80,
-          "elapsed_sec": 22.769938174635172,
+          "steps": 81,
+          "elapsed_sec": 23.960662523284554,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep15"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 23.446697540581226,
+          "elapsed_sec": 20.196124291047454,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep45"
         },
         {
           "success": true,
-          "steps": 79,
-          "elapsed_sec": 23.167671101167798,
+          "steps": 80,
+          "elapsed_sec": 22.663305876776576,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 85,
-          "elapsed_sec": 22.602859117090702,
+          "elapsed_sec": 20.743450168520212,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 27.18756516650319,
+          "elapsed_sec": 23.814326267689466,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep17"
         },
         {
           "success": true,
-          "steps": 84,
-          "elapsed_sec": 24.994199449196458,
+          "steps": 85,
+          "elapsed_sec": 19.01453486829996,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep47"
         },
         {
           "success": true,
-          "steps": 84,
-          "elapsed_sec": 24.901543138548732,
+          "steps": 83,
+          "elapsed_sec": 24.208660822361708,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep18"
         },
         {
           "success": true,
-          "steps": 82,
-          "elapsed_sec": 23.471184825524688,
+          "steps": 88,
+          "elapsed_sec": 21.27528040483594,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 26.14361518062651,
+          "elapsed_sec": 23.590760564431548,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 24.14787358790636,
+          "elapsed_sec": 19.298474941402674,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep49"
         },
         {
           "success": true,
-          "steps": 85,
-          "elapsed_sec": 14.372404335066676,
+          "steps": 84,
+          "elapsed_sec": 23.758142871782184,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 11.958045121282339,
+          "elapsed_sec": 20.1739679928869,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep31"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 26.956665700301528,
+          "steps": 87,
+          "elapsed_sec": 24.26487917266786,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 79,
-          "elapsed_sec": 25.379208909347653,
+          "elapsed_sec": 18.313833750784397,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 26.451227640733123,
+          "elapsed_sec": 22.150300726294518,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep22"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 26.854863077402115,
+          "elapsed_sec": 22.340478394180536,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 27.23987764492631,
+          "elapsed_sec": 23.771534085273743,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 83,
-          "elapsed_sec": 27.431355630978942,
+          "steps": 82,
+          "elapsed_sec": 21.470081955194473,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep25"
         },
         {
           "success": true,
           "steps": 80,
-          "elapsed_sec": 24.81077972240746,
+          "elapsed_sec": 25.5112121142447,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep26"
         },
         {
           "success": true,
-          "steps": 81,
-          "elapsed_sec": 25.704573456197977,
+          "steps": 82,
+          "elapsed_sec": 21.258549127727747,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 84,
-          "elapsed_sec": 27.06813152320683,
+          "elapsed_sec": 21.187475878745317,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 86,
-          "elapsed_sec": 24.972081596031785,
+          "elapsed_sec": 25.99515277147293,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep29"
         },
         {
           "success": true,
           "steps": 84,
-          "elapsed_sec": 14.208361960947514,
+          "elapsed_sec": 21.353399815037847,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 76,
-          "elapsed_sec": 11.095882693305612,
+          "steps": 75,
+          "elapsed_sec": 17.296746853739023,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 86,
-          "elapsed_sec": 14.622980169951916,
+          "elapsed_sec": 22.608874835073948,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 80,
-          "elapsed_sec": 11.876113535836339,
+          "steps": 81,
+          "elapsed_sec": 18.540348213166,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep33"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 14.402065735310316,
+          "steps": 94,
+          "elapsed_sec": 21.922899529337883,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 82,
-          "elapsed_sec": 11.917086204513907,
+          "steps": 90,
+          "elapsed_sec": 18.35534456372261,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 86,
-          "elapsed_sec": 14.538233352825046,
+          "elapsed_sec": 24.338028574362397,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 83,
-          "elapsed_sec": 12.084002876654267,
+          "elapsed_sec": 19.357695672661066,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep35"
         },
         {
           "success": true,
-          "steps": 86,
-          "elapsed_sec": 14.535954713821411,
+          "steps": 85,
+          "elapsed_sec": 27.941506223753095,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 11.850471088662744,
+          "elapsed_sec": 24.104045817628503,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep36"
         },
         {
-          "success": true,
-          "steps": 82,
-          "elapsed_sec": 14.18184944614768,
+          "success": false,
+          "steps": 220,
+          "elapsed_sec": 50.626658104360104,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep7"
         },
         {
           "success": true,
-          "steps": 85,
-          "elapsed_sec": 12.118193566799164,
+          "steps": 83,
+          "elapsed_sec": 19.846210474148393,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 14.413841227069497,
+          "elapsed_sec": 23.440474757924676,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 11.879917200654745,
+          "elapsed_sec": 18.774363009259105,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep38"
         },
         {
           "success": true,
-          "steps": 84,
-          "elapsed_sec": 14.03488864004612,
+          "steps": 83,
+          "elapsed_sec": 23.969696203246713,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep9"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 12.597130985930562,
+          "steps": 87,
+          "elapsed_sec": 21.583047416061163,
           "task": "pick up the black bowl on the cookie box and place it on the plate",
           "episode_id": "pick up the black bowl on the cookie box and place it on the plate_ep39"
         }
       ],
-      "success_rate": 1.0,
-      "avg_steps": 83.4
+      "success_rate": 0.98,
+      "avg_steps": 86.28
     },
     {
       "task": "pick up the black bowl on the ramekin and place it on the plate",
@@ -2508,356 +2508,356 @@
         {
           "success": true,
           "steps": 97,
-          "elapsed_sec": 16.153842793777585,
+          "elapsed_sec": 25.38885028846562,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 14.22312100417912,
+          "elapsed_sec": 23.792105400934815,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep0"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 13.386558884754777,
+          "steps": 93,
+          "elapsed_sec": 21.715156830847263,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep30"
         },
         {
           "success": true,
           "steps": 95,
-          "elapsed_sec": 15.702099492773414,
+          "elapsed_sec": 25.00845612771809,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 92,
-          "elapsed_sec": 13.34659431874752,
+          "elapsed_sec": 22.283405382186174,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep31"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 14.737528843805194,
+          "steps": 86,
+          "elapsed_sec": 21.57501340471208,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 13.70310389995575,
+          "steps": 97,
+          "elapsed_sec": 19.578418547287583,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 14.30362443625927,
+          "elapsed_sec": 34.361404648050666,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep3"
         },
         {
           "success": true,
           "steps": 98,
-          "elapsed_sec": 13.576957238838077,
+          "elapsed_sec": 32.2146749086678,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 14.973422097042203,
+          "elapsed_sec": 22.52388631924987,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 99,
-          "elapsed_sec": 13.999066311866045,
+          "steps": 96,
+          "elapsed_sec": 20.669760392978787,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep34"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 25.356553561985493,
+          "elapsed_sec": 25.640331560745835,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep5"
         },
         {
           "success": true,
-          "steps": 87,
-          "elapsed_sec": 24.068067444488406,
+          "steps": 86,
+          "elapsed_sec": 20.64048228599131,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep35"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 28.067164512351155,
+          "steps": 92,
+          "elapsed_sec": 24.715462621301413,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep6"
         },
         {
           "success": true,
-          "steps": 90,
-          "elapsed_sec": 27.048272598534822,
+          "steps": 88,
+          "elapsed_sec": 21.285699324682355,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep36"
         },
         {
           "success": true,
           "steps": 90,
-          "elapsed_sec": 28.612751711159945,
+          "elapsed_sec": 24.15746371820569,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep7"
         },
         {
           "success": true,
-          "steps": 96,
-          "elapsed_sec": 26.53682402521372,
+          "steps": 93,
+          "elapsed_sec": 21.48387699946761,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep37"
         },
         {
           "success": true,
           "steps": 90,
-          "elapsed_sec": 29.354514077305794,
+          "elapsed_sec": 25.567271335050464,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep8"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 27.376632142812014,
+          "elapsed_sec": 22.03644534945488,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep38"
         },
         {
           "success": true,
-          "steps": 86,
-          "elapsed_sec": 27.34460590593517,
+          "steps": 88,
+          "elapsed_sec": 24.3352424595505,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 28.799900259822607,
+          "elapsed_sec": 21.7672351077199,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep39"
         },
         {
           "success": true,
           "steps": 89,
-          "elapsed_sec": 15.101473214104772,
+          "elapsed_sec": 25.60351112112403,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep21"
         },
         {
           "success": true,
-          "steps": 95,
-          "elapsed_sec": 30.46428661979735,
+          "steps": 93,
+          "elapsed_sec": 25.433413803577423,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep10"
         },
         {
           "success": true,
-          "steps": 101,
-          "elapsed_sec": 29.46007818169892,
+          "steps": 93,
+          "elapsed_sec": 23.33513767644763,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep40"
         },
         {
           "success": true,
-          "steps": 81,
-          "elapsed_sec": 26.777170833200216,
+          "steps": 80,
+          "elapsed_sec": 20.785244934260845,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 88,
-          "elapsed_sec": 25.25722730718553,
+          "elapsed_sec": 18.946774307638407,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep41"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 27.71139431744814,
+          "steps": 87,
+          "elapsed_sec": 24.06233609840274,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep12"
         },
         {
           "success": true,
-          "steps": 99,
-          "elapsed_sec": 28.9051397126168,
+          "steps": 97,
+          "elapsed_sec": 23.403286857530475,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep42"
         },
         {
           "success": true,
-          "steps": 88,
-          "elapsed_sec": 28.816779704764485,
+          "steps": 95,
+          "elapsed_sec": 26.049266647547483,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 92,
-          "elapsed_sec": 25.783154241740704,
+          "steps": 91,
+          "elapsed_sec": 22.207467380911112,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep43"
         },
         {
           "success": true,
           "steps": 92,
-          "elapsed_sec": 28.505546644330025,
+          "elapsed_sec": 26.206723112612963,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep14"
         },
         {
           "success": true,
-          "steps": 85,
-          "elapsed_sec": 24.322764292359352,
+          "steps": 89,
+          "elapsed_sec": 21.728172812610865,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep44"
         },
         {
           "success": true,
           "steps": 88,
-          "elapsed_sec": 27.43179953098297,
+          "elapsed_sec": 22.23668685927987,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep15"
         },
         {
-          "success": true,
-          "steps": 95,
-          "elapsed_sec": 28.381853410974145,
+          "success": false,
+          "steps": 220,
+          "elapsed_sec": 45.44758621416986,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 101,
-          "elapsed_sec": 31.810209024697542,
+          "elapsed_sec": 31.884736055508256,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep16"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 25.20689572021365,
+          "elapsed_sec": 24.327016960829496,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 29.085336472839117,
+          "elapsed_sec": 22.07754105888307,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep17"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 27.023645071312785,
+          "steps": 92,
+          "elapsed_sec": 19.38014692813158,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 26.78363263234496,
+          "elapsed_sec": 24.930474685505033,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep18"
         },
         {
           "success": true,
           "steps": 91,
-          "elapsed_sec": 26.459265984594822,
+          "elapsed_sec": 21.998263400048018,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 132,
-          "elapsed_sec": 39.372435837984085,
+          "elapsed_sec": 37.708818811923265,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 87,
-          "elapsed_sec": 25.14234484359622,
+          "elapsed_sec": 23.409057637676597,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep49"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 30.775680312886834,
+          "elapsed_sec": 48.181526785716414,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep22"
         },
         {
           "success": true,
-          "steps": 94,
-          "elapsed_sec": 15.831313462927938,
+          "steps": 90,
+          "elapsed_sec": 23.380812296643853,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 88,
-          "elapsed_sec": 14.632546236738563,
+          "elapsed_sec": 20.739528374746442,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 14.768912229686975,
+          "steps": 90,
+          "elapsed_sec": 24.790766775608063,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep25"
         },
         {
           "success": true,
-          "steps": 89,
-          "elapsed_sec": 15.089646216481924,
+          "steps": 91,
+          "elapsed_sec": 31.305598812177777,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep26"
         },
         {
           "success": true,
-          "steps": 93,
-          "elapsed_sec": 15.246139336377382,
+          "steps": 91,
+          "elapsed_sec": 26.501560570672154,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep27"
         },
         {
           "success": true,
-          "steps": 85,
-          "elapsed_sec": 14.238475317135453,
+          "steps": 87,
+          "elapsed_sec": 23.249621720984578,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 82,
-          "elapsed_sec": 13.1017733104527,
+          "elapsed_sec": 24.04367312975228,
           "task": "pick up the black bowl on the ramekin and place it on the plate",
           "episode_id": "pick up the black bowl on the ramekin and place it on the plate_ep29"
         }
       ],
-      "success_rate": 0.98,
-      "avg_steps": 94.22
+      "success_rate": 0.96,
+      "avg_steps": 96.5
     },
     {
       "task": "pick up the black bowl on the stove and place it on the plate",
@@ -2865,356 +2865,356 @@
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 30.19887512922287,
+          "elapsed_sec": 48.42505295202136,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep10"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 16.547893663868308,
+          "elapsed_sec": 26.20096393302083,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep40"
         },
         {
           "success": true,
           "steps": 120,
-          "elapsed_sec": 18.4694204647094,
+          "elapsed_sec": 31.524262076243758,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep20"
         },
         {
           "success": true,
           "steps": 112,
-          "elapsed_sec": 17.717403694987297,
+          "elapsed_sec": 29.831011898815632,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep21"
         },
         {
           "success": true,
-          "steps": 123,
-          "elapsed_sec": 18.942069694399834,
+          "steps": 122,
+          "elapsed_sec": 28.419981319457293,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep22"
         },
         {
           "success": true,
-          "steps": 117,
-          "elapsed_sec": 18.010496431961656,
+          "steps": 115,
+          "elapsed_sec": 26.06005340628326,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep23"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 16.599211160093546,
+          "elapsed_sec": 26.42107317969203,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 126,
-          "elapsed_sec": 35.36670997738838,
+          "steps": 125,
+          "elapsed_sec": 32.62355299666524,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep25"
         },
         {
           "success": true,
-          "steps": 117,
-          "elapsed_sec": 35.917587047442794,
+          "steps": 119,
+          "elapsed_sec": 30.35591092519462,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep26"
         },
         {
           "success": true,
-          "steps": 124,
-          "elapsed_sec": 37.44435498304665,
+          "steps": 126,
+          "elapsed_sec": 31.03326085396111,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 126,
-          "elapsed_sec": 36.55926967039704,
+          "elapsed_sec": 32.51523011364043,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep28"
         },
         {
           "success": true,
-          "steps": 115,
-          "elapsed_sec": 37.644059121608734,
+          "steps": 119,
+          "elapsed_sec": 30.52149322628975,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep29"
         },
         {
           "success": true,
           "steps": 127,
-          "elapsed_sec": 19.293719762936234,
+          "elapsed_sec": 32.504610454663634,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep11"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 28.86468194797635,
+          "elapsed_sec": 47.71954342722893,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep41"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 33.35485605150461,
+          "elapsed_sec": 29.284263886511326,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep0"
         },
         {
           "success": true,
-          "steps": 114,
-          "elapsed_sec": 34.01686911098659,
+          "steps": 116,
+          "elapsed_sec": 27.93489341624081,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep30"
         },
         {
           "success": true,
-          "steps": 116,
-          "elapsed_sec": 33.97978348657489,
+          "steps": 117,
+          "elapsed_sec": 27.27713936753571,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep1"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 35.42757376097143,
+          "steps": 120,
+          "elapsed_sec": 24.28798965550959,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep31"
         },
         {
           "success": true,
           "steps": 124,
-          "elapsed_sec": 36.63467337191105,
+          "elapsed_sec": 31.522401712834835,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep2"
         },
         {
           "success": true,
           "steps": 120,
-          "elapsed_sec": 36.36843886785209,
+          "elapsed_sec": 28.85400483943522,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep32"
         },
         {
           "success": true,
-          "steps": 116,
-          "elapsed_sec": 36.018427135422826,
+          "steps": 114,
+          "elapsed_sec": 30.512168968096375,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep3"
         },
         {
           "success": true,
-          "steps": 114,
-          "elapsed_sec": 33.02620664052665,
+          "steps": 115,
+          "elapsed_sec": 25.829579500481486,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep33"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 34.74529593065381,
+          "steps": 120,
+          "elapsed_sec": 31.835842030122876,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep4"
         },
         {
           "success": true,
-          "steps": 120,
-          "elapsed_sec": 35.42356744967401,
+          "steps": 122,
+          "elapsed_sec": 28.96206810325384,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep34"
         },
         {
           "success": true,
-          "steps": 117,
-          "elapsed_sec": 35.46650926396251,
+          "steps": 118,
+          "elapsed_sec": 30.075570043176413,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep5"
         },
         {
           "success": true,
-          "steps": 127,
-          "elapsed_sec": 36.577815456315875,
+          "steps": 129,
+          "elapsed_sec": 28.42550142481923,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 117,
-          "elapsed_sec": 35.10420664399862,
+          "elapsed_sec": 23.88625175319612,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 99,
-          "elapsed_sec": 28.573888508602977,
+          "elapsed_sec": 17.509664511308074,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep36"
         },
         {
-          "success": true,
-          "steps": 117,
-          "elapsed_sec": 34.5793483722955,
+          "success": false,
+          "steps": 220,
+          "elapsed_sec": 44.67967630177736,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep7"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 59.833203960210085,
+          "elapsed_sec": 40.31388177536428,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep37"
         },
         {
           "success": true,
-          "steps": 125,
-          "elapsed_sec": 36.96638660877943,
+          "steps": 129,
+          "elapsed_sec": 31.676431665197015,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep8"
         },
         {
           "success": true,
-          "steps": 118,
-          "elapsed_sec": 34.1066504586488,
+          "steps": 119,
+          "elapsed_sec": 28.429244611412287,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep38"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 34.586178759112954,
+          "steps": 121,
+          "elapsed_sec": 35.26780383661389,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep9"
         },
         {
           "success": true,
-          "steps": 112,
-          "elapsed_sec": 32.566780714318156,
+          "steps": 111,
+          "elapsed_sec": 28.876143818721175,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep39"
         },
         {
           "success": true,
           "steps": 104,
-          "elapsed_sec": 16.226450335234404,
+          "elapsed_sec": 27.019556745886803,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep12"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 28.041828287765384,
+          "elapsed_sec": 41.74940298311412,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep42"
         },
         {
           "success": true,
-          "steps": 125,
-          "elapsed_sec": 19.14235184341669,
+          "steps": 124,
+          "elapsed_sec": 29.2986926920712,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 118,
-          "elapsed_sec": 17.288017094135284,
+          "steps": 119,
+          "elapsed_sec": 26.444921547546983,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep43"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 17.112236227840185,
+          "elapsed_sec": 24.486347641795874,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep14"
         },
         {
           "success": true,
           "steps": 120,
-          "elapsed_sec": 16.659715300425887,
+          "elapsed_sec": 23.0267671700567,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 128,
-          "elapsed_sec": 19.441160609945655,
+          "steps": 127,
+          "elapsed_sec": 33.25120931304991,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep15"
         },
         {
           "success": true,
-          "steps": 111,
-          "elapsed_sec": 16.27609546482563,
+          "steps": 113,
+          "elapsed_sec": 28.08771052584052,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep45"
         },
         {
           "success": true,
-          "steps": 134,
-          "elapsed_sec": 20.080788830295205,
+          "steps": 136,
+          "elapsed_sec": 41.980479791760445,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep16"
         },
         {
           "success": true,
-          "steps": 121,
-          "elapsed_sec": 17.41672415472567,
+          "steps": 120,
+          "elapsed_sec": 30.505885602906346,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep46"
         },
         {
           "success": true,
-          "steps": 112,
-          "elapsed_sec": 17.515234023332596,
+          "steps": 113,
+          "elapsed_sec": 31.709676522761583,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 16.499037062749267,
+          "elapsed_sec": 27.947151312604547,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep47"
         },
         {
           "success": true,
           "steps": 115,
-          "elapsed_sec": 18.237756619229913,
+          "elapsed_sec": 28.44347058981657,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep18"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 17.217878645285964,
+          "elapsed_sec": 27.482094299048185,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep48"
         },
         {
           "success": true,
-          "steps": 107,
-          "elapsed_sec": 16.8983289655298,
+          "steps": 108,
+          "elapsed_sec": 30.10565037280321,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep19"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 28.56791627779603,
+          "elapsed_sec": 46.485478438436985,
           "task": "pick up the black bowl on the stove and place it on the plate",
           "episode_id": "pick up the black bowl on the stove and place it on the plate_ep49"
         }
       ],
-      "success_rate": 0.9,
-      "avg_steps": 127.7
+      "success_rate": 0.88,
+      "avg_steps": 130.22
     },
     {
       "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
@@ -3222,356 +3222,356 @@
         {
           "success": true,
           "steps": 114,
-          "elapsed_sec": 16.878555877134204,
+          "elapsed_sec": 27.4641100037843,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep0"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 18.484520802274346,
+          "elapsed_sec": 25.620192736387253,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep30"
         },
         {
           "success": true,
           "steps": 113,
-          "elapsed_sec": 17.247630523517728,
+          "elapsed_sec": 27.574195871129632,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep10"
         },
         {
           "success": true,
           "steps": 112,
-          "elapsed_sec": 14.825990663841367,
+          "elapsed_sec": 21.16501124948263,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep40"
         },
         {
           "success": true,
           "steps": 114,
-          "elapsed_sec": 17.951946035027504,
+          "elapsed_sec": 27.717911407351494,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep11"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 16.530037140473723,
+          "elapsed_sec": 24.253641568124294,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep41"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 30.4543150793761,
+          "elapsed_sec": 45.370344867929816,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep12"
         },
         {
           "success": true,
           "steps": 124,
-          "elapsed_sec": 16.866951121017337,
+          "elapsed_sec": 22.848703565075994,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep42"
         },
         {
           "success": true,
           "steps": 114,
-          "elapsed_sec": 16.99981459788978,
+          "elapsed_sec": 19.777582185342908,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep13"
         },
         {
           "success": true,
-          "steps": 116,
-          "elapsed_sec": 15.32848859205842,
+          "steps": 117,
+          "elapsed_sec": 14.253545593470335,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep43"
         },
         {
           "success": true,
-          "steps": 113,
-          "elapsed_sec": 17.497884964570403,
+          "steps": 112,
+          "elapsed_sec": 25.69121808744967,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep14"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 16.595256926491857,
+          "steps": 117,
+          "elapsed_sec": 23.392718648537993,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep44"
         },
         {
           "success": true,
-          "steps": 114,
-          "elapsed_sec": 32.308849792927504,
+          "steps": 112,
+          "elapsed_sec": 29.603281028568745,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep15"
         },
         {
           "success": true,
-          "steps": 128,
-          "elapsed_sec": 33.7451281491667,
+          "steps": 122,
+          "elapsed_sec": 28.098135037347674,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep45"
         },
         {
           "success": true,
           "steps": 111,
-          "elapsed_sec": 34.09260004945099,
+          "elapsed_sec": 27.46300837956369,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep16"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 33.75390853732824,
+          "steps": 118,
+          "elapsed_sec": 24.471361983567476,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep46"
         },
         {
           "success": true,
           "steps": 117,
-          "elapsed_sec": 36.5299835242331,
+          "elapsed_sec": 27.49395597912371,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep17"
         },
         {
           "success": true,
           "steps": 120,
-          "elapsed_sec": 31.620737746357918,
+          "elapsed_sec": 24.364516995847225,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep47"
         },
         {
           "success": false,
           "steps": 220,
-          "elapsed_sec": 61.859139915555716,
+          "elapsed_sec": 50.315567780286074,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep18"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 31.195789540186524,
+          "elapsed_sec": 25.926078850403428,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep48"
         },
         {
           "success": true,
           "steps": 124,
-          "elapsed_sec": 37.06471116095781,
+          "elapsed_sec": 31.45124697126448,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep19"
         },
         {
           "success": true,
           "steps": 119,
-          "elapsed_sec": 33.53870460763574,
+          "elapsed_sec": 25.16183036006987,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep49"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 18.07964039593935,
+          "elapsed_sec": 24.1215668451041,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep1"
         },
         {
           "success": true,
           "steps": 114,
-          "elapsed_sec": 17.516338385641575,
+          "elapsed_sec": 20.07611677981913,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep31"
         },
         {
           "success": true,
           "steps": 108,
-          "elapsed_sec": 32.04047225229442,
+          "elapsed_sec": 21.51253162510693,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep20"
         },
         {
           "success": true,
-          "steps": 122,
-          "elapsed_sec": 35.711358504369855,
+          "steps": 117,
+          "elapsed_sec": 19.934283075854182,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep21"
         },
         {
           "success": true,
           "steps": 111,
-          "elapsed_sec": 32.897595189511776,
+          "elapsed_sec": 22.88282812014222,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep22"
         },
         {
           "success": true,
-          "steps": 113,
-          "elapsed_sec": 35.3207055721432,
+          "steps": 112,
+          "elapsed_sec": 21.022929226979613,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep23"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 34.90869516134262,
+          "steps": 121,
+          "elapsed_sec": 25.020471297204494,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep24"
         },
         {
           "success": true,
-          "steps": 124,
-          "elapsed_sec": 36.69176711887121,
+          "steps": 123,
+          "elapsed_sec": 23.30099454522133,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep25"
         },
         {
           "success": true,
-          "steps": 112,
-          "elapsed_sec": 34.27605178207159,
+          "steps": 113,
+          "elapsed_sec": 22.31811787188053,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep26"
         },
         {
-          "success": false,
-          "steps": 220,
-          "elapsed_sec": 61.851175433024764,
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 27.544522259384394,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep27"
         },
         {
           "success": true,
           "steps": 119,
-          "elapsed_sec": 35.355474662035704,
+          "elapsed_sec": 30.275296688079834,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep28"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 34.84820609539747,
+          "elapsed_sec": 31.966449877247214,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep29"
         },
         {
           "success": true,
           "steps": 116,
-          "elapsed_sec": 17.152996277436614,
+          "elapsed_sec": 26.424766028299928,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep2"
         },
         {
           "success": true,
-          "steps": 112,
-          "elapsed_sec": 17.12777221761644,
+          "steps": 114,
+          "elapsed_sec": 22.955210430547595,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep32"
         },
         {
           "success": true,
           "steps": 109,
-          "elapsed_sec": 16.759952627122402,
+          "elapsed_sec": 25.781914042308927,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep3"
         },
         {
           "success": true,
           "steps": 112,
-          "elapsed_sec": 15.58430266752839,
+          "elapsed_sec": 23.30297289416194,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep33"
         },
         {
           "success": true,
           "steps": 118,
-          "elapsed_sec": 17.65369838103652,
+          "elapsed_sec": 25.830270333215594,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep4"
         },
         {
           "success": true,
           "steps": 115,
-          "elapsed_sec": 16.25553835555911,
+          "elapsed_sec": 22.022633912041783,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep34"
         },
         {
           "success": true,
-          "steps": 115,
-          "elapsed_sec": 17.969473384320736,
+          "steps": 116,
+          "elapsed_sec": 27.373510712757707,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep5"
         },
         {
           "success": true,
           "steps": 115,
-          "elapsed_sec": 15.337469708174467,
+          "elapsed_sec": 19.595628034323454,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep35"
         },
         {
           "success": true,
           "steps": 114,
-          "elapsed_sec": 17.443829838186502,
+          "elapsed_sec": 17.812984976917505,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep6"
         },
         {
           "success": true,
           "steps": 110,
-          "elapsed_sec": 15.25941496156156,
+          "elapsed_sec": 14.868257066234946,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep36"
         },
         {
           "success": true,
-          "steps": 122,
-          "elapsed_sec": 18.380525322631,
+          "steps": 120,
+          "elapsed_sec": 24.65129752457142,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep7"
         },
         {
           "success": true,
           "steps": 122,
-          "elapsed_sec": 16.71843213774264,
+          "elapsed_sec": 22.302453860640526,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep37"
         },
         {
           "success": true,
-          "steps": 119,
-          "elapsed_sec": 18.16456576809287,
+          "steps": 118,
+          "elapsed_sec": 27.475383209064603,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep8"
         },
         {
           "success": true,
-          "steps": 122,
-          "elapsed_sec": 16.374910794198513,
+          "steps": 121,
+          "elapsed_sec": 25.419994186609983,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep38"
         },
         {
           "success": true,
-          "steps": 122,
-          "elapsed_sec": 18.582082210108638,
+          "steps": 121,
+          "elapsed_sec": 27.06802779622376,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep9"
         },
         {
           "success": true,
           "steps": 115,
-          "elapsed_sec": 15.5200081076473,
+          "elapsed_sec": 20.369616819545627,
           "task": "pick up the black bowl on the wooden cabinet and place it on the plate",
           "episode_id": "pick up the black bowl on the wooden cabinet and place it on the plate_ep39"
         }
       ],
-      "success_rate": 0.94,
-      "avg_steps": 122.82
+      "success_rate": 0.96,
+      "avg_steps": 120.48
     }
   ],
   "overall_success_rate": 0.972,

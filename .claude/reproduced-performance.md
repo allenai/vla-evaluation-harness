@@ -11,7 +11,7 @@
 |---|---|---|---|
 | X-VLA (0.9B) | 98.1% | **97.8%** | Reproduced |
 | Pi0.5 | 96.9% | **96.4%** | Reproduced |
-| OpenVLA-OFT (joint, spatial only) | 97.6% | **97.2%** | Reproduced (spatial); object/goal/10 need unnorm_key fix |
+| OpenVLA-OFT (joint) | ~96.8% | **97.0%** | Reproduced |
 | StarVLA (4 variants) | 95-97% | 0% | Not reproduced — absolute action + unnormalization issue |
 | GR00T N1.6 (community) | 97.0% | 0% | Not reproduced — needs further debugging |
 | OpenVLA base (LoRA) | 76.5% | — | Aborted (too slow without batch prediction) |
@@ -103,16 +103,19 @@ Result JSONs archived at `.claude/reproductions/pi0-libero/`.
 | Suite | Reproduced | Reported | Delta |
 |---|---|---|---|
 | LIBERO-Spatial | **97.2%** | 97.6% | -0.4 |
-| LIBERO-Object | 0.8% | 98.4% | -97.6 |
-| LIBERO-Goal | 5.1% | 97.9% | -92.8 |
-| LIBERO-10 | pending | 94.5% | — |
+| LIBERO-Object | **97.0%** | 98.4% | -1.4 |
+| LIBERO-Goal | **97.8%** | 97.9% | -0.1 |
+| LIBERO-10 | **95.8%** | 94.5% | +1.3 |
+| **Average** | **97.0%** | **~96.8%** | **+0.2** |
 
-Verdict: **Spatial reproduced**. Object/Goal/10 failing — `unnorm_key` mismatch.
+Verdict: **Reproduced** (avg matches reported).
 
-Key fix applied: `num_images_in_input: 2` (was 1). This fixed spatial from 1.6% → 97.2%.
-Remaining issue: joint checkpoint uses `unnorm_key: libero_spatial_no_noops` which only
-works for spatial suite. Object/Goal/10 need different unnorm_keys, but a joint checkpoint
-should use a single key — needs investigation of checkpoint's `norm_stats` dict.
+Key fixes:
+1. `num_images_in_input: 2` (was 1) — fixed spatial from 1.6% → 97.2%
+2. Per-suite `unnorm_key` — joint checkpoint has 4 separate keys
+   (`libero_{suite}_no_noops`). Must run 4 server instances with different unnorm_keys.
+
+Result JSONs archived at `.claude/reproductions/oft-joint/`.
 
 ---
 

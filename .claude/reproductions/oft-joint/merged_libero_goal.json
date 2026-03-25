@@ -1,0 +1,3637 @@
+{
+  "benchmark": "LIBEROBenchmark_libero_goal",
+  "mode": "sync",
+  "harness_version": "0.0.4.dev8+g3e4c63d37.d20260324",
+  "tasks": [
+    {
+      "task": "open the middle drawer of the cabinet",
+      "episodes": [
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 123.2406519278884,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep0"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 34.63940825127065,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep30"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 57.73580598831177,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep10"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 24.026598634198308,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep40"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 52.85430730693042,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep11"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 23.429263658821583,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep41"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 52.37136533483863,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep12"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 25.6256435662508,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep42"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 56.253190411254764,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep13"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 24.101899463683367,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep43"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 57.248043052852154,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep14"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 23.410151157528162,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep44"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 59.8662458024919,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep15"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 26.103087279945612,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep45"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 57.544588793069124,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep16"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 22.486782796680927,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep46"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 58.85488215461373,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep17"
+        },
+        {
+          "success": true,
+          "steps": 111,
+          "elapsed_sec": 21.823541896417737,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep47"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 60.23754830658436,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep18"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 23.385182762518525,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep48"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 59.283545073121786,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep19"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 25.673491772264242,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep49"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 58.32471990957856,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep1"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 27.77937090396881,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep31"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 62.27854013256729,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep20"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 54.16136135533452,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep21"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 57.616480223834515,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep22"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 57.78020746819675,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep23"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 61.43801035173237,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep24"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 58.920434556901455,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep25"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 55.49956965260208,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep26"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 82.96762548945844,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep27"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 72.16498578339815,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep28"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 86.95491675846279,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep29"
+        },
+        {
+          "success": true,
+          "steps": 110,
+          "elapsed_sec": 84.04253387078643,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep2"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 37.50504897162318,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep32"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 54.87341673858464,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep3"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 22.61920960433781,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep33"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 72.24523398280144,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep4"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 29.71633110754192,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep34"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 59.01226973719895,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep5"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 22.899613304063678,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep35"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 61.56809160858393,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep6"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 24.805080564692616,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep36"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 64.44817021675408,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep7"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 27.753547314554453,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep37"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 76.13104358129203,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep8"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 34.93680217117071,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep38"
+        },
+        {
+          "success": true,
+          "steps": 112,
+          "elapsed_sec": 57.49673520773649,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep9"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 25.691625628620386,
+          "task": "open the middle drawer of the cabinet",
+          "episode_id": "open the middle drawer of the cabinet_ep39"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 125.86
+    },
+    {
+      "task": "open the top drawer and put the bowl inside",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 181,
+          "elapsed_sec": 53.13414668291807,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep0"
+        },
+        {
+          "success": true,
+          "steps": 237,
+          "elapsed_sec": 63.702275548130274,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep30"
+        },
+        {
+          "success": true,
+          "steps": 169,
+          "elapsed_sec": 33.579460551962256,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep10"
+        },
+        {
+          "success": true,
+          "steps": 181,
+          "elapsed_sec": 33.5048022326082,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep40"
+        },
+        {
+          "success": true,
+          "steps": 170,
+          "elapsed_sec": 33.11563372798264,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep11"
+        },
+        {
+          "success": true,
+          "steps": 171,
+          "elapsed_sec": 31.928798221051693,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep41"
+        },
+        {
+          "success": true,
+          "steps": 180,
+          "elapsed_sec": 32.86782854050398,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep12"
+        },
+        {
+          "success": true,
+          "steps": 170,
+          "elapsed_sec": 30.935411639511585,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep42"
+        },
+        {
+          "success": true,
+          "steps": 177,
+          "elapsed_sec": 34.38782502897084,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep13"
+        },
+        {
+          "success": true,
+          "steps": 179,
+          "elapsed_sec": 32.19881206937134,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep43"
+        },
+        {
+          "success": true,
+          "steps": 170,
+          "elapsed_sec": 35.32861511968076,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep14"
+        },
+        {
+          "success": true,
+          "steps": 179,
+          "elapsed_sec": 33.11335938051343,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep44"
+        },
+        {
+          "success": true,
+          "steps": 166,
+          "elapsed_sec": 35.47938541136682,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep15"
+        },
+        {
+          "success": true,
+          "steps": 175,
+          "elapsed_sec": 33.955473091453314,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep45"
+        },
+        {
+          "success": true,
+          "steps": 184,
+          "elapsed_sec": 37.44732443243265,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep16"
+        },
+        {
+          "success": true,
+          "steps": 173,
+          "elapsed_sec": 32.44041423499584,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep46"
+        },
+        {
+          "success": true,
+          "steps": 170,
+          "elapsed_sec": 33.75616440922022,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep17"
+        },
+        {
+          "success": true,
+          "steps": 179,
+          "elapsed_sec": 31.401990860700607,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep47"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 56.132727179676294,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep18"
+        },
+        {
+          "success": true,
+          "steps": 189,
+          "elapsed_sec": 36.790580531582236,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep48"
+        },
+        {
+          "success": true,
+          "steps": 224,
+          "elapsed_sec": 45.69977303035557,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep19"
+        },
+        {
+          "success": true,
+          "steps": 187,
+          "elapsed_sec": 35.453965390101075,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep49"
+        },
+        {
+          "success": true,
+          "steps": 270,
+          "elapsed_sec": 53.273201920092106,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep1"
+        },
+        {
+          "success": true,
+          "steps": 182,
+          "elapsed_sec": 35.62165276706219,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep31"
+        },
+        {
+          "success": true,
+          "steps": 173,
+          "elapsed_sec": 36.85046890377998,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep20"
+        },
+        {
+          "success": true,
+          "steps": 180,
+          "elapsed_sec": 34.204486122354865,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep21"
+        },
+        {
+          "success": true,
+          "steps": 193,
+          "elapsed_sec": 38.28157292492688,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep22"
+        },
+        {
+          "success": true,
+          "steps": 175,
+          "elapsed_sec": 35.581813951954246,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep23"
+        },
+        {
+          "success": true,
+          "steps": 179,
+          "elapsed_sec": 36.16822872683406,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep24"
+        },
+        {
+          "success": true,
+          "steps": 185,
+          "elapsed_sec": 35.6663898807019,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep25"
+        },
+        {
+          "success": true,
+          "steps": 176,
+          "elapsed_sec": 33.03612433001399,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep26"
+        },
+        {
+          "success": true,
+          "steps": 176,
+          "elapsed_sec": 56.3300548736006,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep27"
+        },
+        {
+          "success": true,
+          "steps": 168,
+          "elapsed_sec": 43.731354588642716,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep28"
+        },
+        {
+          "success": true,
+          "steps": 177,
+          "elapsed_sec": 47.27893018350005,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep29"
+        },
+        {
+          "success": true,
+          "steps": 176,
+          "elapsed_sec": 55.095115300267935,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep2"
+        },
+        {
+          "success": true,
+          "steps": 190,
+          "elapsed_sec": 56.84462887607515,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep32"
+        },
+        {
+          "success": true,
+          "steps": 172,
+          "elapsed_sec": 34.81779323704541,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep3"
+        },
+        {
+          "success": true,
+          "steps": 185,
+          "elapsed_sec": 34.119698368012905,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep33"
+        },
+        {
+          "success": true,
+          "steps": 184,
+          "elapsed_sec": 46.51577382721007,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep4"
+        },
+        {
+          "success": true,
+          "steps": 166,
+          "elapsed_sec": 40.79298438504338,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep34"
+        },
+        {
+          "success": true,
+          "steps": 175,
+          "elapsed_sec": 35.86127293296158,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep5"
+        },
+        {
+          "success": true,
+          "steps": 173,
+          "elapsed_sec": 33.358670791611075,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep35"
+        },
+        {
+          "success": true,
+          "steps": 171,
+          "elapsed_sec": 37.2451455462724,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep6"
+        },
+        {
+          "success": true,
+          "steps": 188,
+          "elapsed_sec": 36.73928535357118,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep36"
+        },
+        {
+          "success": true,
+          "steps": 164,
+          "elapsed_sec": 36.51226976327598,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep7"
+        },
+        {
+          "success": true,
+          "steps": 182,
+          "elapsed_sec": 36.44592450745404,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep37"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 79.7741420418024,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep8"
+        },
+        {
+          "success": true,
+          "steps": 178,
+          "elapsed_sec": 49.45302892290056,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep38"
+        },
+        {
+          "success": true,
+          "steps": 177,
+          "elapsed_sec": 36.99348643235862,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep9"
+        },
+        {
+          "success": true,
+          "steps": 172,
+          "elapsed_sec": 34.30479780957103,
+          "task": "open the top drawer and put the bowl inside",
+          "episode_id": "open the top drawer and put the bowl inside_ep39"
+        }
+      ],
+      "success_rate": 0.96,
+      "avg_steps": 185.96
+    },
+    {
+      "task": "push the plate to the front of the stove",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 37.2407450415194,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep20"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 25.938259690999985,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep0"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 26.924829164519906,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep30"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 28.31008885987103,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep1"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 21.696537608280778,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep31"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 26.692966571077704,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep2"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 21.94895477220416,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep32"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 25.804451497271657,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep3"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 23.779460413381457,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep33"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 28.288438770920038,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep4"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 24.28402472101152,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep34"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 29.402924824506044,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep5"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 23.77331554889679,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep35"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 24.494661029428244,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep6"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 25.517489347606897,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep36"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 28.83121345564723,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep7"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 26.1370515152812,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep37"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 31.033978551626205,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep8"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 24.786335157230496,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep38"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 26.41524811461568,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep9"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 23.13559526950121,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep39"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 26.1731264796108,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep21"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 31.67229087650776,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep10"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 25.423230562359095,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep40"
+        },
+        {
+          "success": true,
+          "steps": 112,
+          "elapsed_sec": 21.3515762463212,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep11"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 20.7590643633157,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep41"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 27.068254509940743,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep12"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 26.398742236196995,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep42"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 29.859781419858336,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep13"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 26.273677760735154,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep43"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 27.987580973654985,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep14"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 27.468361226841807,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep44"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 29.972760871052742,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep15"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 24.14544913545251,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep45"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 26.427858354523778,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep16"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 23.638378532603383,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep46"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 47.478362103924155,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep17"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 34.94689912348986,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep47"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 38.2938484698534,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep18"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 32.152775675058365,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep48"
+        },
+        {
+          "success": true,
+          "steps": 201,
+          "elapsed_sec": 52.4118682090193,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep19"
+        },
+        {
+          "success": true,
+          "steps": 108,
+          "elapsed_sec": 29.24322078935802,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep49"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 85.15657911635935,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep22"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 25.78023543022573,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep23"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 36.531583063304424,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep24"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 26.021492706611753,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep25"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 27.410471487790346,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep26"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 27.854237170889974,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep27"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 38.8054766766727,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep28"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 28.039195647463202,
+          "task": "push the plate to the front of the stove",
+          "episode_id": "push the plate to the front of the stove_ep29"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 133.1
+    },
+    {
+      "task": "put the bowl on the plate",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 11.338448904454708,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep20"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 18.319887164980173,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep0"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 16.61595381051302,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep30"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 19.725583642721176,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep1"
+        },
+        {
+          "success": true,
+          "steps": 79,
+          "elapsed_sec": 16.652629179880023,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep31"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 17.39119771681726,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep2"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 16.053287273272872,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep32"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 17.614306634292006,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep3"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 15.85423150472343,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep33"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 18.449660919606686,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep4"
+        },
+        {
+          "success": true,
+          "steps": 80,
+          "elapsed_sec": 16.89698964729905,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep34"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 19.74080417305231,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep5"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 15.9468908123672,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep35"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 18.093101212754846,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep6"
+        },
+        {
+          "success": true,
+          "steps": 70,
+          "elapsed_sec": 15.583799425512552,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep36"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 17.827832236886024,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep7"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 16.58698812685907,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep37"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 19.221413727849722,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep8"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 17.070477832108736,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep38"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 18.283249838277698,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep9"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 15.792246172204614,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep39"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 19.13468547910452,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep21"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 20.083881489932537,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep10"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 16.983616437762976,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep40"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 16.367004815489054,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep11"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 14.23365549556911,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep41"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 17.877119064331055,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep12"
+        },
+        {
+          "success": true,
+          "steps": 79,
+          "elapsed_sec": 17.21995616145432,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep42"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 20.41861390322447,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep13"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 15.790445806458592,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep43"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 19.478175405412912,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep14"
+        },
+        {
+          "success": true,
+          "steps": 79,
+          "elapsed_sec": 17.1123465038836,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep44"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 18.77356816083193,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep15"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 16.50270814076066,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep45"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 16.98979949578643,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep16"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 14.744661964476109,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep46"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 15.101958818733692,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep17"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 9.403560914099216,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep47"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 22.589600555598736,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep18"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 13.912064308300614,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep48"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 23.094181455671787,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep19"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 20.974638260900974,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep49"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 11.079868024215102,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep22"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 18.265077969059348,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep23"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 43.38204745389521,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep24"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 18.96017523482442,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep25"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 18.82525511085987,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep26"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 20.432503174990416,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep27"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 16.638166781514883,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep28"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 18.858782494440675,
+          "task": "put the bowl on the plate",
+          "episode_id": "put the bowl on the plate_ep29"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 79.98
+    },
+    {
+      "task": "put the bowl on the stove",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 30.977499797940254,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep10"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 29.10514772683382,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep40"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 19.963054582476616,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep20"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 20.25328704342246,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep21"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 27.15289766341448,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep22"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 21.045824883505702,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep23"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 21.82870276272297,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep24"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 22.845397794619203,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep25"
+        },
+        {
+          "success": true,
+          "steps": 82,
+          "elapsed_sec": 20.25404976680875,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep26"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 20.05663835629821,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep27"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 60.04449101909995,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep28"
+        },
+        {
+          "success": true,
+          "steps": 79,
+          "elapsed_sec": 20.426608065143228,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep29"
+        },
+        {
+          "success": true,
+          "steps": 93,
+          "elapsed_sec": 21.25226871855557,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep11"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 18.449990171939135,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep41"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 21.234669445082545,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep0"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 19.346218302845955,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep30"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 18.74089778587222,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep1"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 16.827348398044705,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep31"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 20.2651922814548,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep2"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 17.522937260568142,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep32"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 21.15242894925177,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep3"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 17.993179377168417,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep33"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 20.263878475874662,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep4"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 16.647347074002028,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep34"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 20.330138634890318,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep5"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 16.52773185633123,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep35"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 18.33549022488296,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep6"
+        },
+        {
+          "success": true,
+          "steps": 82,
+          "elapsed_sec": 15.469628144055605,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep36"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 30.71581976301968,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep7"
+        },
+        {
+          "success": true,
+          "steps": 80,
+          "elapsed_sec": 26.935638977214694,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep37"
+        },
+        {
+          "success": true,
+          "steps": 112,
+          "elapsed_sec": 31.701287277042866,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep8"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 24.391046699136496,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep38"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 29.846240401268005,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep9"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 26.61072645895183,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep39"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 35.96977888606489,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep12"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 30.894167616963387,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep42"
+        },
+        {
+          "success": true,
+          "steps": 93,
+          "elapsed_sec": 20.976653499528766,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep13"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 18.605162732303143,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep43"
+        },
+        {
+          "success": true,
+          "steps": 80,
+          "elapsed_sec": 23.270380498841405,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep14"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 22.66078527830541,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep44"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 21.260989107191563,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep15"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 19.313343772664666,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep45"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 21.80596344359219,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep16"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 22.76059727743268,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep46"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 21.615704659372568,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep17"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 19.944081587716937,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep47"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 32.23322071880102,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep18"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 26.486044814810157,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep48"
+        },
+        {
+          "success": true,
+          "steps": 103,
+          "elapsed_sec": 24.889861891046166,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep19"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 18.95050584152341,
+          "task": "put the bowl on the stove",
+          "episode_id": "put the bowl on the stove_ep49"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 93.38
+    },
+    {
+      "task": "put the bowl on top of the cabinet",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 31.418478075414896,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep10"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 26.818524135276675,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep40"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 20.31444087252021,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep20"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 19.764962501823902,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep21"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 19.446616424247622,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep22"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 19.457008248195052,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep23"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 18.789897041395307,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep24"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 56.75135349109769,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep25"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 21.140167826786637,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep26"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 19.478117249906063,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep27"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 22.94284986332059,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep28"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 21.175802702084184,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep29"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 21.015999944880605,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep11"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 18.305010557174683,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep41"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 22.204849364235997,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep0"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 18.156420558691025,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep30"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 18.283172024413943,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep1"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 15.536371145397425,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep31"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 20.614686504006386,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep2"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 52.73045499064028,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep32"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 21.231361588463187,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep3"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 16.67584846355021,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep33"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 22.138291098177433,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep4"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 19.24783636070788,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep34"
+        },
+        {
+          "success": true,
+          "steps": 80,
+          "elapsed_sec": 18.598084188997746,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep5"
+        },
+        {
+          "success": true,
+          "steps": 79,
+          "elapsed_sec": 16.74188120290637,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep35"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 18.578784491866827,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep6"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 16.386303324252367,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep36"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 31.908437157049775,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep7"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 26.466247553005815,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep37"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 25.193272987380624,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep8"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 21.867245320230722,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep38"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 26.917501809075475,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep9"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 24.059109387919307,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep39"
+        },
+        {
+          "success": true,
+          "steps": 82,
+          "elapsed_sec": 32.12201555632055,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep12"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 30.42906661890447,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep42"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 18.666678816080093,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep13"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 50.537957448512316,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep43"
+        },
+        {
+          "success": true,
+          "steps": 95,
+          "elapsed_sec": 29.74899783730507,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep14"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 22.796027433127165,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep44"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 21.297441724687815,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep15"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 19.228006234392524,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep45"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 23.03284410201013,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep16"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 18.25368352048099,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep46"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 21.812459714710712,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep17"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 18.984076462686062,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep47"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 29.344481820240617,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep18"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 26.727474324405193,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep48"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 22.103933736681938,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep19"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 20.70414463803172,
+          "task": "put the bowl on top of the cabinet",
+          "episode_id": "put the bowl on top of the cabinet_ep49"
+        }
+      ],
+      "success_rate": 0.94,
+      "avg_steps": 98.66
+    },
+    {
+      "task": "put the cream cheese in the bowl",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 35.35226969793439,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep0"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 17.32088833488524,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep30"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 20.522301867604256,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep10"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 25.629177033901215,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep40"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 20.452038349583745,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep11"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 26.308984452858567,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep41"
+        },
+        {
+          "success": true,
+          "steps": 97,
+          "elapsed_sec": 21.071838203817606,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep12"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 16.87124626338482,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep42"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 21.814549395814538,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep13"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 26.292509904131293,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep43"
+        },
+        {
+          "success": true,
+          "steps": 96,
+          "elapsed_sec": 22.480702647939324,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep14"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 54.274028873071074,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep44"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 20.86729278974235,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep15"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 19.170526772737503,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep45"
+        },
+        {
+          "success": true,
+          "steps": 104,
+          "elapsed_sec": 24.28756838850677,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep16"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 19.48464035987854,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep46"
+        },
+        {
+          "success": true,
+          "steps": 96,
+          "elapsed_sec": 20.46727959252894,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep17"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 16.213460627943277,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep47"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 20.683952992781997,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep18"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 18.686154671013355,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep48"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 20.156797943636775,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep19"
+        },
+        {
+          "success": true,
+          "steps": 95,
+          "elapsed_sec": 19.808382032439113,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep49"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 23.134985940530896,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep1"
+        },
+        {
+          "success": true,
+          "steps": 96,
+          "elapsed_sec": 20.274665221571922,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep31"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 30.8114905487746,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep20"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 20.19476710818708,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep21"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 20.77561521343887,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep22"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 21.454062771052122,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep23"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 24.064869586378336,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep24"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 21.484894005581737,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep25"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 18.838808292523026,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep26"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 27.781895112246275,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep27"
+        },
+        {
+          "success": true,
+          "steps": 99,
+          "elapsed_sec": 30.05726775340736,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep28"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 27.711987178772688,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep29"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 28.926133040338755,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep2"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 21.619066808372736,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep32"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 20.421110920608044,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep3"
+        },
+        {
+          "success": true,
+          "steps": 99,
+          "elapsed_sec": 19.900342689827085,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep33"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 35.78041411563754,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep4"
+        },
+        {
+          "success": true,
+          "steps": 83,
+          "elapsed_sec": 15.307500699535012,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep34"
+        },
+        {
+          "success": true,
+          "steps": 107,
+          "elapsed_sec": 25.20549076795578,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep5"
+        },
+        {
+          "success": true,
+          "steps": 97,
+          "elapsed_sec": 22.36767429858446,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep35"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 22.930683195590973,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep6"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 19.262739799916744,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep36"
+        },
+        {
+          "success": true,
+          "steps": 103,
+          "elapsed_sec": 24.959850445389748,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep7"
+        },
+        {
+          "success": true,
+          "steps": 93,
+          "elapsed_sec": 20.768171839416027,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep37"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 27.705546248704195,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep8"
+        },
+        {
+          "success": true,
+          "steps": 95,
+          "elapsed_sec": 20.923335844650865,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep38"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 22.976201130077243,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep9"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 19.284883895888925,
+          "task": "put the cream cheese in the bowl",
+          "episode_id": "put the cream cheese in the bowl_ep39"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 102.7
+    },
+    {
+      "task": "put the wine bottle on the rack",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 16.354050364345312,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep0"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 14.997078875079751,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep30"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 25.89981408044696,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep10"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 25.882022192701697,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep40"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 27.891819890588522,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep11"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 24.495988860726357,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep41"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 24.009746642783284,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep12"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 24.70570687018335,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep42"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 26.613009931519628,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep13"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 24.289977895095944,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep43"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 19.002314444631338,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep14"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 21.656607024371624,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep44"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 28.06102249957621,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep15"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 20.374902797862887,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep45"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 28.079168520867825,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep16"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 24.020464420318604,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep46"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 27.653510056436062,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep17"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 21.243435414507985,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep47"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 29.447776654735208,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep18"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 19.732991334050894,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep48"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 31.099001362919807,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep19"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 24.221841912716627,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep49"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 26.418663946911693,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep1"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 26.823320856317878,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep31"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 28.890934091061354,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep20"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 26.237403836101294,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep21"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 27.172026239335537,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep22"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 30.950284279882908,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep23"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 29.67574856057763,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep24"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 26.96684935130179,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep25"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 26.490973964333534,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep26"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 15.647390989586711,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep27"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 25.644101595506072,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep28"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 28.993884079158306,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep29"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 19.547317242249846,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep2"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 15.255529813468456,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep32"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 27.415586728602648,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep3"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 23.686616169288754,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep33"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 17.899043638259172,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep4"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 14.75555713661015,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep34"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 30.690062759444118,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep5"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 25.76877168379724,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep35"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 30.626503812149167,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep6"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 29.85339709185064,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep36"
+        },
+        {
+          "success": true,
+          "steps": 112,
+          "elapsed_sec": 27.389001408591866,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep7"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 25.464934930205345,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep37"
+        },
+        {
+          "success": false,
+          "steps": 300,
+          "elapsed_sec": 51.34147426858544,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep8"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.35272896848619,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep38"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 28.28840521723032,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep9"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 24.749286267906427,
+          "task": "put the wine bottle on the rack",
+          "episode_id": "put the wine bottle on the rack_ep39"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 129.84
+    },
+    {
+      "task": "put the wine bottle on top of the cabinet",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 31.512533150613308,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep20"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 18.651979057118297,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep0"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 19.015849359333515,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep30"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 20.901624543592334,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep1"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 19.99363623559475,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep31"
+        },
+        {
+          "success": true,
+          "steps": 95,
+          "elapsed_sec": 21.58113487251103,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep2"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 17.296621970832348,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep32"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 21.231438601389527,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep3"
+        },
+        {
+          "success": true,
+          "steps": 92,
+          "elapsed_sec": 17.82508892379701,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep33"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 20.574950700625777,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep4"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 17.987318620085716,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep34"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 21.42938113771379,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep5"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 19.640311367809772,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep35"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 21.826554629951715,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep6"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 19.51929464377463,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep36"
+        },
+        {
+          "success": true,
+          "steps": 98,
+          "elapsed_sec": 22.225705867633224,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep7"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 31.08482745476067,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep37"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 24.22719863243401,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep8"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 20.507994789630175,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep38"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 22.431842636317015,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep9"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 20.61545449309051,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep39"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 20.746114924550056,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep21"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 21.788239939138293,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep10"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 20.310396971181035,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep40"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 18.08587978594005,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep11"
+        },
+        {
+          "success": true,
+          "steps": 89,
+          "elapsed_sec": 16.552425134927034,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep41"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 21.487546175718307,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep12"
+        },
+        {
+          "success": true,
+          "steps": 87,
+          "elapsed_sec": 19.593452900648117,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep42"
+        },
+        {
+          "success": true,
+          "steps": 108,
+          "elapsed_sec": 25.448022531345487,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep13"
+        },
+        {
+          "success": true,
+          "steps": 93,
+          "elapsed_sec": 20.530021155253053,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep43"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 23.60654139891267,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep14"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 18.480028733611107,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep44"
+        },
+        {
+          "success": true,
+          "steps": 97,
+          "elapsed_sec": 22.672904444858432,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep15"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 17.84198582917452,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep45"
+        },
+        {
+          "success": true,
+          "steps": 94,
+          "elapsed_sec": 20.08664258569479,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep16"
+        },
+        {
+          "success": true,
+          "steps": 97,
+          "elapsed_sec": 18.37731563486159,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep46"
+        },
+        {
+          "success": true,
+          "steps": 97,
+          "elapsed_sec": 34.382605358958244,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep17"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 29.33607017248869,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep47"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 27.91804441064596,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep18"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 24.509079955518246,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep48"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 27.98178819194436,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep19"
+        },
+        {
+          "success": true,
+          "steps": 88,
+          "elapsed_sec": 25.26516473479569,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep49"
+        },
+        {
+          "success": true,
+          "steps": 101,
+          "elapsed_sec": 37.38723714649677,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep22"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 20.54889876395464,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep23"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 28.3130906149745,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep24"
+        },
+        {
+          "success": true,
+          "steps": 91,
+          "elapsed_sec": 22.393439130857587,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep25"
+        },
+        {
+          "success": true,
+          "steps": 90,
+          "elapsed_sec": 24.680152153596282,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep26"
+        },
+        {
+          "success": true,
+          "steps": 86,
+          "elapsed_sec": 23.08944546058774,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep27"
+        },
+        {
+          "success": true,
+          "steps": 101,
+          "elapsed_sec": 33.41398180834949,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep28"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 21.793428622186184,
+          "task": "put the wine bottle on top of the cabinet",
+          "episode_id": "put the wine bottle on top of the cabinet_ep29"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 91.56
+    },
+    {
+      "task": "turn on the stove",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 11.155083999037743,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep10"
+        },
+        {
+          "success": true,
+          "steps": 82,
+          "elapsed_sec": 10.521838754415512,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep40"
+        },
+        {
+          "success": true,
+          "steps": 68,
+          "elapsed_sec": 16.430331187322736,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep20"
+        },
+        {
+          "success": true,
+          "steps": 66,
+          "elapsed_sec": 15.76699729822576,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep21"
+        },
+        {
+          "success": true,
+          "steps": 80,
+          "elapsed_sec": 17.439066337421536,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep22"
+        },
+        {
+          "success": true,
+          "steps": 70,
+          "elapsed_sec": 16.770579539239407,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep23"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 18.949390955269337,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep24"
+        },
+        {
+          "success": true,
+          "steps": 69,
+          "elapsed_sec": 18.972547994926572,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep25"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 18.748540353029966,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep26"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 17.86068014241755,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep27"
+        },
+        {
+          "success": true,
+          "steps": 69,
+          "elapsed_sec": 18.2114931717515,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep28"
+        },
+        {
+          "success": true,
+          "steps": 69,
+          "elapsed_sec": 18.031086089089513,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep29"
+        },
+        {
+          "success": true,
+          "steps": 82,
+          "elapsed_sec": 21.12990052253008,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep11"
+        },
+        {
+          "success": true,
+          "steps": 68,
+          "elapsed_sec": 15.106720924377441,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep41"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 20.29445781558752,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep0"
+        },
+        {
+          "success": true,
+          "steps": 66,
+          "elapsed_sec": 15.419081266969442,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep30"
+        },
+        {
+          "success": true,
+          "steps": 71,
+          "elapsed_sec": 15.30770449526608,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep1"
+        },
+        {
+          "success": true,
+          "steps": 72,
+          "elapsed_sec": 13.448664141818881,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep31"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 18.436720065772533,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep2"
+        },
+        {
+          "success": true,
+          "steps": 69,
+          "elapsed_sec": 15.02889809384942,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep32"
+        },
+        {
+          "success": true,
+          "steps": 81,
+          "elapsed_sec": 19.647450476884842,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep3"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 15.820655263960361,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep33"
+        },
+        {
+          "success": true,
+          "steps": 66,
+          "elapsed_sec": 17.37024595029652,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep4"
+        },
+        {
+          "success": true,
+          "steps": 65,
+          "elapsed_sec": 15.427913431078196,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep34"
+        },
+        {
+          "success": true,
+          "steps": 77,
+          "elapsed_sec": 19.396259728819132,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep5"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 14.753070324659348,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep35"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 16.880497695878148,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep6"
+        },
+        {
+          "success": true,
+          "steps": 66,
+          "elapsed_sec": 12.907587828114629,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep36"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 17.58863355219364,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep7"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 15.293800920248032,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep37"
+        },
+        {
+          "success": true,
+          "steps": 76,
+          "elapsed_sec": 23.261268878355622,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep8"
+        },
+        {
+          "success": true,
+          "steps": 65,
+          "elapsed_sec": 18.039118498563766,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep38"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 26.06162972189486,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep9"
+        },
+        {
+          "success": true,
+          "steps": 71,
+          "elapsed_sec": 18.511436581611633,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep39"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 12.586164124310017,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep12"
+        },
+        {
+          "success": true,
+          "steps": 67,
+          "elapsed_sec": 8.682787692174315,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep42"
+        },
+        {
+          "success": true,
+          "steps": 70,
+          "elapsed_sec": 15.900198904797435,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep13"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 15.356183795258403,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep43"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 14.94915154390037,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep14"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 12.985077451914549,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep44"
+        },
+        {
+          "success": true,
+          "steps": 69,
+          "elapsed_sec": 18.82695834338665,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep15"
+        },
+        {
+          "success": true,
+          "steps": 78,
+          "elapsed_sec": 17.2721374835819,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep45"
+        },
+        {
+          "success": true,
+          "steps": 84,
+          "elapsed_sec": 21.466554237529635,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep16"
+        },
+        {
+          "success": true,
+          "steps": 75,
+          "elapsed_sec": 16.747391192242503,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep46"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 19.439774623140693,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep17"
+        },
+        {
+          "success": true,
+          "steps": 74,
+          "elapsed_sec": 16.22943239659071,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep47"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 18.22735340707004,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep18"
+        },
+        {
+          "success": true,
+          "steps": 70,
+          "elapsed_sec": 15.381441256031394,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep48"
+        },
+        {
+          "success": true,
+          "steps": 73,
+          "elapsed_sec": 19.320984601974487,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep19"
+        },
+        {
+          "success": true,
+          "steps": 85,
+          "elapsed_sec": 17.580355692654848,
+          "task": "turn on the stove",
+          "episode_id": "turn on the stove_ep49"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 73.08
+    }
+  ],
+  "overall_success_rate": 0.978,
+  "config": {
+    "benchmark": "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark",
+    "mode": "sync",
+    "name": null,
+    "subname": "libero_goal",
+    "episodes_per_task": 50,
+    "max_steps": null,
+    "max_tasks": null,
+    "tasks": null,
+    "params": {
+      "num_steps_wait": 10,
+      "seed": 7,
+      "send_state": true,
+      "send_wrist_image": true,
+      "suite": "libero_goal"
+    },
+    "hz": 10.0,
+    "hold_policy": "repeat_last",
+    "throughput_mode": false,
+    "paced": true,
+    "wait_first_action": false
+  },
+  "merge_info": {
+    "num_shards": 30,
+    "shards_found": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "shards_missing": [],
+    "total_episodes": 500
+  }
+}
