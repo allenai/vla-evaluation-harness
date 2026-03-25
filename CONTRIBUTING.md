@@ -4,7 +4,7 @@
 
 We'd love your help — especially with reproducibility, which we care about most.
 
-1. **Reproduction reports** — If you've run an evaluation and can compare against published scores, we'd appreciate a report. No code required — just copy the [template](docs/reproductions/_TEMPLATE.md). See [db-cogact.md](docs/reproductions/db-cogact.md) for an example.
+1. **Reproduction reports** — If you've run an evaluation and can compare against published scores, we'd appreciate a report. See [db-cogact.md](docs/reproductions/db-cogact.md) for an example.
 
 2. **Bug reports and fixes** — If something doesn't look right during evaluation, please let us know. Filing an issue or opening a PR helps a lot.
 
@@ -117,6 +117,6 @@ YAML configs are parsed into typed dataclasses in `config.py`. When adding confi
 
 1. Branch from `main`
 2. Make changes, add tests if applicable
-3. Update relevant documentation (`README.md` badges, `docs/reproductions/README.md` index, etc.)
+3. Update relevant documentation (`README.md` badges, `docs/reproductions/`, etc.)
 4. Run `make check && make test`
 5. Open a PR — CI will run automatically

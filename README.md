@@ -80,7 +80,7 @@ For full evaluation (10 tasks × 50 episodes):
 vla-eval run --config configs/libero_spatial.yaml
 ```
 
-See [Reproduction Reports](docs/reproductions/README.md) for verified scores and per-model details.
+See [Reproduction Reports](docs/reproductions/) for verified scores and per-model details.
 
 > **Need faster runs?** See [Batch Parallel Evaluation](#batch-parallel-evaluation) — **2 000 LIBERO episodes in ~18 min** (47× vs sequential).
 
@@ -183,7 +183,7 @@ docker/build.sh libero   # build one
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Component descriptions, protocol, episode flow, configuration |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding benchmarks/models, PR workflow |
-| [Reproduction Reports](docs/reproductions/README.md) | Per-model evaluation results and reproducibility verdicts |
+| [Reproduction Reports](docs/reproductions/) | Per-model evaluation results and reproducibility verdicts |
 | [RFCs](docs/rfcs/README.md) | Design proposals with rationale and status tracking |
 | [Design Philosophy](docs/design-philosophy.md) | Freshness, Convenience, Layered Abstraction, Quality, Reproducibility, Openness |
 

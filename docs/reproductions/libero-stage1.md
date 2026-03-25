@@ -74,7 +74,7 @@ Key benchmark params: `absolute_action: true`, `send_wrist_image: true`, `send_s
 10:22:21 INFO  server listening on 0.0.0.0:8001
 ```
 
-Result JSONs archived at `.claude/reproductions/xvla-libero/`.
+Result JSONs archived at `docs/reproductions/data/xvla-libero/`.
 </details>
 
 ---
@@ -94,7 +94,7 @@ Verdict: **Reproduced** (avg within 0.5%p). Spatial 6%p low — likely image fli
 Key fix: `image_resolution: 224` (Pi0.5 trained on 224×224, harness defaulted to 256×256).
 Benchmark params: `send_wrist_image: true`, `send_state: true`.
 
-Result JSONs archived at `.claude/reproductions/pi0-libero/`.
+Result JSONs archived at `docs/reproductions/data/pi0-libero/`.
 
 ---
 
@@ -115,7 +115,7 @@ Key fixes:
 2. Per-suite `unnorm_key` — joint checkpoint has 4 separate keys
    (`libero_{suite}_no_noops`). Must run 4 server instances with different unnorm_keys.
 
-Result JSONs archived at `.claude/reproductions/oft-joint/`.
+Result JSONs archived at `docs/reproductions/data/oft-joint/`.
 
 ---
 
