@@ -119,6 +119,14 @@ class OFTModelServer(PredictModelServer):
             )
         logger.info("OpenVLA-OFT model loaded.")
 
+    def get_observation_params(self) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if self.num_images_in_input >= 2:
+            params["send_wrist_image"] = True
+        if self.use_proprio:
+            params["send_state"] = True
+        return params
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from experiments.robot.openvla_utils import get_vla_action
         from prismatic.vla.constants import PROPRIO_DIM

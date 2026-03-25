@@ -61,12 +61,25 @@ class StarVLAModelServer(PredictModelServer):
     action_ensemble: str = "newest"
 
     def __init__(
-        self, checkpoint: str, *, unnorm_key: str | None = None, use_bf16: bool = False, **kwargs: Any
+        self,
+        checkpoint: str,
+        *,
+        unnorm_key: str | None = None,
+        use_bf16: bool = False,
+        observation_params: str | None = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.checkpoint = checkpoint
         self.unnorm_key = unnorm_key
         self.use_bf16 = use_bf16
+        self._observation_params: dict[str, Any] = {}
+        if observation_params:
+            import json
+
+            self._observation_params = (
+                json.loads(observation_params) if isinstance(observation_params, str) else observation_params
+            )
         self._model = None
 
     @staticmethod
@@ -278,6 +291,9 @@ class StarVLAModelServer(PredictModelServer):
         self._action_stats = norm_stats[unnorm_key]["action"]
         logger.info("Model loaded on %s (unnorm_key=%s)", device, unnorm_key)
 
+    def get_observation_params(self) -> dict[str, Any]:
+        return dict(self._observation_params)
+
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         from PIL import Image as PILImage
 
@@ -341,6 +357,11 @@ if __name__ == "__main__":
     parser.add_argument("--chunk_size", type=int, default=1, help="Action chunk size (replan steps)")
     parser.add_argument("--action_ensemble", default="newest")
     parser.add_argument("--use_bf16", action="store_true", help="Use bfloat16 precision")
+    parser.add_argument(
+        "--observation_params",
+        default=None,
+        help="JSON dict of observation requirements, e.g. '{\"send_wrist_image\": true}'",
+    )
     parser.add_argument("--max_batch_size", type=int, default=1, help="Max batch size for batched inference")
     parser.add_argument("--max_wait_time", type=float, default=0.01, help="Seconds to wait for full batch")
     parser.add_argument("--host", default="0.0.0.0")
@@ -357,7 +378,13 @@ if __name__ == "__main__":
     if args.max_batch_size > 1:
         kwargs["max_batch_size"] = args.max_batch_size
         kwargs["max_wait_time"] = args.max_wait_time
-    server = StarVLAModelServer(args.checkpoint, unnorm_key=args.unnorm_key, use_bf16=args.use_bf16, **kwargs)
+    server = StarVLAModelServer(
+        args.checkpoint,
+        unnorm_key=args.unnorm_key,
+        use_bf16=args.use_bf16,
+        observation_params=args.observation_params,
+        **kwargs,
+    )
     server.chunk_size = args.chunk_size
     server.action_ensemble = args.action_ensemble
 

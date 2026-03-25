@@ -32,13 +32,34 @@ vla-eval serve -c configs/model_servers/pi0/libero.yaml
 
 Schema: `{script, args, [extends]}`
 
-Model server configs that require non-default benchmark params document them
-in a `# Required benchmark params (--param):` comment at the top.
+## Automatic Observation Negotiation
+
+Model servers declare their observation requirements (e.g. wrist camera, proprioceptive
+state) via the WebSocket HELLO handshake. The orchestrator reads these and auto-configures
+the benchmark — **no manual `--param` flags needed** for most models.
+
+How it works:
+1. `vla-eval serve` starts the model server with its config
+2. `vla-eval run` connects and receives `observation_params` in the HELLO response
+3. The orchestrator merges them into benchmark params before creating the benchmark
+
+Priority (highest wins):
+1. `--param` CLI flags — explicit user override
+2. Benchmark config YAML `params:` — explicit in the config file
+3. Model server `observation_params` — auto-detected from server
+4. Benchmark `__init__` defaults — fallback
+
+This means you can run most evaluations with just:
+
+```bash
+# No --param needed — model server tells the benchmark what it needs
+vla-eval serve -c configs/model_servers/pi0/libero.yaml &
+vla-eval run -c configs/libero_all.yaml --server-url ws://localhost:8000
+```
+
+The `--param` flag is still available for manual overrides or experimentation.
 
 ## Benchmark Params Quick Reference
-
-Different models require different observation inputs. Pass these via `--param`
-when running evaluation:
 
 | Param | Default | Description |
 |-------|---------|-------------|
@@ -48,7 +69,9 @@ when running evaluation:
 | `num_steps_wait` | `10` | Idle steps before evaluation starts |
 | `seed` | `0` | Random seed for environment reset |
 
-### Required params by model (LIBERO)
+### Auto-configured params by model (LIBERO)
+
+These are automatically set via HELLO negotiation — listed here for reference.
 
 | Model | `send_wrist_image` | `send_state` | `absolute_action` |
 |-------|:------------------:|:------------:|:-----------------:|
@@ -61,4 +84,4 @@ when running evaluation:
 | StarVLA | `true` | | |
 | X-VLA | `true` | `true` | `true` |
 
-Empty cells = use default (`false`). Check each model server config for details.
+Empty cells = use default (`false`).

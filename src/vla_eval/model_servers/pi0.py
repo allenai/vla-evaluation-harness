@@ -92,6 +92,14 @@ class Pi0ModelServer(PredictModelServer):
         self._policy = policy_config.create_trained_policy(config, checkpoint)
         logger.info("π₀ policy loaded successfully.")
 
+    def get_observation_params(self) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if self.wrist_image_key:
+            params["send_wrist_image"] = True
+        if self.state_key:
+            params["send_state"] = True
+        return params
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         self._load_model()
         assert self._policy is not None

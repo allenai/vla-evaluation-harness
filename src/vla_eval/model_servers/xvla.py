@@ -122,6 +122,15 @@ def _get_profile(name: str) -> _XVLABenchmarkProfile:
         raise ValueError(f"Unsupported X-VLA benchmark_profile {name!r}. Expected one of: {choices}") from exc
 
 
+_PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
+    "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True},
+    "calvin": {"send_wrist_image": True, "send_state": True},
+    "simpler": {"send_state": True},
+    "vlabench": {"send_wrist_image": True, "send_state": True},
+    "robotwin": {"send_state": True},
+}
+
+
 def _obs_state_array(obs: dict[str, Any]) -> np.ndarray | None:
     raw_state = obs.get("state")
     if raw_state is None:
@@ -279,6 +288,11 @@ class XVLAModelServer(PredictModelServer):
             "X-VLA model loaded on cuda:0 (float32, profile=%s)",
             self.benchmark_profile or "custom",
         )
+
+    def get_observation_params(self) -> dict[str, Any]:
+        if self.benchmark_profile and self.benchmark_profile in _PROFILE_OBS_PARAMS:
+            return dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
+        return {}
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         self._load_model()

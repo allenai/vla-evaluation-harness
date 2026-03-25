@@ -80,3 +80,16 @@ class ModelServer(ABC):
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
         """Called at episode end. Optional."""
+
+    def get_observation_params(self) -> dict[str, Any]:
+        """Declare observation requirements for this model.
+
+        Returned params are sent in the HELLO response and auto-merged into
+        benchmark params by the orchestrator. This lets the model server
+        tell the benchmark what observation data it needs (e.g. wrist images,
+        proprioceptive state) without requiring manual ``--param`` flags.
+
+        Override in subclasses to auto-detect from model config, or pass
+        an explicit ``observation_params`` dict to ``PredictModelServer``.
+        """
+        return {}

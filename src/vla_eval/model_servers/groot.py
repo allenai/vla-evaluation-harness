@@ -149,6 +149,11 @@ class GR00TModelServer(PredictModelServer):
             self._modality_config["action"].modality_keys,
         )
 
+    def get_observation_params(self) -> dict[str, Any]:
+        # GR00T models typically use both cameras and proprioceptive state.
+        # Auto-detect after model is loaded; before that, return safe defaults.
+        return {"send_wrist_image": True, "send_state": True}
+
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         self._load_model()
         assert self._policy is not None and self._modality_config is not None

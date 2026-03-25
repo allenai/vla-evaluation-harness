@@ -89,9 +89,11 @@ async def _handle_connection(
             msg = await _run_in_thread(partial(unpack_message, raw_data), limiter=_DECODE_LIMITER)
 
             if msg.type == MessageType.HELLO:
+                obs_params = model_server.get_observation_params()
                 reply_payload = make_hello_payload(
                     model_server=type(model_server).__name__,
                     capabilities={},
+                    **({"observation_params": obs_params} if obs_params else {}),
                 )
                 reply = Message(type=MessageType.HELLO, payload=reply_payload, seq=msg.seq)
                 await ws.send(pack_message(reply))
