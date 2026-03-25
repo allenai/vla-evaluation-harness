@@ -49,6 +49,7 @@ class GR00TModelServer(PredictModelServer):
         embodiment_tag: str = "GR1",
         video_key: str | None = None,
         action_keys: list[str] | None = None,
+        invert_gripper: bool = False,
         *,
         chunk_size: int = 16,
         action_ensemble: str = "newest",
@@ -59,6 +60,7 @@ class GR00TModelServer(PredictModelServer):
         self.embodiment_tag = embodiment_tag
         self.video_key = video_key  # None = auto-detect from modality config
         self.action_keys = action_keys
+        self.invert_gripper = invert_gripper
         self._policy = None
         self._modality_config: dict[str, Any] | None = None
         self._state_dims: dict[str, int] = {}
@@ -205,6 +207,11 @@ class GR00TModelServer(PredictModelServer):
         for i in range(B):
             parts = [action_dict[k][i] for k in keys if k in action_dict]
             actions = np.concatenate(parts, axis=-1) if parts else np.zeros((1, 7), dtype=np.float32)
+            if self.invert_gripper:
+                # Model outputs gripper in [0,1] (0=close, 1=open).
+                # LIBERO expects [-1,1] (-1=open, +1=close).
+                # Transform: normalize [0,1]→[-1,1] then invert sign.
+                actions[..., -1] = 1.0 - 2.0 * actions[..., -1]
             outputs.append({"actions": actions})
         return outputs
 
@@ -219,6 +226,9 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", default="nvidia/GR00T-N1.6-3B", help="HF model ID or local path")
     parser.add_argument("--embodiment_tag", default="GR1", help="Embodiment tag (e.g. GR1, ROBOCASA_PANDA_OMRON)")
     parser.add_argument("--video_key", default=None, help="Video modality key (auto-detected if omitted)")
+    parser.add_argument(
+        "--invert_gripper", action="store_true", help="Invert gripper: [0,1] (0=close) -> [-1,1] (-1=open)"
+    )
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--chunk_size", type=int, default=16)
@@ -247,6 +257,7 @@ if __name__ == "__main__":
         model_path=args.model_path,
         embodiment_tag=args.embodiment_tag,
         video_key=args.video_key,
+        invert_gripper=args.invert_gripper,
         chunk_size=args.chunk_size,
         action_ensemble=args.action_ensemble,
         continuous_inference=args.ci,

@@ -1,8 +1,12 @@
+# GR00T N1.6 LIBERO reproduction config
+# Community checkpoint by 0xAnkitSingh (per-suite finetuned, 20K steps)
+# Reference: 97.0% average (spatial 97.65%, goal 97.5%, object 98.45%, 10 94.35%)
+# NOTE: requires use_sim_policy_wrapper=true in model server config
 server:
-  url: "ws://DGX-H100-12:8001"
+  url: "ws://HOST:PORT"
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
-output_dir: "./results/xvla-libero"
+output_dir: "./results/groot-libero"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
     subname: libero_spatial
@@ -12,7 +16,6 @@ benchmarks:
       suite: libero_spatial
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
       send_state: true
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
@@ -23,7 +26,6 @@ benchmarks:
       suite: libero_object
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
       send_state: true
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
@@ -34,7 +36,6 @@ benchmarks:
       suite: libero_goal
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
       send_state: true
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
@@ -45,6 +46,5 @@ benchmarks:
       suite: libero_10
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
       send_state: true

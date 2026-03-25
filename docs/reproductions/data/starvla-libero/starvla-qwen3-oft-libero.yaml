@@ -1,8 +1,13 @@
+# StarVLA Qwen3-VL-OFT LIBERO reproduction config
+# Checkpoint: StarVLA/Qwen3-VL-OFT-LIBERO-4in1
+# Single policy trained on all 4 suites jointly (30K steps)
+# Reference: 96.6% avg (spatial 97.8%, object 98.6%, goal 96.2%, 10 93.8%)
+# CRITICAL: send_wrist_image must be true — model expects [primary, wrist] image pair
 server:
-  url: "ws://DGX-H100-12:8001"
+  url: "ws://HOST:PORT"
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
-output_dir: "./results/xvla-libero"
+output_dir: "./results/starvla-qwen3-oft-libero"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
     subname: libero_spatial
@@ -12,9 +17,8 @@ benchmarks:
       suite: libero_spatial
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
-      send_state: true
+      send_state: false
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
     subname: libero_object
     mode: sync
@@ -23,9 +27,8 @@ benchmarks:
       suite: libero_object
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
-      send_state: true
+      send_state: false
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
     subname: libero_goal
     mode: sync
@@ -34,9 +37,8 @@ benchmarks:
       suite: libero_goal
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
-      send_state: true
+      send_state: false
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
     subname: libero_10
     mode: sync
@@ -45,6 +47,5 @@ benchmarks:
       suite: libero_10
       seed: 7
       num_steps_wait: 10
-      absolute_action: true
       send_wrist_image: true
-      send_state: true
+      send_state: false

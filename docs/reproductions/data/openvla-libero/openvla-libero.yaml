@@ -1,0 +1,59 @@
+# OpenVLA base (per-suite LoRA) — all 4 LIBERO suites
+# Reported: 76.5% avg (Table 9, arxiv 2406.09246)
+# NOTE: Requires 4 separate model servers, one per suite, each with the
+# matching checkpoint and unnorm_key. See configs/model_servers/openvla/.
+#
+# Model server configs:
+#   libero_spatial: openvla/openvla-7b-finetuned-libero-spatial (port 8000)
+#   libero_object:  openvla/openvla-7b-finetuned-libero-object  (port 8001)
+#   libero_goal:    openvla/openvla-7b-finetuned-libero-goal    (port 8002)
+#   libero_10:      openvla/openvla-7b-finetuned-libero-10      (port 8003)
+#
+# OpenVLA uses 3rd-person image only — no wrist camera, no proprioception.
+# Delta actions (not absolute). chunk_size=1 (no action chunking).
+server:
+  url: "ws://localhost:8000"
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
+output_dir: "./results/openvla-libero"
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    subname: libero_spatial
+    mode: sync
+    episodes_per_task: 50
+    params:
+      suite: libero_spatial
+      seed: 7
+      num_steps_wait: 10
+      send_wrist_image: false
+      send_state: false
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    subname: libero_object
+    mode: sync
+    episodes_per_task: 50
+    params:
+      suite: libero_object
+      seed: 7
+      num_steps_wait: 10
+      send_wrist_image: false
+      send_state: false
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    subname: libero_goal
+    mode: sync
+    episodes_per_task: 50
+    params:
+      suite: libero_goal
+      seed: 7
+      num_steps_wait: 10
+      send_wrist_image: false
+      send_state: false
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    subname: libero_10
+    mode: sync
+    episodes_per_task: 50
+    params:
+      suite: libero_10
+      seed: 7
+      num_steps_wait: 10
+      send_wrist_image: false
+      send_state: false

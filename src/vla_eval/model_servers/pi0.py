@@ -43,7 +43,7 @@ class Pi0ModelServer(PredictModelServer):
 
     def __init__(
         self,
-        config_name: str = "pi0_fast_libero",
+        config_name: str = "pi05_libero",
         checkpoint: str | None = None,
         image_key: str = "observation/image",
         wrist_image_key: str | None = "observation/wrist_image",
@@ -125,7 +125,7 @@ class Pi0ModelServer(PredictModelServer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="π₀/π₀-FAST model server (direct loading)")
-    parser.add_argument("--config_name", default="pi0_fast_libero", help="OpenPI config name")
+    parser.add_argument("--config_name", default="pi05_libero", help="OpenPI config name")
     parser.add_argument("--checkpoint", default=None, help="Checkpoint path (GCS/local). Auto-resolved if omitted.")
     parser.add_argument("--image_key", default="observation/image", help="OpenPI observation key for the image")
     parser.add_argument(

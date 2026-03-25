@@ -1,6 +1,8 @@
 # OpenVLA-OFT — LIBERO joint (all 4 suites, single model)
+# NOTE: unnorm_key must match the suite being evaluated. The joint checkpoint
+# contains stats for all 4 suites. Launch separate server instances with
+# different unnorm_keys for each suite, or use the per-suite configs below.
 extends: _base.yaml
 args:
   pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10
   unnorm_key: libero_spatial_no_noops
-  num_images_in_input: 2
