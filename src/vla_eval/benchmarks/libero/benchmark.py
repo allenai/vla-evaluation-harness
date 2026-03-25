@@ -86,6 +86,7 @@ class LIBEROBenchmark(StepBenchmark):
         send_wrist_image: bool = False,
         send_state: bool = False,
         absolute_action: bool = False,
+        flip_image: bool = True,
         flip_wrist_image: bool = True,
         max_steps: int | None = None,
         state_format: str = "default",
@@ -98,6 +99,7 @@ class LIBEROBenchmark(StepBenchmark):
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
         self.absolute_action = absolute_action
+        self.flip_image = flip_image
         self.flip_wrist_image = flip_wrist_image
         self._max_steps = max_steps
         self.state_format = state_format
@@ -218,7 +220,12 @@ class LIBEROBenchmark(StepBenchmark):
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-        img = preprocess_libero_image(raw_obs["agentview_image"], self.image_resolution)
+        if self.flip_image:
+            img = preprocess_libero_image(raw_obs["agentview_image"], self.image_resolution)
+        else:
+            img = convert_to_uint8(
+                resize_with_pad(raw_obs["agentview_image"], self.image_resolution, self.image_resolution)
+            )
 
         text = task["name"]
 

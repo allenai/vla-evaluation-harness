@@ -179,9 +179,24 @@ class GR00TModelServer(PredictModelServer):
             "language": {self._language_key: langs},
         }
 
-        for state_key in self._modality_config["state"].modality_keys:
-            dim = self._state_dims.get(state_key, 1)
-            observation["state"][state_key] = np.zeros((B, 1, dim), dtype=np.float32)
+        # Initialize state arrays, then fill from observation if available
+        state_keys = self._modality_config["state"].modality_keys
+        for sk in state_keys:
+            dim = self._state_dims.get(sk, 1)
+            observation["state"][sk] = np.zeros((B, 1, dim), dtype=np.float32)
+
+        # Decompose flat state vector into per-key arrays
+        for obs_idx, obs in enumerate(obs_batch):
+            raw_state = obs.get("states", obs.get("state"))
+            if raw_state is None:
+                continue
+            state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
+            offset = 0
+            for sk in state_keys:
+                dim = self._state_dims.get(sk, 1)
+                if offset + dim <= len(state_arr):
+                    observation["state"][sk][obs_idx, 0, :] = state_arr[offset : offset + dim]
+                offset += dim
 
         action_dict, _ = self._policy.get_action(observation)
 
