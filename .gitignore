@@ -39,5 +39,4 @@ coverage.xml
 # hatch-vcs generated
 src/vla_eval/_version.py
 
-configs/eval_runs/
 .claude/scheduled_tasks.lock

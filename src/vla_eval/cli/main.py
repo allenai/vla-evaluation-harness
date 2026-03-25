@@ -247,6 +247,11 @@ def cmd_run(args: argparse.Namespace) -> None:
     """Run evaluation."""
     config = _load_config(args.config)
 
+    # CLI override for server URL
+    server_url = getattr(args, "server_url", None)
+    if server_url is not None:
+        config.setdefault("server", {})["url"] = server_url
+
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
 
@@ -699,6 +704,11 @@ execution flow:
 """,
     )
     run_parser.add_argument("--config", "-c", required=True, help="Path to YAML config file")
+    run_parser.add_argument(
+        "--server-url",
+        default=None,
+        help="Override server URL (e.g. ws://my-host:8000). Avoids per-host config files.",
+    )
     run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"
     )

@@ -1,0 +1,17 @@
+# π₀-FAST model server — LIBERO (direct OpenPI inference)
+#
+# Usage: vla-eval serve --config configs/model_servers/pi0/libero_fast.yaml
+#
+# Pi0-FAST uses FAST tokenizer — a different, lower-performing variant than Pi0.5.
+# For Pi0.5 (96.85% on LIBERO), use libero.yaml instead.
+
+script: "src/vla_eval/model_servers/pi0.py"
+args:
+  config_name: pi0_fast_libero
+  image_key: "observation/image"
+  wrist_image_key: "observation/wrist_image"
+  state_key: "observation/state"
+  state_dim: 8
+  image_resolution: 224
+  chunk_size: 10
+  port: 8000
