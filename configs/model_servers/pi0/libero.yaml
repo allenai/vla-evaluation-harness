@@ -13,5 +13,6 @@ args:
   wrist_image_key: "observation/wrist_image"
   state_key: "observation/state"
   state_dim: 8
+  image_resolution: 224
   chunk_size: 10
   port: 8000

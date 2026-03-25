@@ -93,6 +93,7 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         image_keys=("rgb_static", "rgb_gripper"),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
+        output_action_dim=7,
     ),
     "simpler": _XVLABenchmarkProfile(
         image_keys=("primary",),

@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -505,16 +506,21 @@ class CALVINBenchmark(StepBenchmark):
         return StepResult(obs=obs, reward=0.0, done=False, info={})
 
     def _process_absolute_action(self, action: Action) -> np.ndarray:
-        """Process 7D absolute action [pos3, euler3, gripper]."""
+        """Process 7D absolute action [pos3, axisangle3, gripper] → [pos3, euler3, gripper].
+
+        Model servers return axis-angle rotation; CALVIN env expects euler XYZ.
+        """
         raw_action = action.get("actions", action.get("action"))
         if isinstance(raw_action, (list, np.ndarray)):
-            act = np.asarray(raw_action, dtype=np.float64).flatten()[:7]
+            raw = np.asarray(raw_action, dtype=np.float64).flatten()[:7]
         else:
-            act = np.zeros(7, dtype=np.float64)
+            raw = np.zeros(7, dtype=np.float64)
 
-        # Binarize gripper: > 0 → -1 (open), <= 0 → 1 (close)
-        act[6] = -1.0 if act[6] > 0 else 1.0
-        return act
+        pos = raw[:3]
+        euler = matrix_to_euler_xyz(axisangle_to_matrix(raw[3:6].astype(np.float32)))
+        gripper = -1.0 if raw[6] > 0 else 1.0
+
+        return np.concatenate([pos, euler, [gripper]])
 
     def _process_delta_action(self, action: Action) -> np.ndarray:
         """Process 7D delta action (original CogACT mode)."""
