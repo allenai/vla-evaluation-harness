@@ -15,7 +15,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../../.." }
+# vla-eval = { path = "../../../..", editable = true }
 # dexbotic = { git = "https://github.com/MilkClouds/dexbotic.git", rev = "42f72859dfe48bb4c30a09ab151a018c2ca0700a" }
 #
 # [tool.uv]

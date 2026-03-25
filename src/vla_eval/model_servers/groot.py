@@ -9,7 +9,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 # gr00t = { git = "https://github.com/NVIDIA/Isaac-GR00T.git", rev = "e29d8fc50b0e4745120ae3fb72447986fe638aa6" }
 #
 # [tool.uv]

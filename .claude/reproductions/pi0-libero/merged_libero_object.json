@@ -1,0 +1,3638 @@
+{
+  "benchmark": "LIBEROBenchmark_libero_object",
+  "mode": "sync",
+  "harness_version": "0.0.4.dev8+g3e4c63d37.d20260324",
+  "tasks": [
+    {
+      "task": "pick up the alphabet soup and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 17.913944326341152,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 18.03774892166257,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 19.762925386428833,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 15.87117906473577,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 19.78225826099515,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 197,
+          "elapsed_sec": 22.219113785773516,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 19.351005414500833,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 15.995029751211405,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 19.80905630812049,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.79255760833621,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 17.012895245105028,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 14.290596775710583,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 17.80179407261312,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 15.114616869017482,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 17.88235860876739,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.072884248569608,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 17.146437607705593,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 155,
+          "elapsed_sec": 16.2791546266526,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 20.185210794210434,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 14.91083424165845,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 17.790635034441948,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 180,
+          "elapsed_sec": 20.039815858006477,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 18.595127150416374,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 16.870675452053547,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 18.68744406476617,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 199,
+          "elapsed_sec": 23.101846793666482,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 17.671866646036506,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 18.09158015064895,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 18.116797206923366,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 17.110875433310866,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 17.19483331590891,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 17.202627355232835,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 18.167346064001322,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 18.489734334871173,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 18.96451821178198,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 16.74471176788211,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 198,
+          "elapsed_sec": 24.87058485671878,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 15.3996915332973,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 19.14146389067173,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 16.53913771919906,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 15.780109183862805,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 14.730187291279435,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 19.545836122706532,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 15.696983462199569,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 18.8661922365427,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 16.758836839348078,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 20.419613134115934,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 17.950675535947084,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 212,
+          "elapsed_sec": 26.703674100339413,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 14.003808066248894,
+          "task": "pick up the alphabet soup and place it in the basket",
+          "episode_id": "pick up the alphabet soup and place it in the basket_ep39"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 144.28
+    },
+    {
+      "task": "pick up the bbq sauce and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 15.642792822793126,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 14.374385174363852,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 17.069626664742827,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 14.15074966289103,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 16.45030591264367,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 13.607117155566812,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep41"
+        },
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 30.346397457644343,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.371257292106748,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 17.280310701578856,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.919953295961022,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 15.98902645893395,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 13.095908802002668,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 14.589330736547709,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 12.874051520600915,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 154,
+          "elapsed_sec": 18.180690832436085,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 165,
+          "elapsed_sec": 18.17933041229844,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.91866634041071,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 170,
+          "elapsed_sec": 18.463398560881615,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.795234037563205,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 12.992526888847351,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.758627658709884,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 12.780014120042324,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 17.068568278104067,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.558989511802793,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 15.59434257261455,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 14.448954017832875,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 225,
+          "elapsed_sec": 25.724969564005733,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 169,
+          "elapsed_sec": 19.470817636698484,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 16.61619808897376,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.289375776425004,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 16.744399109855294,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.5261394046247,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.902838537469506,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 17.9192470703274,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.716996721923351,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.514934606850147,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 173,
+          "elapsed_sec": 22.135918064042926,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.487143080681562,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 16.2369074691087,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 168,
+          "elapsed_sec": 19.108906598761678,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 16.381149800494313,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 169,
+          "elapsed_sec": 18.76878741942346,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 17.01773639395833,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 14.12191434763372,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.735945822671056,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep7"
+        },
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 31.336529752239585,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.739268835633993,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 14.831856308504939,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 168,
+          "elapsed_sec": 20.52846636623144,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 14.50471767038107,
+          "task": "pick up the bbq sauce and place it in the basket",
+          "episode_id": "pick up the bbq sauce and place it in the basket_ep39"
+        }
+      ],
+      "success_rate": 0.96,
+      "avg_steps": 139.22
+    },
+    {
+      "task": "pick up the butter and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 199,
+          "elapsed_sec": 23.574498929083347,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 153,
+          "elapsed_sec": 16.77630902826786,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 18.171199100092053,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 17.158972203731537,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep40"
+        },
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 29.57563117146492,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 15.912770058959723,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 17.24309678375721,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 17.23996484093368,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 17.263656858354807,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.567021299153566,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 162,
+          "elapsed_sec": 18.825614977627993,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 162,
+          "elapsed_sec": 17.021971829235554,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 16.954950911924243,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 14.292440459132195,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 155,
+          "elapsed_sec": 18.39905121177435,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 16.997768830507994,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 17.67516328766942,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 15.384449407458305,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.44545190408826,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 15.906892966479063,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 17.38894265703857,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 15.75942800194025,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 18.325350495055318,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 16.785448413342237,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.64605126902461,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 185,
+          "elapsed_sec": 20.725730895996094,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 17.397756757214665,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 17.814869716763496,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 16.93714389577508,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 16.63450480438769,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 18.0051448084414,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 17.066779447719455,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 17.434348998591304,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 154,
+          "elapsed_sec": 17.742751259356737,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 18.66111602447927,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 155,
+          "elapsed_sec": 18.739409878849983,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 18.2471139524132,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 16.827481588348746,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 18.15133094973862,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 17.69447977654636,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 19.852900518104434,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 15.387245569378138,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 19.42770096473396,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 16.814598064869642,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 17.3551520165056,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 16.832874961197376,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 18.207455433905125,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 155,
+          "elapsed_sec": 17.10372149385512,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 154,
+          "elapsed_sec": 20.143544947728515,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 15.887529835104942,
+          "task": "pick up the butter and place it in the basket",
+          "episode_id": "pick up the butter and place it in the basket_ep39"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 151.84
+    },
+    {
+      "task": "pick up the chocolate pudding and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 17.14440617337823,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 17.70850300975144,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 153,
+          "elapsed_sec": 17.159345356747508,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 17.398536082357168,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 16.048632334917784,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 19.009406611323357,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 16.856602359563112,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 18.095778869464993,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 160,
+          "elapsed_sec": 16.95451415516436,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.42353404685855,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 15.583613334223628,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 17.371807539835572,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 15.413271192461252,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.02108101733029,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 16.50299108028412,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 17.757022131234407,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 154,
+          "elapsed_sec": 16.324424659833312,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 157,
+          "elapsed_sec": 18.04650198481977,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 17.222755055874586,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 17.06495545618236,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 16.359682388603687,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 17.914841428399086,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 17.175951728597283,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 16.25716867670417,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.954287264496088,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 15.448463898152113,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 162,
+          "elapsed_sec": 18.950440423563123,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 16.249832663685083,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 161,
+          "elapsed_sec": 19.454104932025075,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 159,
+          "elapsed_sec": 17.315880266949534,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 17.481683269143105,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 16.860984904691577,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 18.086352156475186,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 15.107814928516746,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 16.918636675924063,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 16.251049865037203,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 16.530961761251092,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 15.672083023935556,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.015029726549983,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 15.083978423848748,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 17.591194476932287,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 15.778495144098997,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 17.731532469391823,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 18.548537373542786,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 151,
+          "elapsed_sec": 17.528556771576405,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 17.737521924078465,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 17.217536887153983,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 17.98369431309402,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 159,
+          "elapsed_sec": 19.268147513270378,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 17.57016059011221,
+          "task": "pick up the chocolate pudding and place it in the basket",
+          "episode_id": "pick up the chocolate pudding and place it in the basket_ep29"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 148.52
+    },
+    {
+      "task": "pick up the cream cheese and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 15.871876925230026,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.064478198066354,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 16.395427960902452,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep20"
+        },
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 31.949005840346217,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 16.75163436308503,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 16.3630520273,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.57486205175519,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 160,
+          "elapsed_sec": 18.54755475372076,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 15.015912195667624,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 15.186316354200244,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 14.500251004472375,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 15.996522841975093,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 15.631730377674103,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.24245004169643,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 18.077370209619403,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 15.596545591950417,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 14.34030999802053,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 14.59624900110066,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 14.810595065355301,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 14.14997297897935,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.257827140390873,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 12.98514163121581,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.38355378434062,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 13.883952435106039,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.031216140836477,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 14.548341328278184,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 14.716915927827358,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 13.986419826745987,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 14.838328504934907,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 13.500594098120928,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 15.975092086941004,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 13.808314330875874,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 15.104907726868987,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 16.17893834784627,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 16.944098237901926,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 13.205217394977808,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.863964885473251,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 13.912007389590144,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.813385583460331,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.462258504703641,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 16.453815696761012,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 14.63692875020206,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 16.51077601313591,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 14.357067350298166,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 16.62234033830464,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 14.840957118198276,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 150,
+          "elapsed_sec": 19.447059277445078,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 14.47067354992032,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 15.938437832519412,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 13.003582954406738,
+          "task": "pick up the cream cheese and place it in the basket",
+          "episode_id": "pick up the cream cheese and place it in the basket_ep49"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 130.12
+    },
+    {
+      "task": "pick up the ketchup and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 17.61177944764495,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 15.072070732712746,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 17.217403696849942,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 176,
+          "elapsed_sec": 21.5538449883461,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 17.42670852318406,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 15.436896227300167,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 17.50140554457903,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 15.865991730242968,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 16.735586224123836,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 16.40172299556434,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 16.5008334685117,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.623266723006964,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 17.739834923297167,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 16.543519359081984,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 16.90072486549616,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 16.77355806529522,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 17.00128353200853,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 17.848752554506063,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 17.72303283959627,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 14.986736126244068,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 17.77390888147056,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 15.7081304974854,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 16.779755571857095,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 16.311105890199542,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 16.837130159139633,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 15.161144204437733,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 16.879640581086278,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 14.600967429578304,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 147,
+          "elapsed_sec": 17.65566000342369,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 16.2498586345464,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 16.724685026332736,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 16.094051472842693,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 16.585961166769266,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 143,
+          "elapsed_sec": 15.605658758431673,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 187,
+          "elapsed_sec": 22.078788286074996,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 15.281435463577509,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 17.159224402159452,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 139,
+          "elapsed_sec": 15.729001617059112,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 17.32832338102162,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 15.939593574032187,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 17.72337380424142,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 15.649264631792903,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 18.07264649309218,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 16.400891095399857,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 16.314922051504254,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 18.163481460884213,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 18.2381709292531,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 15.42193635739386,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 148,
+          "elapsed_sec": 17.517929872497916,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 146,
+          "elapsed_sec": 16.41045436821878,
+          "task": "pick up the ketchup and place it in the basket",
+          "episode_id": "pick up the ketchup and place it in the basket_ep49"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 142.04
+    },
+    {
+      "task": "pick up the milk and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.617331355810165,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 14.559904139488935,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 16.492874642834067,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.406496055424213,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.759216891601682,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.135092740878463,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 16.681434197351336,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.874588189646602,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.75208392739296,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.519716307520866,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.357734171673656,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 15.780241057276726,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.143475107848644,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 14.39223686978221,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 15.649349810555577,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.048165693879128,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.729801259934902,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 14.189742656424642,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 15.915289968252182,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 13.01826205663383,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.607596373185515,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.422567527741194,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 16.95689034461975,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 13.525653937831521,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 15.436256267130375,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.379929326474667,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 165,
+          "elapsed_sec": 19.325862549245358,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 13.582893865182996,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.413618601858616,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 13.477488761767745,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 15.772688450291753,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 15.059692723676562,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 16.198528366163373,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 14.185303039848804,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.618614796549082,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 16.47307226806879,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 16.056417493149638,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 13.557650584727526,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.482629504054785,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 15.622162224724889,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 16.393200559541583,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 14.91486176289618,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 16.14125888608396,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 15.241235639899969,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 16.173720268532634,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.085535172373056,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 137,
+          "elapsed_sec": 16.763225616887212,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 15.569496035575867,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.923589034006,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 14.710801536217332,
+          "task": "pick up the milk and place it in the basket",
+          "episode_id": "pick up the milk and place it in the basket_ep49"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 128.46
+    },
+    {
+      "task": "pick up the orange juice and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 153,
+          "elapsed_sec": 18.024560440331697,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 14.819869617000222,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 111,
+          "elapsed_sec": 14.80510200560093,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 14.303363559767604,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.121135389432311,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 13.97173829562962,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 16.557387905195355,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.331712378188968,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.97345176525414,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.727334072813392,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.558086270466447,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 13.36452366039157,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 14.44249127432704,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 246,
+          "elapsed_sec": 25.446657814085484,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 15.216788159683347,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 14.420270325616002,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.936397925019264,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 180,
+          "elapsed_sec": 18.722253808751702,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 15.137325843796134,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.239695390686393,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 15.59761511720717,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 14.132734023034573,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 14.56159114278853,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 13.676693357527256,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 14.775581313297153,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 14.290480321273208,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 208,
+          "elapsed_sec": 23.630050260573626,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.16604109853506,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.715998400002718,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 14.8975570499897,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 162,
+          "elapsed_sec": 18.83295915275812,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 16.48571308515966,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.662792412564158,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.564632896333933,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep29"
+        },
+        {
+          "success": true,
+          "steps": 104,
+          "elapsed_sec": 13.01478498056531,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 13.551907354965806,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 14.782050417736173,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 153,
+          "elapsed_sec": 16.308449948206544,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 132,
+          "elapsed_sec": 15.519060095772147,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 207,
+          "elapsed_sec": 23.445562195032835,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 108,
+          "elapsed_sec": 13.759097212925553,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 13.04707646369934,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 212,
+          "elapsed_sec": 24.26430243626237,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 12.8097069170326,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep36"
+        },
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 30.190977357327938,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.556450195610523,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.364354828372598,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 12.80132002197206,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 133,
+          "elapsed_sec": 16.916993679478765,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 13.14334431476891,
+          "task": "pick up the orange juice and place it in the basket",
+          "episode_id": "pick up the orange juice and place it in the basket_ep39"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 135.58
+    },
+    {
+      "task": "pick up the salad dressing and place it in the basket",
+      "episodes": [
+        {
+          "success": false,
+          "steps": 280,
+          "elapsed_sec": 30.717482708394527,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 142,
+          "elapsed_sec": 17.11061566323042,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 14.19183474779129,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 15.703954042866826,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 14.402463138103485,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 107,
+          "elapsed_sec": 15.139486303552985,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 152,
+          "elapsed_sec": 16.825409887358546,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 158,
+          "elapsed_sec": 19.25598152540624,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 121,
+          "elapsed_sec": 13.777637159451842,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 17.095321413129568,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 13.407391285523772,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 14.31381087563932,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 13.697491167113185,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 100,
+          "elapsed_sec": 13.845837749540806,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 12.817283179610968,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 113,
+          "elapsed_sec": 14.360880671069026,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 12.876631500199437,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 16.969741124659777,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 12.96333428286016,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.841488435864449,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 13.868957731872797,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 16.486282674595714,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 14.941855441778898,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 14.793939461931586,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 15.516733575612307,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 14.470695184543729,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 111,
+          "elapsed_sec": 13.74099519662559,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 13.398813351988792,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.285876328125596,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 14.575033821165562,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 15.359574375674129,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 12.915197828784585,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 15.211314937099814,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.995295003056526,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.40484213270247,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 13.226619027554989,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 165,
+          "elapsed_sec": 18.994886541739106,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 14.568289827555418,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.338571457192302,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 144,
+          "elapsed_sec": 15.730174841359258,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 15.83426770940423,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 13.481887279078364,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 16.439634824171662,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 15.938596185296774,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 15.712116176262498,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.374854631721973,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 15.997412834316492,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 15.228870129212737,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 16.07484684512019,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 15.596055533736944,
+          "task": "pick up the salad dressing and place it in the basket",
+          "episode_id": "pick up the salad dressing and place it in the basket_ep29"
+        }
+      ],
+      "success_rate": 0.98,
+      "avg_steps": 126.14
+    },
+    {
+      "task": "pick up the tomato sauce and place it in the basket",
+      "episodes": [
+        {
+          "success": true,
+          "steps": 156,
+          "elapsed_sec": 19.40141039341688,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep20"
+        },
+        {
+          "success": true,
+          "steps": 135,
+          "elapsed_sec": 17.356163090094924,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep0"
+        },
+        {
+          "success": true,
+          "steps": 140,
+          "elapsed_sec": 15.000477068126202,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep30"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 16.203138768672943,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep1"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.973868006840348,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep31"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.261722857132554,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep2"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 13.233602015301585,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep32"
+        },
+        {
+          "success": true,
+          "steps": 145,
+          "elapsed_sec": 18.223798049613833,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep3"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 14.303773852065206,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep33"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 14.456823524087667,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep4"
+        },
+        {
+          "success": true,
+          "steps": 141,
+          "elapsed_sec": 15.678851192817092,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep34"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.337075851857662,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep5"
+        },
+        {
+          "success": true,
+          "steps": 111,
+          "elapsed_sec": 12.455971963703632,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep35"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.509235737845302,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep6"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 12.487306345254183,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep36"
+        },
+        {
+          "success": true,
+          "steps": 123,
+          "elapsed_sec": 15.454917460680008,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep7"
+        },
+        {
+          "success": true,
+          "steps": 172,
+          "elapsed_sec": 19.1221824567765,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep37"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 15.427099836990237,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep8"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 13.117588421329856,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep38"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 15.038476353511214,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep9"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 14.859140219166875,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep39"
+        },
+        {
+          "success": true,
+          "steps": 134,
+          "elapsed_sec": 17.27477141469717,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep21"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 15.313828930258751,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep10"
+        },
+        {
+          "success": true,
+          "steps": 131,
+          "elapsed_sec": 14.403295438736677,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep40"
+        },
+        {
+          "success": true,
+          "steps": 114,
+          "elapsed_sec": 14.35095665231347,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep11"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 14.811167212203145,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep41"
+        },
+        {
+          "success": true,
+          "steps": 127,
+          "elapsed_sec": 15.220384260639548,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep12"
+        },
+        {
+          "success": true,
+          "steps": 124,
+          "elapsed_sec": 13.38677634485066,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep42"
+        },
+        {
+          "success": true,
+          "steps": 138,
+          "elapsed_sec": 17.02452763170004,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep13"
+        },
+        {
+          "success": true,
+          "steps": 136,
+          "elapsed_sec": 14.383615404367447,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep43"
+        },
+        {
+          "success": true,
+          "steps": 180,
+          "elapsed_sec": 21.285379076376557,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep14"
+        },
+        {
+          "success": true,
+          "steps": 115,
+          "elapsed_sec": 13.901412565261126,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep44"
+        },
+        {
+          "success": true,
+          "steps": 117,
+          "elapsed_sec": 15.185569550842047,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep15"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 12.876423822715878,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep45"
+        },
+        {
+          "success": true,
+          "steps": 175,
+          "elapsed_sec": 20.15666855312884,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep16"
+        },
+        {
+          "success": true,
+          "steps": 118,
+          "elapsed_sec": 13.15513451769948,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep46"
+        },
+        {
+          "success": true,
+          "steps": 149,
+          "elapsed_sec": 17.980987019836903,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep17"
+        },
+        {
+          "success": true,
+          "steps": 125,
+          "elapsed_sec": 13.713056940585375,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep47"
+        },
+        {
+          "success": true,
+          "steps": 116,
+          "elapsed_sec": 14.194526884704828,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep18"
+        },
+        {
+          "success": true,
+          "steps": 119,
+          "elapsed_sec": 13.287458524107933,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep48"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 15.681040668860078,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep19"
+        },
+        {
+          "success": true,
+          "steps": 130,
+          "elapsed_sec": 13.912817992269993,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep49"
+        },
+        {
+          "success": true,
+          "steps": 120,
+          "elapsed_sec": 14.86512592062354,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep22"
+        },
+        {
+          "success": true,
+          "steps": 205,
+          "elapsed_sec": 24.20596873573959,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep23"
+        },
+        {
+          "success": true,
+          "steps": 129,
+          "elapsed_sec": 16.894657956436276,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep24"
+        },
+        {
+          "success": true,
+          "steps": 189,
+          "elapsed_sec": 21.267841128632426,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep25"
+        },
+        {
+          "success": true,
+          "steps": 122,
+          "elapsed_sec": 14.914318259805441,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep26"
+        },
+        {
+          "success": true,
+          "steps": 126,
+          "elapsed_sec": 16.16121033206582,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep27"
+        },
+        {
+          "success": true,
+          "steps": 179,
+          "elapsed_sec": 21.74656648375094,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep28"
+        },
+        {
+          "success": true,
+          "steps": 128,
+          "elapsed_sec": 16.300877027213573,
+          "task": "pick up the tomato sauce and place it in the basket",
+          "episode_id": "pick up the tomato sauce and place it in the basket_ep29"
+        }
+      ],
+      "success_rate": 1.0,
+      "avg_steps": 132.52
+    }
+  ],
+  "overall_success_rate": 0.988,
+  "config": {
+    "benchmark": "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark",
+    "mode": "sync",
+    "name": null,
+    "subname": "libero_object",
+    "episodes_per_task": 50,
+    "max_steps": null,
+    "max_tasks": null,
+    "tasks": null,
+    "params": {
+      "image_resolution": 224,
+      "num_steps_wait": 10,
+      "seed": 7,
+      "send_state": true,
+      "send_wrist_image": true,
+      "suite": "libero_object"
+    },
+    "hz": 10.0,
+    "hold_policy": "repeat_last",
+    "throughput_mode": false,
+    "paced": true,
+    "wait_first_action": false
+  },
+  "merge_info": {
+    "num_shards": 30,
+    "shards_found": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "shards_missing": [],
+    "total_episodes": 500
+  }
+}

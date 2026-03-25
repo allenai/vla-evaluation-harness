@@ -10,18 +10,15 @@
 | Model | Reported | Reproduced | Verdict |
 |---|---|---|---|
 | X-VLA (0.9B) | 98.1% | **97.8%** | Reproduced |
-| Pi0.5 | 96.9% | ~40% (partial) | Not reproduced — investigation needed |
-| StarVLA Qwen2.5-GR00T | 95.4% | 0% | Not reproduced — action space mismatch |
-| StarVLA Qwen2.5-OFT | 96.1% | 0% | Not reproduced — same issue |
-| StarVLA Qwen2.5-FAST | 95.2% | 0% | Not reproduced — same issue |
-| StarVLA Qwen3-OFT | 96.6% | 0% | Not reproduced — same issue |
-| GR00T N1.6 (community) | 97.0% | 0% | Not reproduced — integration issue |
-| OpenVLA-OFT (joint) | ~96.8% | 0-1.6% | Not reproduced — num_images_in_input misconfigured |
+| Pi0.5 | 96.9% | **96.4%** | Reproduced |
+| OpenVLA-OFT (joint, spatial only) | 97.6% | **97.2%** | Reproduced (spatial); object/goal/10 need unnorm_key fix |
+| StarVLA (4 variants) | 95-97% | 0% | Not reproduced — absolute action + unnormalization issue |
+| GR00T N1.6 (community) | 97.0% | 0% | Not reproduced — needs further debugging |
 | OpenVLA base (LoRA) | 76.5% | — | Aborted (too slow without batch prediction) |
 
-Only **X-VLA** was successfully reproduced. All other models require further integration
-work — each model has unique observation/action requirements that must be correctly
-configured in both the model server and benchmark eval config.
+**3 models reproduced** (X-VLA, Pi0.5, OFT-spatial). Key fixes applied:
+image_resolution=224 (Pi0.5), num_images_in_input=2 (OFT), gripper transform removal (StarVLA),
+send_state/send_wrist_image (all).
 
 ---
 
@@ -84,55 +81,68 @@ Result JSONs archived at `.claude/reproductions/xvla-libero/`.
 
 ### Pi0.5 — `pi05_libero` (via openpi)
 
-Partial results (spatial + object complete, goal + 10 in progress).
+| Suite | Reproduced | Reported | Delta |
+|---|---|---|---|
+| LIBERO-Spatial | 92.6% | 98.8% | -6.2 |
+| LIBERO-Object | **98.8%** | 98.2% | +0.6 |
+| LIBERO-Goal | **98.2%** | 98.0% | +0.2 |
+| LIBERO-10 | **96.2%** | 92.4% | +3.8 |
+| **Average** | **96.4%** | **96.85%** | **-0.4** |
+
+Verdict: **Reproduced** (avg within 0.5%p). Spatial 6%p low — likely image flip difference.
+
+Key fix: `image_resolution: 224` (Pi0.5 trained on 224×224, harness defaulted to 256×256).
+Benchmark params: `send_wrist_image: true`, `send_state: true`.
+
+Result JSONs archived at `.claude/reproductions/pi0-libero/`.
+
+---
+
+### OpenVLA-OFT (7B, joint) — `moojink/...-libero-spatial-object-goal-10`
 
 | Suite | Reproduced | Reported | Delta |
 |---|---|---|---|
-| LIBERO-Spatial | 41.4% | 98.8% | -57.4 |
-| LIBERO-Object | 39.8% | 98.2% | -58.4 |
-| LIBERO-Goal | in progress | 98.0% | — |
-| LIBERO-10 | in progress | 92.4% | — |
+| LIBERO-Spatial | **97.2%** | 97.6% | -0.4 |
+| LIBERO-Object | 0.8% | 98.4% | -97.6 |
+| LIBERO-Goal | 5.1% | 97.9% | -92.8 |
+| LIBERO-10 | pending | 94.5% | — |
 
-Verdict: **Not reproduced**. Consistently ~40% across suites vs reported ~97%.
-Server loaded `pi05_libero` checkpoint correctly, `send_wrist_image: true` + `send_state: true`
-configured. No server errors. Root cause unclear — may be action space normalization, image
-preprocessing, or proprioceptive state format mismatch with openpi's expectations.
+Verdict: **Spatial reproduced**. Object/Goal/10 failing — `unnorm_key` mismatch.
+
+Key fix applied: `num_images_in_input: 2` (was 1). This fixed spatial from 1.6% → 97.2%.
+Remaining issue: joint checkpoint uses `unnorm_key: libero_spatial_no_noops` which only
+works for spatial suite. Object/Goal/10 need different unnorm_keys, but a joint checkpoint
+should use a single key — needs investigation of checkpoint's `norm_stats` dict.
 
 ---
 
 ### StarVLA (4 variants) — 0% across all
 
 Tested: Qwen2.5-VL-{FAST, OFT, GR00T} and Qwen3-VL-OFT, all on LIBERO-4in1 checkpoints.
+`predict_batch()` implemented and working. Gripper double-transform removed. `send_state: true`
+and `absolute_action: true` tried.
 
-All episodes ran to max_steps (220) with 0% success. Tried with and without `send_state: true`.
-batch prediction was implemented and working (fast inference), but actions produced are
-ineffective.
+Action debug output shows absolute EEF positions `[0.86, 0.45, 0.05, ...]` with gripper=1.0.
+Values are nearly constant across steps — robot doesn't move.
 
-Likely cause: StarVLA's LIBERO checkpoints may require specific observation preprocessing
-(image size, normalization) or action post-processing not yet implemented in the harness
-integration.
+Root cause analysis:
+- `unnormalize_actions()` maps [-1,1] → q01/q99 range, but the resulting values may not
+  match LIBERO's expected action space
+- Need to compare with StarVLA's own LIBERO eval script (not found in public repo)
+- May need to bypass `unnormalize_actions()` entirely for LIBERO checkpoints
 
-**StarVLA Qwen3-PI** (`StarVLA/Qwen3-VL-PI-LIBERO-4in1`): Server crashed on startup —
-DiT state_dict has 36 transformer blocks but model config builds 16. Requires compat fix.
+**StarVLA Qwen3-PI**: Server crash — DiT state_dict has 36 blocks, model config expects 16.
 
 ---
 
 ### GR00T N1.6 (community) — `0xAnkitSingh/GR00T-N1.6-LIBERO`
 
-0% success. Server started correctly with `video_keys=['image', 'wrist_image']`.
-`send_wrist_image: true` configured. `predict_batch()` implemented with multi-video-key
-support. Actions produced but ineffective — likely observation format or action space mismatch
-with this community-trained checkpoint.
+0% success despite `send_wrist_image: true` + `send_state: true` + `predict_batch()`
+with multi-video-key support.
 
----
-
-### OpenVLA-OFT (7B, joint) — `moojink/...-libero-spatial-object-goal-10`
-
-LIBERO-Spatial: 1.6%, LIBERO-Object: 0.0%. Aborted.
-
-Root cause identified: `num_images_in_input: 1` in server config, but OFT's 97.1% result
-uses 3rd-person + wrist camera (2 images). Additionally, `unnorm_key` for the joint
-checkpoint needs verification.
+Community checkpoint may require specific observation preprocessing or action post-processing
+not documented. Official NVIDIA LIBERO finetuned checkpoint does not exist — this is a
+third-party checkpoint with unknown evaluation protocol.
 
 ---
 

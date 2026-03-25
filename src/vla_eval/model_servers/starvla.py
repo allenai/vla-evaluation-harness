@@ -21,7 +21,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 # starvla = { git = "https://github.com/starVLA/starVLA.git", rev = "eaa51c4c2f4012d42f1036ee318d41942e8f97a3" }
 #
 # [tool.uv]
@@ -320,7 +320,6 @@ class StarVLAModelServer(PredictModelServer):
         for i in range(len(obs_batch)):
             actions = np.asarray(actions_batch[i])
             actions = baseframework.unnormalize_actions(actions, self._action_stats)
-            actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
             outputs.append({"actions": actions})
         return outputs
 

@@ -89,6 +89,7 @@ class LIBEROBenchmark(StepBenchmark):
         flip_wrist_image: bool = True,
         max_steps: int | None = None,
         state_format: str = "default",
+        image_resolution: int = 256,
     ) -> None:
         super().__init__()
         self.suite = suite
@@ -100,6 +101,7 @@ class LIBEROBenchmark(StepBenchmark):
         self.flip_wrist_image = flip_wrist_image
         self._max_steps = max_steps
         self.state_format = state_format
+        self.image_resolution = image_resolution
         self._env = None
         self._task_suite = None
         self._current_task_id: int | None = None
@@ -216,7 +218,7 @@ class LIBEROBenchmark(StepBenchmark):
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-        img = preprocess_libero_image(raw_obs["agentview_image"], LIBERO_ENV_RESOLUTION)
+        img = preprocess_libero_image(raw_obs["agentview_image"], self.image_resolution)
 
         text = task["name"]
 
@@ -228,9 +230,9 @@ class LIBEROBenchmark(StepBenchmark):
         if self.send_wrist_image:
             wrist_raw = raw_obs["robot0_eye_in_hand_image"]
             if self.flip_wrist_image:
-                wrist = preprocess_libero_image(wrist_raw, LIBERO_ENV_RESOLUTION)
+                wrist = preprocess_libero_image(wrist_raw, self.image_resolution)
             else:
-                wrist = convert_to_uint8(resize_with_pad(wrist_raw, LIBERO_ENV_RESOLUTION, LIBERO_ENV_RESOLUTION))
+                wrist = convert_to_uint8(resize_with_pad(wrist_raw, self.image_resolution, self.image_resolution))
             obs_dict["images"]["wrist"] = wrist
 
         if self.send_state:

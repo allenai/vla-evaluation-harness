@@ -15,7 +15,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 # cogact = { git = "https://github.com/microsoft/CogACT.git", rev = "b174a1b86deedfab4d198d935207e7bb0527994e" }
 #
 # [tool.uv]
