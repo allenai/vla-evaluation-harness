@@ -5,7 +5,7 @@ Merge behavior:
     - Missing shards are allowed — the result is marked ``"partial": True``.
     - Duplicate ``episode_id`` across shards: **last file wins** (dict overwrite,
       logged as warning).
-    - Success rates are recomputed from the merged episode set.
+    - Metric aggregates are recomputed from the merged episode set.
 
 Expected input format:
     Each shard file is a JSON object with at minimum::
@@ -90,24 +90,20 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
     metric_keys: dict[str, str] = shards[0].get("metric_keys", {})
     tasks = []
     total_episodes = 0
-    total_successes = 0
     all_episodes_flat: list[dict] = []
     for task_name in sorted(all_episodes.keys()):
         episodes = list(all_episodes[task_name].values())
         n = len(episodes)
-        successes = sum(1 for e in episodes if e.get("success") is True)
         total_steps = sum(e.get("steps", 0) for e in episodes)
         task_result: dict[str, Any] = {
             "task": task_name,
             "episodes": episodes,
             "num_episodes": n,
-            "success_rate": successes / n if n else 0.0,
             "avg_steps": total_steps / n if n else 0.0,
         }
         _aggregate_metrics(task_result, episodes, metric_keys)
         tasks.append(task_result)
         total_episodes += n
-        total_successes += successes
         all_episodes_flat.extend(episodes)
 
     is_partial = bool(missing_ids) or any(s.get("partial") for s in shards)
@@ -121,7 +117,6 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
         "harness_version": __version__,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "tasks": tasks,
-        "overall_success_rate": total_successes / total_episodes if total_episodes else 0.0,
         "config": config,
         "merge_info": {
             "num_shards": expected_total,
@@ -154,7 +149,7 @@ def print_merge_report(merged: dict[str, Any]) -> None:
     found = info["shards_found"]
     missing = info["shards_missing"]
     total_eps = info["total_episodes"]
-    rate = merged["overall_success_rate"]
+    rate = merged.get("mean_success", 0.0)
     rate_color = "green" if rate >= 0.5 else "red"
 
     if missing:
@@ -167,18 +162,17 @@ def print_merge_report(merged: dict[str, Any]) -> None:
             )
     else:
         con.print(f"\n[green]All {total_shards} shards complete.[/green] {total_eps} episodes.")
-        con.print(f"Overall success rate: [{rate_color}]{rate:.1%}[/{rate_color}]")
+        con.print(f"Overall: [{rate_color}]{rate:.1%}[/{rate_color}]")
 
     # Per-task summary
     con.print(f"\n{'=' * 60}")
     con.print(f"[bold]Benchmark: {merged['benchmark']}[/bold]")
     con.print(f"{'=' * 60}")
     for task in merged["tasks"]:
-        n = len(task["episodes"])
-        s = int(task["success_rate"] * n)
-        tr = task["success_rate"]
+        n = task["num_episodes"]
+        tr = task.get("mean_success", 0.0)
         tc = "green" if tr >= 0.5 else "red"
-        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({s}/{n})")
+        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
     con.print(f"{'─' * 60}")
     con.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
     con.print(f"{'=' * 60}\n")

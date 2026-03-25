@@ -153,7 +153,7 @@ class Orchestrator:
                     raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
                     collector.record(task_name, ep_result)
-                    status = "SUCCESS" if ep_result.get("success") else "FAIL"
+                    status = "SUCCESS" if ep_result.get("metrics", {}).get("success") else "FAIL"
                     logger.info(
                         "  [%d/%d] %s ep%d: %s (steps=%d)",
                         item_idx + 1,
@@ -176,7 +176,7 @@ class Orchestrator:
                         task_name,
                         {
                             "episode_id": ep,
-                            "success": False,
+                            "metrics": {"success": False},
                             "failure_reason": "server_unreachable",
                         },
                     )
@@ -197,7 +197,7 @@ class Orchestrator:
                         task_name,
                         {
                             "episode_id": ep,
-                            "success": False,
+                            "metrics": {"success": False},
                             "failure_reason": f"connection_closed_{close_code}",
                         },
                     )
@@ -219,7 +219,7 @@ class Orchestrator:
                         task_name,
                         {
                             "episode_id": ep,
-                            "success": False,
+                            "metrics": {"success": False},
                             "failure_reason": "timeout",
                         },
                     )
@@ -240,7 +240,7 @@ class Orchestrator:
                         task_name,
                         {
                             "episode_id": ep,
-                            "success": False,
+                            "metrics": {"success": False},
                             "failure_reason": "exception",
                         },
                     )

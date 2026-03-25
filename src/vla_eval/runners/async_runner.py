@@ -134,9 +134,8 @@ class AsyncEpisodeRunner(EpisodeRunner):
             await conn.stop_listener()
 
         elapsed = clock.time()
-        episode_result = await benchmark.get_result()
-        episode_result["steps"] = step_count
-        episode_result["elapsed_sec"] = round(elapsed, 3)
+        bench_metrics = await benchmark.get_result()
+        episode_result: dict = {"metrics": bench_metrics, "steps": step_count, "elapsed_sec": round(elapsed, 3)}
 
         # Real-time metrics
         metrics = action_buffer.get_metrics()

@@ -40,7 +40,7 @@ async def test_orchestrator_runs_to_completion(echo_server, tmp_path):
 
     assert len(results) == 1
     result = results[0]
-    assert result["overall_success_rate"] == pytest.approx(1.0)
+    assert result.get("mean_success") == pytest.approx(1.0)
     assert len(result["tasks"]) == 2
 
     # Verify file was saved

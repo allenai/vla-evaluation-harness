@@ -50,9 +50,8 @@ class SyncEpisodeRunner(EpisodeRunner):
             obs_dict = await benchmark.get_observation()
 
         elapsed = await benchmark.get_time()
-        episode_result = await benchmark.get_result()
-        episode_result["steps"] = step + 1
-        episode_result["elapsed_sec"] = round(elapsed, 3)
+        metrics = await benchmark.get_result()
+        episode_result: dict = {"metrics": metrics, "steps": step + 1, "elapsed_sec": round(elapsed, 3)}
 
         await conn.end_episode(episode_result)
         return episode_result
