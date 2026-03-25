@@ -21,11 +21,12 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from vla_eval import __version__
-from vla_eval.results.collector import _aggregate_metrics
+from vla_eval.results.collector import _aggregate_metrics, _build_task_result, _extract_seed
 
 logger = logging.getLogger(__name__)
 
@@ -89,26 +90,13 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
     # Build merged task results
     metric_keys: dict[str, str] = shards[0].get("metric_keys", {})
     tasks = []
-    total_episodes = 0
     all_episodes_flat: list[dict] = []
     for task_name in sorted(all_episodes.keys()):
         episodes = list(all_episodes[task_name].values())
-        n = len(episodes)
-        total_steps = sum(e.get("steps", 0) for e in episodes)
-        task_result: dict[str, Any] = {
-            "task": task_name,
-            "episodes": episodes,
-            "num_episodes": n,
-            "avg_steps": total_steps / n if n else 0.0,
-        }
-        _aggregate_metrics(task_result, episodes, metric_keys)
-        tasks.append(task_result)
-        total_episodes += n
+        tasks.append(_build_task_result(task_name, episodes, metric_keys))
         all_episodes_flat.extend(episodes)
 
     is_partial = bool(missing_ids) or any(s.get("partial") for s in shards)
-
-    from datetime import datetime, timezone
 
     config = shards[0].get("config", {})
     merged: dict[str, Any] = {
@@ -122,13 +110,13 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
             "num_shards": expected_total,
             "shards_found": found_ids,
             "shards_missing": missing_ids,
-            "total_episodes": total_episodes,
+            "total_episodes": len(all_episodes_flat),
         },
     }
     if is_partial:
         merged["partial"] = True
 
-    seed = config.get("params", {}).get("seed")
+    seed = _extract_seed(config)
     if seed is not None:
         merged["seed"] = seed
 

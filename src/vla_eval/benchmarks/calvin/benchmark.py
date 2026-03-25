@@ -409,7 +409,7 @@ class CALVINBenchmark(StepBenchmark):
         logger.info("CALVIN initialized: %d sequences on %s", len(self._sequences), self._device)
 
     def get_metric_keys(self) -> dict[str, str]:
-        return {"completed_subtasks": "mean"}
+        return {"success": "mean", "completed_subtasks": "mean"}
 
     def get_tasks(self) -> list[Task]:
         self._init_calvin()

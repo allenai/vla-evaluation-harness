@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 if sys.version_info >= (3, 11):
@@ -56,6 +57,25 @@ _AGG_FNS: dict[str, Any] = {
 }
 
 
+def _extract_seed(config: dict[str, Any]) -> int | None:
+    """Extract seed from config params, or None."""
+    return config.get("params", {}).get("seed")
+
+
+def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, str]) -> TaskResult:
+    """Build a TaskResult with aggregated metrics from episodes."""
+    total_steps = sum(e.get("steps", 0) for e in episodes)
+    n = len(episodes) or 1
+    result = TaskResult(
+        task=task_name,
+        episodes=episodes,
+        num_episodes=len(episodes),
+        avg_steps=total_steps / n,
+    )
+    _aggregate_metrics(result, episodes, metric_keys)
+    return result
+
+
 def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) -> None:
     """Compute metric aggregates from ``episode["metrics"]`` and insert into *result*."""
     for key, agg_type in metric_keys.items():
@@ -87,34 +107,22 @@ class ResultCollector:
 
     def record(self, task_name: str, episode_result: EpisodeResult) -> None:
         """Record a single episode result."""
-        # Normalize numpy booleans inside metrics
+        # Normalize numpy scalars inside metrics to JSON-serializable Python types
         metrics = episode_result.get("metrics", {})
         if isinstance(metrics, dict):
             for k, v in metrics.items():
-                if type(v).__name__ == "bool_":  # numpy bool_ without importing numpy
-                    metrics[k] = bool(v)
+                if hasattr(v, "item"):
+                    metrics[k] = v.item()
         if task_name not in self._episodes:
             self._episodes[task_name] = []
         self._episodes[task_name].append(episode_result)
 
     def get_task_result(self, task_name: str) -> TaskResult:
         """Aggregate results for a single task."""
-        episodes = self._episodes.get(task_name, [])
-        total_steps = sum(e.get("steps", 0) for e in episodes)
-        n = len(episodes) or 1
-        result = TaskResult(
-            task=task_name,
-            episodes=episodes,
-            num_episodes=len(episodes),
-            avg_steps=total_steps / n,
-        )
-        _aggregate_metrics(result, episodes, self.metric_keys)
-        return result
+        return _build_task_result(task_name, self._episodes.get(task_name, []), self.metric_keys)
 
     def get_benchmark_result(self, config: dict[str, Any] | None = None) -> BenchmarkResult:
         """Aggregate results for the entire benchmark."""
-        from datetime import datetime, timezone
-
         from vla_eval import __version__
 
         tasks = [self.get_task_result(t) for t in self._episodes]
@@ -131,7 +139,7 @@ class ResultCollector:
         )
 
         # Promote seed to top level for reproducibility
-        seed = config.get("params", {}).get("seed")
+        seed = _extract_seed(config)
         if seed is not None:
             result["seed"] = seed
 

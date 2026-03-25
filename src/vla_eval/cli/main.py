@@ -294,7 +294,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Print final summary
     for r in results:
-        print(f"\n{r['benchmark']}: {r['overall_success_rate']:.1%}")
+        print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:

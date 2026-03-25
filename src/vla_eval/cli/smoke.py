@@ -602,7 +602,7 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         json_files = _glob.glob(os.path.join(results_dir, "*.json"))
         if json_files:
             data = json.loads(Path(json_files[0]).read_text())
-            rate = data.get("overall_success_rate", 0)
+            rate = data.get("mean_success", 0)
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         return SmokeResult(test, "pass", "completed (no result file)", dt)
     finally:
