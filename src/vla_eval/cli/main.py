@@ -252,6 +252,15 @@ def cmd_run(args: argparse.Namespace) -> None:
     if server_url is not None:
         config.setdefault("server", {})["url"] = server_url
 
+    # CLI overrides for benchmark params (applied to all benchmark entries)
+    param_overrides = getattr(args, "param", None)
+    if param_overrides:
+        from omegaconf import OmegaConf
+
+        overrides = OmegaConf.to_container(OmegaConf.from_dotlist(param_overrides))
+        for bench in config.get("benchmarks", []):
+            bench.setdefault("params", {}).update(overrides)
+
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
 
@@ -708,6 +717,13 @@ execution flow:
         "--server-url",
         default=None,
         help="Override server URL (e.g. ws://my-host:8000). Avoids per-host config files.",
+    )
+    run_parser.add_argument(
+        "--param",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override benchmark params (applied to all benchmarks). Repeatable. "
+        "e.g. --param send_wrist_image=true --param send_state=true",
     )
     run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"

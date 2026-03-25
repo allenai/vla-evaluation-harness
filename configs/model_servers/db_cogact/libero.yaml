@@ -2,6 +2,9 @@
 # Weight: Dexmal/libero-db-cogact (HuggingFace)
 # Benchmark: LIBERO (MuJoCo, tabletop manipulation)
 #
+# Required benchmark params (--param):
+#   send_wrist_image=true send_state=true
+#
 # chunk_size is auto-selected per suite via chunk_size_map.
 # No need to restart the server when switching suites.
 extends: _base.yaml
