@@ -326,8 +326,15 @@ def cmd_serve(args: argparse.Namespace) -> None:
         _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
+    # CLI overrides for port and host
+    server_args = dict(config.get("args", {}))
+    if getattr(args, "port", None) is not None:
+        server_args["port"] = args.port
+    if getattr(args, "host", None) is not None:
+        server_args["host"] = args.host
+
     cmd: list[str] = [uv, "run", str(script)]
-    for key, value in config.get("args", {}).items():
+    for key, value in server_args.items():
         flag = f"--{key}"
         if isinstance(value, bool):
             if value:
@@ -770,6 +777,10 @@ Bool args become flags (--use_text_template), others become --key value.
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")
+    serve_parser.add_argument(
+        "--port", type=int, default=None, help="Override server port (default: from config or 8000)"
+    )
+    serve_parser.add_argument("--host", default=None, help="Override bind address (default: from config or 0.0.0.0)")
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)
 
