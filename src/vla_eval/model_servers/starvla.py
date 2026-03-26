@@ -334,10 +334,10 @@ class StarVLAModelServer(PredictModelServer):
         for i in range(len(obs_batch)):
             actions = np.asarray(actions_batch[i])
             actions = baseframework.unnormalize_actions(actions, self._action_stats)
-            # Convert gripper: unnormalize outputs {0=close, 1=open},
-            # but the harness discretizes via <0→close, ≥0→open.
-            # Map 0→-1 (close), 1→+1 (open).
-            actions[:, 6] = 2.0 * actions[:, 6] - 1.0
+            # Convert gripper: unnormalize outputs {0=close, 1=open}.
+            # LIBERO expects: +1=close, -1=open (discretized at 0).
+            # Map 0(close)→+1, 1(open)→-1.
+            actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
             outputs.append({"actions": actions})
         return outputs
 
