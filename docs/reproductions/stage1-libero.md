@@ -1,61 +1,130 @@
-# Stage 1 — LIBERO Reproducibility Audit
+# Stage 1 — LIBERO Reproduction
 
-> Protocol: 50 episodes/task, seed=7, num_steps_wait=10
-> Hardware: Model servers on DGX-H100 (80GB), benchmarks on A100 nodes
+Protocol: 4 suites × 10 tasks × 50 episodes = 2000 episodes/model, seed=7
 
-## Status
+## Models
 
-All models pending re-evaluation after code audit and bug fixes.
+| # | Name | Config | Port | Reported |
+|---|------|--------|:----:|:--------:|
+| 1 | X-VLA | `configs/model_servers/xvla/libero.yaml` | 8001 | 98.1% |
+| 2 | Pi0.5 | `configs/model_servers/pi0/libero.yaml` | 8002 | 96.9% |
+| 3 | OFT-joint | `configs/model_servers/oft/libero_joint.yaml` | 8003 | ~96.8% |
+| 4 | StarVLA Q2.5-FAST | `configs/model_servers/starvla/libero_qwen25_fast.yaml` | 8004 | 95.2% |
+| 5 | StarVLA Q2.5-OFT | `configs/model_servers/starvla/libero_qwen25_oft.yaml` | 8005 | 96.1% |
+| 6 | StarVLA Q2.5-GR00T | `configs/model_servers/starvla/libero_qwen25_groot.yaml` | 8006 | 95.4% |
+| 7 | StarVLA Q3-OFT | `configs/model_servers/starvla/libero_qwen3_oft.yaml` | 8007 | 96.6% |
+| 8 | GR00T N1.6 | `configs/model_servers/groot/libero.yaml` | 8008 | 97.0% |
 
-| Model | Reported | Reproduced | Status |
-|---|:---:|:---:|---|
-| X-VLA (0.9B) | 98.1% | — | Pending |
-| Pi0.5 | 96.9% | — | Pending |
-| OpenVLA-OFT (joint) | ~96.8% | — | Pending |
-| StarVLA (5 variants) | 95-97% | — | Pending (was 0%, fixed: wrist image) |
-| GR00T N1.6 (community) | 97.0% | — | Pending (was ~1%, fixed: gripper inversion) |
-| OpenVLA base (LoRA) | 76.5% | — | Low priority (slow without batch prediction) |
+Not included: OpenVLA base (too slow), StarVLA Qwen3-PI (state_dict mismatch).
 
-## Fixes Applied
-
-### Code fixes (committed)
-
-| Model | Bug | Fix |
-|---|---|---|
-| GR00T | Gripper action polarity inverted | Added `invert_gripper` flag in `groot.py` |
-| StarVLA | Wrist image not sent to model | HELLO auto-negotiation sends `send_wrist_image=true` |
-| Pi0 | Default config was `pi0_fast_libero` (wrong model) | Changed to `pi05_libero` |
-| OFT | `num_images_in_input: 1` (should be 2) | Fixed in `_base.yaml` |
-
-### Infrastructure improvements
-
-- **HELLO observation negotiation**: Model servers auto-declare required benchmark params (`send_wrist_image`, `send_state`, `absolute_action`) — no manual `--param` flags needed.
-- **`--server-url`**: Override server URL at CLI without per-host config files.
-- **`--port` / `--host`**: Override model server port/host at CLI.
-- **`--param KEY=VALUE`**: Manual benchmark param override for experimentation.
-
-## Known Issues
-
-- **StarVLA Qwen3-PI**: Checkpoint `StarVLA/Qwen3-VL-PI-LIBERO-4in1` has 36 DiT transformer blocks but the model code expects 16. Requires `num_layers` compatibility fix in `starvla.py`.
-
-## How to Run
+## Step 1: Build Docker
 
 ```bash
-# 1. Build Docker image
 docker/build.sh libero
+```
 
-# 2. Start model server (slurm)
-sbatch --partition=h100 --gres=gpu:1 --mem=64G --time=6:00:00 \
-  --wrap="cd $PWD && uv run vla-eval serve -c configs/model_servers/xvla/libero.yaml --port 8001 -v"
+## Step 2: Start model servers (slurm)
 
-# 3. Run benchmark (50 shards, local)
+One job per model. All on h100 partition, unique ports.
+
+```bash
+cd /mnt/harbor/users/claude/GitHub/vla-evaluation-harness-allenai
+
+# All 8 at once
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-xvla \
+  --wrap="uv run vla-eval serve -c configs/model_servers/xvla/libero.yaml --address 0.0.0.0:8001 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-pi05 \
+  --wrap="uv run vla-eval serve -c configs/model_servers/pi0/libero.yaml --address 0.0.0.0:8002 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-oft \
+  --wrap="uv run vla-eval serve -c configs/model_servers/oft/libero_joint.yaml --address 0.0.0.0:8003 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-sv-q25fast \
+  --wrap="uv run vla-eval serve -c configs/model_servers/starvla/libero_qwen25_fast.yaml --address 0.0.0.0:8004 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-sv-q25oft \
+  --wrap="uv run vla-eval serve -c configs/model_servers/starvla/libero_qwen25_oft.yaml --address 0.0.0.0:8005 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-sv-q25groot \
+  --wrap="uv run vla-eval serve -c configs/model_servers/starvla/libero_qwen25_groot.yaml --address 0.0.0.0:8006 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-sv-q3oft \
+  --wrap="uv run vla-eval serve -c configs/model_servers/starvla/libero_qwen3_oft.yaml --address 0.0.0.0:8007 -v"
+
+sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 8:00:00 -J s1-groot \
+  --wrap="uv run vla-eval serve -c configs/model_servers/groot/libero.yaml --address 0.0.0.0:8008 -v"
+```
+
+Check which node they landed on:
+
+```bash
+squeue -u $USER --format="%.10i %.20j %.4t %.20R" | grep s1-
+```
+
+Wait for all servers to be ready:
+
+```bash
+NODE=DGX-H100-10  # replace with actual node
+for port in 8001 8002 8003 8004 8005 8006 8007 8008; do
+  curl -s --max-time 2 "http://${NODE}:${port}/config" >/dev/null && echo "✓ ${port}" || echo "✗ ${port}"
+done
+```
+
+OFT may take 30+ min (TensorFlow CUDA JIT on H100).
+
+## Step 3: Run benchmarks (local, one model at a time)
+
+Max 50 shards. Replace `$NODE` with the slurm node from step 2.
+
+```bash
+# Template — run for each model
+MODEL=xvla  PORT=8001  # change per model
 for i in $(seq 0 49); do
   uv run vla-eval run -c configs/libero_all.yaml \
-    --server-url ws://DGX-H100-XX:8001 \
+    --server-url ws://${NODE}:${PORT} \
     --shard-id $i --num-shards 50 --yes &
 done
 wait
-
-# 4. Merge results
-uv run vla-eval merge -c configs/libero_all.yaml -o results/merged.json
 ```
+
+Monitor early results while running:
+
+```bash
+# Check first few completed shards
+for f in results/LIBEROBenchmark_libero_spatial_shard*of50.json; do
+  python3 -c "import json; d=json.load(open('$f')); print(d.get('mean_success',0))" 2>/dev/null
+done
+```
+
+## Step 4: Merge and archive
+
+```bash
+MODEL=xvla  # change per model
+mkdir -p docs/reproductions/data/${MODEL}-libero
+
+for suite in libero_spatial libero_object libero_goal libero_10; do
+  uv run vla-eval merge results/LIBEROBenchmark_${suite}_shard*of50.json \
+    -o docs/reproductions/data/${MODEL}-libero/merged_${suite}.json
+done
+
+# Clean shard files after merge
+rm results/LIBEROBenchmark_*shard*of50.json
+```
+
+## Step 5: Check results
+
+```bash
+python3 -c "
+import json, glob
+for f in sorted(glob.glob('docs/reproductions/data/*/merged_*.json')):
+    d = json.load(open(f))
+    print(f'{f}: {d.get(\"mean_success\", 0):.1%}')
+"
+```
+
+## Notes
+
+- Benchmark params (`send_wrist_image`, `send_state`, `absolute_action`) are auto-negotiated via HELLO. No `--param` needed.
+- OFT-joint requires per-suite `unnorm_key`. Current config uses `libero_spatial_no_noops`. For full 4-suite eval, run 4 server instances with different unnorm_keys, or run suites separately.
+- After cancelling model servers: `squeue -u $USER | grep s1- | awk '{print $1}' | xargs scancel`
