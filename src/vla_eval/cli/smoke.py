@@ -290,8 +290,12 @@ def _make_stub_benchmark(task: dict[str, Any]) -> Any:
     from vla_eval.types import Observation, Task
 
     _DUMMY_OBS: dict[str, Any] = {
-        "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
+        "images": {
+            "agentview": np.zeros((256, 256, 3), dtype=np.uint8),
+            "wrist": np.zeros((256, 256, 3), dtype=np.uint8),
+        },
         "task_description": "smoke test",
+        "state": np.zeros(8, dtype=np.float32),
     }
 
     class _StubBenchmark(StepBenchmark):
