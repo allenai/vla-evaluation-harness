@@ -53,9 +53,14 @@ async def _run_saturating_client(
     """Send requests as fast as possible. Returns per-request latencies (seconds)."""
     if image_size:
         fake_image = np.random.randint(0, 255, (image_size, image_size, 3), dtype=np.uint8)
+        fake_state = np.zeros(8, dtype=np.float32)
 
         def obs_factory() -> dict:
-            return {"images": {"agentview": fake_image}}
+            return {
+                "images": {"agentview": fake_image, "wrist": fake_image},
+                "task_description": "bench_supply",
+                "state": fake_state,
+            }
     else:
 
         def obs_factory() -> dict:
