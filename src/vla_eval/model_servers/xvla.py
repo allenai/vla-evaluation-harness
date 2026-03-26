@@ -78,6 +78,7 @@ class _XVLABenchmarkProfile:
     use_predicted_proprio: bool
     output_action_dim: int | None = None
     preserve_env_grippers: bool = False
+    unflip_wrist: bool = False  # un-flip wrist image (benchmark sends it flipped)
 
 
 _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
@@ -86,6 +87,7 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
         output_action_dim=7,
+        unflip_wrist=True,
     ),
     "calvin": _XVLABenchmarkProfile(
         image_keys=("rgb_static", "rgb_gripper"),
@@ -232,6 +234,7 @@ class XVLAModelServer(PredictModelServer):
             else _default_predicted_proprio_dims(output_action_dim)
         )
         self._preserve_env_grippers = profile.preserve_env_grippers if profile is not None else False
+        self._unflip_wrist = profile.unflip_wrist if profile is not None else False
         self._model = None
         self._processor = None
         # Closed-loop proprio: store raw 20-D actions per session so the
@@ -301,7 +304,12 @@ class XVLAModelServer(PredictModelServer):
         if obs.get("episode_restart"):
             self._last_raw_actions.pop(ctx.session_id, None)
 
-        pil_images = [Image.fromarray(img) for img in _ordered_images(obs, self._image_keys)]
+        raw_images = _ordered_images(obs, self._image_keys)
+        # Un-flip wrist image: benchmark sends all images flipped [::-1,::-1],
+        # but X-VLA was trained with unflipped wrist images.
+        if self._unflip_wrist and len(raw_images) >= 2:
+            raw_images[1] = raw_images[1][::-1, ::-1].copy()
+        pil_images = [Image.fromarray(img) for img in raw_images]
 
         task_desc = obs.get("task_description", "")
 
