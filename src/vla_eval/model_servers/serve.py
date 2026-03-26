@@ -300,6 +300,19 @@ def serve(
 # ---------------------------------------------------------------------------
 
 
+def _parse_address(address: str, default_host: str = "0.0.0.0", default_port: int = 8000) -> tuple[str, int]:
+    """Parse ``host:port`` string. Raises ``ValueError`` on bad port."""
+    parts = address.rsplit(":", 1)
+    host = parts[0] or default_host
+    port = default_port
+    if len(parts) == 2:
+        try:
+            port = int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid port in address {address!r}: {parts[1]!r} is not a number") from None
+    return host, port
+
+
 def _resolve_cli_type(
     annotation: type,
     default: object,
@@ -307,13 +320,14 @@ def _resolve_cli_type(
     """Map a Python type annotation to an argparse type.
 
     Returns ``(type_fn, is_bool, skip)``.
-    - ``is_bool=True`` → use ``store_true`` or ``BooleanOptionalAction``.
+    - ``is_bool=True`` → use ``BooleanOptionalAction``.
     - ``skip=True``    → don't expose this parameter on the CLI.
     """
+    import inspect
     import types as _types
     import typing as _typing
 
-    _EMPTY = __import__("inspect").Parameter.empty
+    _EMPTY = inspect.Parameter.empty
 
     # Unwrap Optional / Union with None
     origin = getattr(annotation, "__origin__", None)
@@ -378,6 +392,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
         try:
             hints = typing.get_type_hints(init)
         except Exception:
+            logger.warning("Could not resolve type hints for %s.__init__, falling back to defaults", cls.__name__)
             hints = {}
         for name, param in inspect.signature(init).parameters.items():
             if name in seen or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
@@ -411,10 +426,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
     # Resolve address: --address host:port takes precedence over --host/--port
     host, port = args.host, args.port
     if args.address:
-        parts = args.address.rsplit(":", 1)
-        host = parts[0]
-        if len(parts) == 2:
-            port = int(parts[1])
+        host, port = _parse_address(args.address, host, port)
 
     ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
     server = server_cls(**ctor_kwargs)

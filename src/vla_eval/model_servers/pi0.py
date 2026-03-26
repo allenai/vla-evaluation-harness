@@ -57,8 +57,9 @@ class Pi0ModelServer(PredictModelServer):
         self.config_name = config_name
         self.checkpoint = checkpoint
         self.image_key = image_key
-        self.wrist_image_key = wrist_image_key
-        self.state_key = state_key
+        # CLI passes the string "None" when disabling; normalize to actual None
+        self.wrist_image_key = None if wrist_image_key in (None, "None", "none") else wrist_image_key
+        self.state_key = None if state_key in (None, "None", "none") else state_key
         self.state_dim = state_dim
         self.image_resolution = image_resolution
         self._policy = None

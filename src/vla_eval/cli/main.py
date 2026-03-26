@@ -330,10 +330,15 @@ def cmd_serve(args: argparse.Namespace) -> None:
     server_args = dict(config.get("args", {}))
     address = getattr(args, "address", None)
     if address:
-        parts = address.rsplit(":", 1)
-        server_args["host"] = parts[0]
-        if len(parts) == 2:
-            server_args["port"] = int(parts[1])
+        from vla_eval.model_servers.serve import _parse_address
+
+        try:
+            host, port = _parse_address(address)
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
+        server_args["host"] = host
+        server_args["port"] = port
     for override in getattr(args, "arg", None) or []:
         key, _, value = override.partition("=")
         if not key or not _:

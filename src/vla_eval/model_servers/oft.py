@@ -66,6 +66,9 @@ class OFTModelServer(PredictModelServer):
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.pretrained_checkpoint = pretrained_checkpoint
         self.unnorm_key = unnorm_key
+        # Ensure mutual consistency: diffusion and L1 are exclusive
+        if use_diffusion:
+            use_l1_regression = False
         self.use_l1_regression = use_l1_regression
         self.use_diffusion = use_diffusion
         self.use_film = use_film
