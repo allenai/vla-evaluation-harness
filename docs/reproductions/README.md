@@ -56,9 +56,9 @@ X-VLA/Pi0/OFT are single-predict only (`max_batch_size=1`).
 
 | Benchmark | Rendering | Per-shard obs/s | Peak λ (N) | Notes |
 |-----------|-----------|:---------------:|:----------:|-------|
-| LIBERO | CPU (MuJoCo) | ~7.3 | 447 (N=80) | Scales linearly to N≈80 |
-| CALVIN | CPU (PyBullet) | ~36.7 | 432 (N=24) | Fast rendering, saturates early |
-| SimplerEnv | GPU (SAPIEN) | ~10.1 | 144 (N=24) | GPU contention limits scaling |
+| LIBERO | GPU EGL (MuJoCo) | ~7.3 | 447 (N=80) | Lightweight EGL, scales well |
+| CALVIN | GPU EGL (PyBullet) | ~36.7 | 432 (N=24) | Fast physics, saturates early |
+| SimplerEnv | GPU (SAPIEN/Vulkan) | ~10.1 | 144 (N=24) | Heavy GPU, contention limits scaling |
 | RoboTwin | GPU | TBD | TBD | Needs measurement |
 
 ## Recommended Shard Counts (LIBERO, H100)

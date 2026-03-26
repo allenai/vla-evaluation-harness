@@ -147,8 +147,8 @@ DB-CogACT (dexbotic fine-tuned CogACT 7B) is evaluated across three benchmarks w
 
 | Benchmark | Rendering | chunk_size | Work items | Image size |
 |-----------|-----------|:----------:|:----------:|:----------:|
-| LIBERO Spatial | CPU (MuJoCo) | 12 | 500 (10 tasks × 50 ep) | 256×256 |
-| CALVIN ABC→D | CPU (PyBullet) | 7 | 1000 sequences × 5 subtasks | 200×200 |
+| LIBERO Spatial | GPU EGL (MuJoCo) | 12 | 500 (10 tasks × 50 ep) | 256×256 |
+| CALVIN ABC→D | GPU EGL (PyBullet) | 7 | 1000 sequences × 5 subtasks | 200×200 |
 | SimplerEnv | GPU (SAPIEN/Vulkan) | 5 | 96 (4 tasks × 24 ep) | 224×224 |
 
 ### Supply — μ(B)
@@ -204,7 +204,7 @@ A100 peaks at B=16 (203.1 obs/s), H100 peaks at B=24 (485.5 obs/s). The pipeline
 
 These are linear estimates (μ ≈ inf/s × C). Actual supply may differ — run `bench_supply.py` with each checkpoint for precise numbers.
 
-### LIBERO Spatial (chunk_size=12, CPU rendering)
+### LIBERO Spatial (chunk_size=12, GPU EGL rendering)
 
 #### Demand — λ(N)
 
@@ -249,9 +249,9 @@ uv run python experiments/bench_demand.py \
 
 **Scaling note**: H100 supply (485.5 obs/s) exceeds single-host demand peak (446.8 obs/s at N=80), so one H100 can saturate a full host of Docker shards. A100 (203.1 obs/s) requires ~2 replicas to match peak demand.
 
-### CALVIN ABC→D (chunk_size=7, CPU rendering)
+### CALVIN ABC→D (chunk_size=7, GPU EGL rendering)
 
-CALVIN uses PyBullet CPU rendering (like LIBERO), so demand scales similarly — limited by CPU/Docker overhead, not GPU contention. Each sequence chains 5 subtasks with up to 360 steps each. PyBullet steps are faster than MuJoCo, giving CALVIN a much higher per-shard observation rate (~36.7 obs/s vs LIBERO's ~11.2 obs/s).
+CALVIN uses PyBullet with GPU EGL rendering (like LIBERO). Physics is CPU but image rendering uses GPU via EGL. Each sequence chains 5 subtasks with up to 360 steps each. PyBullet steps are faster than MuJoCo, giving CALVIN a much higher per-shard observation rate (~36.7 obs/s vs LIBERO's ~11.2 obs/s).
 
 #### Demand — λ(N)
 
@@ -297,7 +297,7 @@ CALVIN's high per-shard obs rate means demand exceeds the estimated H100 supply 
 
 ### SimplerEnv WidowX Bridge (chunk_size=5, GPU rendering)
 
-SimplerEnv uses SAPIEN/Vulkan GPU rendering on the benchmark host. Multiple shards compete for GPU memory and compute on the same host — unlike CPU-rendered benchmarks where shards only contend for CPU.
+SimplerEnv uses SAPIEN/Vulkan GPU rendering on the benchmark host. Multiple shards compete for GPU memory and compute — like LIBERO/CALVIN (EGL) but with heavier GPU usage per shard.
 
 #### Demand — λ(N)
 
@@ -321,7 +321,7 @@ uv run python experiments/bench_demand.py \
 
 \* timeout — partial results
 
-λ(N) scales sub-linearly from the start because multiple SAPIEN rendering shards contend for GPU resources on the benchmark host. Per-shard throughput drops from ~10.1 obs/s/shard (N=1) to ~7.2 (N=8) to ~6.0 (N=24). At N=32, aggregate throughput actually decreases — GPU contention between rendering shards overwhelms parallelism. **Peak demand: N=24, λ≈144 obs/s.** Far lower than LIBERO's 447 obs/s peak because GPU-rendered shards contend for VRAM and compute, while CPU-rendered shards scale independently.
+λ(N) scales sub-linearly from the start because multiple SAPIEN rendering shards contend for GPU resources on the benchmark host. Per-shard throughput drops from ~10.1 obs/s/shard (N=1) to ~7.2 (N=8) to ~6.0 (N=24). At N=32, aggregate throughput actually decreases — GPU contention between rendering shards overwhelms parallelism. **Peak demand: N=24, λ≈144 obs/s.** Far lower than LIBERO's 447 obs/s peak because SAPIEN shards consume significantly more GPU memory per shard than MuJoCo EGL.
 
 #### Derivation
 
@@ -338,13 +338,13 @@ uv run python experiments/bench_demand.py \
 
 3. **`max_wait_time`**: predict_rate = λ(N) / chunk_size = 128.4 / 5 ≈ 25.7 → 24 / 25.7 ≈ 0.93s.
 
-**GPU contention note**: SimplerEnv rendering shards share GPU resources on the benchmark host (model inference runs on a separate GPU node). Demand saturates much earlier than CPU-rendered benchmarks because SAPIEN shards contend for VRAM and GPU compute. To increase demand headroom, spread shards across multiple GPUs on the benchmark host (e.g. `--gpus 0,1`).
+**GPU contention note**: SimplerEnv rendering shards share GPU resources on the benchmark host (model inference runs on a separate GPU node). Demand saturates much earlier than LIBERO/CALVIN because SAPIEN shards consume more GPU memory per shard than MuJoCo/PyBullet EGL. To increase demand headroom, spread shards across multiple GPUs on the benchmark host (e.g. `--gpus 0,1`).
 
 ### Cross-Benchmark Comparison
 
 |                    | LIBERO Spatial (A100) | LIBERO Spatial (H100) | CALVIN (H100) | SimplerEnv (H100) |
 |--------------------|:---------------------:|:---------------------:|:-------------:|:-----------------:|
-| **Rendering**      | CPU                   | CPU                   | CPU           | GPU               |
+| **Rendering**      | GPU EGL               | GPU EGL               | GPU EGL       | GPU (SAPIEN)      |
 | **chunk_size**     | 12                    | 12                    | 7             | 5                 |
 | **max_batch_size** | 16                    | 24                    | 16            | 24                |
 | **num_shards**     | 20                    | 50                    | 16            | 16                |
@@ -354,7 +354,7 @@ uv run python experiments/bench_demand.py \
 | **Headroom**       | 28%                   | 25%                   | −33% (supply-bottlenecked) | 37%   |
 
 Key takeaways:
-- **CPU-rendered benchmarks** (LIBERO, CALVIN) scale to many more shards before saturating — the bottleneck is CPU/Docker overhead, not GPU contention.
+- **Lightweight GPU rendering** (LIBERO, CALVIN via EGL) scales to many more shards — MuJoCo/PyBullet EGL uses minimal GPU memory per shard.
 - **GPU-rendered benchmarks** (SimplerEnv) saturate much earlier because rendering shards contend for GPU resources on the benchmark host. Spread shards across multiple GPUs to increase demand headroom.
 - **Supply-bottlenecked benchmarks** (CALVIN): Fast per-shard obs rate + small chunk_size can push demand above supply. The server queue absorbs bursts, but sustained overload increases latency. Use fewer shards, a faster GPU, or model server replicas.
 - **chunk_size** directly affects both supply and max_wait_time: larger chunks (LIBERO=12) mean fewer GPU inferences per observation → higher supply ceiling but slower batch fill → longer max_wait_time. Smaller chunks (SimplerEnv=5) → lower supply ceiling but faster batch fill → shorter max_wait_time.
