@@ -414,7 +414,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
                     kwargs["default"] = param.default
                 else:
                     kwargs["required"] = True
-                parser.add_argument(flag, **kwargs)
+                parser.add_argument(flag, **kwargs)  # type: ignore[arg-type]
 
     args = parser.parse_args()
 
@@ -433,7 +433,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
 
     if hasattr(server, "_load_model"):
         logger.info("Pre-loading model...")
-        server._load_model()
+        server._load_model()  # type: ignore[attr-defined]
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)
