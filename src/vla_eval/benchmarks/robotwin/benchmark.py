@@ -238,11 +238,11 @@ class RoboTwinBenchmark(StepBenchmark):
     def step(self, action: Action) -> StepResult:
         raw = action.get("actions", action.get("action"))
         act = np.asarray(raw, dtype=np.float64).flatten()
-        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
         if len(act) > 14:
             act = act[:14]
         elif len(act) < 14:
             act = np.pad(act, (0, 14 - len(act)))
+        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
 
         self._env.take_action(act, action_type="qpos")
         raw_obs = self._env.get_obs()
@@ -271,4 +271,9 @@ class RoboTwinBenchmark(StepBenchmark):
         return {"success": step_result.info.get("success", False)}
 
     def get_metadata(self) -> dict[str, Any]:
-        return {"max_steps": 400, "task_name": self.task_name}
+        return {
+            "max_steps": 400,
+            "task_name": self.task_name,
+            "action_dim": 14,
+            "max_episodes_per_task": self.test_num,
+        }

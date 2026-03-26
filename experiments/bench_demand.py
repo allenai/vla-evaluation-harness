@@ -43,6 +43,112 @@ from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
 from vla_eval.types import Action, Observation
 
+
+# ---------------------------------------------------------------------------
+# Resource monitor — samples CPU, GPU, RAM at 1-second intervals
+# ---------------------------------------------------------------------------
+
+
+class ResourceMonitor:
+    """Background thread that samples system resources at 1-second intervals."""
+
+    def __init__(self) -> None:
+        self._samples: list[dict[str, Any]] = []
+        self._stop = False
+        self._thread: Any = None
+
+    def start(self) -> None:
+        import threading
+
+        self._stop = False
+        self._samples.clear()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> dict[str, Any]:
+        self._stop = True
+        if self._thread:
+            self._thread.join(timeout=3)
+        return self._peak()
+
+    def _loop(self) -> None:
+        while not self._stop:
+            self._samples.append(self._sample())
+            time.sleep(1.0)
+
+    def _sample(self) -> dict[str, Any]:
+        return {
+            "cpu_pct": self._cpu_percent(),
+            "ram_used_gb": self._ram_used_gb(),
+            **self._gpu_stats(),
+        }
+
+    def _peak(self) -> dict[str, Any]:
+        if not self._samples:
+            return {}
+        keys = self._samples[0].keys()
+        return {f"peak_{k}": max(s.get(k, 0) for s in self._samples) for k in keys}
+
+    @staticmethod
+    def _cpu_percent() -> float:
+        try:
+            with open("/proc/stat") as f:
+                line = f.readline()
+            vals = [int(x) for x in line.split()[1:]]
+            # idle is index 3; total = sum of all
+            idle, total = vals[3], sum(vals)
+            # Store for delta calculation
+            if not hasattr(ResourceMonitor._cpu_percent, "_prev"):
+                ResourceMonitor._cpu_percent._prev = (idle, total)  # type: ignore[attr-defined]
+                return 0.0
+            prev_idle, prev_total = ResourceMonitor._cpu_percent._prev
+            ResourceMonitor._cpu_percent._prev = (idle, total)
+            d_idle = idle - prev_idle
+            d_total = total - prev_total
+            return round(100.0 * (1.0 - d_idle / max(d_total, 1)), 1)
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def _ram_used_gb() -> float:
+        try:
+            with open("/proc/meminfo") as f:
+                lines = {line.split(":")[0]: line for line in f}
+            total = int(lines["MemTotal"].split()[1])
+            avail = int(lines["MemAvailable"].split()[1])
+            return round((total - avail) / 1048576, 1)  # kB → GB
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def _gpu_stats() -> dict[str, float]:
+        try:
+            out = subprocess.check_output(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=utilization.gpu,memory.used,memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                text=True,
+                timeout=5,
+            )
+            max_util = 0.0
+            total_mem_used = 0.0
+            total_mem = 0.0
+            for line in out.strip().splitlines():
+                parts = [x.strip() for x in line.split(",")]
+                max_util = max(max_util, float(parts[0]))
+                total_mem_used += float(parts[1])
+                total_mem += float(parts[2])
+            return {
+                "gpu_util_pct": round(max_util, 1),
+                "gpu_mem_used_gb": round(total_mem_used / 1024, 1),
+                "gpu_mem_total_gb": round(total_mem / 1024, 1),
+            }
+        except Exception:
+            return {"gpu_util_pct": 0.0, "gpu_mem_used_gb": 0.0, "gpu_mem_total_gb": 0.0}
+
+
 # ---------------------------------------------------------------------------
 # Instant server
 # ---------------------------------------------------------------------------
@@ -51,14 +157,15 @@ from vla_eval.types import Action, Observation
 class InstantServer(PredictModelServer):
     """Returns immediately with zero-latency actions. Counts all observations."""
 
-    def __init__(self) -> None:
+    def __init__(self, action_dim: int = 7) -> None:
         super().__init__(chunk_size=1)
+        self.action_dim = action_dim
         self.call_count = 0
         self._pbar = tqdm()
         self._first_obs_time: float | None = None
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        return {"actions": np.zeros(7, dtype=np.float32)}
+        return {"actions": np.zeros(self.action_dim, dtype=np.float32)}
 
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
         if self._first_obs_time is None:
@@ -78,6 +185,16 @@ class InstantServer(PredictModelServer):
 # ---------------------------------------------------------------------------
 # Docker helpers
 # ---------------------------------------------------------------------------
+
+
+def _extract_action_dim(config: dict[str, Any]) -> int:
+    """Return the shared benchmark action dim required by a demand sweep config."""
+    action_dims = {int(bench.get("action_dim", 7)) for bench in config.get("benchmarks", [])}
+    if not action_dims:
+        return 7
+    if len(action_dims) != 1:
+        raise ValueError(f"bench_demand requires one shared action_dim across benchmarks, got {sorted(action_dims)}")
+    return next(iter(action_dims))
 
 
 def _patch_config(
@@ -181,6 +298,7 @@ async def measure_demand(
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
+    action_dim = _extract_action_dim(config)
     server_url = f"ws://127.0.0.1:{port}"
     tmp_dir = tempfile.mkdtemp(prefix="bench-demand-")
     patched = _patch_config(config, server_url, tmp_dir, num_shards, episodes_per_shard)
@@ -189,7 +307,8 @@ async def measure_demand(
         yaml.dump(patched, f)
 
     # Start instant server
-    server = InstantServer()
+    server = InstantServer(action_dim=action_dim)
+    monitor = ResourceMonitor()
 
     # Wait for server ready
     import websockets
@@ -209,6 +328,7 @@ async def measure_demand(
 
         # Build and launch Docker shards via anyio — automatic cleanup on cancel
         server.reset()
+        monitor.start()
         wall_t0 = time.monotonic()
         cmds = _build_shard_commands(tmp_config, patched, num_shards, gpus=gpus, cpus=cpus)
         stderr_bufs: list[bytes] = [b""] * num_shards
@@ -250,6 +370,8 @@ async def measure_demand(
                 for line in stderr.splitlines()[-8:]:
                     print(f"    {line}", flush=True)
 
+        peak = monitor.stop()
+
         result = {
             "num_shards": num_shards,
             "total_requests": server.call_count,
@@ -258,6 +380,7 @@ async def measure_demand(
             "init_overhead": round(wall_elapsed - obs_elapsed, 3),
             "lambda_rps": round(server.call_count / obs_elapsed, 1) if obs_elapsed > 0 else 0,
             "timed_out": timed_out,
+            **peak,
         }
 
         # Cancel the server task group
@@ -311,17 +434,37 @@ def sweep_demand(
 
 
 def print_demand_table(results: list[dict[str, Any]]) -> None:
-    """Print formatted demand curve table."""
-    print(f"\n{'=' * 70}")
-    print(f"{'N':>4}  {'observations':>12}  {'elapsed':>10}  {'init':>8}  {'λ (obs/s)':>10}")
-    print(f"{'-' * 4}  {'-' * 12}  {'-' * 10}  {'-' * 8}  {'-' * 10}")
-    for r in results:
-        tag = " *" if r.get("timed_out") else ""
+    """Print formatted demand curve table with resource utilization."""
+    has_resources = any("peak_cpu_pct" in r for r in results)
+    if has_resources:
+        print(f"\n{'=' * 100}")
         print(
-            f"{r['num_shards']:4d}  {r['total_requests']:12d}  "
-            f"{r['elapsed']:10.1f}  {r['init_overhead']:8.1f}  {r['lambda_rps']:10.1f}{tag}"
+            f"{'N':>4}  {'observations':>12}  {'elapsed':>8}  {'λ (obs/s)':>10}  "
+            f"{'CPU%':>5}  {'GPU%':>5}  {'GPU_MEM':>8}  {'SYS_RAM':>8}"
         )
-    print(f"{'=' * 70}")
+        print(f"{'-' * 100}")
+        for r in results:
+            tag = " *" if r.get("timed_out") else ""
+            gpu_mem = f"{r.get('peak_gpu_mem_used_gb', 0):.1f}GB"
+            sys_ram = f"{r.get('peak_ram_used_gb', 0):.1f}GB"
+            print(
+                f"{r['num_shards']:4d}  {r['total_requests']:12d}  "
+                f"{r['elapsed']:8.1f}  {r['lambda_rps']:10.1f}{tag:2s}  "
+                f"{r.get('peak_cpu_pct', 0):5.1f}  {r.get('peak_gpu_util_pct', 0):5.1f}  "
+                f"{gpu_mem:>8}  {sys_ram:>8}"
+            )
+        print(f"{'=' * 100}")
+    else:
+        print(f"\n{'=' * 70}")
+        print(f"{'N':>4}  {'observations':>12}  {'elapsed':>10}  {'init':>8}  {'λ (obs/s)':>10}")
+        print(f"{'-' * 70}")
+        for r in results:
+            tag = " *" if r.get("timed_out") else ""
+            print(
+                f"{r['num_shards']:4d}  {r['total_requests']:12d}  "
+                f"{r['elapsed']:10.1f}  {r['init_overhead']:8.1f}  {r['lambda_rps']:10.1f}{tag}"
+            )
+        print(f"{'=' * 70}")
 
 
 def main() -> None:
