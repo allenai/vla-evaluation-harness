@@ -440,7 +440,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     try:
         result = anyio.run(_run)
         dt = time.monotonic() - t0
-        success = result.get("success", False)
+        success = result.get("metrics", {}).get("success", result.get("success", False))
         steps = result.get("steps", 0)
         if success:
             return SmokeResult(test, "pass", f"{steps} steps, success=True", dt)
