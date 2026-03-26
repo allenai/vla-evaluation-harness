@@ -357,14 +357,15 @@ def run_server(server_cls: type[ModelServer]) -> None:
     parser = argparse.ArgumentParser(
         description=f"{server_cls.__name__} model server",
     )
-    parser.add_argument("--host", default="0.0.0.0", help="Bind address")
-    parser.add_argument("--port", type=int, default=8000, help="Server port")
+    parser.add_argument("--address", default=None, help="Bind address as host:port (e.g. 0.0.0.0:8001)")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (prefer --address)")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port (prefer --address)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
 
     import typing
 
     _EMPTY = inspect.Parameter.empty
-    _SERVE_KEYS = {"host", "port", "verbose"}
+    _SERVE_KEYS = {"address", "host", "port", "verbose"}
     seen = {"self"} | _SERVE_KEYS
 
     for cls in server_cls.__mro__:
@@ -407,6 +408,14 @@ def run_server(server_cls: type[ModelServer]) -> None:
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
 
+    # Resolve address: --address host:port takes precedence over --host/--port
+    host, port = args.host, args.port
+    if args.address:
+        parts = args.address.rsplit(":", 1)
+        host = parts[0]
+        if len(parts) == 2:
+            port = int(parts[1])
+
     ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
     server = server_cls(**ctor_kwargs)
 
@@ -414,5 +423,5 @@ def run_server(server_cls: type[ModelServer]) -> None:
         logger.info("Pre-loading model...")
         server._load_model()
 
-    logger.info("Starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    logger.info("Starting server on ws://%s:%d", host, port)
+    serve(server, host=host, port=port)
