@@ -227,6 +227,7 @@ def _build_shard_commands(
     num_shards: int,
     gpus: str = "all",
     cpus: str | None = None,
+    dev: bool = False,
 ) -> list[list[str]]:
     """Build docker run commands for N shards (does not launch them)."""
     from vla_eval.config import DockerConfig
@@ -240,6 +241,8 @@ def _build_shard_commands(
     config_abs = str(Path(config_path).resolve())
     results_dir = str(Path(config.get("output_dir", "./results")).resolve())
     Path(results_dir).mkdir(parents=True, exist_ok=True)
+
+    src_dir = Path(__file__).resolve().parents[1] / "src"
 
     cmds = []
     for shard_id in range(num_shards):
@@ -257,6 +260,8 @@ def _build_shard_commands(
             "-v",
             f"{config_abs}:/tmp/eval_config.yaml:ro",
         ]
+        if dev:
+            cmd.extend(["-v", f"{src_dir}:/workspace/src"])
         for vol in docker_cfg.volumes:
             cmd.extend(["-v", vol])
         for env_str in docker_cfg.env:
@@ -292,6 +297,7 @@ async def measure_demand(
     cpus: str | None = None,
     episodes_per_shard: int = 10,
     timeout: float | None = None,
+    dev: bool = False,
 ) -> dict[str, Any]:
     """Measure λ(N): real observation rate (obs/s) with N Docker shards."""
     # Load and patch config
@@ -330,7 +336,7 @@ async def measure_demand(
         server.reset()
         monitor.start()
         wall_t0 = time.monotonic()
-        cmds = _build_shard_commands(tmp_config, patched, num_shards, gpus=gpus, cpus=cpus)
+        cmds = _build_shard_commands(tmp_config, patched, num_shards, gpus=gpus, cpus=cpus, dev=dev)
         stderr_bufs: list[bytes] = [b""] * num_shards
 
         async def _run_shard(idx: int, cmd: list[str]) -> None:
@@ -402,6 +408,7 @@ def sweep_demand(
     cpus: str | None = None,
     episodes_per_shard: int = 10,
     timeout: float | None = None,
+    dev: bool = False,
 ) -> list[dict[str, Any]]:
     """Run measure_demand for each N in shard_counts. Returns list of result dicts."""
     results = []
@@ -418,6 +425,7 @@ def sweep_demand(
                     cpus=cpus,
                     episodes_per_shard=episodes_per_shard,
                     timeout=timeout,
+                    dev=dev,
                 )
             )
         except KeyboardInterrupt:
@@ -477,6 +485,11 @@ def main() -> None:
     parser.add_argument("--gpus", default="all", help="GPU devices for benchmarks, e.g. '0,1' (default: all)")
     parser.add_argument("--cpus", default=None, help="CPU range for benchmarks, e.g. '0-31' (default: all)")
     parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Bind-mount local ./src into benchmark containers so bench_demand uses local code without rebuilding the image.",
+    )
+    parser.add_argument(
         "--episodes-per-shard",
         type=int,
         default=10,
@@ -496,7 +509,7 @@ def main() -> None:
 
     print(f"Demand benchmark: {args.config}")
     print(f"  port={args.port}, gpus={args.gpus}, cpus={args.cpus}")
-    print(f"  episodes_per_shard={args.episodes_per_shard}, timeout={args.timeout}")
+    print(f"  episodes_per_shard={args.episodes_per_shard}, timeout={args.timeout}, dev={args.dev}")
     print(f"  shard counts: {shard_counts}")
 
     results = sweep_demand(
@@ -507,6 +520,7 @@ def main() -> None:
         cpus=args.cpus,
         episodes_per_shard=args.episodes_per_shard,
         timeout=args.timeout,
+        dev=args.dev,
     )
     if results:
         print_demand_table(results)
