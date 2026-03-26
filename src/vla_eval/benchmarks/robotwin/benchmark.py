@@ -16,6 +16,7 @@ import importlib
 import logging
 import os
 import sys
+import types
 from typing import Any
 
 import numpy as np
@@ -26,6 +27,91 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 logger = logging.getLogger(__name__)
 
 ROBOTWIN_ROOT = "/app/RoboTwin"
+
+
+class _EvalGripperPlanner:
+    """Minimal planner shim for eval-only RoboTwin startup.
+
+    RoboTwin's qpos evaluation path still calls ``plan_grippers()`` during
+    env setup, but it never uses CuRobo path planning afterwards.  This shim
+    keeps gripper interpolation working while avoiding the expensive CuRobo
+    warmup in ``Robot.set_planner()``.
+    """
+
+    def plan_grippers(self, now_val: float, target_val: float) -> dict[str, Any]:
+        num_step = 200
+        per_step = (target_val - now_val) / num_step
+        vals = np.linspace(now_val, target_val, num_step)
+        return {"num_step": num_step, "per_step": per_step, "result": vals}
+
+    def update_point_cloud(self, world_pcd: Any, resolution: float = 0.02) -> None:
+        return None
+
+    def plan_path(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("RoboTwin eval fast-path disables CuRobo path planning during episode execution.")
+
+    def plan_batch(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("RoboTwin eval fast-path disables CuRobo batch planning during episode execution.")
+
+
+def _install_open3d_stub() -> None:
+    """Skip importing heavy open3d when the config never requests pointclouds."""
+    sys.modules.setdefault("open3d", types.ModuleType("open3d"))
+
+
+def _install_fast_eval_planner_patch() -> None:
+    """Monkeypatch RoboTwin's planner setup to skip CuRobo in qpos eval mode."""
+    import envs.robot.robot as robot_mod
+
+    if getattr(robot_mod.Robot, "_vla_eval_fast_patch", False):
+        return
+
+    def _set_planner_fast(self: Any, scene: Any = None) -> None:
+        self.communication_flag = False
+        self.left_planner = _EvalGripperPlanner()
+        self.right_planner = _EvalGripperPlanner()
+
+        if self.need_topp:
+            self.left_mplib_planner = robot_mod.MplibPlanner(
+                self.left_urdf_path,
+                self.left_srdf_path,
+                self.left_move_group,
+                self.left_entity_origion_pose,
+                self.left_entity,
+                self.left_planner_type,
+                scene,
+            )
+            self.right_mplib_planner = robot_mod.MplibPlanner(
+                self.right_urdf_path,
+                self.right_srdf_path,
+                self.right_move_group,
+                self.right_entity_origion_pose,
+                self.right_entity,
+                self.right_planner_type,
+                scene,
+            )
+
+    robot_mod.Robot.set_planner = _set_planner_fast
+    robot_mod.Robot._vla_eval_fast_patch = True
+
+
+def _install_fast_render_patch() -> None:
+    """Use SAPIEN's default camera shader instead of ray tracing for faster startup."""
+    import sapien.render as sapien_render
+
+    if getattr(sapien_render, "_vla_eval_fast_render_patch", False):
+        return
+
+    original_set_camera_shader_dir = sapien_render.set_camera_shader_dir
+
+    def _set_camera_shader_dir_fast(shader_dir: str) -> None:
+        original_set_camera_shader_dir("default")
+
+    sapien_render.set_camera_shader_dir = _set_camera_shader_dir_fast
+    sapien_render.set_ray_tracing_samples_per_pixel = lambda spp: None
+    sapien_render.set_ray_tracing_path_depth = lambda depth: None
+    sapien_render.set_ray_tracing_denoiser = lambda name: None
+    sapien_render._vla_eval_fast_render_patch = True
 
 
 class RoboTwinBenchmark(StepBenchmark):
@@ -39,6 +125,12 @@ class RoboTwinBenchmark(StepBenchmark):
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
+        fast_init: If ``True``, skip CuRobo planner warmup for qpos evaluation
+            episodes after task discovery. This preserves the eval path used by
+            the harness while substantially reducing cold-start time.
+        fast_render: If ``True``, use SAPIEN's default camera shader instead of
+            RoboTwin's ray-traced renderer. Faster, but observation fidelity may
+            differ from the reference benchmark.
     """
 
     def __init__(
@@ -49,6 +141,8 @@ class RoboTwinBenchmark(StepBenchmark):
         instruction_type: str = "seen",
         test_num: int = 100,
         skip_expert_check: bool = False,
+        fast_init: bool = True,
+        fast_render: bool = False,
     ) -> None:
         import re
 
@@ -63,6 +157,8 @@ class RoboTwinBenchmark(StepBenchmark):
         self.instruction_type = instruction_type
         self.test_num = test_num
         self.skip_expert_check = skip_expert_check
+        self.fast_init = fast_init
+        self.fast_render = fast_render
         self._env: Any = None
         self._env_class: Any = None
         self._args: dict[str, Any] | None = None
@@ -93,6 +189,8 @@ class RoboTwinBenchmark(StepBenchmark):
 
         args["task_name"] = self.task_name
         args["task_config"] = self.task_config
+        if not args.get("data_type", {}).get("pointcloud", False):
+            _install_open3d_stub()
 
         from envs import CONFIGS_PATH
 
@@ -130,6 +228,8 @@ class RoboTwinBenchmark(StepBenchmark):
 
         self._args = args
         envs_module = importlib.import_module(f"envs.{self.task_name}")
+        if self.fast_render:
+            _install_fast_render_patch()
         self._env_class = getattr(envs_module, self.task_name)
         logger.info("RoboTwin initialised: task=%s", self.task_name)
 
@@ -155,6 +255,8 @@ class RoboTwinBenchmark(StepBenchmark):
         st_seed = 100000 * (1 + self.seed)
 
         if self.skip_expert_check:
+            if self.fast_init:
+                _install_fast_eval_planner_patch()
             return [
                 {
                     "name": self.task_name,
@@ -211,11 +313,15 @@ class RoboTwinBenchmark(StepBenchmark):
                 except Exception:
                     pass
             now_seed += 1
+        if self.fast_init:
+            _install_fast_eval_planner_patch()
         return tasks
 
     def reset(self, task: Task) -> Any:
         self._init_robotwin()
         assert self._args is not None
+        if self.fast_init:
+            _install_fast_eval_planner_patch()
 
         if self._env is not None:
             try:
