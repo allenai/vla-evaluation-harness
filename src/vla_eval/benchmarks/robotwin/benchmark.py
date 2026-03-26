@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 import types
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
@@ -54,18 +55,54 @@ class _EvalGripperPlanner:
         raise RuntimeError("RoboTwin eval fast-path disables CuRobo batch planning during episode execution.")
 
 
-def _install_open3d_stub() -> None:
-    """Skip importing heavy open3d when the config never requests pointclouds."""
-    sys.modules.setdefault("open3d", types.ModuleType("open3d"))
+class _LazyOpen3D(types.ModuleType):
+    """Import open3d only when one of its attributes is first accessed."""
+
+    def __init__(self) -> None:
+        super().__init__("open3d")
+        self._real_module: types.ModuleType | None = None
+
+    def _load(self) -> types.ModuleType:
+        if self._real_module is not None:
+            return self._real_module
+
+        if sys.modules.get("open3d") is self:
+            sys.modules.pop("open3d", None)
+        try:
+            module = importlib.import_module("open3d")
+        except Exception:
+            sys.modules["open3d"] = self
+            raise
+        self.__dict__.update(module.__dict__)
+        self._real_module = module
+        sys.modules["open3d"] = module
+        return module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._load(), name)
 
 
-def _install_fast_eval_planner_patch() -> None:
-    """Monkeypatch RoboTwin's planner setup to skip CuRobo in qpos eval mode."""
-    import envs.robot.robot as robot_mod
-
-    if getattr(robot_mod.Robot, "_vla_eval_fast_patch", False):
+@contextmanager
+def _defer_open3d_import(enabled: bool):
+    """Defer open3d import during RoboTwin module import when pointclouds are unused."""
+    if not enabled:
+        yield
         return
 
+    previous = sys.modules.get("open3d")
+    proxy = _LazyOpen3D()
+    sys.modules["open3d"] = proxy
+    try:
+        yield
+    finally:
+        if sys.modules.get("open3d") is proxy:
+            if previous is None:
+                sys.modules.pop("open3d", None)
+            else:
+                sys.modules["open3d"] = previous
+
+
+def _make_fast_set_planner(robot_mod: Any):
     def _set_planner_fast(self: Any, scene: Any = None) -> None:
         self.communication_flag = False
         self.left_planner = _EvalGripperPlanner()
@@ -91,27 +128,54 @@ def _install_fast_eval_planner_patch() -> None:
                 scene,
             )
 
-    robot_mod.Robot.set_planner = _set_planner_fast
-    robot_mod.Robot._vla_eval_fast_patch = True
+    return _set_planner_fast
 
 
-def _install_fast_render_patch() -> None:
-    """Use SAPIEN's default camera shader instead of ray tracing for faster startup."""
-    import sapien.render as sapien_render
-
-    if getattr(sapien_render, "_vla_eval_fast_render_patch", False):
+@contextmanager
+def _patched_robot_set_planner(enabled: bool):
+    """Temporarily skip CuRobo planner warmup during env setup."""
+    if not enabled:
+        yield
         return
 
-    original_set_camera_shader_dir = sapien_render.set_camera_shader_dir
+    import envs.robot.robot as robot_mod
+
+    original = robot_mod.Robot.set_planner
+    robot_mod.Robot.set_planner = _make_fast_set_planner(robot_mod)
+    try:
+        yield
+    finally:
+        robot_mod.Robot.set_planner = original
+
+
+@contextmanager
+def _patched_render_setup(enabled: bool):
+    """Temporarily use SAPIEN's default shader during env setup."""
+    if not enabled:
+        yield
+        return
+
+    import sapien.render as sapien_render
+
+    originals = {
+        "set_camera_shader_dir": sapien_render.set_camera_shader_dir,
+        "set_ray_tracing_samples_per_pixel": sapien_render.set_ray_tracing_samples_per_pixel,
+        "set_ray_tracing_path_depth": sapien_render.set_ray_tracing_path_depth,
+        "set_ray_tracing_denoiser": sapien_render.set_ray_tracing_denoiser,
+    }
 
     def _set_camera_shader_dir_fast(shader_dir: str) -> None:
-        original_set_camera_shader_dir("default")
+        originals["set_camera_shader_dir"]("default")
 
     sapien_render.set_camera_shader_dir = _set_camera_shader_dir_fast
     sapien_render.set_ray_tracing_samples_per_pixel = lambda spp: None
     sapien_render.set_ray_tracing_path_depth = lambda depth: None
     sapien_render.set_ray_tracing_denoiser = lambda name: None
-    sapien_render._vla_eval_fast_render_patch = True
+    try:
+        yield
+    finally:
+        for name, func in originals.items():
+            setattr(sapien_render, name, func)
 
 
 class RoboTwinBenchmark(StepBenchmark):
@@ -189,8 +253,6 @@ class RoboTwinBenchmark(StepBenchmark):
 
         args["task_name"] = self.task_name
         args["task_config"] = self.task_config
-        if not args.get("data_type", {}).get("pointcloud", False):
-            _install_open3d_stub()
 
         from envs import CONFIGS_PATH
 
@@ -227,9 +289,8 @@ class RoboTwinBenchmark(StepBenchmark):
         args["eval_mode"] = True
 
         self._args = args
-        envs_module = importlib.import_module(f"envs.{self.task_name}")
-        if self.fast_render:
-            _install_fast_render_patch()
+        with _defer_open3d_import(enabled=not args.get("data_type", {}).get("pointcloud", False)):
+            envs_module = importlib.import_module(f"envs.{self.task_name}")
         self._env_class = getattr(envs_module, self.task_name)
         logger.info("RoboTwin initialised: task=%s", self.task_name)
 
@@ -255,8 +316,6 @@ class RoboTwinBenchmark(StepBenchmark):
         st_seed = 100000 * (1 + self.seed)
 
         if self.skip_expert_check:
-            if self.fast_init:
-                _install_fast_eval_planner_patch()
             return [
                 {
                     "name": self.task_name,
@@ -313,15 +372,11 @@ class RoboTwinBenchmark(StepBenchmark):
                 except Exception:
                     pass
             now_seed += 1
-        if self.fast_init:
-            _install_fast_eval_planner_patch()
         return tasks
 
     def reset(self, task: Task) -> Any:
         self._init_robotwin()
         assert self._args is not None
-        if self.fast_init:
-            _install_fast_eval_planner_patch()
 
         if self._env is not None:
             try:
@@ -331,12 +386,13 @@ class RoboTwinBenchmark(StepBenchmark):
             self._env = None
 
         self._env = self._create_env()
-        self._env.setup_demo(
-            now_ep_num=task.get("episode_idx", 0),
-            seed=task["seed"],
-            is_test=True,
-            **self._args,
-        )
+        with _patched_robot_set_planner(self.fast_init), _patched_render_setup(self.fast_render):
+            self._env.setup_demo(
+                now_ep_num=task.get("episode_idx", 0),
+                seed=task["seed"],
+                is_test=True,
+                **self._args,
+            )
         self._env.set_instruction(instruction=task["instruction"])
         raw_obs = self._env.get_obs()
         return raw_obs
