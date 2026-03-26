@@ -69,7 +69,7 @@ class ResourceMonitor:
         self._stop = True
         if self._thread:
             self._thread.join(timeout=3)
-        return self._peak()
+        return self._summarize()
 
     def _loop(self) -> None:
         while not self._stop:
@@ -83,11 +83,18 @@ class ResourceMonitor:
             **self._gpu_stats(),
         }
 
-    def _peak(self) -> dict[str, Any]:
+    def _summarize(self) -> dict[str, Any]:
         if not self._samples:
             return {}
-        keys = self._samples[0].keys()
-        return {f"peak_{k}": max(s.get(k, 0) for s in self._samples) for k in keys}
+        # Skip first 2 samples (container startup noise) if enough data
+        steady = self._samples[2:] if len(self._samples) > 4 else self._samples
+        keys = steady[0].keys()
+        result: dict[str, Any] = {}
+        for k in keys:
+            vals = sorted(s.get(k, 0) for s in steady)
+            result[f"median_{k}"] = vals[len(vals) // 2]
+            result[f"peak_{k}"] = vals[-1]
+        return result
 
     @staticmethod
     def _cpu_percent() -> float:
@@ -443,14 +450,14 @@ def sweep_demand(
 
 def print_demand_table(results: list[dict[str, Any]]) -> None:
     """Print formatted demand curve table with resource utilization."""
-    has_resources = any("peak_cpu_pct" in r for r in results)
+    has_resources = any("median_cpu_pct" in r for r in results)
     if has_resources:
-        print(f"\n{'=' * 100}")
+        print(f"\n{'=' * 115}")
         print(
             f"{'N':>4}  {'observations':>12}  {'elapsed':>8}  {'λ (obs/s)':>10}  "
-            f"{'CPU%':>5}  {'GPU%':>5}  {'GPU_MEM':>8}  {'SYS_RAM':>8}"
+            f"{'CPU%':>6} {'(peak)':>6}  {'GPU%':>6} {'(peak)':>6}  {'GPU_MEM':>8}  {'SYS_RAM':>8}"
         )
-        print(f"{'-' * 100}")
+        print(f"{'-' * 115}")
         for r in results:
             tag = " *" if r.get("timed_out") else ""
             gpu_mem = f"{r.get('peak_gpu_mem_used_gb', 0):.1f}GB"
@@ -458,10 +465,11 @@ def print_demand_table(results: list[dict[str, Any]]) -> None:
             print(
                 f"{r['num_shards']:4d}  {r['total_requests']:12d}  "
                 f"{r['elapsed']:8.1f}  {r['lambda_rps']:10.1f}{tag:2s}  "
-                f"{r.get('peak_cpu_pct', 0):5.1f}  {r.get('peak_gpu_util_pct', 0):5.1f}  "
+                f"{r.get('median_cpu_pct', 0):6.1f} {r.get('peak_cpu_pct', 0):6.1f}  "
+                f"{r.get('median_gpu_util_pct', 0):6.1f} {r.get('peak_gpu_util_pct', 0):6.1f}  "
                 f"{gpu_mem:>8}  {sys_ram:>8}"
             )
-        print(f"{'=' * 100}")
+        print(f"{'=' * 115}")
     else:
         print(f"\n{'=' * 70}")
         print(f"{'N':>4}  {'observations':>12}  {'elapsed':>10}  {'init':>8}  {'λ (obs/s)':>10}")
