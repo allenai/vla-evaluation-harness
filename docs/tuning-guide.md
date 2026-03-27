@@ -180,7 +180,7 @@ uv run python experiments/bench_supply.py \
 | 24                 | 196.6     | 51.4ms                  |
 | 32                 | 201.4     | 68.4ms                  |
 
-**H100-80GB (SXM, DGX)** — chunk_size=12:
+**H100-80GB SXM** — chunk_size=12:
 
 | B (max_batch_size) | μ (obs/s) | Inference latency (p50) |
 |:------------------:|:---------:|:-----------------------:|

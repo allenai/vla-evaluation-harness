@@ -5,8 +5,8 @@ Reproduction of published VLA model benchmark scores using vla-eval.
 ## Measurement Protocol
 
 **Hardware:**
-- Model server: DGX-H100-80GB SXM (slurm, h100 partition)
-- Benchmark host: A100-Zebra (96× Xeon Gold 6336Y cores, 2× A100-80GB PCIe, 503GB RAM)
+- Model server: H100-80GB SXM GPU
+- Benchmark host: 96-core Xeon, 2× A100-80GB PCIe, 503GB RAM
 
 **Software:**
 - Harness: vla-eval on branch `add-reproductions`
@@ -121,7 +121,7 @@ StarVLA/GR00T support `predict_batch()`. X-VLA/Pi0/OFT are single-predict only.
 
 ## Demand — Benchmark Observation Rate
 
-Measured with `experiments/bench_demand.py` on A100-Zebra.
+Measured with `experiments/bench_demand.py` on the benchmark host.
 Command: `uv run python experiments/bench_demand.py --config CONFIG --shards N --episodes-per-shard 5 --gpus G --timeout 300`
 Median CPU/GPU utilization during steady-state (startup transients excluded).
 
@@ -143,14 +143,14 @@ Full per-N sweep data: see [`../tuning-guide.md`](../tuning-guide.md).
 docker/build.sh libero
 
 # 2. Start model server (slurm, one per GPU)
-sbatch -p h100 --gres=gpu:1 -c8 --mem=64G -t 24:00:00 \
+sbatch --gres=gpu:1 -c8 --mem=64G -t 24:00:00 \
   --wrap="uv run vla-eval serve -c configs/model_servers/xvla/libero.yaml --address 0.0.0.0:8001 -v"
 
 # 3. Wait for server ready
-curl -s --max-time 2 "http://DGX-H100-XX:8001/config"
+curl -s --max-time 2 "http://GPU-NODE:8001/config"
 
 # 4. Run benchmark (ONE MODEL AT A TIME — shard filenames collide across models)
-SHARDS=10  NODE=DGX-H100-XX  MODEL=xvla
+SHARDS=10  NODE=GPU-NODE  MODEL=xvla
 for i in $(seq 0 $((SHARDS-1))); do
   uv run vla-eval run -c configs/libero_all.yaml \
     --server-url ws://${NODE}:8001 \
