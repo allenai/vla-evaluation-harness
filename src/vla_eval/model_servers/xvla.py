@@ -123,7 +123,7 @@ def _get_profile(name: str) -> _XVLABenchmarkProfile:
 
 
 _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
-    "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True},
+    "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True, "state_format": "ee_rot6d"},
     "calvin": {"send_wrist_image": True, "send_state": True},
     "simpler": {"send_state": True},
     "vlabench": {"send_wrist_image": True, "send_state": True},
@@ -185,12 +185,17 @@ def _convert_ee6d_to_7d(actions: np.ndarray) -> np.ndarray:
 
 
 def _state_to_xvla_proprio(state: np.ndarray, dim: int = 20) -> np.ndarray:
-    """Convert ``[pos3, axisangle3, gripper*]`` → X-VLA proprio (20-D).
+    """Convert state to X-VLA proprio (20-D).
 
-    Matches the official eval format: ``[pos3, rot6d6, 0.0, zeros10]``.
+    Accepts either:
+    - 20D ``[pos3, rot6d6, 0, zeros10]`` (from benchmark ee_rot6d) → use directly
+    - 8D ``[pos3, axisangle3, gripper2]`` → convert axisangle to rot6d
     """
     proprio = np.zeros(dim, dtype=np.float32)
-    if len(state) >= 6:
+    if len(state) >= 20:
+        # Already in 20D rot6d format — use directly
+        proprio[:20] = state[:20]
+    elif len(state) >= 6:
         proprio[:3] = state[:3]
         proprio[3:9] = _axisangle_to_rot6d(state[3:6])
     return proprio

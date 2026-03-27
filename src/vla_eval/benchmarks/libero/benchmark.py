@@ -69,6 +69,7 @@ class LIBEROBenchmark(StepBenchmark):
         send_wrist_image: bool = False,
         send_state: bool = False,
         absolute_action: bool = False,
+        state_format: str = "default",
         max_steps: int | None = None,
     ) -> None:
         super().__init__()
@@ -78,6 +79,7 @@ class LIBEROBenchmark(StepBenchmark):
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
         self.absolute_action = absolute_action
+        self.state_format = state_format
         self._max_steps = max_steps
         self._env = None
         self._task_suite = None
@@ -207,14 +209,27 @@ class LIBEROBenchmark(StepBenchmark):
             obs_dict["images"]["wrist"] = wrist
 
         if self.send_state:
-            # 8D: [eef_pos3, axisangle3, gripper2]
-            obs_dict["states"] = np.concatenate(
-                [
-                    raw_obs["robot0_eef_pos"],
-                    quat_to_axisangle(raw_obs["robot0_eef_quat"]),
-                    raw_obs["robot0_gripper_qpos"],
-                ]
-            )
+            if self.state_format == "ee_rot6d":
+                # 20D: [pos3, rot6d6, 0, zeros10] — read directly from
+                # controller to avoid lossy quat→axisangle→rot6d chain.
+                assert self._env is not None
+                robot = self._env.robots[0]
+                ee_pos = np.asarray(robot.controller.ee_pos, dtype=np.float32)
+                ee_ori_mat = np.asarray(robot.controller.ee_ori_mat, dtype=np.float32)
+                rot6d = np.concatenate([ee_ori_mat[:3, 0], ee_ori_mat[:3, 1]])
+                state_20d = np.zeros(20, dtype=np.float32)
+                state_20d[:3] = ee_pos
+                state_20d[3:9] = rot6d
+                obs_dict["states"] = state_20d
+            else:
+                # 8D: [eef_pos3, axisangle3, gripper2]
+                obs_dict["states"] = np.concatenate(
+                    [
+                        raw_obs["robot0_eef_pos"],
+                        quat_to_axisangle(raw_obs["robot0_eef_quat"]),
+                        raw_obs["robot0_gripper_qpos"],
+                    ]
+                )
 
         return obs_dict
 
