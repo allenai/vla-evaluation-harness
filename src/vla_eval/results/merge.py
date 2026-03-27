@@ -116,6 +116,16 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
     if is_partial:
         merged["partial"] = True
 
+    server_info = shards[0].get("server_info")
+    if server_info is not None:
+        merged["server_info"] = server_info
+
+    # Preserve original measurement metadata from shards
+    merged["shard_harness_version"] = shards[0].get("harness_version")
+    shard_dates = sorted(s.get("created_at", "") for s in shards if s.get("created_at"))
+    if shard_dates:
+        merged["shard_created_at"] = {"first": shard_dates[0], "last": shard_dates[-1]}
+
     seed = _extract_seed(config)
     if seed is not None:
         merged["seed"] = seed
