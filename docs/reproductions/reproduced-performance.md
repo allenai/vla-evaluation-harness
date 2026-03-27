@@ -32,7 +32,7 @@ Seed=7, num_steps_wait=10, max_steps per suite (Spatial=220, Object=280, Goal=30
 | X-VLA (0.9B) | 98.0% | 98.0% | 98.0% | 94.8% | **97.2%** | 98.1% | Reproduced |
 | Pi0.5 | 98.0% | 99.6% | 98.6% | 94.6% | **97.7%** | 96.9% | Reproduced |
 | GR00T N1.6 | 96.6% | 98.4% | 96.8% | 87.8% | **94.9%** | 97.0% | Approximate (−2.1pp) |
-| OFT (joint) | — | — | — | — | **—** | ~96.8% | In progress |
+| OFT (joint) | 94.0% | — | — | — | **—** | ~96.8% | Spatial only (−3.6pp) |
 
 Each value = successful episodes / total episodes (500 per suite).
 Raw result JSONs: [`data/`](data/).
