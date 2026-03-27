@@ -207,15 +207,21 @@ class LIBEROBenchmark(StepBenchmark):
             obs_dict["images"]["wrist"] = wrist
 
         if self.send_state:
-            # 8D: [pos3, axisangle3, gripper2]
-            # Read position and orientation from controller directly
-            # (raw_obs quaternion has convention issues with some simulators).
+            # Both sources: observation (default) and controller.
+            # Most models (Pi0, OFT, GR00T) use obs; X-VLA uses controller.
+            obs_dict["states"] = np.concatenate(
+                [
+                    raw_obs["robot0_eef_pos"],
+                    quat_to_axisangle(raw_obs["robot0_eef_quat"]),
+                    raw_obs["robot0_gripper_qpos"],
+                ]
+            )
             assert self._env is not None
             robot = self._env.robots[0]
             ee_pos = np.asarray(robot.controller.ee_pos, dtype=np.float32)
             ee_ori_mat = np.asarray(robot.controller.ee_ori_mat, dtype=np.float32)
             ee_aa = quat_to_axisangle(matrix_to_quat(ee_ori_mat))
-            obs_dict["states"] = np.concatenate(
+            obs_dict["controller_states"] = np.concatenate(
                 [ee_pos, ee_aa, np.asarray(raw_obs["robot0_gripper_qpos"], dtype=np.float32)]
             )
 
