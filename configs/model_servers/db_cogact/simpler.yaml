@@ -1,0 +1,7 @@
+# DB-CogACT model server — SIMPLER checkpoint
+# Weight: Dexmal/simpler-db-cogact (HuggingFace)
+# Benchmark: SIMPLER (SAPIEN/ManiSkill2 real2sim, WidowX Bridge tasks)
+extends: _base.yaml
+args:
+  model_path: Dexmal/simpler-db-cogact
+  chunk_size: 5

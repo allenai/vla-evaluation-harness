@@ -16,6 +16,8 @@ import importlib
 import logging
 import os
 import sys
+import types
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
@@ -26,6 +28,154 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 logger = logging.getLogger(__name__)
 
 ROBOTWIN_ROOT = "/app/RoboTwin"
+
+
+class _EvalGripperPlanner:
+    """Minimal planner shim for eval-only RoboTwin startup.
+
+    RoboTwin's qpos evaluation path still calls ``plan_grippers()`` during
+    env setup, but it never uses CuRobo path planning afterwards.  This shim
+    keeps gripper interpolation working while avoiding the expensive CuRobo
+    warmup in ``Robot.set_planner()``.
+    """
+
+    def plan_grippers(self, now_val: float, target_val: float) -> dict[str, Any]:
+        num_step = 200
+        per_step = (target_val - now_val) / num_step
+        vals = np.linspace(now_val, target_val, num_step)
+        return {"num_step": num_step, "per_step": per_step, "result": vals}
+
+    def update_point_cloud(self, world_pcd: Any, resolution: float = 0.02) -> None:
+        return None
+
+    def plan_path(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("RoboTwin eval fast-path disables CuRobo path planning during episode execution.")
+
+    def plan_batch(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("RoboTwin eval fast-path disables CuRobo batch planning during episode execution.")
+
+
+class _LazyOpen3D(types.ModuleType):
+    """Import open3d only when one of its attributes is first accessed."""
+
+    def __init__(self) -> None:
+        super().__init__("open3d")
+        self._real_module: types.ModuleType | None = None
+
+    def _load(self) -> types.ModuleType:
+        if self._real_module is not None:
+            return self._real_module
+
+        if sys.modules.get("open3d") is self:
+            sys.modules.pop("open3d", None)
+        try:
+            module = importlib.import_module("open3d")
+        except Exception:
+            sys.modules["open3d"] = self
+            raise
+        self.__dict__.update(module.__dict__)
+        self._real_module = module
+        sys.modules["open3d"] = module
+        return module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._load(), name)
+
+
+@contextmanager
+def _defer_open3d_import(enabled: bool):
+    """Defer open3d import during RoboTwin module import when pointclouds are unused."""
+    if not enabled:
+        yield
+        return
+
+    previous = sys.modules.get("open3d")
+    proxy = _LazyOpen3D()
+    sys.modules["open3d"] = proxy
+    try:
+        yield
+    finally:
+        if sys.modules.get("open3d") is proxy:
+            if previous is None:
+                sys.modules.pop("open3d", None)
+            else:
+                sys.modules["open3d"] = previous
+
+
+def _make_fast_set_planner(robot_mod: Any):
+    def _set_planner_fast(self: Any, scene: Any = None) -> None:
+        self.communication_flag = False
+        self.left_planner = _EvalGripperPlanner()
+        self.right_planner = _EvalGripperPlanner()
+
+        if self.need_topp:
+            self.left_mplib_planner = robot_mod.MplibPlanner(
+                self.left_urdf_path,
+                self.left_srdf_path,
+                self.left_move_group,
+                self.left_entity_origion_pose,
+                self.left_entity,
+                self.left_planner_type,
+                scene,
+            )
+            self.right_mplib_planner = robot_mod.MplibPlanner(
+                self.right_urdf_path,
+                self.right_srdf_path,
+                self.right_move_group,
+                self.right_entity_origion_pose,
+                self.right_entity,
+                self.right_planner_type,
+                scene,
+            )
+
+    return _set_planner_fast
+
+
+@contextmanager
+def _patched_robot_set_planner(enabled: bool):
+    """Temporarily skip CuRobo planner warmup during env setup."""
+    if not enabled:
+        yield
+        return
+
+    import envs.robot.robot as robot_mod
+
+    original = robot_mod.Robot.set_planner
+    robot_mod.Robot.set_planner = _make_fast_set_planner(robot_mod)
+    try:
+        yield
+    finally:
+        robot_mod.Robot.set_planner = original
+
+
+@contextmanager
+def _patched_render_setup(enabled: bool):
+    """Temporarily use SAPIEN's default shader during env setup."""
+    if not enabled:
+        yield
+        return
+
+    import sapien.render as sapien_render
+
+    originals = {
+        "set_camera_shader_dir": sapien_render.set_camera_shader_dir,
+        "set_ray_tracing_samples_per_pixel": sapien_render.set_ray_tracing_samples_per_pixel,
+        "set_ray_tracing_path_depth": sapien_render.set_ray_tracing_path_depth,
+        "set_ray_tracing_denoiser": sapien_render.set_ray_tracing_denoiser,
+    }
+
+    def _set_camera_shader_dir_fast(shader_dir: str) -> None:
+        originals["set_camera_shader_dir"]("default")
+
+    sapien_render.set_camera_shader_dir = _set_camera_shader_dir_fast
+    sapien_render.set_ray_tracing_samples_per_pixel = lambda spp: None
+    sapien_render.set_ray_tracing_path_depth = lambda depth: None
+    sapien_render.set_ray_tracing_denoiser = lambda name: None
+    try:
+        yield
+    finally:
+        for name, func in originals.items():
+            setattr(sapien_render, name, func)
 
 
 class RoboTwinBenchmark(StepBenchmark):
@@ -39,6 +189,12 @@ class RoboTwinBenchmark(StepBenchmark):
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
+        fast_init: If ``True``, skip CuRobo planner warmup for qpos evaluation
+            episodes after task discovery. This preserves the eval path used by
+            the harness while substantially reducing cold-start time.
+        fast_render: If ``True``, use SAPIEN's default camera shader instead of
+            RoboTwin's ray-traced renderer. Faster, but observation fidelity may
+            differ from the reference benchmark.
     """
 
     def __init__(
@@ -49,6 +205,8 @@ class RoboTwinBenchmark(StepBenchmark):
         instruction_type: str = "seen",
         test_num: int = 100,
         skip_expert_check: bool = False,
+        fast_init: bool = True,
+        fast_render: bool = False,
     ) -> None:
         import re
 
@@ -63,6 +221,8 @@ class RoboTwinBenchmark(StepBenchmark):
         self.instruction_type = instruction_type
         self.test_num = test_num
         self.skip_expert_check = skip_expert_check
+        self.fast_init = fast_init
+        self.fast_render = fast_render
         self._env: Any = None
         self._env_class: Any = None
         self._args: dict[str, Any] | None = None
@@ -129,7 +289,8 @@ class RoboTwinBenchmark(StepBenchmark):
         args["eval_mode"] = True
 
         self._args = args
-        envs_module = importlib.import_module(f"envs.{self.task_name}")
+        with _defer_open3d_import(enabled=not args.get("data_type", {}).get("pointcloud", False)):
+            envs_module = importlib.import_module(f"envs.{self.task_name}")
         self._env_class = getattr(envs_module, self.task_name)
         logger.info("RoboTwin initialised: task=%s", self.task_name)
 
@@ -225,12 +386,13 @@ class RoboTwinBenchmark(StepBenchmark):
             self._env = None
 
         self._env = self._create_env()
-        self._env.setup_demo(
-            now_ep_num=task.get("episode_idx", 0),
-            seed=task["seed"],
-            is_test=True,
-            **self._args,
-        )
+        with _patched_robot_set_planner(self.fast_init), _patched_render_setup(self.fast_render):
+            self._env.setup_demo(
+                now_ep_num=task.get("episode_idx", 0),
+                seed=task["seed"],
+                is_test=True,
+                **self._args,
+            )
         self._env.set_instruction(instruction=task["instruction"])
         raw_obs = self._env.get_obs()
         return raw_obs
@@ -238,11 +400,11 @@ class RoboTwinBenchmark(StepBenchmark):
     def step(self, action: Action) -> StepResult:
         raw = action.get("actions", action.get("action"))
         act = np.asarray(raw, dtype=np.float64).flatten()
-        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
         if len(act) > 14:
             act = act[:14]
         elif len(act) < 14:
             act = np.pad(act, (0, 14 - len(act)))
+        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
 
         self._env.take_action(act, action_type="qpos")
         raw_obs = self._env.get_obs()
@@ -271,4 +433,9 @@ class RoboTwinBenchmark(StepBenchmark):
         return {"success": step_result.info.get("success", False)}
 
     def get_metadata(self) -> dict[str, Any]:
-        return {"max_steps": 400, "task_name": self.task_name}
+        return {
+            "max_steps": 400,
+            "task_name": self.task_name,
+            "action_dim": 14,
+            "max_episodes_per_task": self.test_num,
+        }

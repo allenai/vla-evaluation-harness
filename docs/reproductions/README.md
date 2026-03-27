@@ -1,17 +1,9 @@
-# Reproduction Reports
+# Reproductions
 
-Model-centric evaluation reports. Each document covers one model's reproduction results across all benchmarks tested with that model.
+Systematic verification that vla-eval reproduces published model scores.
 
-## Reports
+- [reported-performance.md](reported-performance.md) — Officially reported scores from papers/model cards.
+- [reproduced-performance.md](reproduced-performance.md) — Our measured scores, supply/demand data, and how to run.
+- [db-cogact.md](db-cogact.md) — DB-CogACT Stage 2 cross-benchmark report.
 
-| Model | Benchmarks | Verdict | Report |
-|-------|-----------|---------|--------|
-| DB-CogACT (CogACT 7B) | LIBERO, CALVIN, SimplerEnv | All reproduced within expected variance | [db-cogact.md](db-cogact.md) |
-
-## Adding a New Report
-
-Copy **[_TEMPLATE.md](_TEMPLATE.md)** and fill in the sections. Name the file after the model (e.g. `openvla.md`).
-
-## Blocked Benchmarks
-
-Some benchmarks cannot be integrated due to external blockers. See [BLOCKED.md](BLOCKED.md).
+Raw result JSONs are archived under [`data/`](data/).

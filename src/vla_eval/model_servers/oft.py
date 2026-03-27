@@ -12,7 +12,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 # openvla-oft = { git = "https://github.com/moojink/openvla-oft.git", rev = "e4287e94541f459edc4feabc4e181f537cd569a8" }
 #
 # [tool.uv]
@@ -26,7 +26,6 @@ action chunking and parallel decoding (26× faster, 3× lower latency).
 
 from __future__ import annotations
 
-import argparse
 import logging
 from typing import Any
 
@@ -36,7 +35,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +66,9 @@ class OFTModelServer(PredictModelServer):
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.pretrained_checkpoint = pretrained_checkpoint
         self.unnorm_key = unnorm_key
+        # Ensure mutual consistency: diffusion and L1 are exclusive
+        if use_diffusion:
+            use_l1_regression = False
         self.use_l1_regression = use_l1_regression
         self.use_diffusion = use_diffusion
         self.use_film = use_film
@@ -119,6 +120,14 @@ class OFTModelServer(PredictModelServer):
             )
         logger.info("OpenVLA-OFT model loaded.")
 
+    def get_observation_params(self) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if self.num_images_in_input >= 2:
+            params["send_wrist_image"] = True
+        if self.use_proprio:
+            params["send_state"] = True
+        return params
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from experiments.robot.openvla_utils import get_vla_action
         from prismatic.vla.constants import PROPRIO_DIM
@@ -138,8 +147,10 @@ class OFTModelServer(PredictModelServer):
             oft_obs["wrist_image"] = np.asarray(images_dict[keys[1]], dtype=np.uint8)
 
         # Provide proprio state; fall back to zeros when missing
-        if "state" in obs:
-            oft_obs["state"] = np.asarray(obs["state"], dtype=np.float64)
+        # LIBERO sends "states" (plural), other benchmarks may use "state" (singular)
+        raw_state = obs.get("states", obs.get("state"))
+        if raw_state is not None:
+            oft_obs["state"] = np.asarray(raw_state, dtype=np.float64)
         elif self.use_proprio:
             oft_obs["state"] = np.zeros(PROPRIO_DIM, dtype=np.float64)
 
@@ -153,50 +164,13 @@ class OFTModelServer(PredictModelServer):
             self._action_head,
             self._proprio_projector,
         )
-        return {"actions": actions}
+        # Gripper: RLDS [0=close,1=open] → robosuite [-1=open,+1=close]
+        actions_arr = np.asarray(actions, dtype=np.float32)
+        actions_arr[..., -1] = -np.sign(2 * actions_arr[..., -1] - 1)
+        return {"actions": actions_arr}
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OpenVLA-OFT model server (uv script)")
-    parser.add_argument(
-        "--pretrained_checkpoint",
-        required=True,
-        help="HuggingFace model ID (e.g. moojink/openvla-7b-oft-finetuned-libero-spatial)",
-    )
-    parser.add_argument("--unnorm_key", default="", help="Unnormalization key")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=10)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument(
-        "--num_images_in_input", type=int, default=1, help="Number of input images (1=full_image only, 2=full+wrist)"
-    )
-    parser.add_argument("--use_diffusion", action="store_true")
-    parser.add_argument("--no_proprio", action="store_true")
-    parser.add_argument("--load_in_8bit", action="store_true")
-    parser.add_argument("--load_in_4bit", action="store_true")
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    server = OFTModelServer(
-        pretrained_checkpoint=args.pretrained_checkpoint,
-        unnorm_key=args.unnorm_key,
-        use_l1_regression=not args.use_diffusion,
-        use_diffusion=args.use_diffusion,
-        num_images_in_input=args.num_images_in_input,
-        use_proprio=not args.no_proprio,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        load_in_8bit=args.load_in_8bit,
-        load_in_4bit=args.load_in_4bit,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(OFTModelServer)

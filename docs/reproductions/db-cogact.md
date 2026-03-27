@@ -188,7 +188,7 @@ All steps reproduced within ±1.4 pp. Wall-clock: **~33 min** for 1000 sequences
 
 - Avg Len 4.051 vs reference 4.063 (−0.012).
 - 5/5 delta (−1.4 pp) within expected variance for 1000 sequences.
-- PyBullet CPU rendering is the per-container bottleneck.
+- PyBullet physics + GPU EGL rendering is the per-container bottleneck.
 
 ---
 

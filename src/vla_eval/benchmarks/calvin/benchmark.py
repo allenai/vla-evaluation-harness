@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.rotation import euler_xyz_to_rot6d_interleaved, rot6d_interleaved_to_euler_xyz
+from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -166,6 +166,12 @@ class CALVINBenchmark(StepBenchmark):
         dataset_path: Path to CALVIN validation dataset.
         num_sequences: Number of 5-subtask sequences to evaluate (default 1000).
         seed: Random seed for sequence generation and PyTorch Lightning.
+        send_wrist_image: Include gripper camera image in observations.
+        send_state: Include 8-D proprioceptive state
+            ``[pos3, euler3, gripper2]`` in observations.
+        absolute_action: Use absolute 7-D ``[pos3, euler3, gripper]``
+            actions instead of delta accumulation.
+        ep_len: Override per-subtask step limit (default 360).
     """
 
     def __init__(
@@ -176,7 +182,6 @@ class CALVINBenchmark(StepBenchmark):
         send_wrist_image: bool = False,
         send_state: bool = False,
         absolute_action: bool = False,
-        gripper_threshold: float = 0.0,
         ep_len: int | None = None,
     ) -> None:
         super().__init__()
@@ -186,7 +191,6 @@ class CALVINBenchmark(StepBenchmark):
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
         self.absolute_action = absolute_action
-        self.gripper_threshold = gripper_threshold
         self._ep_len = ep_len
         self._env = None
         self._task_oracle = None
@@ -404,6 +408,9 @@ class CALVINBenchmark(StepBenchmark):
         self._sequences = get_sequences(self.num_sequences)
         logger.info("CALVIN initialized: %d sequences on %s", len(self._sequences), self._device)
 
+    def get_metric_keys(self) -> dict[str, str]:
+        return {"success": "mean", "completed_subtasks": "mean"}
+
     def get_tasks(self) -> list[Task]:
         self._init_calvin()
         tasks = []
@@ -502,25 +509,19 @@ class CALVINBenchmark(StepBenchmark):
         return StepResult(obs=obs, reward=0.0, done=False, info={})
 
     def _process_absolute_action(self, action: Action) -> np.ndarray:
-        """Process 20D absolute action from X-VLA into 7D [pos3, euler3, grip].
+        """Process 7D absolute action [pos3, axisangle3, gripper] → [pos3, euler3, gripper].
 
-        Matches xvla-official/evaluation/calvin/calvin_client.py:
-        - Extract arm1 [pos3, rot6d_interleaved(6), gripper(1)] from 20D
-        - Decode interleaved rot6d → euler xyz
-        - Apply gripper threshold (< threshold → 1 close, >= threshold → -1 open)
+        Model servers return axis-angle rotation; CALVIN env expects euler XYZ.
         """
         raw_action = action.get("actions", action.get("action"))
         if isinstance(raw_action, (list, np.ndarray)):
-            raw_action = np.asarray(raw_action, dtype=np.float64).flatten()
+            raw = np.asarray(raw_action, dtype=np.float64).flatten()[:7]
         else:
-            raw_action = np.zeros(20, dtype=np.float64)
+            raw = np.zeros(7, dtype=np.float64)
 
-        pos = raw_action[:3]
-        rot6d = raw_action[3:9]
-        grip_raw = raw_action[9]
-
-        euler = rot6d_interleaved_to_euler_xyz(rot6d)
-        gripper = 1.0 if grip_raw < self.gripper_threshold else -1.0
+        pos = raw[:3]
+        euler = matrix_to_euler_xyz(axisangle_to_matrix(raw[3:6].astype(np.float32)))
+        gripper = -1.0 if raw[6] > 0 else 1.0
 
         return np.concatenate([pos, euler, [gripper]])
 
@@ -566,18 +567,9 @@ class CALVINBenchmark(StepBenchmark):
             obs["images"]["rgb_gripper"] = wrist_img
 
         if self.send_state:
-            # Construct 20D proprio matching official X-VLA CALVIN format:
-            # [pos3, rot6d_interleaved(6), gripper_bool(1), zeros(10)]
+            # 8D: [pos3, euler3, gripper2] — CALVIN proprio_state subset
             raw = raw_obs["robot_obs_raw"].cpu().numpy()
-            pos = raw[0:3]
-            euler = raw[3:6]
-            rot6d = euler_xyz_to_rot6d_interleaved(euler)
-            gripper_bool = float(raw[14] > 0.0)
-            state_20d = np.zeros(20, dtype=np.float32)
-            state_20d[:3] = pos
-            state_20d[3:9] = rot6d
-            state_20d[9] = gripper_bool
-            obs["states"] = state_20d
+            obs["states"] = np.concatenate([raw[0:7], raw[14:15]]).astype(np.float32)
 
         # Signal model server to reset internal state on subtask transition
         if self._subtask_just_reset:

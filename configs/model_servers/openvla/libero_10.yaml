@@ -1,0 +1,7 @@
+# OpenVLA — LIBERO-10/Long (LoRA finetuned)
+script: "src/vla_eval/model_servers/openvla.py"
+args:
+  model_path: openvla/openvla-7b-finetuned-libero-10
+  unnorm_key: libero_10
+  chunk_size: 1
+  port: 8000

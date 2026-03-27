@@ -16,4 +16,5 @@ benchmarks:
     params:
       dataset_path: "/data/calvin/dataset/validation"
       num_sequences: 1000
+      seed: 0
 

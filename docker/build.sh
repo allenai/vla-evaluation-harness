@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BENCHMARKS=(simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme)
+BENCHMARKS=(simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix)
 REGISTRY="ghcr.io/allenai/vla-evaluation-harness"
 
 # Default BASE_IMAGE follows TAG unless explicitly overridden

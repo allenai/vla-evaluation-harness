@@ -9,7 +9,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 # gr00t = { git = "https://github.com/NVIDIA/Isaac-GR00T.git", rev = "e29d8fc50b0e4745120ae3fb72447986fe638aa6" }
 #
 # [tool.uv]
@@ -24,7 +24,6 @@ nvidia/GR00T-N1.6-3B foundation model (or fine-tuned checkpoints).
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 from typing import Any
@@ -35,7 +34,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +47,7 @@ class GR00TModelServer(PredictModelServer):
         embodiment_tag: str = "GR1",
         video_key: str | None = None,
         action_keys: list[str] | None = None,
+        invert_gripper: bool = False,
         *,
         chunk_size: int = 16,
         action_ensemble: str = "newest",
@@ -59,6 +58,7 @@ class GR00TModelServer(PredictModelServer):
         self.embodiment_tag = embodiment_tag
         self.video_key = video_key  # None = auto-detect from modality config
         self.action_keys = action_keys
+        self.invert_gripper = invert_gripper
         self._policy = None
         self._modality_config: dict[str, Any] | None = None
         self._state_dims: dict[str, int] = {}
@@ -147,48 +147,74 @@ class GR00TModelServer(PredictModelServer):
             self._modality_config["action"].modality_keys,
         )
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def get_observation_params(self) -> dict[str, Any]:
+        return {"send_wrist_image": True, "send_state": True}
+
+    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         self._load_model()
         assert self._policy is not None and self._modality_config is not None
+        B = len(obs_batch)
 
-        # Determine video key: explicit arg or first from modality config
-        video_key = self.video_key
-        if video_key is None:
-            video_key = self._modality_config["video"].modality_keys[0]
+        video_keys = self._modality_config["video"].modality_keys
+        if self.video_key is not None:
+            video_keys = [self.video_key]
 
-        # Build GR00T observation dict
-        images_dict = obs.get("images", {})
-        img_array = next(iter(images_dict.values())) if isinstance(images_dict, dict) and images_dict else None
+        # Collect per-key image lists and language across batch
+        per_key_imgs: dict[str, list[np.ndarray]] = {k: [] for k in video_keys}
+        langs = []
+        for obs in obs_batch:
+            images_dict = obs.get("images", {})
+            img_values = list(images_dict.values()) if isinstance(images_dict, dict) else []
+            for idx, vk in enumerate(video_keys):
+                if idx < len(img_values):
+                    img = np.asarray(img_values[idx], dtype=np.uint8)
+                    if img.ndim == 3:
+                        img = img[np.newaxis, ...]  # (T=1, H, W, C)
+                else:
+                    img = np.zeros((1, 224, 224, 3), dtype=np.uint8)
+                per_key_imgs[vk].append(img)
+            langs.append([obs.get("task_description", "")])
 
+        # Stack into batched observation: video {key: (B, T=1, H, W, C)}, language (B, 1)
         observation: dict[str, Any] = {
-            "video": {},
+            "video": {k: np.stack(v, axis=0) for k, v in per_key_imgs.items()},
             "state": {},
-            "language": {self._language_key: [[obs.get("task_description", "")]]},
+            "language": {self._language_key: langs},
         }
 
-        # Video: (B=1, T=1, H, W, C=3) uint8
-        if img_array is not None:
-            img = np.asarray(img_array, dtype=np.uint8)
-            if img.ndim == 3:
-                img = img[np.newaxis, np.newaxis, ...]
-            observation["video"][video_key] = img
+        # Initialize state arrays, then fill from observation if available
+        state_keys = self._modality_config["state"].modality_keys
+        for sk in state_keys:
+            dim = self._state_dims.get(sk, 1)
+            observation["state"][sk] = np.zeros((B, 1, dim), dtype=np.float32)
 
-        # State: fill ALL required keys (zeros if not provided)
-        for state_key in self._modality_config["state"].modality_keys:
-            dim = self._state_dims.get(state_key, 1)
-            observation["state"][state_key] = np.zeros((1, 1, dim), dtype=np.float32)
+        # Decompose flat state vector into per-key arrays
+        for obs_idx, obs in enumerate(obs_batch):
+            raw_state = obs.get("states", obs.get("state"))
+            if raw_state is None:
+                continue
+            state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
+            offset = 0
+            for sk in state_keys:
+                dim = self._state_dims.get(sk, 1)
+                if offset + dim <= len(state_arr):
+                    observation["state"][sk][obs_idx, 0, :] = state_arr[offset : offset + dim]
+                offset += dim
 
         action_dict, _ = self._policy.get_action(observation)
 
-        # Concatenate action keys into single array, remove batch dim
         keys = self.action_keys or self._modality_config["action"].modality_keys
-        parts = [action_dict[k][0] for k in keys if k in action_dict]
-        if parts:
-            actions = np.concatenate(parts, axis=-1)
-        else:
-            actions = np.zeros((1, 7), dtype=np.float32)
-
-        return {"actions": actions}
+        outputs = []
+        for i in range(B):
+            parts = [action_dict[k][i] for k in keys if k in action_dict]
+            actions = np.concatenate(parts, axis=-1) if parts else np.zeros((1, 7), dtype=np.float32)
+            if self.invert_gripper:
+                # Model outputs gripper in [0,1] (0=close, 1=open).
+                # LIBERO expects [-1,1] (-1=open, +1=close).
+                # Transform: normalize [0,1]→[-1,1] then invert sign.
+                actions[..., -1] = 1.0 - 2.0 * actions[..., -1]
+            outputs.append({"actions": actions})
+        return outputs
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         if self._policy is not None:
@@ -197,40 +223,6 @@ class GR00TModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="GR00T N1.6 model server (uv script)")
-    parser.add_argument("--model_path", default="nvidia/GR00T-N1.6-3B", help="HF model ID or local path")
-    parser.add_argument("--embodiment_tag", default="GR1", help="Embodiment tag (e.g. GR1, ROBOCASA_PANDA_OMRON)")
-    parser.add_argument("--video_key", default=None, help="Video modality key (auto-detected if omitted)")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=16)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    server = GR00TModelServer(
-        model_path=args.model_path,
-        embodiment_tag=args.embodiment_tag,
-        video_key=args.video_key,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(GR00TModelServer)

@@ -40,7 +40,7 @@ async def test_orchestrator_runs_to_completion(echo_server, tmp_path):
 
     assert len(results) == 1
     result = results[0]
-    assert result["overall_success_rate"] == pytest.approx(1.0)
+    assert result.get("mean_success") == pytest.approx(1.0)
     assert len(result["tasks"]) == 2
 
     # Verify file was saved
@@ -61,8 +61,9 @@ async def test_orchestrator_saves_partial_on_server_death(tmp_path):
 
         def __init__(self, url, **kwargs):
             self.url = url
+            self.server_info = {}
 
-        async def connect(self):
+        async def connect(self, **kwargs):
             pass
 
         async def close(self):
@@ -141,7 +142,7 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
         ],
     }
 
-    all_episode_ids: list[str] = []
+    all_episode_keys: list[tuple[str, int]] = []
     for shard_id in range(3):
         with patch(
             "vla_eval.orchestrator.resolve_import_string",
@@ -152,11 +153,11 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
 
         for task_result in results[0]["tasks"]:
             for ep in task_result["episodes"]:
-                all_episode_ids.append(ep["episode_id"])
+                all_episode_keys.append((task_result["task"], ep["episode_id"]))
 
     # 2 tasks × 3 episodes = 6 total, split across 3 shards
-    assert len(all_episode_ids) == 6
-    assert len(set(all_episode_ids)) == 6  # no duplicates
+    assert len(all_episode_keys) == 6
+    assert len(set(all_episode_keys)) == 6  # no duplicates
 
 
 @pytest.mark.anyio

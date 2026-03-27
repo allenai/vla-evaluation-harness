@@ -15,7 +15,7 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 #
 # [tool.uv]
 # exclude-newer = "2026-02-24T00:00:00Z"
@@ -50,7 +50,6 @@ Proprioceptive state (closed-loop feedback):
 
 from __future__ import annotations
 
-import argparse
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -61,7 +60,6 @@ from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 from vla_eval.rotation import (
     axisangle_to_rot6d_contiguous as _axisangle_to_rot6d,
@@ -80,6 +78,7 @@ class _XVLABenchmarkProfile:
     use_predicted_proprio: bool
     output_action_dim: int | None = None
     preserve_env_grippers: bool = False
+    unflip_wrist: bool = False  # un-flip wrist image (benchmark sends it flipped)
 
 
 _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
@@ -88,11 +87,13 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
         output_action_dim=7,
+        unflip_wrist=True,
     ),
     "calvin": _XVLABenchmarkProfile(
         image_keys=("rgb_static", "rgb_gripper"),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
+        output_action_dim=7,
     ),
     "simpler": _XVLABenchmarkProfile(
         image_keys=("primary",),
@@ -121,10 +122,24 @@ def _get_profile(name: str) -> _XVLABenchmarkProfile:
         raise ValueError(f"Unsupported X-VLA benchmark_profile {name!r}. Expected one of: {choices}") from exc
 
 
+_PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
+    "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True},
+    "calvin": {"send_wrist_image": True, "send_state": True},
+    "simpler": {"send_state": True},
+    "vlabench": {"send_wrist_image": True, "send_state": True},
+    "robotwin": {"send_state": True},
+}
+
+
 def _obs_state_array(obs: dict[str, Any]) -> np.ndarray | None:
-    raw_state = obs.get("state")
-    if raw_state is None:
-        raw_state = obs.get("states")
+    """Read proprioceptive state from observation.
+
+    Prefers ``controller_states`` (LIBERO: from robot.controller, matches
+    X-VLA training data) over ``states`` (from raw_obs quaternion, different
+    coordinate frame). Falls back to ``states``/``state`` for benchmarks
+    that don't provide controller state (CALVIN, SimplerEnv, etc.).
+    """
+    raw_state = obs.get("controller_states") or obs.get("states") or obs.get("state")
     if raw_state is None:
         return None
     return np.asarray(raw_state, dtype=np.float32).flatten()
@@ -224,6 +239,7 @@ class XVLAModelServer(PredictModelServer):
             else _default_predicted_proprio_dims(output_action_dim)
         )
         self._preserve_env_grippers = profile.preserve_env_grippers if profile is not None else False
+        self._unflip_wrist = profile.unflip_wrist if profile is not None else False
         self._model = None
         self._processor = None
         # Closed-loop proprio: store raw 20-D actions per session so the
@@ -279,6 +295,11 @@ class XVLAModelServer(PredictModelServer):
             self.benchmark_profile or "custom",
         )
 
+    def get_observation_params(self) -> dict[str, Any]:
+        if self.benchmark_profile and self.benchmark_profile in _PROFILE_OBS_PARAMS:
+            return dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
+        return {}
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         self._load_model()
         assert self._model is not None and self._processor is not None
@@ -288,7 +309,12 @@ class XVLAModelServer(PredictModelServer):
         if obs.get("episode_restart"):
             self._last_raw_actions.pop(ctx.session_id, None)
 
-        pil_images = [Image.fromarray(img) for img in _ordered_images(obs, self._image_keys)]
+        raw_images = _ordered_images(obs, self._image_keys)
+        # Un-flip wrist image: benchmark sends all images flipped [::-1,::-1],
+        # but X-VLA was trained with unflipped wrist images.
+        if self._unflip_wrist and len(raw_images) >= 2:
+            raw_images[1] = raw_images[1][::-1, ::-1].copy()
+        pil_images = [Image.fromarray(img) for img in raw_images]
 
         task_desc = obs.get("task_description", "")
 
@@ -355,66 +381,6 @@ class XVLAModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="X-VLA model server (direct loading)")
-    parser.add_argument("--model_path", default="2toINF/X-VLA-Libero", help="HF model ID or local path")
-    parser.add_argument("--domain_id", type=int, default=0, help="Embodiment/domain identifier")
-    parser.add_argument("--denoising_steps", type=int, default=10, help="Flow-matching denoising steps")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=30, help="Action chunk size")
-    parser.add_argument(
-        "--benchmark_profile",
-        default=None,
-        choices=sorted(_BENCHMARK_PROFILES),
-        help="Benchmark-specific X-VLA defaults (image order, proprio mode, output action format)",
-    )
-    parser.add_argument(
-        "--output_action_dim", type=int, default=None, help="Convert to this action dim (7 for single-arm)"
-    )
-    parser.add_argument("--action_ensemble", default="newest")
-    proprio_group = parser.add_mutually_exclusive_group()
-    proprio_group.add_argument(
-        "--use-predicted-proprio",
-        dest="use_predicted_proprio",
-        action="store_true",
-        default=None,
-        help="Force closed-loop predicted proprio on chunk boundaries",
-    )
-    proprio_group.add_argument(
-        "--no-predicted-proprio",
-        dest="use_predicted_proprio",
-        action="store_false",
-        help="Always use fresh env state for proprio",
-    )
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    server = XVLAModelServer(
-        model_path=args.model_path,
-        domain_id=args.domain_id,
-        denoising_steps=args.denoising_steps,
-        benchmark_profile=args.benchmark_profile,
-        chunk_size=args.chunk_size,
-        output_action_dim=args.output_action_dim,
-        use_predicted_proprio=args.use_predicted_proprio,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(XVLAModelServer)

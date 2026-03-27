@@ -1,0 +1,8 @@
+# X-VLA model server — CALVIN (ABC→D evaluation)
+# Usage: vla-eval serve --config configs/model_servers/xvla/calvin.yaml
+extends: _base.yaml
+args:
+  model_path: "2toINF/X-VLA-Calvin-ABC_D"
+  benchmark_profile: "calvin"
+  domain_id: 2
+  chunk_size: 20

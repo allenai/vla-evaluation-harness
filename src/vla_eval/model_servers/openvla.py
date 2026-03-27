@@ -12,14 +12,13 @@
 # ]
 #
 # [tool.uv.sources]
-# vla-eval = { path = "../../.." }
+# vla-eval = { path = "../../..", editable = true }
 #
 # [tool.uv]
 # exclude-newer = "2026-02-24T00:00:00Z"
 # ///
 from __future__ import annotations
 
-import argparse
 import logging
 from typing import Any
 
@@ -28,7 +27,6 @@ import numpy as np
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.types import Action, Observation
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -100,42 +98,13 @@ class OpenVLAModelServer(PredictModelServer):
             kwargs["unnorm_key"] = self.unnorm_key
 
         action = self._model.predict_action(**inputs, **kwargs)
-        return {"actions": action}
+        # Gripper: RLDS [0=close,1=open] → robosuite [-1=open,+1=close]
+        action_arr = np.asarray(action, dtype=np.float32)
+        action_arr[..., -1] = -np.sign(2 * action_arr[..., -1] - 1)
+        return {"actions": action_arr}
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OpenVLA model server (uv script)")
-    parser.add_argument("--model_path", default="openvla/openvla-7b", help="HuggingFace model ID or local path")
-    parser.add_argument("--unnorm_key", default=None, help="Unnormalization key (e.g. 'bridge_orig')")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=1)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT)")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (DRAFT)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    server = OpenVLAModelServer(
-        model_path=args.model_path,
-        unnorm_key=args.unnorm_key,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    logger.info("Model ready, starting server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(OpenVLAModelServer)

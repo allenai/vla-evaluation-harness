@@ -32,7 +32,7 @@ async def test_sync_runner_completes(echo_server):
     async with Connection(echo_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=50)
 
-    assert result["success"] is True
+    assert result["metrics"]["success"] is True
     assert result["steps"] == 3
 
 
@@ -46,7 +46,7 @@ async def test_sync_runner_respects_max_steps(echo_server):
     async with Connection(echo_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=5)
 
-    assert result["success"] is False
+    assert result["metrics"]["success"] is False
     assert result["steps"] == 5
 
 
@@ -60,7 +60,7 @@ async def test_random_action_server_completes(random_action_server):
     async with Connection(random_action_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=50)
 
-    assert result["success"] is True
+    assert result["metrics"]["success"] is True
     assert result["steps"] == 3
 
 
@@ -74,7 +74,7 @@ async def test_chunk_server_completes(chunk_server):
     async with Connection(chunk_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=50)
 
-    assert result["success"] is True
+    assert result["metrics"]["success"] is True
     assert result["steps"] == 3
 
 
@@ -119,7 +119,7 @@ async def test_batch_server_completes_episode(free_port):
         runner = SyncEpisodeRunner()
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
             result = await runner.run_episode(benchmark, {"name": "task_0"}, conn, max_steps=50)
-        assert result["success"] is True
+        assert result["metrics"]["success"] is True
         assert result["steps"] == 3
     finally:
         await stop_server(task)
@@ -260,7 +260,7 @@ async def test_async_runner_completes(echo_server):
     async with Connection(echo_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=50)
 
-    assert result["success"] is True
+    assert result["metrics"]["success"] is True
     assert result["steps"] == 3
     assert "rt_metrics" in result
 
@@ -275,7 +275,7 @@ async def test_async_runner_respects_max_steps(echo_server):
     async with Connection(echo_server) as conn:
         result = await runner.run_episode(benchmark, task, conn, max_steps=5)
 
-    assert result["success"] is False
+    assert result["metrics"]["success"] is False
     assert result["steps"] == 5
     assert result["rt_metrics"]["stale_action_ratio"] >= 0.0
 

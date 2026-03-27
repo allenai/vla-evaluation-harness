@@ -1,0 +1,6 @@
+# starVLA QwenGR00T (Qwen3-VL) model server — SIMPLER (Bridge + RT-1) checkpoint
+# Weight: StarVLA/Qwen3VL-GR00T-Bridge-RT-1 (HuggingFace)
+# Benchmark: SIMPLER (WidowX Bridge tasks)
+extends: _base.yaml
+args:
+  checkpoint: StarVLA/Qwen3VL-GR00T-Bridge-RT-1

@@ -1,0 +1,6 @@
+# starVLA model server — shared base
+script: "src/vla_eval/model_servers/starvla.py"
+args:
+  use_bf16: true
+  chunk_size: 1
+  port: 8000

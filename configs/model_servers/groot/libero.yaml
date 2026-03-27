@@ -1,0 +1,9 @@
+# GR00T N1.6 — LIBERO (community checkpoint by 0xAnkitSingh)
+# invert_gripper: model outputs [0,1] (0=close), LIBERO expects [-1,1] (-1=open)
+script: "src/vla_eval/model_servers/groot.py"
+args:
+  model_path: 0xAnkitSingh/GR00T-N1.6-LIBERO
+  embodiment_tag: LIBERO_PANDA
+  invert_gripper: true
+  chunk_size: 16
+  port: 8000

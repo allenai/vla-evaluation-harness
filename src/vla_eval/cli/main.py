@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
 
@@ -24,12 +25,6 @@ def _stderr_console():
     from rich.console import Console
 
     return Console(stderr=True, highlight=False)
-
-
-def _load_config(path: str) -> dict[str, Any]:
-    """Load YAML config file."""
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -252,6 +247,20 @@ def cmd_run(args: argparse.Namespace) -> None:
     """Run evaluation."""
     config = _load_config(args.config)
 
+    # CLI override for server URL
+    server_url = getattr(args, "server_url", None)
+    if server_url is not None:
+        config.setdefault("server", {})["url"] = server_url
+
+    # CLI overrides for benchmark params (applied to all benchmark entries)
+    param_overrides = getattr(args, "param", None)
+    if param_overrides:
+        from omegaconf import OmegaConf
+
+        overrides = OmegaConf.to_container(OmegaConf.from_dotlist(param_overrides))
+        for bench in config.get("benchmarks", []):
+            bench.setdefault("params", {}).update(overrides)
+
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
 
@@ -299,7 +308,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Print final summary
     for r in results:
-        print(f"\n{r['benchmark']}: {r['overall_success_rate']:.1%}")
+        print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -317,14 +326,42 @@ def cmd_serve(args: argparse.Namespace) -> None:
         _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
-    cmd: list[str] = [uv, "run", str(script)]
-    for key, value in config.get("args", {}).items():
-        flag = f"--{key}"
-        if isinstance(value, bool):
-            if value:
-                cmd.append(flag)
+    # CLI overrides
+    server_args = dict(config.get("args", {}))
+    address = getattr(args, "address", None)
+    if address:
+        from vla_eval.model_servers.serve import _parse_address
+
+        try:
+            host, port = _parse_address(address)
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
+        server_args["host"] = host
+        server_args["port"] = port
+    for override in getattr(args, "arg", None) or []:
+        key, _, value = override.partition("=")
+        if not key or not _:
+            _stderr_console().print(f"[red]ERROR: --arg must be KEY=VALUE, got {override!r}[/red]")
+            sys.exit(1)
+        # Auto-coerce types: bool, int, float
+        if value.lower() in ("true", "false"):
+            server_args[key] = value.lower() == "true"
         else:
-            cmd.extend([flag, str(value)])
+            try:
+                server_args[key] = int(value)
+            except ValueError:
+                try:
+                    server_args[key] = float(value)
+                except ValueError:
+                    server_args[key] = value
+
+    cmd: list[str] = [uv, "run", str(script)]
+    for key, value in server_args.items():
+        if isinstance(value, bool):
+            cmd.append(f"--{key}" if value else f"--no-{key}")
+        else:
+            cmd.extend([f"--{key}", str(value)])
 
     logger.info("Running: %s", " ".join(cmd))
     _exec_subprocess(cmd)
@@ -705,6 +742,18 @@ execution flow:
     )
     run_parser.add_argument("--config", "-c", required=True, help="Path to YAML config file")
     run_parser.add_argument(
+        "--server-url",
+        default=None,
+        help="Override server URL (e.g. ws://my-host:8000). Avoids per-host config files.",
+    )
+    run_parser.add_argument(
+        "--param",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override benchmark params (applied to all benchmarks). Repeatable. "
+        "e.g. --param send_wrist_image=true --param send_state=true",
+    )
+    run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"
     )
     run_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
@@ -749,6 +798,14 @@ Bool args become flags (--use_text_template), others become --key value.
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")
+    serve_parser.add_argument("--address", default=None, help="Override host:port (e.g. 0.0.0.0:8001)")
+    serve_parser.add_argument(
+        "--arg",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override model server args (applied on top of config). Repeatable. "
+        "e.g. --arg inference_delay=0.1 --arg ci=true",
+    )
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)
 

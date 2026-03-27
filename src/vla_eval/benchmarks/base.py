@@ -92,6 +92,19 @@ class Benchmark(ABC):
 
     # -- optional overrides -----------------------------------------------
 
+    def get_metric_keys(self) -> dict[str, str]:
+        """Declare which metrics from ``get_result()`` to aggregate.
+
+        Returns ``{field: aggregation}`` where aggregation is one of
+        ``"mean"``, ``"sum"``, ``"max"``, ``"min"``.  Fields are stored
+        under ``episode["metrics"]`` in the result JSON and aggregated
+        into ``TaskResult`` / ``BenchmarkResult`` as ``{agg}_{field}``.
+
+        The default declares ``success`` with ``"mean"`` (= success rate).
+        Override to add benchmark-specific metrics.
+        """
+        return {"success": "mean"}
+
     def get_metadata(self) -> dict[str, Any]:
         """Return benchmark defaults and metadata. Optional override."""
         return {}

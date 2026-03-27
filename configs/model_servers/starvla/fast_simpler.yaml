@@ -1,0 +1,7 @@
+# starVLA QwenFast model server — SIMPLER (Bridge + RT-1) checkpoint
+# Weight: StarVLA/Qwen-FAST-Bridge-RT-1 (HuggingFace)
+# Benchmark: SIMPLER (WidowX Bridge tasks)
+extends: _base.yaml
+args:
+  checkpoint: StarVLA/Qwen-FAST-Bridge-RT-1
+  unnorm_key: bridge_dataset

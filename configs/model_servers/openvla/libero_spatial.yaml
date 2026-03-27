@@ -1,0 +1,7 @@
+# OpenVLA — LIBERO-Spatial (LoRA finetuned)
+script: "src/vla_eval/model_servers/openvla.py"
+args:
+  model_path: openvla/openvla-7b-finetuned-libero-spatial
+  unnorm_key: libero_spatial
+  chunk_size: 1
+  port: 8000

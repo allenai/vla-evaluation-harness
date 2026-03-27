@@ -15,4 +15,5 @@ benchmarks:
       robocerebra_root: "/workspace/RoboCerebra_Bench"
       task_types:
         - Ideal
+      seed: 7
 

@@ -21,4 +21,5 @@ benchmarks:
       camera_size: 256
       max_steps: 500
       split: pretrain
+      seed: null
 

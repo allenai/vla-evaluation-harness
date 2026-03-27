@@ -39,7 +39,7 @@ import websockets
 
 from vla_eval.model_servers.base import ModelServer, SessionContext
 from vla_eval.types import Action
-from vla_eval.protocol.messages import Message, MessageType, pack_message, unpack_message
+from vla_eval.protocol.messages import Message, MessageType, make_hello_payload, pack_message, unpack_message
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,24 @@ async def _handle_connection(
             _msg_count += 1
             msg = await _run_in_thread(partial(unpack_message, raw_data), limiter=_DECODE_LIMITER)
 
-            if msg.type == MessageType.EPISODE_START:
+            if msg.type == MessageType.HELLO:
+                obs_params = model_server.get_observation_params()
+                reply_payload = make_hello_payload(
+                    model_server=type(model_server).__name__,
+                    capabilities={},
+                    **({"observation_params": obs_params} if obs_params else {}),
+                )
+                reply = Message(type=MessageType.HELLO, payload=reply_payload, seq=msg.seq)
+                await ws.send(pack_message(reply))
+                logger.info(
+                    "HELLO session=%s client=%s server=%s",
+                    session_id[:8],
+                    msg.payload.get("harness_version"),
+                    reply_payload["harness_version"],
+                )
+                continue
+
+            elif msg.type == MessageType.EPISODE_START:
                 episode_id = str(uuid.uuid4())
                 ctx = SessionContext(session_id=session_id, episode_id=episode_id, mode="sync")
                 ctx._send_action_fn = send_action
@@ -276,3 +293,147 @@ def serve(
 ) -> None:
     """Start a WebSocket server (blocking). Entry point for model server scripts."""
     anyio.run(serve_async, model_server, host, port)
+
+
+# ---------------------------------------------------------------------------
+# run_server: auto-argparse entrypoint for model server scripts
+# ---------------------------------------------------------------------------
+
+
+def _parse_address(address: str, default_host: str = "0.0.0.0", default_port: int = 8000) -> tuple[str, int]:
+    """Parse ``host:port`` string. Raises ``ValueError`` on bad port."""
+    parts = address.rsplit(":", 1)
+    host = parts[0] or default_host
+    port = default_port
+    if len(parts) == 2:
+        try:
+            port = int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid port in address {address!r}: {parts[1]!r} is not a number") from None
+    return host, port
+
+
+def _resolve_cli_type(
+    annotation: type,
+    default: object,
+) -> tuple[type | None, bool, bool]:
+    """Map a Python type annotation to an argparse type.
+
+    Returns ``(type_fn, is_bool, skip)``.
+    - ``is_bool=True`` → use ``BooleanOptionalAction``.
+    - ``skip=True``    → don't expose this parameter on the CLI.
+    """
+    import inspect
+    import types as _types
+    import typing as _typing
+
+    _EMPTY = inspect.Parameter.empty
+
+    # Unwrap Optional / Union with None
+    origin = getattr(annotation, "__origin__", None)
+    args = getattr(annotation, "__args__", None)
+    if isinstance(annotation, _types.UnionType) or origin is _typing.Union:
+        non_none = [a for a in (args or ()) if a is not type(None)]
+        if len(non_none) == 1:
+            return _resolve_cli_type(non_none[0], default)
+        if str in non_none:
+            return (str, False, False)
+        return (None, False, True)  # complex union → skip
+
+    if annotation is bool or (annotation is _EMPTY and isinstance(default, bool)):
+        return (None, True, False)
+    if annotation is int or (annotation is _EMPTY and isinstance(default, int) and not isinstance(default, bool)):
+        return (int, False, False)
+    if annotation is float or (annotation is _EMPTY and isinstance(default, float)):
+        return (float, False, False)
+    if annotation is str or annotation is _EMPTY:
+        return (str, False, False)
+
+    return (None, False, True)  # unknown → skip
+
+
+def run_server(server_cls: type[ModelServer]) -> None:
+    """Standard entrypoint for model server scripts.
+
+    Builds an ``argparse.ArgumentParser`` from *server_cls*'s ``__init__``
+    signature (walking the MRO), always includes ``--port``, ``--host``,
+    and ``--verbose``, then instantiates the server and starts it.
+
+    Usage in each model server script::
+
+        if __name__ == "__main__":
+            from vla_eval.model_servers.serve import run_server
+            run_server(MyModelServer)
+    """
+    import argparse
+    import inspect
+
+    parser = argparse.ArgumentParser(
+        description=f"{server_cls.__name__} model server",
+    )
+    parser.add_argument("--address", default=None, help="Bind address as host:port (e.g. 0.0.0.0:8001)")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind host (prefer --address)")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port (prefer --address)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+
+    import typing
+
+    _EMPTY = inspect.Parameter.empty
+    _SERVE_KEYS = {"address", "host", "port", "verbose"}
+    seen = {"self"} | _SERVE_KEYS
+
+    for cls in server_cls.__mro__:
+        if cls is object:
+            break
+        init = cls.__dict__.get("__init__")
+        if init is None:
+            continue
+        # Resolve stringified annotations (from __future__ import annotations)
+        try:
+            hints = typing.get_type_hints(init)
+        except Exception:
+            logger.warning("Could not resolve type hints for %s.__init__, falling back to defaults", cls.__name__)
+            hints = {}
+        for name, param in inspect.signature(init).parameters.items():
+            if name in seen or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+                continue
+            seen.add(name)
+
+            annotation = hints.get(name, param.annotation)
+            type_fn, is_bool, skip = _resolve_cli_type(annotation, param.default)
+            if skip:
+                continue
+
+            flag = f"--{name}"
+            if is_bool:
+                default = param.default if param.default is not _EMPTY else False
+                parser.add_argument(flag, action=argparse.BooleanOptionalAction, default=default)
+            else:
+                kwargs: dict[str, object] = {"type": type_fn}
+                if param.default is not _EMPTY:
+                    kwargs["default"] = param.default
+                else:
+                    kwargs["required"] = True
+                parser.add_argument(flag, **kwargs)  # type: ignore[arg-type]
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+    )
+
+    # Resolve address: --address host:port takes precedence over --host/--port
+    host, port = args.host, args.port
+    if args.address:
+        host, port = _parse_address(args.address, host, port)
+
+    ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
+    server = server_cls(**ctor_kwargs)
+
+    if hasattr(server, "_load_model"):
+        logger.info("Pre-loading model...")
+        server._load_model()  # type: ignore[attr-defined]
+
+    logger.info("Starting server on ws://%s:%d", host, port)
+    serve(server, host=host, port=port)

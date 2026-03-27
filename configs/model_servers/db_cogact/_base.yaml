@@ -1,0 +1,5 @@
+# DB-CogACT model server — shared base
+script: "src/vla_eval/model_servers/dexbotic/cogact.py"
+args:
+  port: 8000
+  use_text_template: true

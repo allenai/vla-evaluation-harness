@@ -1,0 +1,7 @@
+# OpenVLA — LIBERO-Goal (LoRA finetuned)
+script: "src/vla_eval/model_servers/openvla.py"
+args:
+  model_path: openvla/openvla-7b-finetuned-libero-goal
+  unnorm_key: libero_goal
+  chunk_size: 1
+  port: 8000

@@ -132,7 +132,7 @@ a:hover {
 /* Official leaderboard notice */
 .official-notice {
   background: #fdf6e8;
-  border: 1px solid var(--warning);
+  border: 1px solid #da9679;
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
@@ -142,7 +142,7 @@ a:hover {
 
 .official-notice a {
   font-weight: 600;
-  color: var(--warning);
+  color: #da9679;
 }
 
 .official-notice a:hover {
@@ -252,11 +252,9 @@ a:hover {
   font-weight: 600;
 }
 
-/* Table wrapper — sticky horizontal scrollbar visible at viewport bottom */
+/* Table wrapper */
 .table-wrapper {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 80vh;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   margin-bottom: 2rem;
@@ -395,7 +393,7 @@ tbody tr:last-child td {
   position: relative;
   padding: 0.25rem 0.375rem;
   min-width: 3.25rem;
-  /* no transition — 1250 cells animating simultaneously on heatmap apply */
+  transition: background-color 0.15s;
 }
 
 .overview-mode .score-cell .score-value {
@@ -414,8 +412,9 @@ tbody tr:last-child td {
   font-weight: 700;
 }
 
-/* Shared tooltip (single element on body) */
-.tooltip-content {
+/* Tooltip on score cells */
+.score-cell .tooltip-content {
+  display: none;
   position: absolute;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
@@ -424,22 +423,28 @@ tbody tr:last-child td {
   font-size: 0.75rem;
   color: var(--text-secondary);
   z-index: 100;
-  max-width: 480px;
+  max-width: 320px;
   white-space: normal;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   pointer-events: none;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 0.5rem;
-  row-gap: 0.15rem;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 0.25rem;
 }
 
-.tooltip-content .tip-label {
-  color: var(--text-muted);
-  white-space: nowrap;
+.score-cell:hover .tooltip-content {
+  display: block;
 }
 
-.tooltip-content .tip-link {
+.tooltip-content p {
+  margin-bottom: 0.25rem;
+}
+
+.tooltip-content p:last-child {
+  margin-bottom: 0;
+}
+
+.tooltip-content a {
   font-size: 0.7rem;
   word-break: break-all;
 }
@@ -680,42 +685,6 @@ tbody tr:last-child td {
   height: 100%;
   border-radius: 2px;
   transition: width 0.3s ease;
-}
-
-/* Pagination */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  font-size: 0.85rem;
-}
-
-.page-btn {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 0.4rem 0.85rem;
-  border-radius: 0.375rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.page-info {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 /* Loading */

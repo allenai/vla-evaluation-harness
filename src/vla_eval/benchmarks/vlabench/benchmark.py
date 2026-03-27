@@ -44,7 +44,6 @@ class VLABenchBenchmark(StepBenchmark):
         tasks: List of VLABench task names to evaluate.
         robot: Robot name (default ``"franka"``).
         max_steps: Maximum steps per episode (default 200).
-        image_size: Camera resolution (default 256).
     """
 
     def __init__(
@@ -52,13 +51,11 @@ class VLABenchBenchmark(StepBenchmark):
         tasks: list[str] | None = None,
         robot: str = "franka",
         max_steps: int = DEFAULT_MAX_STEPS,
-        image_size: int = 256,
     ) -> None:
         super().__init__()
         self._task_names = tasks or DEFAULT_TASKS
         self._robot = robot
         self._max_steps = max_steps
-        self._image_size = image_size
         self._env: Any = None
         self._current_task: str | None = None
         self._instruction: str = ""
@@ -167,21 +164,10 @@ class VLABenchBenchmark(StepBenchmark):
         )
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-        from PIL import Image as PILImage
-
-        rgb = raw_obs.get("rgb", None)
         images: dict[str, np.ndarray] = {}
+        rgb = raw_obs.get("rgb", None)
         if rgb is not None and len(rgb) > 0:
-            # rgb shape: (N_cams, H, W, 3) — take first camera
-            img = rgb[0]
-            if img.shape[0] != self._image_size or img.shape[1] != self._image_size:
-                pil = PILImage.fromarray(img)
-                pil = pil.resize(
-                    (self._image_size, self._image_size),
-                    PILImage.Resampling.BILINEAR,
-                )
-                img = np.asarray(pil)
-            images["primary"] = img
+            images["primary"] = rgb[0]  # (N_cams, H, W, 3) — take first camera
 
         return {
             "images": images,

@@ -14,6 +14,7 @@ dependencies = [
     "lazyregistry>=0.4.0",  # Python 3.8 support
     "msgpack>=1.0.0",
     "numpy>=1.24",
+    "omegaconf",
     "pillow>=9.4.0",        # PIL.Image.ExifTags introduced in 9.4.0
     "pyyaml>=6.0",          # Security fixes (CVE-2020-14343) + Python 3.11
     "rich>=13.0",

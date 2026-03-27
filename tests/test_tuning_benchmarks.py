@@ -175,7 +175,7 @@ async def test_websocket_still_works_after_config_change(echo_server_url: str):
 
 # ── bench_demand unit tests (no Docker) ─────────────────────────────────
 
-from experiments.bench_demand import InstantServer, _patch_config, print_demand_table  # noqa: E402
+from experiments.bench_demand import InstantServer, _extract_action_dim, _patch_config, print_demand_table  # noqa: E402
 
 
 @pytest.mark.anyio
@@ -204,6 +204,29 @@ def test_instant_server_scalar_action():
     ctx = SessionContext(session_id="s", episode_id="e", mode="sync")
     result = server.predict({}, ctx)
     assert result["actions"].shape == (7,)
+
+
+def test_instant_server_custom_action_dim():
+    """InstantServer should respect the configured action dimension."""
+    from vla_eval.model_servers.base import SessionContext
+
+    server = InstantServer(action_dim=14)
+    ctx = SessionContext(session_id="s", episode_id="e", mode="sync")
+    result = server.predict({}, ctx)
+    assert result["actions"].shape == (14,)
+
+
+def test_extract_action_dim_reads_config():
+    """bench_demand should honor a non-default benchmark action_dim."""
+    config = {"benchmarks": [{"action_dim": 14}]}
+    assert _extract_action_dim(config) == 14
+
+
+def test_extract_action_dim_rejects_mixed_dims():
+    """bench_demand cannot safely serve configs with incompatible action dims."""
+    config = {"benchmarks": [{"action_dim": 7}, {"action_dim": 14}]}
+    with pytest.raises(ValueError, match="shared action_dim"):
+        _extract_action_dim(config)
 
 
 def test_patch_config_replaces_server_url():

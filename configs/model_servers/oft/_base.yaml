@@ -1,0 +1,7 @@
+# OpenVLA-OFT model server — shared base
+# All LIBERO OFT checkpoints were trained with 2 images (3rd-person + wrist).
+script: "src/vla_eval/model_servers/oft.py"
+args:
+  num_images_in_input: 2
+  chunk_size: 10
+  port: 8000

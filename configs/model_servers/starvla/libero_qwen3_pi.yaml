@@ -1,0 +1,5 @@
+# StarVLA Qwen3-VL-PI — LIBERO (all 4 suites)
+extends: _base.yaml
+args:
+  checkpoint: StarVLA/Qwen3-VL-PI-LIBERO-4in1
+  observation_params: '{"send_wrist_image": true}'

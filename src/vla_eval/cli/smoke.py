@@ -61,8 +61,9 @@ class SmokeResult:
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
+    from vla_eval.cli.config_loader import load_config  # lazy to avoid circular import at collection time
+
+    return load_config(str(path))
 
 
 def _classify_data(data: dict[str, Any]) -> str:
@@ -100,18 +101,18 @@ BENCHMARK_REGISTRY: dict[str, str] = {
 
 # Each model server has one designated smoke test config.
 SERVER_REGISTRY: dict[str, str] = {
-    "cogact":               "configs/model_servers/cogact.yaml",
-    "openvla":              "configs/model_servers/openvla.yaml",
-    "groot":                "configs/model_servers/groot.yaml",
-    "pi0":                  "configs/model_servers/pi0_libero.yaml",
-    "oft":                  "configs/model_servers/oft_libero.yaml",
-    "xvla":                 "configs/model_servers/xvla_libero.yaml",
-    "rtc":                  "configs/model_servers/rtc_kinetix.yaml",
-    "db_cogact":            "configs/model_servers/dexbotic_cogact_libero.yaml",
-    "starvla_groot":        "configs/model_servers/starvla_groot_simpler.yaml",
-    "starvla_oft":          "configs/model_servers/starvla_oft_simpler.yaml",
-    "starvla_pi":           "configs/model_servers/starvla_pi_simpler.yaml",
-    "starvla_fast":         "configs/model_servers/starvla_fast_simpler.yaml",
+    "cogact":               "configs/model_servers/cogact/cogact.yaml",
+    "openvla":              "configs/model_servers/openvla/openvla.yaml",
+    "groot":                "configs/model_servers/groot/groot.yaml",
+    "pi0":                  "configs/model_servers/pi0/libero.yaml",
+    "oft":                  "configs/model_servers/oft/libero_spatial.yaml",
+    "xvla":                 "configs/model_servers/xvla/libero.yaml",
+    "rtc":                  "configs/model_servers/rtc/kinetix.yaml",
+    "db_cogact":            "configs/model_servers/db_cogact/libero.yaml",
+    "starvla_groot":        "configs/model_servers/starvla/groot_simpler.yaml",
+    "starvla_oft":          "configs/model_servers/starvla/oft_simpler.yaml",
+    "starvla_pi":           "configs/model_servers/starvla/pi_simpler.yaml",
+    "starvla_fast":         "configs/model_servers/starvla/fast_simpler.yaml",
 }
 # fmt: on
 
@@ -289,8 +290,12 @@ def _make_stub_benchmark(task: dict[str, Any]) -> Any:
     from vla_eval.types import Observation, Task
 
     _DUMMY_OBS: dict[str, Any] = {
-        "images": {"agentview": np.zeros((256, 256, 3), dtype=np.uint8)},
+        "images": {
+            "agentview": np.zeros((256, 256, 3), dtype=np.uint8),
+            "wrist": np.zeros((256, 256, 3), dtype=np.uint8),
+        },
         "task_description": "smoke test",
+        "state": np.zeros(8, dtype=np.float32),
     }
 
     class _StubBenchmark(StepBenchmark):
@@ -439,7 +444,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     try:
         result = anyio.run(_run)
         dt = time.monotonic() - t0
-        success = result.get("success", False)
+        success = result.get("metrics", {}).get("success", result.get("success", False))
         steps = result.get("steps", 0)
         if success:
             return SmokeResult(test, "pass", f"{steps} steps, success=True", dt)
@@ -601,7 +606,7 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         json_files = _glob.glob(os.path.join(results_dir, "*.json"))
         if json_files:
             data = json.loads(Path(json_files[0]).read_text())
-            rate = data.get("overall_success_rate", 0)
+            rate = data.get("mean_success", 0)
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         return SmokeResult(test, "pass", "completed (no result file)", dt)
     finally:

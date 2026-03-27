@@ -1,0 +1,10 @@
+# DB-CogACT model server — LIBERO checkpoint
+# Weight: Dexmal/libero-db-cogact (HuggingFace)
+# Benchmark: LIBERO (MuJoCo, tabletop manipulation)
+#
+# chunk_size is auto-selected per suite via chunk_size_map.
+# No need to restart the server when switching suites.
+extends: _base.yaml
+args:
+  model_path: Dexmal/libero-db-cogact
+  chunk_size_map: '{"libero_spatial": 12, "libero_object": 16, "libero_goal": 16, "libero_10": 15}'

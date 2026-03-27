@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import math
 import os
 from typing import Any
 
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.benchmarks.libero.utils import convert_to_uint8, preprocess_libero_image, resize_with_pad
+from vla_eval.benchmarks.libero.utils import preprocess_libero_image
+from vla_eval.rotation import matrix_to_quat, quat_to_axisangle
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 # EGL for headless rendering
@@ -28,19 +28,6 @@ MAX_STEP_MAPPING = {
 }
 
 
-def _quat2axisangle(quat: np.ndarray) -> np.ndarray:
-    """Convert quaternion [x, y, z, w] to axis-angle."""
-    q = quat.copy()
-    if q[3] > 1.0:
-        q[3] = 1.0
-    elif q[3] < -1.0:
-        q[3] = -1.0
-    den = np.sqrt(1.0 - q[3] * q[3])
-    if math.isclose(den, 0.0):
-        return np.zeros(3)
-    return (q[:3] * 2.0 * math.acos(q[3])) / den
-
-
 class LIBEROBenchmark(StepBenchmark):
     """LIBERO tabletop manipulation benchmark (MuJoCo/robosuite).
 
@@ -56,26 +43,22 @@ class LIBEROBenchmark(StepBenchmark):
           objects settle in the physics simulation.
         - **Suite-specific max_steps**: libero_spatial=220, libero_object=280,
           libero_goal=300, libero_10=520, libero_90=400.
-        - **Image preprocessing**: 256×256, flipped on both axes, then resized
-          with aspect-ratio-preserving padding.
+        - **Image preprocessing**: robosuite renders images with inverted axes.
+          Both agentview and wrist images are flipped ``[::-1, ::-1]`` to
+          correct orientation, then resized to 256×256 with padding.
 
     Args:
         suite: LIBERO suite name (e.g. "libero_spatial", "libero_10").
         seed: Random seed for environment initialization.
         num_steps_wait: Dummy action steps at episode start (default 10).
         send_wrist_image: Include wrist camera image in observations.
-        send_state: Include proprioceptive state (EEF pos + axis-angle + gripper).
+        send_state: Include proprioceptive 8-D state
+            ``[pos3, axisangle3, gripper2]`` in observations.
         absolute_action: Use absolute (world-frame) actions instead of delta.
             When True, sets ``robot.controller.use_delta = False`` after the
-            initial dummy-wait steps.  Required for X-VLA.
-        flip_wrist_image: Flip wrist image on both axes like the agentview.
-            Set to False for models (e.g. X-VLA) whose official eval does
-            not flip the wrist camera.
+            initial dummy-wait steps.
         max_steps: Override the default suite-specific max step count.
             When None, uses ``MAX_STEP_MAPPING[suite]``.
-        state_format: Proprioceptive state format when ``send_state=True``.
-            ``"default"`` sends 8-D ``[pos3, axisangle3, gripper2]`` (original).
-            ``"ee_rot6d"`` sends 20-D ``[pos3, rot6d6, 0, zeros10]`` (X-VLA).
     """
 
     def __init__(
@@ -86,9 +69,7 @@ class LIBEROBenchmark(StepBenchmark):
         send_wrist_image: bool = False,
         send_state: bool = False,
         absolute_action: bool = False,
-        flip_wrist_image: bool = True,
         max_steps: int | None = None,
-        state_format: str = "default",
     ) -> None:
         super().__init__()
         self.suite = suite
@@ -97,9 +78,7 @@ class LIBEROBenchmark(StepBenchmark):
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
         self.absolute_action = absolute_action
-        self.flip_wrist_image = flip_wrist_image
         self._max_steps = max_steps
-        self.state_format = state_format
         self._env = None
         self._task_suite = None
         self._current_task_id: int | None = None
@@ -218,46 +197,33 @@ class LIBEROBenchmark(StepBenchmark):
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         img = preprocess_libero_image(raw_obs["agentview_image"], LIBERO_ENV_RESOLUTION)
 
-        text = task["name"]
-
         obs_dict: dict[str, Any] = {
             "images": {"agentview": img},
-            "task_description": text,
+            "task_description": task["name"],
         }
 
         if self.send_wrist_image:
-            wrist_raw = raw_obs["robot0_eye_in_hand_image"]
-            if self.flip_wrist_image:
-                wrist = preprocess_libero_image(wrist_raw, LIBERO_ENV_RESOLUTION)
-            else:
-                wrist = convert_to_uint8(resize_with_pad(wrist_raw, LIBERO_ENV_RESOLUTION, LIBERO_ENV_RESOLUTION))
+            wrist = preprocess_libero_image(raw_obs["robot0_eye_in_hand_image"], LIBERO_ENV_RESOLUTION)
             obs_dict["images"]["wrist"] = wrist
 
         if self.send_state:
+            # Both sources: observation (default) and controller.
+            # Most models (Pi0, OFT, GR00T) use obs; X-VLA uses controller.
+            obs_dict["states"] = np.concatenate(
+                [
+                    raw_obs["robot0_eef_pos"],
+                    quat_to_axisangle(raw_obs["robot0_eef_quat"]),
+                    raw_obs["robot0_gripper_qpos"],
+                ]
+            )
             assert self._env is not None
             robot = self._env.robots[0]
-            if self.state_format == "ee_rot6d":
-                # X-VLA 20D: read ee_pos and ee_ori_mat directly from the
-                # controller, convert the rotation matrix to 6D (first two
-                # columns), and pack as [pos3, rot6d6, 0.0, zeros10].
-                # This avoids the lossy quat → axis-angle → rot6d chain.
-                ee_pos = np.asarray(robot.controller.ee_pos, dtype=np.float32)
-                ee_ori_mat = np.asarray(robot.controller.ee_ori_mat, dtype=np.float32)
-                rot6d = np.concatenate([ee_ori_mat[:3, 0], ee_ori_mat[:3, 1]])
-                state_20d = np.zeros(20, dtype=np.float32)
-                state_20d[:3] = ee_pos
-                state_20d[3:9] = rot6d
-                obs_dict["states"] = state_20d
-            else:
-                # Original 8D: [eef_pos3, axisangle3, gripper2]
-                state = np.concatenate(
-                    [
-                        raw_obs["robot0_eef_pos"],
-                        _quat2axisangle(raw_obs["robot0_eef_quat"]),
-                        raw_obs["robot0_gripper_qpos"],
-                    ]
-                )
-                obs_dict["states"] = state
+            ee_pos = np.asarray(robot.controller.ee_pos, dtype=np.float32)
+            ee_ori_mat = np.asarray(robot.controller.ee_ori_mat, dtype=np.float32)
+            ee_aa = quat_to_axisangle(matrix_to_quat(ee_ori_mat))
+            obs_dict["controller_states"] = np.concatenate(
+                [ee_pos, ee_aa, np.asarray(raw_obs["robot0_gripper_qpos"], dtype=np.float32)]
+            )
 
         return obs_dict
 

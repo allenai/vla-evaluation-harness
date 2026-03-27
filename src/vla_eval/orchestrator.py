@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import math
@@ -79,9 +80,40 @@ class Orchestrator:
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
 
-        # Resolve benchmark class from import string
+        # Connect to model server FIRST to get observation requirements
+        conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
+        await conn.connect(benchmark=cfg.benchmark)
+
+        # Resolve benchmark class and inspect its __init__ signature once
         benchmark_cls = resolve_import_string(cfg.benchmark)
-        benchmark = benchmark_cls(**cfg.params)
+        sig = inspect.signature(benchmark_cls.__init__)
+
+        # Merge server's observation_params into benchmark config.
+        # Only fills in keys not already set (--param / YAML values take precedence).
+        obs_params = conn.server_info.get("observation_params", {})
+        merged_params = dict(cfg.params)
+        if obs_params:
+            for key, value in obs_params.items():
+                if key not in merged_params and key in sig.parameters:
+                    merged_params[key] = value
+                    logger.info("Auto-configured from model server: %s=%s", key, value)
+
+        try:
+            benchmark = benchmark_cls(**merged_params)
+        except Exception:
+            await conn.close()
+            raise
+
+        # Warn if benchmark supports seeding but config doesn't specify one
+        if "seed" in sig.parameters and "seed" not in merged_params:
+            default = sig.parameters["seed"].default
+            logger.warning(
+                "%s accepts 'seed' but config doesn't specify one (using default=%r). "
+                "Set seed explicitly in config params for reproducible results.",
+                name,
+                default,
+            )
+
         metadata = benchmark.get_metadata()
 
         # max_steps: config value wins; otherwise benchmark metadata; otherwise 300.
@@ -119,11 +151,7 @@ class Orchestrator:
                 len(work_items),
             )
 
-        collector = ResultCollector(benchmark_name=name, mode=cfg.mode)
-
-        # Connect to model server
-        conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
-        await conn.connect()
+        collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
 
         total_items = len(work_items)
 
@@ -137,11 +165,10 @@ class Orchestrator:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
                     raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps)
-                    raw["task"] = task_name
-                    raw["episode_id"] = f"{task_name}_ep{ep}"
+                    raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
                     collector.record(task_name, ep_result)
-                    status = "SUCCESS" if ep_result.get("success") else "FAIL"
+                    status = "SUCCESS" if ep_result.get("metrics", {}).get("success") else "FAIL"
                     logger.info(
                         "  [%d/%d] %s ep%d: %s (steps=%d)",
                         item_idx + 1,
@@ -163,13 +190,12 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
-                            "success": False,
+                            "episode_id": ep,
+                            "metrics": {"success": False},
                             "failure_reason": "server_unreachable",
                         },
                     )
-                    return self._save_results(collector, cfg, partial=True)
+                    return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
                     close_reason = exc.rcvd.reason if exc.rcvd else None
@@ -185,9 +211,8 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
-                            "success": False,
+                            "episode_id": ep,
+                            "metrics": {"success": False},
                             "failure_reason": f"connection_closed_{close_code}",
                         },
                     )
@@ -195,7 +220,7 @@ class Orchestrator:
                         await conn.reconnect()
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True)
+                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except TimeoutError:
                     logger.warning(
                         "  [%d/%d] %s ep%d: TimeoutError (act timeout=%ss)",
@@ -208,9 +233,8 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
-                            "success": False,
+                            "episode_id": ep,
+                            "metrics": {"success": False},
                             "failure_reason": "timeout",
                         },
                     )
@@ -218,7 +242,7 @@ class Orchestrator:
                         await conn.reconnect()
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True)
+                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except Exception:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
@@ -230,9 +254,8 @@ class Orchestrator:
                     collector.record(
                         task_name,
                         {
-                            "task": task_name,
-                            "episode_id": f"{task_name}_ep{ep}",
-                            "success": False,
+                            "episode_id": ep,
+                            "metrics": {"success": False},
                             "failure_reason": "exception",
                         },
                     )
@@ -240,8 +263,7 @@ class Orchestrator:
             benchmark.cleanup()
             await conn.close()
 
-        collector.print_summary()
-        return self._save_results(collector, cfg, partial=False)
+        return self._save_results(collector, cfg, partial=False, server_info=conn.server_info)
 
     def _save_results(
         self,
@@ -249,6 +271,7 @@ class Orchestrator:
         cfg: EvalConfig,
         *,
         partial: bool,
+        server_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Save results to disk. Marks output as partial when the run was interrupted."""
         collector.print_summary()
@@ -256,6 +279,9 @@ class Orchestrator:
         output_dir = Path(self.config.get("output_dir", "./results"))
         output_dir.mkdir(parents=True, exist_ok=True)
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
+
+        if server_info is not None:
+            output["server_info"] = server_info
 
         if partial:
             output["partial"] = True
