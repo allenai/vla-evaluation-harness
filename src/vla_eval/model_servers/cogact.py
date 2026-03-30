@@ -28,7 +28,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, DimSpec
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -70,7 +70,7 @@ class CogACTModelServer(PredictModelServer):
         self._model = None
 
     def get_action_spec(self) -> dict[str, DimSpec]:
-        return {"actions": GRIPPER_RAW}
+        return {"actions": RAW}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"image": IMAGE_RGB, "language": LANGUAGE}

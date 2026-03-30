@@ -176,10 +176,19 @@ class GR00TModelServer(PredictModelServer):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"image": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
 
+    _BRIDGE_DEFAULT_ROT = np.array([[0, 0, 1.0], [0, 1.0, 0], [-1.0, 0, 0]])
+
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         self._load_model()
         assert self._policy is not None and self._modality_config is not None
         B = len(obs_batch)
+
+        if self.image_resolution:
+            import cv2
+
+        if self.bridge_rotation:
+            from transforms3d.euler import mat2euler
+            from transforms3d.quaternions import quat2mat
 
         video_keys = self._modality_config["video"].modality_keys
         if self.video_key is not None:
@@ -195,8 +204,6 @@ class GR00TModelServer(PredictModelServer):
                 if idx < len(img_values):
                     img = np.asarray(img_values[idx], dtype=np.uint8)
                     if self.image_resolution and img.shape[:2] != (self.image_resolution, self.image_resolution):
-                        import cv2
-
                         img = cv2.resize(img, (self.image_resolution, self.image_resolution))
                     if img.ndim == 3:
                         img = img[np.newaxis, ...]  # (T=1, H, W, C)
@@ -227,13 +234,9 @@ class GR00TModelServer(PredictModelServer):
 
             # Apply bridge rotation correction for SimplerEnv WidowX
             if self.bridge_rotation and len(state_arr) >= 8:
-                from transforms3d.euler import mat2euler
-                from transforms3d.quaternions import quat2mat
-
-                default_rot = np.array([[0, 0, 1.0], [0, 1.0, 0], [-1.0, 0, 0]])
                 quat = state_arr[3:7]  # [w,x,y,z] from ManiSkill2
                 rm = quat2mat(quat)
-                rpy = mat2euler(rm @ default_rot.T)
+                rpy = mat2euler(rm @ self._BRIDGE_DEFAULT_ROT.T)
                 gripper = state_arr[7] if len(state_arr) > 7 else 0.0
                 state_arr = np.array([*state_arr[:3], *rpy, 0.0, gripper], dtype=np.float32)
 

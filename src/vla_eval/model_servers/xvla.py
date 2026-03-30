@@ -72,8 +72,10 @@ from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 
 from vla_eval.rotation import (
+    axisangle_to_matrix,
     axisangle_to_rot6d_interleaved as _axisangle_to_rot6d,
     euler_xyz_to_rot6d_interleaved as _euler_to_rot6d,
+    matrix_to_euler_xyz,
     matrix_to_quat as _mat_to_quat,
     quat_to_axisangle as _quat_to_axisangle,
     rot6d_interleaved_to_matrix as _rot6d_to_matrix,
@@ -445,8 +447,6 @@ class XVLAModelServer(PredictModelServer):
             converted = _convert_ee6d_to_7d(raw_actions, self._gripper_threshold, self._gripper_close_above)
             # Apply euler offset if configured (convert axis-angle → euler → +offset)
             if self._euler_offset is not None:
-                from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
-
                 for i in range(len(converted)):
                     euler = matrix_to_euler_xyz(axisangle_to_matrix(converted[i, 3:6]))
                     converted[i, 3:6] = euler + self._euler_offset

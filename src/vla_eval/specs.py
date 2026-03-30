@@ -116,6 +116,8 @@ def check_specs(
     """Compare server and benchmark specs.  Returns a list of mismatch descriptions."""
     warnings: list[str] = []
     # Action: server produces → benchmark consumes
+    if server_action and bench_action and not (server_action.keys() & bench_action.keys()):
+        warnings.append("action: no overlapping keys between server and benchmark specs")
     for key in server_action.keys() & bench_action.keys():
         ok, reason = server_action[key].is_compatible(bench_action[key])
         if not ok:

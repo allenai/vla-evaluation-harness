@@ -127,8 +127,8 @@ class Orchestrator:
                     logger.warning("Spec mismatch: %s", w)
                 if not warnings:
                     logger.info("Spec validation passed (server↔benchmark compatible)")
-        except Exception:
-            logger.debug("Spec validation skipped", exc_info=True)
+        except Exception as exc:
+            logger.warning("Spec validation failed: %s", exc)
 
         # Warn if benchmark supports seeding but config doesn't specify one
         if "seed" in sig.parameters and "seed" not in merged_params:

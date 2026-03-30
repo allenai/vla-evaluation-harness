@@ -6,6 +6,6 @@
 extends: _base.yaml
 args:
   model_path: "2toINF/X-VLA-WidowX"
-  benchmark_profile: "simpler_google"
+  benchmark_profile: "simpler"
   domain_id: 1
   chunk_size: 30

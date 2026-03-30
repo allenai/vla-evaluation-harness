@@ -56,7 +56,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from vla_eval.specs import GRIPPER_RAW, LANGUAGE, RAW, DimSpec
+from vla_eval.specs import LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
 
 # Workaround: nvidia-cuda-nvcc-cu12 exposes __file__=None (namespace package),
@@ -159,7 +159,7 @@ class RTCModelServer(PredictModelServer):
         self._session_rng: dict[str, Any] = {}
 
     def get_action_spec(self) -> dict[str, DimSpec]:
-        return {"actions": GRIPPER_RAW}
+        return {"actions": RAW}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"state": RAW, "language": LANGUAGE}

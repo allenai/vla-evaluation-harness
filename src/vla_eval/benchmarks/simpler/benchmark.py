@@ -11,16 +11,8 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.specs import GRIPPER_CLOSE_NEG, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_EULER, DimSpec
+from vla_eval.specs import GRIPPER_CLOSE_NEG, IMAGE_RGB, LANGUAGE, POSITION_DELTA, RAW, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
-
-
-def _euler2axangle(euler: np.ndarray) -> np.ndarray:
-    """Convert Euler angles (roll, pitch, yaw) to compact axis-angle vector."""
-    from transforms3d.euler import euler2axangle as _e2a
-
-    axis, angle = _e2a(float(euler[0]), float(euler[1]), float(euler[2]))
-    return np.asarray(axis) * angle
 
 
 class SimplerEnvBenchmark(StepBenchmark):
@@ -249,7 +241,10 @@ class SimplerEnvBenchmark(StepBenchmark):
         }
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
-        return {
+        spec: dict[str, DimSpec] = {
             "primary": IMAGE_RGB,
             "language": LANGUAGE,
         }
+        if self.send_state:
+            spec["state"] = RAW
+        return spec
