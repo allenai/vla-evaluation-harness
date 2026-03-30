@@ -11,6 +11,14 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import (
+    GRIPPER_CLOSE_NEG,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    ROTATION_EULER,
+    DimSpec,
+)
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
@@ -73,9 +81,11 @@ class SimplerEnvBenchmark(StepBenchmark):
         obj_episode_range: list[int] | None = None,
         rgb_overlay_path: str | None = None,
         seed: int | None = None,
+        send_state: bool = False,
     ) -> None:
         super().__init__()
         self.seed = seed
+        self.send_state = send_state
         self.env_name = env_name
         self.scene_name = scene_name
         self.robot = robot
@@ -214,7 +224,12 @@ class SimplerEnvBenchmark(StepBenchmark):
         )
 
         image = get_image_from_maniskill2_obs_dict(self._env, raw_obs)
-        return self._build_obs_dict(image)
+        obs = self._build_obs_dict(image)
+        if self.send_state:
+            eef = raw_obs.get("agent", {}).get("eef_pos")
+            if eef is not None:
+                obs["states"] = np.asarray(eef, dtype=np.float32)
+        return obs
 
     def check_done(self, step_result: StepResult) -> bool:
         # Run until truncated (max_episode_steps), never stop early on
@@ -231,4 +246,17 @@ class SimplerEnvBenchmark(StepBenchmark):
             "max_steps": self.max_episode_steps,
             "env_name": self.env_name,
             "robot": self.robot,
+        }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_EULER,
+            "gripper": GRIPPER_CLOSE_NEG,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "primary": IMAGE_RGB,
+            "language": LANGUAGE,
         }

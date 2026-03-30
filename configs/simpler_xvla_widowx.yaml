@@ -1,0 +1,105 @@
+# SimplerEnv evaluation — all 4 WidowX tasks (X-VLA config: max_episode_steps=1200)
+# Each task: 24 episodes (obj_episode_id 0..23), single robot init pos
+#
+# rgb_overlay_path: inside simpler container at /app/simpler/...
+# When running with --no-docker, override with your local SimplerEnv path.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"          # Vulkan/graphics for SAPIEN rendering
+  volumes:
+    - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"  # Vulkan ICD for GPU enumeration
+
+output_dir: "./results"
+
+benchmarks:
+  # Task 1: Stack Green Cube on Yellow Cube
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: stack_green_cube
+    mode: sync
+    episodes_per_task: 24
+    params:
+      env_name: "StackGreenCubeOnYellowCubeBakedTexInScene-v0"
+      scene_name: "bridge_table_1_v1"
+      robot: "widowx"
+
+      control_freq: 5
+      sim_freq: 500
+      max_episode_steps: 1200
+      robot_init_x: 0.147
+      robot_init_y: 0.028
+      robot_init_rot_quat_center: [0, 0, 0, 1]
+      robot_init_rot_rpy_range: [0, 0, 1, 0, 0, 1, 0, 0, 1]
+      obj_variation_mode: "episode"
+      obj_episode_range: [0, 24]
+      rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
+
+  # Task 2: Put Carrot on Plate
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_carrot_on_plate
+    mode: sync
+    episodes_per_task: 24
+    params:
+      env_name: "PutCarrotOnPlateInScene-v0"
+      scene_name: "bridge_table_1_v1"
+      robot: "widowx"
+
+      control_freq: 5
+      sim_freq: 500
+      max_episode_steps: 1200
+      robot_init_x: 0.147
+      robot_init_y: 0.028
+      robot_init_rot_quat_center: [0, 0, 0, 1]
+      robot_init_rot_rpy_range: [0, 0, 1, 0, 0, 1, 0, 0, 1]
+      obj_variation_mode: "episode"
+      obj_episode_range: [0, 24]
+      rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
+
+  # Task 3: Put Spoon on Table Cloth
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_spoon_on_tablecloth
+    mode: sync
+    episodes_per_task: 24
+    params:
+      env_name: "PutSpoonOnTableClothInScene-v0"
+      scene_name: "bridge_table_1_v1"
+      robot: "widowx"
+
+      control_freq: 5
+      sim_freq: 500
+      max_episode_steps: 1200
+      robot_init_x: 0.147
+      robot_init_y: 0.028
+      robot_init_rot_quat_center: [0, 0, 0, 1]
+      robot_init_rot_rpy_range: [0, 0, 1, 0, 0, 1, 0, 0, 1]
+      obj_variation_mode: "episode"
+      obj_episode_range: [0, 24]
+      rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_real_eval_1.png"
+      seed: null
+
+  # Task 4: Put Eggplant in Basket (different scene/robot/overlay/init pos)
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_eggplant_in_basket
+    mode: sync
+    episodes_per_task: 24
+    params:
+      env_name: "PutEggplantInBasketScene-v0"
+      scene_name: "bridge_table_1_v2"
+      robot: "widowx_sink_camera_setup"
+
+      control_freq: 5
+      sim_freq: 500
+      max_episode_steps: 1200
+      robot_init_x: 0.127
+      robot_init_y: 0.06
+      robot_init_rot_quat_center: [0, 0, 0, 1]
+      robot_init_rot_rpy_range: [0, 0, 1, 0, 0, 1, 0, 0, 1]
+      obj_variation_mode: "episode"
+      obj_episode_range: [0, 24]
+      rgb_overlay_path: "/app/simpler/ManiSkill2_real2sim/data/real_inpainting/bridge_sink.png"
+      seed: null

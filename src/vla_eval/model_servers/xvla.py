@@ -56,16 +56,27 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import (
+    GRIPPER_CLOSE_POS,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    RAW,
+    ROTATION_AA,
+    STATE_ROT6D_PROPRIO_20D,
+    DimSpec,
+)
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 
 from vla_eval.rotation import (
-    axisangle_to_rot6d_contiguous as _axisangle_to_rot6d,
+    axisangle_to_rot6d_interleaved as _axisangle_to_rot6d,
+    euler_xyz_to_rot6d_interleaved as _euler_to_rot6d,
     matrix_to_quat as _mat_to_quat,
     quat_to_axisangle as _quat_to_axisangle,
-    rot6d_contiguous_to_matrix as _rot6d_to_matrix,
+    rot6d_interleaved_to_matrix as _rot6d_to_matrix,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,9 +87,12 @@ class _XVLABenchmarkProfile:
     image_keys: tuple[str, ...]
     predicted_proprio_dims: int | None
     use_predicted_proprio: bool
+    gripper_threshold: float  # sigmoid threshold for gripper binarization
+    gripper_close_above: bool  # True: >threshold=close(+1), False: <threshold=close(+1)
     output_action_dim: int | None = None
     preserve_env_grippers: bool = False
     unflip_wrist: bool = False  # un-flip wrist image (benchmark sends it flipped)
+    euler_state: bool = False  # True: state[3:6] is euler XYZ, not axis-angle
 
 
 _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
@@ -86,6 +100,8 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         image_keys=("agentview", "wrist"),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
+        gripper_threshold=0.5,
+        gripper_close_above=True,
         output_action_dim=7,
         unflip_wrist=True,
     ),
@@ -93,22 +109,39 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         image_keys=("rgb_static", "rgb_gripper"),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
+        gripper_threshold=0.8,
+        gripper_close_above=True,
         output_action_dim=7,
+        euler_state=True,
     ),
     "simpler": _XVLABenchmarkProfile(
         image_keys=("primary",),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
+        gripper_threshold=0.5,
+        gripper_close_above=True,
+    ),
+    "simpler_widowx": _XVLABenchmarkProfile(
+        image_keys=("primary",),
+        predicted_proprio_dims=10,
+        use_predicted_proprio=True,
+        gripper_threshold=0.7,
+        gripper_close_above=False,
+        output_action_dim=7,
     ),
     "vlabench": _XVLABenchmarkProfile(
         image_keys=("primary", "front", "wrist"),
         predicted_proprio_dims=10,
         use_predicted_proprio=False,
+        gripper_threshold=0.5,
+        gripper_close_above=True,
     ),
     "robotwin": _XVLABenchmarkProfile(
         image_keys=("head_camera", "left_camera", "right_camera"),
         predicted_proprio_dims=20,
         use_predicted_proprio=True,
+        gripper_threshold=0.5,
+        gripper_close_above=True,
         preserve_env_grippers=True,
     ),
 }
@@ -124,8 +157,9 @@ def _get_profile(name: str) -> _XVLABenchmarkProfile:
 
 _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
     "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True},
-    "calvin": {"send_wrist_image": True, "send_state": True},
+    "calvin": {"send_wrist_image": True, "send_state": True, "absolute_action": True, "ep_len": 720},
     "simpler": {"send_state": True},
+    "simpler_widowx": {"send_state": True},
     "vlabench": {"send_wrist_image": True, "send_state": True},
     "robotwin": {"send_state": True},
 }
@@ -167,11 +201,13 @@ def _rot6d_to_axisangle(rot6d: np.ndarray) -> np.ndarray:
     return _quat_to_axisangle(_mat_to_quat(_rot6d_to_matrix(rot6d)))
 
 
-def _convert_ee6d_to_7d(actions: np.ndarray) -> np.ndarray:
+def _convert_ee6d_to_7d(
+    actions: np.ndarray, gripper_threshold: float = 0.5, gripper_close_above: bool = True
+) -> np.ndarray:
     """Convert X-VLA EE6D 20-D actions → 7-D ``[pos3, axisangle3, gripper]``.
 
-    Extracts arm-1, converts rot6d → axis-angle, and thresholds the
-    gripper at 0.5 (>0.5 → 1.0 close, else → −1.0 open).
+    Extracts arm-1, converts rot6d → axis-angle, and binarizes the gripper
+    using the configured threshold and direction.
 
     Note: ``generate_actions()`` already applies sigmoid to the gripper
     via ``postprocess()``, so we threshold directly without re-applying
@@ -184,20 +220,28 @@ def _convert_ee6d_to_7d(actions: np.ndarray) -> np.ndarray:
     for i in range(len(actions)):
         out[i, :3] = actions[i, :3]
         out[i, 3:6] = _rot6d_to_axisangle(actions[i, 3:9])
-        # Gripper is already sigmoided by generate_actions() → postprocess()
-        out[i, 6] = 1.0 if float(actions[i, 9]) > 0.5 else -1.0
+        # Gripper binarization using profile-configured threshold and direction
+        sig = float(actions[i, 9])
+        if gripper_close_above:
+            out[i, 6] = 1.0 if sig > gripper_threshold else -1.0
+        else:
+            out[i, 6] = 1.0 if sig < gripper_threshold else -1.0
     return out[0] if single else out
 
 
-def _state_to_xvla_proprio(state: np.ndarray, dim: int = 20) -> np.ndarray:
+def _state_to_xvla_proprio(state: np.ndarray, dim: int = 20, euler_state: bool = False) -> np.ndarray:
     """Convert ``[pos3, axisangle3, gripper*]`` → X-VLA proprio (20-D).
 
     Matches the official eval format: ``[pos3, rot6d6, 0.0, zeros10]``.
+    When ``euler_state=True``, state[3:6] is interpreted as XYZ Euler angles.
     """
     proprio = np.zeros(dim, dtype=np.float32)
     if len(state) >= 6:
         proprio[:3] = state[:3]
-        proprio[3:9] = _axisangle_to_rot6d(state[3:6])
+        if euler_state:
+            proprio[3:9] = _euler_to_rot6d(state[3:6])
+        else:
+            proprio[3:9] = _axisangle_to_rot6d(state[3:6])
     return proprio
 
 
@@ -215,6 +259,7 @@ class XVLAModelServer(PredictModelServer):
         action_ensemble: str = "newest",
         output_action_dim: int | None = None,
         use_predicted_proprio: bool | None = None,
+        euler_offset: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
@@ -240,6 +285,12 @@ class XVLAModelServer(PredictModelServer):
         )
         self._preserve_env_grippers = profile.preserve_env_grippers if profile is not None else False
         self._unflip_wrist = profile.unflip_wrist if profile is not None else False
+        self._euler_state = profile.euler_state if profile is not None else False
+        self._gripper_threshold = profile.gripper_threshold if profile is not None else 0.5
+        self._gripper_close_above = profile.gripper_close_above if profile is not None else True
+        self._euler_offset: np.ndarray | None = None
+        if euler_offset is not None:
+            self._euler_offset = np.array([float(x) for x in euler_offset.split(",")], dtype=np.float32)
         self._model = None
         self._processor = None
         # Closed-loop proprio: store raw 20-D actions per session so the
@@ -300,6 +351,22 @@ class XVLAModelServer(PredictModelServer):
             return dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
         return {}
 
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        if self.output_action_dim == 7:
+            return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}
+        return {"actions": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {}
+        for key in self._image_keys:
+            spec[key] = IMAGE_RGB
+        if not self._image_keys:
+            spec["image"] = IMAGE_RGB
+        if self.use_predicted_proprio:
+            spec["state"] = STATE_ROT6D_PROPRIO_20D
+        spec["language"] = LANGUAGE
+        return spec
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         self._load_model()
         assert self._model is not None and self._processor is not None
@@ -352,7 +419,7 @@ class XVLAModelServer(PredictModelServer):
                     proprio = torch.tensor(raw, device=device).unsqueeze(0)
                 else:
                     # Legacy 8D state [pos3, axisangle3, gripper2] — convert
-                    proprio_np = _state_to_xvla_proprio(raw, dim_proprio)
+                    proprio_np = _state_to_xvla_proprio(raw, dim_proprio, euler_state=self._euler_state)
                     proprio = torch.tensor(proprio_np, device=device).unsqueeze(0)
             else:
                 proprio = torch.zeros(1, dim_proprio, dtype=torch.float32, device=device)
@@ -375,7 +442,15 @@ class XVLAModelServer(PredictModelServer):
 
         # Convert EE6D 20-D → 7-D when requested
         if self.output_action_dim == 7 and raw_actions.shape[-1] == 20:
-            return {"actions": _convert_ee6d_to_7d(raw_actions)}
+            converted = _convert_ee6d_to_7d(raw_actions, self._gripper_threshold, self._gripper_close_above)
+            # Apply euler offset if configured (convert axis-angle → euler → +offset)
+            if self._euler_offset is not None:
+                from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
+
+                for i in range(len(converted)):
+                    euler = matrix_to_euler_xyz(axisangle_to_matrix(converted[i, 3:6]))
+                    converted[i, 3:6] = euler + self._euler_offset
+            return {"actions": converted}
 
         return {"actions": raw_actions}
 
