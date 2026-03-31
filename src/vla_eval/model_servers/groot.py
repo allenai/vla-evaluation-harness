@@ -187,8 +187,7 @@ class GR00TModelServer(PredictModelServer):
             import cv2
 
         if self.bridge_rotation:
-            from transforms3d.euler import mat2euler
-            from transforms3d.quaternions import quat2mat
+            from vla_eval.rotation import matrix_to_euler_xyz, quat_to_matrix
 
         video_keys = self._modality_config["video"].modality_keys
         if self.video_key is not None:
@@ -234,9 +233,10 @@ class GR00TModelServer(PredictModelServer):
 
             # Apply bridge rotation correction for SimplerEnv WidowX
             if self.bridge_rotation and len(state_arr) >= 8:
-                quat = state_arr[3:7]  # [w,x,y,z] from ManiSkill2
-                rm = quat2mat(quat)
-                rpy = mat2euler(rm @ self._BRIDGE_DEFAULT_ROT.T)
+                quat_wxyz = state_arr[3:7]  # [w,x,y,z] from ManiSkill2
+                quat_xyzw = np.array([quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]])
+                rm = quat_to_matrix(quat_xyzw)
+                rpy = matrix_to_euler_xyz(rm @ self._BRIDGE_DEFAULT_ROT.T)
                 gripper = state_arr[7] if len(state_arr) > 7 else 0.0
                 state_arr = np.array([*state_arr[:3], *rpy, 0.0, gripper], dtype=np.float32)
 
