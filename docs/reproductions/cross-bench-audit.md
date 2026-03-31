@@ -534,123 +534,111 @@ STATUS: Not yet evaluated
 ### Config
 - Server config: `configs/model_servers/db_cogact/robotwin2.yaml`
 - Benchmark config: `configs/robotwin_eval.yaml`
-- Official eval: Dexbotic CogACT repo (internal, not public — evaluated by DB-CogACT authors)
+- Official eval: DB-CogACT authors' internal eval (not public). Pipeline inferred from model server code.
 
 ### Pipeline verification
 
 | Item | Official | Ours | Match? | Evidence |
 |------|----------|------|:------:|----------|
-| **Image resolution** | model default (CogVLM 224×224 internal) | model default | Yes | dexbotic/cogact.py:233 `self._model.process_images(pil_images)` handles resizing internally |
-| **Image cameras** | head + left + right (3 cameras) | head + left + right | Yes | robotwin2.yaml:11 `camera_keys: '["head_camera", "left_camera", "right_camera"]'`; benchmark.py:419 sends all 3 cameras; dexbotic/cogact.py:193-194 extracts keys in order |
-| **State/proprio format** | joint state vector (14D qpos) | joint state vector | Yes | benchmark.py:427 sends `joint_state: np.array(raw_obs["joint_action"]["vector"])`; dexbotic/cogact.py:259-261 reads `obs.get("joint_state")` and passes to `_convert_actions` |
-| **Action dimension** | 14D (dual-arm joint positions) | 14D | Yes | dexbotic/cogact.py:200-220 `_convert_actions`: raw model output (>=14D) → cumulative delta + absolute gripper → 14D absolute qpos; benchmark.py:404-408 accepts <=14D, pads/trims to 14 |
-| **Action conversion** | cumulative delta (arms) + absolute (grippers) | same | Yes | dexbotic/cogact.py:216-219: `out[0:6] = joint_state[0:6] + raw[0:6]` (left arm delta), `out[6] = raw[6]` (left gripper absolute), same for right arm [7:13]+[13] |
-| **Action type to env** | qpos (joint positions) | qpos | Yes | benchmark.py:410 `self._env.take_action(act, action_type="qpos")` |
-| **Gripper handling** | absolute value from model output | same | Yes | dexbotic/cogact.py:217,219: grippers `raw[6]` and `raw[13]` are used as-is (absolute, not delta) |
-| **Rotation output** | N/A (joint space, no EE rotation) | N/A | N/A | Joint-space actions bypass EE rotation conversion entirely |
-| **Action mode** | cumulative delta → absolute qpos | same | Yes | dexbotic/cogact.py:201-220 `_convert_actions` adds deltas to current qpos |
+| **Image resolution** | CogVLM 224×224 (internal resize) | CogVLM 224×224 | Yes | dexbotic/cogact.py:233 `self._model.process_images(pil_images)` — CogACT/CogVLM applies its own resize |
+| **Image cameras** | head + left + right (3 cameras) | head + left + right | Yes | robotwin2.yaml:11 `camera_keys: '["head_camera", "left_camera", "right_camera"]'`; benchmark.py:418-421 `make_obs` sends all 3 from `raw_obs["observation"]`; dexbotic/cogact.py:193-194 `_obs_to_pil_images` extracts by `camera_keys` in order |
+| **State/proprio format** | 14D joint state (qpos) | 14D joint state | Yes | benchmark.py:427 `"joint_state": np.array(raw_obs["joint_action"]["vector"])`; dexbotic/cogact.py:259 `joint_state = obs.get("joint_state")` reads it; passes to `_convert_actions` at :261 |
+| **Action dimension** | 14D absolute qpos (dual-arm) | 14D | Yes | dexbotic/cogact.py:214 `out = np.zeros((len(raw_actions), 14))`; benchmark.py:404-408 trims/pads to 14D |
+| **Action conversion** | cumulative delta (arms) + absolute (grippers) → absolute qpos | same | Yes | dexbotic/cogact.py:216 `out[i, 0:6] = joint_state[0:6] + raw[0:6]` (left arm: current + delta); :217 `out[i, 6] = raw[6]` (left gripper: absolute); :218-219 same for right arm [7:13] + [13] |
+| **Action type to env** | qpos | qpos | Yes | benchmark.py:410 `self._env.take_action(act, action_type="qpos")` |
+| **Gripper handling** | absolute from model output (no binarization) | same | Yes | dexbotic/cogact.py:217,219 grippers used as-is. No threshold or sign conversion |
+| **Rotation** | N/A (joint-space, no EE rotation) | N/A | N/A | Joint qpos actions bypass rotation conversion entirely |
 | **chunk_size** | 16 | 16 | Yes | robotwin2.yaml:10 `chunk_size: 16` |
-| **action_ensemble** | newest | newest | Yes | dexbotic/cogact.py inherits default from PredictModelServer |
-| **max_steps** | 300 (RoboTwin step_lim) | 400 | MISMATCH | benchmark.py:438 `get_metadata` returns `max_steps: 400`; RoboTwin env internal `step_lim` varies per task (typically 300). Our orchestrator uses 400 from metadata; actual termination is by `env.take_action_cnt >= env.step_lim` at benchmark.py:413 which respects env's own limit |
-| **Checkpoint** | per-task fine-tuned | per-task | Yes | robotwin2.yaml:9 `model_path: Dexmal/robotwin-db-cogact/adjust_bottle`; must override per task |
-| **Protocol** | Protocol A (single-task, 50 clean demos) | Protocol A | Yes | robotwin_eval.yaml:16 `task_config: demo_clean` |
-| **test_num (episodes)** | 100 per task (standard) | 1 (eval config) | MISMATCH | robotwin_eval.yaml:19 `test_num: 1` (smoke test default); official uses 100 episodes per task |
-| **Expert check** | yes (oracle planner verification) | skipped | MISMATCH | robotwin_eval.yaml:20 `skip_expert_check: true`; official runs expert check to ensure seeds are solvable before eval |
-| **use_text_template** | false | false | Yes | robotwin2.yaml:12 `use_text_template: false` |
-| **Instruction source** | generated from episode info | task name replacement | Partial | With `skip_expert_check=true`, benchmark.py:327 uses `f"Perform the {task_name} task."` fallback instead of `generate_episode_descriptions()` at line 351-355 |
-| **Normalization** | norm_stats.json from checkpoint | same | Yes | dexbotic/cogact.py:134-159 loads `norm_stats.json` from HF hub; model denormalizes internally |
+| **action_ensemble** | newest | newest | Yes | Inherited default from PredictModelServer |
+| **max_steps** | env.step_lim (task-dependent, typically 300) | env.step_lim | Yes | benchmark.py:413 `done = success or (self._env.take_action_cnt >= self._env.step_lim)` — actual termination uses env's own limit, not metadata `max_steps: 400` (:438) which only caps the orchestrator |
+| **Checkpoint** | per-task fine-tuned | per-task | Yes | robotwin2.yaml:9 `Dexmal/robotwin-db-cogact/adjust_bottle`; override `model_path` per task |
+| **test_num** | 100 per task | 1 (smoke test) | Config only | robotwin_eval.yaml:19 `test_num: 1`; override to 100 for reproduction |
+| **Expert check** | enabled (oracle verifies seed solvability) | skipped | Config only | robotwin_eval.yaml:20 `skip_expert_check: true`; set `false` for accurate reproduction |
+| **Instruction** | generated from episode descriptions | fallback `"Perform the {task_name} task."` | Partial | With expert check skipped, benchmark.py:327 uses generic fallback. With expert check enabled, :351-355 calls `generate_episode_descriptions()`. CogACT is not language-conditioned, so impact is minimal |
+| **use_text_template** | false | false | Yes | robotwin2.yaml:12 |
+| **Normalization** | norm_stats.json from checkpoint | same | Yes | dexbotic/cogact.py:134-159 loads `norm_stats.json` via HF hub |
+| **Proprio update** | fresh env state each step | fresh env state each step | Yes | dexbotic/cogact.py:259 reads `joint_state` from obs every step; `_convert_actions` uses it as base for delta |
 
 ### Discrepancies
-
-1. **test_num: 1 vs 100** — LOW (config override only)
-   - `robotwin_eval.yaml` sets `test_num: 1` for smoke testing
-   - Full eval needs `test_num: 100` (or task-specific value)
-   - Fix: override in YAML or `--param test_num=100`
-
-2. **skip_expert_check: true vs false** — MEDIUM
-   - Official eval runs oracle planner to verify seed solvability
-   - Ours skips it (`skip_expert_check: true`) for speed
-   - Impact: some seeds may be unsolvable, biasing success rate downward
-   - Fix: set `skip_expert_check: false` for accurate reproduction (slower)
-
-3. **Instruction generation** — LOW
-   - With expert check skipped, instruction defaults to `"Perform the {task_name} task."` instead of generated descriptions
-   - Impact: CogACT is not strongly language-conditioned, so impact is minimal
+None at code level. Config-only adjustments needed:
+- `test_num: 1` → `100` for full eval
+- `skip_expert_check: true` → `false` for accurate seed selection
 
 ### Notes
-- Only 4 of 50 RoboTwin tasks reported (adjust_bottle, grab_roller, place_empty_cup, place_phone_stand). Average 58.5%.
-- Per-task checkpoint: must run 4 separate server instances (or restart between tasks) with different `model_path` subdirectories under `Dexmal/robotwin-db-cogact/`.
-- Pipeline is well-aligned — discrepancies are config-level, not code-level. Ready to evaluate with config adjustments.
+- Only 4 of 50 tasks reported: adjust_bottle (99%), grab_roller (89%), place_empty_cup (28%), place_phone_stand (18%). Average 58.5%.
+- Per-task checkpoint: each task requires a separate server run with `model_path: Dexmal/robotwin-db-cogact/{task_name}`.
+- Pipeline is code-complete. Ready to evaluate with config adjustments.
 
 ---
 
 ## Pair 12: X-VLA x RoboTwin 2.0 — Not yet evaluated
 
-STATUS: Not yet evaluated
+STATUS: Not yet evaluated (3 BLOCKERS)
 
 ### Config
 - Server config: `configs/model_servers/xvla/robotwin.yaml`
 - Benchmark config: `configs/robotwin_eval.yaml`
-- Official eval: `evaluation/robotwin-2.0/client.py` in [2toINF/X-VLA](https://github.com/2toINF/X-VLA)
+- Official eval: [`evaluation/robotwin-2.0/client.py`](https://github.com/2toINF/X-VLA/blob/main/evaluation/robotwin-2.0/client.py)
 
 ### Pipeline verification
 
 | Item | Official | Ours | Match? | Evidence |
 |------|----------|------|:------:|----------|
-| **Image resolution** | model default (X-VLA processor handles) | model default | Yes | xvla.py processor handles resizing |
-| **Image cameras** | head + left + right (3 cameras) | head + left + right | Yes | Official client.py:109-111 extracts `head_camera`, `left_camera`, `right_camera`; xvla.py:143 robotwin profile `image_keys=("head_camera", "left_camera", "right_camera")` |
-| **State/proprio format** | 20D EE6D dual-arm: `[left_pos3, left_rot6d6, left_grip1, right_pos3, right_rot6d6, right_grip1]` | 20D from joint_state | MISMATCH | Official client.py:102-118: constructs proprio from `obs["endpose"]` — left/right EE pos + `quat_to_rotate6D(quat)` + gripper `(1 - grip*2)`. Ours: benchmark.py:427 sends `joint_state` (14D qpos), xvla.py:142-149 robotwin profile has `predicted_proprio_dims=20, use_predicted_proprio=True`. Initial proprio comes from joint_state (wrong format — qpos not EE pose) |
-| **State source** | endpose (EE pos + quat + gripper) | joint_action vector (qpos) | MISMATCH | Official uses `obs["endpose"]["left_endpose"]` (7D: pos3+quat4) + gripper. Ours uses `obs["joint_action"]["vector"]` (14D joint positions) — completely different coordinate space |
-| **rot6d convention** | interleaved (client-side `quat_to_rotate6D` → `R.as_matrix()[:,:2].reshape(6)`) | interleaved (xvla.py uses interleaved) | Yes | Both use interleaved layout |
-| **Action dimension** | 20D raw EE6D → client converts to 16D `[pos3, quat4, grip1] × 2` | 20D raw → benchmark expects 14D qpos | BLOCKER | Official client.py:143-162 `_rollout`: splits 20D → left `[pos3, rot6d6, grip1]` + right `[pos3, rot6d6, grip1]`, converts rot6d→quat, binarizes gripper `1-2*(grip>0.7)`, produces 16D `[pos3, quat4, grip1, pos3, quat4, grip1]`. Ours: xvla.py robotwin profile has `output_action_dim=None` → raw 20D passed to benchmark. Benchmark.py:404 trims to 14D qpos. **20D EE ≠ 14D qpos** |
-| **Action type to env** | `action_type='ee'` (EE target pose) | `action_type='qpos'` (joint positions) | BLOCKER | Official client.py:161 `env.take_action(action, action_type='ee')`. Ours: benchmark.py:410 `self._env.take_action(act, action_type="qpos")`. Fundamentally different action spaces — ee uses IK to reach target pose, qpos directly sets joint angles |
-| **Gripper binarization** | `1 - 2*(grip > 0.7)` per arm | N/A (raw values trimmed to 14D) | MISMATCH | Official client.py:151,158: `left_grip = 1 - 2*(left_gripper > 0.7)`, same for right. Ours: no gripper conversion in benchmark (raw action passed to `take_action(qpos)`) |
-| **Action post-processing** | rot6d→quat conversion in client | none (raw 20D → trim to 14D) | BLOCKER | Official converts 6D rotation to quaternion for EE action; ours passes raw values as joint positions |
-| **Proprio update (closed-loop)** | `obs['endpose'] = predicted_action` | predicted proprio from `_last_raw_actions[:20]` | Partial | Official client.py:163-164 manually overrides `obs['endpose']` with predicted action for next step. Ours: `use_predicted_proprio=True` feeds `_last_raw_actions[-1, :20]` — same 20D predicted values, but the initial proprio differs (qpos vs EE pose) |
-| **domain_id** | 6 | 6 | Yes | Official client.py:106 `"domain_id": 6`; robotwin.yaml:7 `domain_id: 6` |
-| **chunk_size** | full action sequence (pop one at a time) | 30 | Yes | Official dequeues from full response; ours uses chunk_size=30 which matches X-VLA's output length |
-| **Protocol** | Protocol A (50 tasks, single-task, 50 clean demos) | Protocol A | Yes | Both use `demo_clean` config |
-| **test_num** | 10 per task (official eval_episodes default) | 1 (smoke test) | MISMATCH | Official client.py:194 default `num_episodes=1000` but eval_episodes uses `test_num` arg; robotwin_eval.yaml:19 `test_num: 1` |
-| **Expert check** | yes | skipped | MISMATCH | Official client.py:186 `expert_check = True`; ours: `skip_expert_check: true` |
-| **Checkpoint** | per-task (not specified in config) | `2toINF/X-VLA-WidowX` | UNCLEAR | robotwin.yaml:5 uses WidowX checkpoint. X-VLA paper doesn't specify separate RoboTwin checkpoint — the same shared-weights model may handle all benchmarks via domain_id |
+| **Image resolution** | model default (X-VLA processor) | model default | Yes | Both use `XVLAProcessor` internal resize |
+| **Image cameras** | head + left + right (3 cameras) | head + left + right | Yes | Official client.py:109-111 extracts `head_camera`, `left_camera`, `right_camera` from obs; xvla.py:143 robotwin profile `image_keys=("head_camera", "left_camera", "right_camera")` |
+| **State/proprio format** | 20D EE6D: `[left_pos3, left_rot6d_interleaved6, left_grip1, right_pos3, right_rot6d_interleaved6, right_grip1]` | **zeros** (key mismatch) | BLOCKER | Official client.py:113-130: constructs proprio from `obs["endpose"]` — `left_ee[:,:3]` + `quat_to_rotate6D(left_ee[:,3:])` + `(1-left_grip*2)`, same for right → 20D. Ours: benchmark.py:427 sends state under key `"joint_state"`, but xvla.py `_obs_state_array` (:191-206) reads `"controller_states"` / `"states"` / `"state"` — **never `"joint_state"`**. Falls through to `torch.zeros(1, dim_proprio)` at :465. Initial proprio is **all zeros**, not qpos or EE pose |
+| **State source** | `obs["endpose"]` (EE pos + quat per arm) | `obs["joint_action"]["vector"]` (14D qpos) — but never read | BLOCKER | Official uses end-effector pose data. Ours sends joint positions, but under a key X-VLA doesn't read. Even if the key matched, the format (14D qpos vs 20D EE rot6d) is incompatible |
+| **rot6d convention** | interleaved (`R.as_matrix()[:,:2].reshape(6)`) | interleaved | Yes | Official client.py:58 `quat_to_rotate6D`; xvla.py uses interleaved throughout |
+| **Action dimension** | 20D raw → client converts to 16D `[pos3, quat4, grip1]×2` | 20D raw → benchmark trims to 14D qpos | BLOCKER | Official client.py:224-240 `_rollout`: splits 20D into per-arm `[pos3, rot6d6, grip1]`, converts rot6d→quat via `rotate6D_to_quat` (:230,236), binarizes gripper `1-2*(grip>0.7)` (:228,237), concatenates to 16D `[pos3,quat4,grip1]×2`. Ours: robotwin profile `output_action_dim=None` (:142-149) → raw 20D returned at xvla.py:493; benchmark.py:404 `act = act[:14]` trims to 14D. **Raw EE6D values interpreted as joint angles** |
+| **Action type to env** | `action_type='ee'` (IK-solved EE target) | `action_type='qpos'` (direct joint angles) | BLOCKER | Official client.py:242 `env.take_action(action, action_type='ee')`. Ours: benchmark.py:410 `self._env.take_action(act, action_type="qpos")`. EE actions are inverse-kinematics-solved to reach a target pose; qpos directly sets joint angles. Completely different interpretation |
+| **Gripper binarization** | `1 - 2*(grip > 0.7)` per arm | none (raw values) | MISMATCH | Official client.py:228 `left_grip = 1 - 2 * (left_gripper > 0.7)`, :237 same for right. Ours: no gripper processing — raw 20D trimmed to 14D, no binarization applied. X-VLA robotwin profile has `gripper_threshold=0.5` (:147) but it's unused since `output_action_dim=None` skips `_convert_ee6d_to_7d` |
+| **Action post-processing** | rot6d→quat + gripper binarization in client | none | BLOCKER | Official performs full conversion (20D→16D EE target). Ours passes raw model output as-is, trimmed to 14D |
+| **Proprio update** | predicted action fed back as endpose: `obs['endpose']['left_endpose'] = action[:7]` | predicted proprio `_last_raw_actions[-1,:20]` | Partial | Official client.py:244-245 manually overwrites endpose with predicted action. Ours: `use_predicted_proprio=True` + `predicted_proprio_dims=20` feeds raw 20D from last inference (:431-436). After step 1, predicted proprio is self-consistent. But initial step has zero proprio (key mismatch) |
+| **Gripper preservation** | endpose feedback includes gripper | `preserve_env_grippers=True` | Partial | Official feeds back predicted gripper as endpose. Ours at xvla.py:429-435: `preserve_env_grippers` tries to read env gripper from `_obs_state_array(obs)` — but returns None (key mismatch), so gripper preservation silently fails |
+| **domain_id** | 6 | 6 | Yes | Official client.py:123 `"domain_id": 6`; robotwin.yaml:7 `domain_id: 6` |
+| **chunk_size** | full chunk (pop one at a time) | 30 | Yes | Official dequeues all actions; X-VLA outputs 30 actions per inference |
+| **max_steps** | 10 × chunk_size = 300 | 400 (metadata) | MISMATCH | Official client.py:221 `for j in range(10)` outer loop × chunk actions. Ours: benchmark.py:438 `max_steps: 400`; actual limit is `env.step_lim` at :413 |
+| **test_num** | 1000 (CLI default) | 1 (smoke test) | Config only | robotwin_eval.yaml:19 |
+| **Expert check** | enabled | skipped | Config only | Official client.py:186 `expert_check = True` |
+| **Checkpoint** | shared-weights (domain_id routing) | `2toINF/X-VLA-WidowX` | Yes | X-VLA uses a single checkpoint for all benchmarks, routing via domain_id. WidowX checkpoint handles RoboTwin via domain_id=6 |
 
 ### Discrepancies
 
 1. **`action_type='ee'` vs `'qpos'`** — BLOCKER
-   - Official uses EE action (pos + quat target), benchmark uses qpos (joint angles)
-   - The entire action interpretation is different — EE actions are IK-solved to joints internally, qpos sets joints directly
-   - Impact: 20D EE6D actions interpreted as 14D qpos produces completely wrong robot movement
-   - Fix: benchmark needs an `action_type` parameter (or X-VLA profile overrides it). Alternatively, the action conversion (20D EE6D → 16D `[pos3,quat4,grip1]×2`) must happen in the model server, and benchmark must call `take_action(action, action_type='ee')`
+   - Official sends 16D EE target pose `[pos3, quat4, grip1]×2` to `take_action(action_type='ee')` — the env solves IK internally
+   - Ours sends 14D raw values to `take_action(action_type='qpos')` — directly sets joint angles
+   - Fix: add `action_type` parameter to benchmark, overridable via obs_params
 
-2. **State source: endpose vs joint_action** — BLOCKER
-   - Official constructs 20D proprio from EE pose (endpose), not joint positions
-   - Our benchmark sends `joint_action.vector` (qpos) as state
-   - Impact: model receives joint angles where it expects EE pose → corrupted proprio input
-   - Fix: benchmark must send `obs["endpose"]` data (left/right EE pos + quat + gripper), model server converts to 20D rot6d format
+2. **State key mismatch + format** — BLOCKER
+   - Benchmark sends state under `"joint_state"` key, but X-VLA reads `"states"`/`"state"`/`"controller_states"` → gets None → uses zeros
+   - Even if key matched, format is 14D qpos vs expected 20D EE rot6d
+   - Fix: benchmark must send `obs["endpose"]` (EE pose per arm) under a key X-VLA reads; model server converts quat→rot6d for the 20D proprio format
 
-3. **Action post-processing missing** — BLOCKER
-   - Official client converts 20D raw → 16D `[pos3, quat4, grip1]×2` with rot6d→quat and gripper binarization
-   - Our pipeline passes raw 20D to benchmark which trims to 14D qpos
-   - Fix: conversion must happen in model server (new `output_action_dim` mode for robotwin) or in benchmark
+3. **Action conversion missing** — BLOCKER
+   - Official: 20D raw → split per arm → rot6d→quat → gripper binarization → 16D EE target
+   - Ours: 20D raw → trim to 14D → feed as qpos
+   - Fix: add robotwin-specific action conversion in X-VLA model server (`output_action_dim=16` mode with rot6d→quat + gripper `1-2*(g>0.7)`)
 
-4. **test_num: 1 vs 10+** — LOW (config override)
-5. **Expert check skipped** — MEDIUM (same as Pair 11)
+4. **Gripper threshold 0.5 vs 0.7** — LATENT
+   - Profile has `gripper_threshold=0.5`, official uses 0.7. Currently unused (`output_action_dim=None`), but becomes a bug when action conversion is implemented
+   - Fix: set `gripper_threshold=0.7` in robotwin profile
+
+5. **max_steps 400 vs 300** — LOW
+   - Actual termination uses env's `step_lim`, so metadata 400 is a soft cap only
 
 ### Notes
-- This pair has **3 BLOCKER-level issues**. The fundamental problem is that X-VLA operates in EE (end-effector) space while our RoboTwin benchmark is built for DB-CogACT's qpos (joint position) space.
-- Fixing this requires either: (a) adding `action_type` parameter to benchmark + EE state extraction, or (b) implementing full EE→qpos conversion in the X-VLA model server (complex, involves IK).
-- The simplest path is (a): benchmark supports `action_type='ee'` when requested via obs_params, and sends endpose data instead of joint_state.
-- Reported score: 70.0% Easy, 39.0% Hard (50 tasks, Protocol A).
-- Checkpoint `2toINF/X-VLA-WidowX` is likely the shared-weights model — X-VLA uses a single checkpoint across all benchmarks with domain_id routing.
+- 3 BLOCKER issues stem from one root cause: the benchmark was designed for DB-CogACT's qpos action space, while X-VLA uses EE (end-effector) action space with IK.
+- Fix requires: (a) benchmark `action_type` parameter + `endpose` state extraction, (b) X-VLA model server 20D→16D EE conversion.
+- Reported score: 70.0% Easy, 39.0% Hard (50 tasks).
 
 ---
 
 ## Pair 13: StarVLA Qwen3-OFT x RoboTwin 2.0 — Not yet evaluated
 
-STATUS: Not yet evaluated (config not created)
+STATUS: Not yet evaluated (multiple blockers)
 
 ### Config
-- Server config: not yet created
+- Server config: not yet created (no StarVLA RoboTwin config in `configs/model_servers/starvla/`)
 - Benchmark config: `configs/robotwin_eval.yaml`
 - Official eval: `examples/Robotwin/README.md` in StarVLA repo
 
@@ -658,37 +646,31 @@ STATUS: Not yet evaluated (config not created)
 
 | Item | Official | Ours | Match? | Evidence |
 |------|----------|------|:------:|----------|
-| **Protocol** | Protocol B (multi-task joint training) | Protocol A (single-task) | MISMATCH | StarVLA RoboTwin uses Protocol B — multi-task joint checkpoint, 48 tasks trained together. Our benchmark assumes Protocol A (single-task, per-task or shared checkpoint). Scores are not directly comparable across protocols |
-| **Tasks** | 48 (Protocol B, 50 demos/task) | configurable | — | robotwin_eval.yaml currently configured for single task |
-| **Action dimension** | 14D (OFT outputs joint-space actions) | 14D | Likely Yes | StarVLA OFT action head outputs 14D for RoboTwin (joint positions). starvla.py model server would need RoboTwin-specific configuration |
-| **Action type** | qpos (joint positions) | qpos | Likely Yes | StarVLA OFT likely trained with qpos actions matching the benchmark |
-| **Checkpoint** | Qwen3-VL-OFT (50 demos/task, Protocol B) | not available | — | StarVLA RoboTwin checkpoint not yet identified in HuggingFace |
-| **Image cameras** | head + left + right (3 cameras) | head + left + right | Likely Yes | Standard RoboTwin observation |
-| **chunk_size** | unknown (OFT default: 10) | TBD | — | |
+| **Image cameras** | head + left + right (3 cameras) | head + left + right | Likely | Standard RoboTwin observation; benchmark.py:418-421 sends all 3 |
+| **Action dimension** | 14D (dual-arm joint positions) | 14D | Likely | StarVLA OFT trained with qpos actions for RoboTwin |
+| **Action type** | qpos | qpos | Likely | Matches DB-CogACT path (Protocol B still uses qpos eval) |
+| **Model server adaptation** | dual-arm 14D | single-arm 7D only | BLOCKER | starvla.py:331-332 handles 8D→7D state by averaging grippers: `state = np.concatenate([state[:6], [state[6:8].mean()]])`. Action output at :347 applies single-gripper conversion: `actions[:, 6] = 1.0 - 2.0 * actions[:, 6]`. No 14D dual-arm support |
+| **Config** | RoboTwin-specific | not created | BLOCKER | 14 StarVLA configs exist in `configs/model_servers/starvla/` (libero, simpler, calvin variants), none for RoboTwin |
+| **Checkpoint** | Qwen3-VL-OFT RoboTwin | not identified | BLOCKER | No HuggingFace path for StarVLA RoboTwin checkpoint found |
+| **chunk_size** | unknown | TBD | — | |
 
 ### Discrepancies
 
-1. **Protocol B vs Protocol A** — FUNDAMENTAL
-   - Protocol B trains a single model on all 48 tasks jointly
-   - Protocol A trains/evaluates per-task
-   - Results are structurally incomparable
-   - Our benchmark is task-level — could still evaluate a Protocol B checkpoint per-task, but the training methodology differs
+1. **Model server not adapted for dual-arm** — BLOCKER
+   - starvla.py assumes 7D single-arm action output and 8D state
+   - RoboTwin needs 14D dual-arm qpos with per-arm gripper handling
+   - Fix: significant model server adaptation needed (14D action output, dual gripper conversion, 14D+ state handling)
 
 2. **Config not created** — BLOCKER
-   - No StarVLA RoboTwin model server config exists
-   - Need to identify the correct checkpoint and create config
+   - No StarVLA RoboTwin config exists
 
-3. **Checkpoint availability** — UNKNOWN
-   - StarVLA Qwen3-OFT RoboTwin checkpoint location not confirmed
-
-### Notes
-- Reported score: 50.4% Easy (Protocol B, 48 tasks, 50 demos/task). With domain randomization (500 DR demos): 88.2% Easy, 88.3% Hard.
-- Protocol B (multi-task) is fundamentally different from Protocol A used by DB-CogACT and X-VLA. Direct comparison is not meaningful.
-- Lower priority than Pairs 11 and 12 due to protocol mismatch and missing config.
+3. **Checkpoint not identified** — BLOCKER
+   - HuggingFace path for the RoboTwin checkpoint is unknown
 
 ### Notes
-- StarVLA RoboTwin uses Protocol B — different from DB-CogACT (Protocol A) and X-VLA (Protocol A).
-- Not directly comparable across protocols.
+- Reported: 50.4% Easy (48 tasks, 50 demos/task). With domain randomization: 88.2% Easy, 88.3% Hard.
+- Training protocol (multi-task joint) differs from DB-CogACT/X-VLA (single-task), but eval procedure is the same — evaluate per task independently.
+- Lowest priority of the 3 RoboTwin pairs due to 3 blockers + unclear checkpoint.
 
 ---
 
