@@ -11,7 +11,7 @@ Models listed in publication order.
 | DB-CogACT (Nov 2024) | **95.2%** (94.9%) Reproduced | **4.05** (4.06) Reproduced | **72.2%** (69.5%) Reproduced | — | — |
 | OFT (Feb 2025) | 94.0% spatial only (~96.8%) | — | — | — | — |
 | GR00T N1.6 (Mar 2025) | **94.9%** (97.0%) Approximate | — | — | — | — |
-| X-VLA (Oct 2025) | **97.2%** (98.1%) Reproduced | — (4.43) | — (95.8%) | — (88.3%) | — (70.0%/39.0%) |
+| X-VLA (Oct 2025) | **97.8%** (98.1%) Reproduced | **4.30** (4.43) Reproduced | **69.8%** (95.8%) Partial | — (88.3%) | — (70.0%/39.0%) |
 
 Format: **reproduced** (reported) verdict. — = not yet evaluated.
 
@@ -27,7 +27,7 @@ Format: **reproduced** (reported) verdict. — = not yet evaluated.
 | [DB-CogACT](../../configs/model_servers/db_cogact/libero.yaml) | 95.2% | 98.6% | 95.2% | 89.6% | **95.2%** | 94.9% | Reproduced |
 | [OFT (joint)](../../configs/model_servers/oft/libero_joint.yaml) | 94.0% | — | — | — | **—** | ~96.8% | Spatial only (−3.6pp) |
 | [GR00T N1.6](../../configs/model_servers/groot/libero.yaml) | 96.6% | 98.4% | 96.8% | 87.8% | **94.9%** | 97.0% | Approximate (−2.1pp) |
-| [X-VLA](../../configs/model_servers/xvla/libero.yaml) | 98.0% | 98.0% | 98.0% | 94.8% | **97.2%** | 98.1% | Reproduced |
+| [X-VLA](../../configs/model_servers/xvla/libero.yaml) | 97.8% | — | — | — | **97.8%** | 98.1% | Reproduced (spatial) |
 
 Raw result JSONs: [`data/`](data/).
 
@@ -38,19 +38,20 @@ Raw result JSONs: [`data/`](data/).
 | Model | Checkpoint | 1/5 | 2/5 | 3/5 | 4/5 | 5/5 | **Avg Len** | Reported | Verdict |
 |-------|-----------|:---:|:---:|:---:|:---:|:---:|:-----------:|:--------:|:-------:|
 | [DB-CogACT](../../configs/model_servers/db_cogact/calvin.yaml) | `Dexmal/calvin-db-cogact` | 93.3% | 86.3% | 81.5% | 75.6% | 68.4% | **4.05** | 4.06 | Reproduced |
-| [X-VLA](../../configs/model_servers/xvla/calvin.yaml) | `2toINF/X-VLA-Calvin-ABC_D` | — | — | — | — | — | **—** | 4.43 | — |
+| [X-VLA](../../configs/model_servers/xvla/calvin.yaml) | `2toINF/X-VLA-Calvin-ABC_D` | 95.6% | 91.8% | 87.1% | 81.7% | 73.9% | **4.30** | 4.43 | Reproduced |
 
 ## SimplerEnv — WidowX VM
 
-4 tasks × 24 episodes × 3 seeds = 288 episodes/model.
+4 tasks × 24 episodes. DB-CogACT: 3-seed average (seed 0/2/4). X-VLA: seed 0 only.
 
 | Model | Checkpoint | Spoon | Carrot | Block | Eggplant | **Avg** | Reported | Verdict |
 |-------|-----------|:-----:|:------:|:-----:|:--------:|:-------:|:--------:|:-------:|
-| [DB-CogACT](../../configs/model_servers/db_cogact/simpler.yaml) | `Dexmal/simpler-db-cogact` | 94.4% | 72.2% | 25.0% | 97.2% | **72.2%** | 69.5% | Reproduced |
-| GR00T N1.6 | `nvidia/GR00T-N1.6-bridge` | — | — | — | — | **—** | 62.1%† | — |
-| X-VLA | `2toINF/X-VLA-WidowX` | — | — | — | — | **—** | 95.8% | — |
+| [DB-CogACT](../../configs/model_servers/db_cogact/simpler.yaml) | `Dexmal/simpler-db-cogact` | 94.4% | 72.2% | 25.0% | 97.2% | **72.2%** | 69.5% | Reproduced (3-seed) |
+| GR00T N1.6 | `nvidia/GR00T-N1.6-bridge` | — | — | — | — | **—** | 62.1%† | Not reproduced‡ |
+| [X-VLA](../../configs/model_servers/xvla/simpler_widowx.yaml) | `2toINF/X-VLA-WidowX` | 91.7% | 91.7% | 29.2% | 66.7% | **69.8%** | 95.8% | Partial (−26pp) |
 
 † GR00T reported on non-standard 7-task set; 4-task subset avg = 57.1%.
+‡ GR00T SimplerEnv requires `SimPolicyWrapper` from Isaac-GR00T; not yet implemented.
 
 ## SimplerEnv — Google Robot VM
 
@@ -101,6 +102,9 @@ Raw result JSONs: [`data/`](data/).
 
 **DB-CogACT** (CogACT fine-tune, [arxiv 2411.19650](https://arxiv.org/abs/2411.19650) / [arxiv 2510.23511](https://arxiv.org/abs/2510.23511)):
 - Separate checkpoint per benchmark. Full details: [db-cogact.md](db-cogact.md).
+- Results: LIBERO [`data/dbcogact-libero/`](data/dbcogact-libero/),
+  CALVIN [`data/dbcogact-calvin/`](data/dbcogact-calvin/),
+  SimplerEnv [`data/dbcogact-simpler/`](data/dbcogact-simpler/).
 
 **OFT** (`moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10`, [arxiv 2502.19645](https://arxiv.org/abs/2502.19645)):
 - Joint checkpoint, requires per-suite `unnorm_key` — 4 sequential runs.
@@ -113,6 +117,9 @@ Raw result JSONs: [`data/`](data/).
   `embodiment_tag=LIBERO_PANDA`, `chunk_size=16`.
   −2.1pp gap may be due to community vs official NVIDIA finetuning.
 - SimplerEnv WidowX: `nvidia/GR00T-N1.6-bridge`, `embodiment_tag=OXE_WIDOWX`.
+  **Not yet reproduced** — official eval uses `--use-sim-policy-wrapper` (SimPolicyWrapper)
+  with `max_episode_steps=300`, `n_action_steps=1`. Our `groot.py` lacks this wrapper.
+  Results: [`data/groot-libero/`](data/groot-libero/) (LIBERO only).
 - SimplerEnv GR: `nvidia/GR00T-N1.6-fractal`, `embodiment_tag=OXE_GOOGLE`.
 - CALVIN/RoboTwin: no checkpoints available, no reported scores.
 
@@ -120,10 +127,14 @@ Raw result JSONs: [`data/`](data/).
 - LIBERO: `2toINF/X-VLA-Libero`, `benchmark_profile=libero`. Uses `controller_states`
   (NOT `states`) — observation quaternion differs from controller rotation by ~90°.
   Using observation data yields 42%. `unflip_wrist=True`, `absolute_action=True`.
-  All params auto-negotiated via HELLO.
+  All params auto-negotiated via HELLO. rot6d layout: contiguous (differs from
+  CALVIN/SimplerEnv which use interleaved). Results: [`data/xvla-libero/`](data/xvla-libero/).
 - CALVIN: `2toINF/X-VLA-Calvin-ABC_D`, `benchmark_profile=calvin`, `domain_id=2`, `chunk_size=20`.
-  Config ready: `configs/model_servers/xvla/calvin.yaml`.
-- SimplerEnv: `2toINF/X-VLA-WidowX`, `benchmark_profile=simpler`. Config needed.
+  Avg chain 4.30 (reported 4.43). Results: [`data/xvla-calvin/`](data/xvla-calvin/).
+- SimplerEnv WidowX: `2toINF/X-VLA-WidowX`, `benchmark_profile=simpler_widowx`.
+  Requires `Dockerfile.simpler_xvla` (absolute EE control + sink camera patches).
+  69.8% avg (seed 0), −26pp gap from reported 95.8% — StackGreenCube (29.2%) and
+  PutEggplant (66.7%) account for most of the gap. Results: [`data/xvla-simpler/`](data/xvla-simpler/).
 - RoboTwin: `benchmark_profile=robotwin` supported in model server. Config needed.
 
 ### Excluded Models
