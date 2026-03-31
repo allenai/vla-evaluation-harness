@@ -23,11 +23,11 @@ Format: **reproduced** (reported) verdict. — = not yet evaluated.
 
 | Model | Spatial | Object | Goal | 10 | **Avg** | Reported | Verdict |
 |-------|:-------:|:------:|:----:|:--:|:-------:|:--------:|:-------:|
-| Pi0.5 | 98.0% | 99.6% | 98.6% | 94.6% | **97.7%** | 96.9% | Reproduced |
-| DB-CogACT | 95.2% | 98.6% | 95.2% | 89.6% | **95.2%** | 94.9% | Reproduced |
-| OFT (joint) | 94.0% | — | — | — | **—** | ~96.8% | Spatial only (−3.6pp) |
-| GR00T N1.6 | 96.6% | 98.4% | 96.8% | 87.8% | **94.9%** | 97.0% | Approximate (−2.1pp) |
-| X-VLA | 98.0% | 98.0% | 98.0% | 94.8% | **97.2%** | 98.1% | Reproduced |
+| [Pi0.5](../../configs/model_servers/pi0/libero.yaml) | 98.0% | 99.6% | 98.6% | 94.6% | **97.7%** | 96.9% | Reproduced |
+| [DB-CogACT](../../configs/model_servers/db_cogact/libero.yaml) | 95.2% | 98.6% | 95.2% | 89.6% | **95.2%** | 94.9% | Reproduced |
+| [OFT (joint)](../../configs/model_servers/oft/libero_joint.yaml) | 94.0% | — | — | — | **—** | ~96.8% | Spatial only (−3.6pp) |
+| [GR00T N1.6](../../configs/model_servers/groot/libero.yaml) | 96.6% | 98.4% | 96.8% | 87.8% | **94.9%** | 97.0% | Approximate (−2.1pp) |
+| [X-VLA](../../configs/model_servers/xvla/libero.yaml) | 98.0% | 98.0% | 98.0% | 94.8% | **97.2%** | 98.1% | Reproduced |
 
 Raw result JSONs: [`data/`](data/).
 
@@ -37,8 +37,8 @@ Raw result JSONs: [`data/`](data/).
 
 | Model | Checkpoint | 1/5 | 2/5 | 3/5 | 4/5 | 5/5 | **Avg Len** | Reported | Verdict |
 |-------|-----------|:---:|:---:|:---:|:---:|:---:|:-----------:|:--------:|:-------:|
-| DB-CogACT | `Dexmal/calvin-db-cogact` | 93.3% | 86.3% | 81.5% | 75.6% | 68.4% | **4.05** | 4.06 | Reproduced |
-| X-VLA | `2toINF/X-VLA-Calvin-ABC_D` | — | — | — | — | — | **—** | 4.43 | — |
+| [DB-CogACT](../../configs/model_servers/db_cogact/calvin.yaml) | `Dexmal/calvin-db-cogact` | 93.3% | 86.3% | 81.5% | 75.6% | 68.4% | **4.05** | 4.06 | Reproduced |
+| [X-VLA](../../configs/model_servers/xvla/calvin.yaml) | `2toINF/X-VLA-Calvin-ABC_D` | — | — | — | — | — | **—** | 4.43 | — |
 
 ## SimplerEnv — WidowX VM
 
@@ -46,7 +46,7 @@ Raw result JSONs: [`data/`](data/).
 
 | Model | Checkpoint | Spoon | Carrot | Block | Eggplant | **Avg** | Reported | Verdict |
 |-------|-----------|:-----:|:------:|:-----:|:--------:|:-------:|:--------:|:-------:|
-| DB-CogACT | `Dexmal/simpler-db-cogact` | 94.4% | 72.2% | 25.0% | 97.2% | **72.2%** | 69.5% | Reproduced |
+| [DB-CogACT](../../configs/model_servers/db_cogact/simpler.yaml) | `Dexmal/simpler-db-cogact` | 94.4% | 72.2% | 25.0% | 97.2% | **72.2%** | 69.5% | Reproduced |
 | GR00T N1.6 | `nvidia/GR00T-N1.6-bridge` | — | — | — | — | **—** | 62.1%† | — |
 | X-VLA | `2toINF/X-VLA-WidowX` | — | — | — | — | **—** | 95.8% | — |
 
@@ -146,15 +146,15 @@ All models at `max_batch_size=1` (no batching).
 
 | Model | chunk_size | μ (obs/s) | Median latency | GPU inf/s |
 |-------|:---------:|:---------:|:--------------:|:---------:|
-| Pi0.5 | 10 | 84.0 | 63ms | 8.4 |
-| DB-CogACT | 12 | 165.2 | 18ms | 13.8 |
-| OFT (joint) | 10 | 27.1 | 46ms | 2.7 |
-| GR00T N1.6 | 16 | 46.5 | 50ms | 2.9 |
-| StarVLA Q2.5-GR00T | 1 | 38.3 | 60ms | 38.3 |
-| StarVLA Q2.5-OFT | 1 | 6.0 | 654ms | 6.0 |
-| StarVLA Q3-OFT | 1 | 5.9 | 664ms | 5.9 |
-| StarVLA Q2.5-FAST | 1 | 1.4 | 2858ms | 1.4 |
-| X-VLA | 30 | 88.8 | 30ms | 3.0 |
+| [Pi0.5](../../configs/model_servers/pi0/libero.yaml) | 10 | 84.0 | 63ms | 8.4 |
+| [DB-CogACT](../../configs/model_servers/db_cogact/libero.yaml) | 12 | 165.2 | 18ms | 13.8 |
+| [OFT (joint)](../../configs/model_servers/oft/libero_joint.yaml) | 10 | 27.1 | 46ms | 2.7 |
+| [GR00T N1.6](../../configs/model_servers/groot/libero.yaml) | 16 | 46.5 | 50ms | 2.9 |
+| [StarVLA Q2.5-GR00T](../../configs/model_servers/starvla/libero_qwen25_groot.yaml) | 1 | 38.3 | 60ms | 38.3 |
+| [StarVLA Q2.5-OFT](../../configs/model_servers/starvla/libero_qwen25_oft.yaml) | 1 | 6.0 | 654ms | 6.0 |
+| [StarVLA Q3-OFT](../../configs/model_servers/starvla/libero_qwen3_oft.yaml) | 1 | 5.9 | 664ms | 5.9 |
+| [StarVLA Q2.5-FAST](../../configs/model_servers/starvla/libero_qwen25_fast.yaml) | 1 | 1.4 | 2858ms | 1.4 |
+| [X-VLA](../../configs/model_servers/xvla/libero.yaml) | 30 | 88.8 | 30ms | 3.0 |
 
 GPU inf/s = actual GPU forward passes per second (μ / chunk_size). Models with chunk_size > 1
 serve most observations from cached action chunks without GPU inference.
@@ -164,7 +164,7 @@ X-VLA/Pi0/OFT are single-predict only (`max_batch_size=1`).
 DB-CogACT supports `predict_batch()` with optimal throughput at `max_batch_size=16` (468 obs/s on H100).
 
 <details>
-<summary>DB-CogACT batch sweep (chunk_size=12)</summary>
+<summary>DB-CogACT batch sweep (<a href="../../configs/model_servers/db_cogact/libero.yaml">db_cogact/libero.yaml</a>, chunk_size=12)</summary>
 
 **A100-80GB PCIe:**
 
@@ -202,10 +202,10 @@ Median CPU/GPU utilization during steady-state (startup transients excluded).
 
 | Benchmark | Rendering | Per-shard obs/s | Peak λ (obs/s) | Peak N | Bottleneck | 2 GPU effect | Rec. GPUs |
 |-----------|-----------|:---------------:|:--------------:|:------:|:----------:|:------------:|:---------:|
-| LIBERO | GPU EGL (MuJoCo) | ~7.3 | 415 | 50 | CPU (52%) | No change | 1 |
-| CALVIN | GPU EGL (PyBullet) | ~36.7 | 407 | 24 | CPU (93%) | No change | 1 |
-| SimplerEnv | GPU (SAPIEN/Vulkan) | ~10.1 | 138 | 24 | GPU (43%) | Worse (overhead) | 1 |
-| RoboTwin | GPU | TBD | 4.9 | 16 | GPU (100%) | 2× improvement | 2 |
+| [LIBERO](../../configs/libero_spatial.yaml) | GPU EGL (MuJoCo) | ~7.3 | 415 | 50 | CPU (52%) | No change | 1 |
+| [CALVIN](../../configs/calvin_eval.yaml) | GPU EGL (PyBullet) | ~36.7 | 407 | 24 | CPU (93%) | No change | 1 |
+| [SimplerEnv](../../configs/simpler_all_tasks.yaml) | GPU (SAPIEN/Vulkan) | ~10.1 | 138 | 24 | GPU (43%) | Worse (overhead) | 1 |
+| [RoboTwin](../../configs/robotwin_eval.yaml) | GPU | TBD | 4.9 | 16 | GPU (100%) | 2× improvement | 2 |
 
 <details>
 <summary>LIBERO Spatial — λ(N) sweep</summary>
@@ -271,14 +271,14 @@ Rule: `num_shards ≤ 0.8 × μ / per_shard_demand`. LIBERO per-shard ≈ 7.3 ob
 
 | Model | μ (obs/s) | Max shards (80% rule) | Recommended | Est. wall time |
 |-------|:---------:|:---------------------:|:-----------:|:--------------:|
-| X-VLA | 88.8 | 9 | 10 | ~30 min |
-| Pi0.5 | 84.0 | 9 | 10 | ~30 min |
-| GR00T | 46.5 | 5 | 5 | ~55 min |
-| StarVLA Q2.5-GR00T | 38.3 | 4 | 4 | ~70 min |
-| OFT | 27.1 | 3 | 4 | ~70 min |
-| StarVLA Q2.5-OFT | 6.0 | 0.6 | 1 | ~4.5 hrs |
-| StarVLA Q3-OFT | 5.9 | 0.6 | 1 | ~4.5 hrs |
-| StarVLA Q2.5-FAST | 1.4 | 0.15 | 1 | ~20 hrs |
+| [X-VLA](../../configs/model_servers/xvla/libero.yaml) | 88.8 | 9 | 10 | ~30 min |
+| [Pi0.5](../../configs/model_servers/pi0/libero.yaml) | 84.0 | 9 | 10 | ~30 min |
+| [GR00T](../../configs/model_servers/groot/libero.yaml) | 46.5 | 5 | 5 | ~55 min |
+| [StarVLA Q2.5-GR00T](../../configs/model_servers/starvla/libero_qwen25_groot.yaml) | 38.3 | 4 | 4 | ~70 min |
+| [OFT](../../configs/model_servers/oft/libero_joint.yaml) | 27.1 | 3 | 4 | ~70 min |
+| [StarVLA Q2.5-OFT](../../configs/model_servers/starvla/libero_qwen25_oft.yaml) | 6.0 | 0.6 | 1 | ~4.5 hrs |
+| [StarVLA Q3-OFT](../../configs/model_servers/starvla/libero_qwen3_oft.yaml) | 5.9 | 0.6 | 1 | ~4.5 hrs |
+| [StarVLA Q2.5-FAST](../../configs/model_servers/starvla/libero_qwen25_fast.yaml) | 1.4 | 0.15 | 1 | ~20 hrs |
 
 Models with μ < 7.3 obs/s cannot keep up with 1 shard — the single shard generates observations
 faster than the server processes them. Runs still work (queue absorbs bursts) but wall time is

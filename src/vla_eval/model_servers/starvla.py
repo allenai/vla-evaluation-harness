@@ -38,7 +38,9 @@ Supported frameworks (auto-detected from checkpoint config):
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +52,29 @@ from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _block_logging_hijack() -> Iterator[None]:
+    """Prevent starVLA from clobbering the caller's logging configuration.
+
+    starVLA's ``overwatch.py`` calls ``logging.config.dictConfig()`` with
+    ``disable_existing_loggers: True`` at import time, which disables every
+    pre-existing logger and replaces root handlers with a ``RichHandler``.
+
+    Instead of restoring after the fact (brittle, misses exception paths),
+    we monkey-patch ``logging.config.dictConfig`` to be a no-op for the
+    duration of the import/load sequence so the caller's config is never
+    touched.
+    """
+    import logging.config
+
+    _real_dictConfig = logging.config.dictConfig
+    logging.config.dictConfig = lambda *_a, **_kw: None  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        logging.config.dictConfig = _real_dictConfig
 
 
 class StarVLAModelServer(PredictModelServer):
@@ -118,16 +143,17 @@ class StarVLAModelServer(PredictModelServer):
         if self._model is not None:
             return
         import torch
-        from starVLA.model.framework.base_framework import baseframework
 
         ckpt_path = self._resolve_checkpoint(self.checkpoint)
-        logger.info("Loading starVLA model from checkpoint: %s", ckpt_path)
 
         # ------------------------------------------------------------------
-        # Monkey-patches to work around upstream starVLA incompatibilities.
-        # All patches are collected in *_patches* and restored in the
+        # Block starVLA's logging hijack for the entire import/load sequence.
+        # All monkey-patches are collected in *_patches* and restored in the
         # ``finally`` block so the global state is never left dirty.
         # ------------------------------------------------------------------
+        with _block_logging_hijack():
+            from starVLA.model.framework.base_framework import baseframework
+
         _patches: list[tuple] = []  # (obj, attr_name, original_value)
 
         # 1) flash_attention_2 → kernels-community/flash-attn2
@@ -263,7 +289,8 @@ class StarVLAModelServer(PredictModelServer):
         _qfast_mod.get_action_model = _patched_fast_gam
 
         try:
-            self._model = baseframework.from_pretrained(ckpt_path)
+            with _block_logging_hijack():
+                self._model = baseframework.from_pretrained(ckpt_path)
         finally:
             for obj, attr, orig in reversed(_patches):
                 setattr(obj, attr, orig)
