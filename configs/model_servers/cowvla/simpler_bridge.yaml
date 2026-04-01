@@ -1,0 +1,15 @@
+# CoW-VLA SimplerEnv Bridge/WidowX checkpoint
+# Weight: hitfx/CoWVLA / CoWVLA_SIMPLERENV_BRIDGE_WIDOWX_BS128_12K
+#
+# Usage: vla-eval serve --config configs/model_servers/cowvla/simpler_bridge.yaml
+
+extends: _base.yaml
+args:
+  model_subfolder: CoWVLA_SIMPLERENV_BRIDGE_WIDOWX_BS128_12K
+  action_tokenizer_subdir: pretrain/fast_bridge_t5_s50
+  normalizer_subdir: configs/normalizer_bridge
+  normalizer_key: bridge_robot
+  image_key: primary
+  wrist_image_key: none
+  image_size: 256
+  chunk_size: 5

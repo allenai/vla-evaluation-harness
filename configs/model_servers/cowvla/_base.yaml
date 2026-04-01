@@ -1,0 +1,15 @@
+# CoW-VLA model server — shared base
+#
+# Loads released checkpoints from hitfx/CoWVLA on Hugging Face and lazily clones
+# the pinned reference repo on first startup to access the custom Emu3 classes and
+# action tokenizer assets.
+
+script: "src/vla_eval/model_servers/cowvla.py"
+args:
+  model_hub: hitfx/CoWVLA
+  vq_hub: BAAI/Emu3-Stage1
+  vision_hub: BAAI/Emu3-VisionTokenizer
+  repo_url: https://github.com/fx-hit/CoWVLA.git
+  repo_rev: fd3b514a3f56eded14228b700f656892ff00c3e3
+  max_new_tokens: 100
+  port: 8000

@@ -1,0 +1,15 @@
+# CoW-VLA LIBERO checkpoint
+# Weight: hitfx/CoWVLA / CoWVLA_LIBERO_BS128_8K
+#
+# Usage: vla-eval serve --config configs/model_servers/cowvla/libero.yaml
+
+extends: _base.yaml
+args:
+  model_subfolder: CoWVLA_LIBERO_BS128_8K
+  action_tokenizer_subdir: pretrain/fast
+  normalizer_subdir: configs/normalizer_libero
+  normalizer_key: libero
+  image_key: agentview
+  wrist_image_key: wrist
+  image_size: 200
+  chunk_size: 10

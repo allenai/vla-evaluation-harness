@@ -102,6 +102,7 @@ BENCHMARK_REGISTRY: dict[str, str] = {
 # Each model server has one designated smoke test config.
 SERVER_REGISTRY: dict[str, str] = {
     "cogact":               "configs/model_servers/cogact/cogact.yaml",
+    "cowvla":               "configs/model_servers/cowvla/libero.yaml",
     "openvla":              "configs/model_servers/openvla/openvla.yaml",
     "groot":                "configs/model_servers/groot/groot.yaml",
     "pi0":                  "configs/model_servers/pi0/libero.yaml",

@@ -2,6 +2,7 @@
 # For libero_90, use configs/libero_90.yaml separately.
 server:
   url: "ws://localhost:8000"
+  timeout: 120.0
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
@@ -44,6 +45,5 @@ benchmarks:
       suite: libero_10
       seed: 7
       num_steps_wait: 10
-
 
 
