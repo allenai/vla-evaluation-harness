@@ -61,7 +61,7 @@ class StarVLAModelServer(PredictModelServer):
         checkpoint: str,
         *,
         unnorm_key: str | None = None,
-        unnorm_type: str = "minmax",
+        unnorm_type: str = "q99",
         use_bf16: bool = False,
         observation_params: str | None = None,
         chunk_size: int = 1,
