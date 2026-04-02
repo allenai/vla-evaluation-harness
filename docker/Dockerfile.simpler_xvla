@@ -1,14 +1,26 @@
-# SimplerEnv + X-VLA ManiSkill2 patch
-# Extends simpler:latest with absolute EE control mode + euler rotation
-# interpretation.  X-VLA outputs absolute EE poses (not deltas), so the
-# standard delta controller does not work.
+# SimplerEnv + X-VLA ManiSkill2 patches
+# Extends simpler:latest with:
+#   1. Absolute EE control mode (use_delta=False) + euler rotation
+#   2. kwargs.setdefault instead of kwargs.update in prepackaged config
+#      so that user-specified control_mode is preserved.
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
 FROM ${BASE_IMAGE}
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
 
+# 1. Add absolute EE controller + euler interpretation to WidowX config
 COPY docker/xvla_absolute_ee.patch /tmp/xvla_absolute_ee.patch
 RUN cd /app/ManiSkill2_real2sim \
     && patch -p1 < /tmp/xvla_absolute_ee.patch \
     && rm /tmp/xvla_absolute_ee.patch
+
+# 2. Fix prepackaged_config to preserve user-overridden kwargs (e.g. control_mode).
+#    Replace kwargs.update(prepackaged) with setdefault-based merge.
+RUN cd /app/ManiSkill2_real2sim && \
+    sed -i 's/kwargs\.update(self\._setup_prepackaged_env_init_config())/prepackaged = self._setup_prepackaged_env_init_config()\n            for _k, _v in prepackaged.items():\n                kwargs.setdefault(_k, _v)/' \
+        mani_skill2_real2sim/envs/custom_scenes/move_near_in_scene.py \
+        mani_skill2_real2sim/envs/custom_scenes/put_on_in_scene.py \
+        mani_skill2_real2sim/envs/custom_scenes/open_drawer_in_scene.py \
+        mani_skill2_real2sim/envs/custom_scenes/grasp_single_in_scene.py && \
+    echo "Patched prepackaged kwargs merge"
