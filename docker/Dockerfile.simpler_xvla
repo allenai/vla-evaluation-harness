@@ -1,0 +1,14 @@
+# SimplerEnv + X-VLA ManiSkill2 patch
+# Extends simpler:latest with absolute EE control mode + euler rotation
+# interpretation.  X-VLA outputs absolute EE poses (not deltas), so the
+# standard delta controller does not work.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+FROM ${BASE_IMAGE}
+
+SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
+
+COPY docker/xvla_absolute_ee.patch /tmp/xvla_absolute_ee.patch
+RUN cd /app/ManiSkill2_real2sim \
+    && patch -p1 < /tmp/xvla_absolute_ee.patch \
+    && rm /tmp/xvla_absolute_ee.patch

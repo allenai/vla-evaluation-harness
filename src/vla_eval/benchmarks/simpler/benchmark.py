@@ -54,6 +54,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         image_size: list[int] | tuple[int, int] | None = None,
         seed: int | None = None,
         deterministic_episodes: bool = True,
+        control_mode: str | None = None,
     ) -> None:
         super().__init__()
         assert success_mode in ("truncation", "early_stop", "accumulate"), (
@@ -66,6 +67,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.image_size = tuple(image_size) if image_size is not None else None
         self.seed = seed
         self.deterministic_episodes = deterministic_episodes
+        self.control_mode = control_mode
 
         self._env: Any = None
         self._task_description: str = ""
@@ -94,7 +96,10 @@ class SimplerEnvBenchmark(StepBenchmark):
         if self._env is not None:
             self._env.close()
 
-        self._env = simpler_env.make(self.task_name)
+        make_kwargs: dict[str, Any] = {}
+        if self.control_mode is not None:
+            make_kwargs["control_mode"] = self.control_mode
+        self._env = simpler_env.make(self.task_name, **make_kwargs)
 
         # Override max_episode_steps if configured (e.g. X-VLA=1200, GR00T=10000)
         if self.max_episode_steps is not None:

@@ -180,6 +180,7 @@ _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
         "send_state": True,
         "max_episode_steps": 1200,
         "success_mode": "early_stop",
+        "control_mode": "arm_pd_ee_target_base_pose_gripper_pd_joint_pos",
     },
     "vlabench": {"send_wrist_image": True, "send_state": True},
     "robotwin": {"send_state": True},

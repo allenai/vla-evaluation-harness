@@ -1,0 +1,36 @@
+diff --git a/mani_skill2_real2sim/agents/configs/widowx/defaults.py b/mani_skill2_real2sim/agents/configs/widowx/defaults.py
+index 5e3ef9a..a1b2c3d 100644
+--- a/mani_skill2_real2sim/agents/configs/widowx/defaults.py
++++ b/mani_skill2_real2sim/agents/configs/widowx/defaults.py
+@@ -131,6 +131,9 @@ class WidowXDefaultConfig:
+         arm_pd_ee_target_delta_pose_align2 = PDEEPoseControllerConfig(
+             *arm_common_args, frame="ee_align2", use_target=True, **arm_common_kwargs
+         )
++        arm_pd_ee_target_base_pose = PDEEPoseControllerConfig(
++            *arm_common_args, frame="base", use_target=True, use_delta=False, **arm_common_kwargs
++        )
+         arm_pd_ee_target_delta_pose_align2_interpolate_by_planner = PDEEPoseControllerConfig(
+             *arm_common_args,
+             frame="ee_align2",
+@@ -150,6 +153,7 @@ class WidowXDefaultConfig:
+             arm_pd_ee_target_delta_pose_align=arm_pd_ee_target_delta_pose_align,
+             arm_pd_ee_target_delta_pose_align2=arm_pd_ee_target_delta_pose_align2,
+             arm_pd_ee_target_delta_pose_align2_interpolate_by_planner=arm_pd_ee_target_delta_pose_align2_interpolate_by_planner,
++            arm_pd_ee_target_base_pose=arm_pd_ee_target_base_pose,
+         )
+
+         # -------------------------------------------------------------------------- #
+diff --git a/mani_skill2_real2sim/agents/controllers/pd_ee_pose.py b/mani_skill2_real2sim/agents/controllers/pd_ee_pose.py
+index 074e154..b2c3d4e 100644
+--- a/mani_skill2_real2sim/agents/controllers/pd_ee_pose.py
++++ b/mani_skill2_real2sim/agents/controllers/pd_ee_pose.py
+@@ -223,7 +223,8 @@ class PDEEPoseController(PDEEPosController):
+         else:
+             assert self.config.frame == "base", self.config.frame
+             target_pos, target_rot = action[0:3], action[3:6]
+-            target_quat = Rotation.from_rotvec(target_rot).as_quat()[[3, 0, 1, 2]]
++            # X-VLA sends Euler XYZ angles for absolute EE control
++            target_quat = Rotation.from_euler('xyz', target_rot).as_quat()[[3, 0, 1, 2]]
+             target_pose = sapien.Pose(target_pos, target_quat)
+
+         return target_pose
