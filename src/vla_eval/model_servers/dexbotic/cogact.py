@@ -102,7 +102,10 @@ class CogACTModelServer(PredictModelServer):
         self._device = None
 
     def get_observation_params(self) -> dict[str, Any]:
-        return {"image_size": [self.image_resolution, self.image_resolution]}
+        return {
+            "image_size": [self.image_resolution, self.image_resolution],
+            "success_mode": "truncation",
+        }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"actions": RAW}

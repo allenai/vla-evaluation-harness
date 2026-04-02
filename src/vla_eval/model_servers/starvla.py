@@ -55,6 +55,50 @@ from vla_eval.model_servers.predict import PredictModelServer
 logger = logging.getLogger(__name__)
 
 
+class _AdaptiveEnsembler:
+    """Cosine-similarity-weighted action ensemble over a sliding window.
+
+    Matches the reference starVLA ``AdaptiveEnsembler``: on each step the model
+    outputs a chunk of predicted actions.  The ensembler aligns past predictions
+    to the current timestep (prediction *i* steps ago → take its *i*-th action)
+    and computes a weighted average using cosine similarity to the newest.
+
+    Args:
+        horizon: Number of past predictions to keep.
+        alpha: Temperature for cosine-similarity weighting (0 = uniform).
+    """
+
+    def __init__(self, horizon: int = 7, alpha: float = 0.1) -> None:
+        from collections import deque
+
+        self.horizon = horizon
+        self.alpha = alpha
+        self._history: deque[np.ndarray] = deque(maxlen=horizon)
+
+    def reset(self) -> None:
+        self._history.clear()
+
+    def __call__(self, cur_action: np.ndarray) -> np.ndarray:
+        """Ensemble *cur_action* (chunk, D) and return a single (D,) action."""
+        self._history.append(cur_action)
+        n = len(self._history)
+
+        # Align: from i-th oldest prediction, take its (n-1-i)-th action
+        if cur_action.ndim == 1:
+            aligned = np.stack(list(self._history))
+        else:
+            aligned = np.stack([pred[idx] for idx, pred in zip(range(n - 1, -1, -1), self._history)])
+
+        # Cosine-similarity weighting relative to the newest prediction
+        ref = aligned[-1]
+        dot = np.sum(aligned * ref, axis=1)
+        norms = np.linalg.norm(aligned, axis=1) * np.linalg.norm(ref) + 1e-7
+        weights = np.exp(self.alpha * dot / norms)
+        weights /= weights.sum()
+
+        return np.sum(weights[:, None] * aligned, axis=0)
+
+
 @contextlib.contextmanager
 def _block_logging_hijack() -> Iterator[None]:
     """Prevent starVLA from clobbering the caller's logging configuration.
@@ -91,6 +135,10 @@ class StarVLAModelServer(PredictModelServer):
         observation_params: str | None = None,
         chunk_size: int = 1,
         action_ensemble: str = "newest",
+        euler_to_axisangle: bool = False,
+        gripper_invert: bool = True,
+        adaptive_ensemble_horizon: int | None = None,
+        adaptive_ensemble_alpha: float = 0.1,
         **kwargs: Any,
     ) -> None:
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
@@ -98,6 +146,11 @@ class StarVLAModelServer(PredictModelServer):
         self.unnorm_key = unnorm_key
         self.unnorm_type = unnorm_type
         self.use_bf16 = use_bf16
+        self.euler_to_axisangle = euler_to_axisangle
+        self.gripper_invert = gripper_invert
+        self._ensembler: _AdaptiveEnsembler | None = None
+        if adaptive_ensemble_horizon is not None:
+            self._ensembler = _AdaptiveEnsembler(adaptive_ensemble_horizon, adaptive_ensemble_alpha)
         self._observation_params: dict[str, Any] = {}
         if observation_params:
             import json
@@ -385,12 +438,34 @@ class StarVLAModelServer(PredictModelServer):
         outputs = []
         for i in range(len(obs_batch)):
             actions = self._unnormalize(np.asarray(actions_batch[i]))
-            # Convert gripper: unnormalize outputs {0=close, 1=open}.
-            # LIBERO expects: +1=close, -1=open (discretized at 0).
-            # Map 0(close)→+1, 1(open)→-1.
-            actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            # Gripper: unnormalize outputs {0=close, 1=open}.
+            if self.gripper_invert:
+                # LIBERO convention: +1=close, -1=open.
+                actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            # else: pass through {0,1} — benchmark binarizes at 0.5
+            # to the correct env convention (+1=open, -1=close).
+            # Euler → axis-angle conversion (required by SimplerEnv controller)
+            if self.euler_to_axisangle and actions.shape[-1] >= 6:
+                from transforms3d.euler import euler2axangle
+
+                for t in range(actions.shape[0]):
+                    axis, angle = euler2axangle(actions[t, 3], actions[t, 4], actions[t, 5])
+                    actions[t, 3:6] = axis * angle
+            # Adaptive ensemble: weighted average over sliding window of predictions
+            if self._ensembler is not None:
+                actions = self._ensembler(actions)[np.newaxis]  # (D,) → (1, D)
             outputs.append({"actions": actions})
         return outputs
+
+    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+        if self._ensembler is not None:
+            self._ensembler.reset()
+        await super().on_episode_start(config, ctx)
+
+    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
+        if self._ensembler is not None:
+            self._ensembler.reset()
+        await super().on_episode_end(result, ctx)
 
 
 if __name__ == "__main__":

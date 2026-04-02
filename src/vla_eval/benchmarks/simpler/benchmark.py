@@ -1,7 +1,18 @@
-"""SimplerEnv benchmark implementation using ManiSkill2.
+"""SimplerEnv benchmark implementation.
 
-Creates a fresh environment per episode.  Each episode corresponds
-to a distinct ``obj_episode_id`` from ``obj_episode_range``.
+Uses ``simpler_env.make(task_name)`` which internally calls
+``gym.make(env_name, obs_mode="rgbd", prepackaged_config=True)``.
+The prepackaged config sets the correct control mode, scene, robot,
+camera, RGB overlay, and robot init position for each task.
+
+Success modes (set via model server ``get_observation_params()``):
+    - ``truncation``: Run until ``max_episode_steps``.  Success =
+      ``terminated`` on the final step.
+    - ``early_stop``: Stop on the first ``terminated=True``.  Matches
+      X-VLA official eval (``if done: break``).
+    - ``accumulate``: Run until ``max_episode_steps``.  Success =
+      ``terminated`` at any point during the episode.  Matches GR00T
+      official eval (OR-accumulation).
 """
 
 from __future__ import annotations
@@ -16,92 +27,49 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
 class SimplerEnvBenchmark(StepBenchmark):
-    """SimplerEnv (ManiSkill2 real2sim) benchmark (SAPIEN + Vulkan).
-
-    Non-obvious behaviors:
-        - **Vulkan required**: SAPIEN rendering needs Vulkan drivers.  Docker
-          configs set ``NVIDIA_DRIVER_CAPABILITIES=all`` and mount the Vulkan
-          ICD for this reason.
-        - **New env per episode**: Unlike other benchmarks, a fresh environment
-          is created for each episode (matching the reference implementation).
-        - **RGB overlay + scene must match**: ``rgb_overlay_path`` and
-          ``scene_name`` are paired (e.g. ``bridge_real_eval_1.png`` with
-          ``bridge_table_1_v1``).  Mismatched pairs cause domain gap.
-        - **obj_episode_range and episodes_per_task**: The range ``[0, 24]``
-          means episode indices 0–23.  Set ``episodes_per_task: 24`` to cover
-          all variations.
-        - **Success semantics**: Runs until truncation (``max_episode_steps``).
-          Success = ``terminated`` on the final step.  Early termination is
-          ignored because success can flip back to False.
+    """SimplerEnv (ManiSkill2 real2sim) benchmark.
 
     Args:
-        env_name: SimplerEnv environment ID.
-        scene_name: SAPIEN scene identifier.
-        robot: Robot model name (e.g. "widowx").
-        control_freq: Control frequency in Hz.
-        sim_freq: Simulation frequency in Hz.
-        max_episode_steps: Max steps per episode.
-        rgb_overlay_path: Path to real-world inpainting overlay image.
-        robot_init_x, robot_init_y: Robot base position.
-        robot_init_rot_quat_center: Center quaternion ``[x, y, z, w]``.
-        robot_init_rot_rpy_range: RPY range as 9 floats.
-        obj_variation_mode: Object variation selection mode.
-        obj_episode_range: ``[start, end)`` range of object variation IDs.
-        seed: Random seed for ``env.reset()``.  ``None`` → no seed.
+        task_name: SimplerEnv task identifier (e.g. ``"widowx_stack_cube"``).
+            Must be a key in ``simpler_env.ENVIRONMENT_MAP``.
+        max_episode_steps: Override environment's default episode length.
+            ``None`` keeps the prepackaged default.  X-VLA uses 1200,
+            GR00T uses 10000, starVLA/DB-CogACT use 120.
+        success_mode: How to determine episode success:
+            ``"truncation"`` — success = terminated on the final step.
+            ``"early_stop"`` — stop on first terminated, count as success.
+            ``"accumulate"`` — run to end, success if ever terminated.
+        send_state: Include proprioceptive state (base_pose, tcp_pose,
+            EE pose) in observations for models that need it.
+        image_size: Resize images to ``[H, W]`` before sending.
+        seed: Random seed for ``env.reset()``.
     """
 
     def __init__(
         self,
-        env_name: str = "StackGreenCubeOnYellowCubeBakedTexInScene-v0",
-        scene_name: str = "bridge_table_1_v1",
-        robot: str = "widowx",
-        control_freq: int = 5,
-        sim_freq: int = 500,
-        max_episode_steps: int = 120,
-        robot_init_x: float = 0.147,
-        robot_init_y: float = 0.028,
-        robot_init_rot_quat_center: list[float] | None = None,
-        robot_init_rot_rpy_range: list[float] | None = None,
-        obj_variation_mode: str = "episode",
-        obj_episode_range: list[int] | None = None,
-        rgb_overlay_path: str | None = None,
-        seed: int | None = None,
+        task_name: str = "widowx_stack_cube",
+        max_episode_steps: int | None = None,
+        success_mode: str = "truncation",
         send_state: bool = False,
-        control_mode: str | None = None,
         image_size: list[int] | tuple[int, int] | None = None,
-        pass_rotation_raw: bool = False,
-        accumulate_success: bool = False,
-        prepackaged_config: bool = False,
+        seed: int | None = None,
+        deterministic_episodes: bool = True,
     ) -> None:
         super().__init__()
-        self.seed = seed
-        self.send_state = send_state
-        self._control_mode_override = control_mode
-        self._pass_rotation_raw = pass_rotation_raw
-        self._accumulate_success = accumulate_success
-        self._prepackaged_config = prepackaged_config
-        self._success_seen = False
-        self.image_size = tuple(image_size) if image_size is not None else None
-        self.env_name = env_name
-        self.scene_name = scene_name
-        self.robot = robot
-        self.control_freq = control_freq
-        self.sim_freq = sim_freq
+        assert success_mode in ("truncation", "early_stop", "accumulate"), (
+            f"Invalid success_mode={success_mode!r}. Expected: truncation, early_stop, accumulate"
+        )
+        self.task_name = task_name
         self.max_episode_steps = max_episode_steps
-        self.robot_init_x = robot_init_x
-        self.robot_init_y = robot_init_y
-        self.obj_variation_mode = obj_variation_mode
-        self.obj_episode_range = obj_episode_range or [0, 24]
+        self.success_mode = success_mode
+        self.send_state = send_state
+        self.image_size = tuple(image_size) if image_size is not None else None
+        self.seed = seed
+        self.deterministic_episodes = deterministic_episodes
 
-        # Compute single robot init quaternion from config
-        quat_center = robot_init_rot_quat_center or [0, 0, 0, 1]
-        rpy_range = robot_init_rot_rpy_range or [0, 0, 1, 0, 0, 1, 0, 0, 1]
-        self._robot_init_quat = self._compute_init_quat(quat_center, rpy_range)
-
-        self.rgb_overlay_path = rgb_overlay_path
-
-        self._env = None
+        self._env: Any = None
         self._task_description: str = ""
+        self._success_seen: bool = False
 
     def cleanup(self) -> None:
         if self._env is not None:
@@ -112,88 +80,35 @@ class SimplerEnvBenchmark(StepBenchmark):
             self._env = None
 
     # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _compute_init_quat(center: list[float], rpy_range: list[float]) -> np.ndarray:
-        """Compute robot init quaternion (matches reference Args._process_robot_position_args)."""
-        from transforms3d.euler import euler2quat
-        from sapien.core import Pose
-
-        r, p, y = float(rpy_range[0]), float(rpy_range[3]), float(rpy_range[6])
-        return (Pose(q=euler2quat(r, p, y)) * Pose(q=center)).q
-
-    def _build_obs_dict(self, image: np.ndarray) -> dict[str, Any]:
-        """Wrap image and task description into an Observation dict."""
-        if self.image_size is not None and image.shape[:2] != self.image_size:
-            import cv2
-
-            image = cv2.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
-        return {"images": {"primary": image}, "task_description": self._task_description}
-
-    # ------------------------------------------------------------------
     # Benchmark ABC
     # ------------------------------------------------------------------
 
     def get_tasks(self) -> list[Task]:
-        return [
-            {
-                "name": self.env_name,
-                "env_name": self.env_name,
-                "scene_name": self.scene_name,
-            }
-        ]
+        return [{"name": self.task_name, "task_name": self.task_name}]
 
     def reset(self, task: Task) -> Any:
-        from simpler_env.utils.env.env_builder import (
-            build_maniskill2_env,
-            get_robot_control_mode,
-        )
+        import simpler_env
 
         # Close previous env — new env per episode (matches reference)
         self._success_seen = False
         if self._env is not None:
             self._env.close()
 
-        if self._prepackaged_config:
-            build_kwargs: dict[str, Any] = dict(
-                obs_mode="rgbd",
-                prepackaged_config=True,
-                max_episode_steps=self.max_episode_steps,
-            )
-        else:
-            control_mode = self._control_mode_override or get_robot_control_mode(self.robot, "vla")
-            build_kwargs = dict(
-                obs_mode="rgbd",
-                robot=self.robot,
-                scene_name=task.get("scene_name", self.scene_name),
-                control_freq=self.control_freq,
-                sim_freq=self.sim_freq,
-                max_episode_steps=self.max_episode_steps,
-                control_mode=control_mode,
-                camera_cfgs={"add_segmentation": True},
-            )
-            if self.rgb_overlay_path is not None:
-                build_kwargs["rgb_overlay_path"] = self.rgb_overlay_path
+        self._env = simpler_env.make(self.task_name)
 
-        self._env = build_maniskill2_env(
-            task.get("env_name", self.env_name),
-            **build_kwargs,
-        )
+        # Override max_episode_steps if configured (e.g. X-VLA=1200, GR00T=10000)
+        if self.max_episode_steps is not None:
+            self._env._max_episode_steps = self.max_episode_steps
 
-        # Reset with robot init + object variation (matches reference)
-        episode_idx = task.get("episode_idx", 0)
-        obj_episode_id = self.obj_episode_range[0] + episode_idx
-
-        env_reset_options = {
-            "robot_init_options": {
-                "init_xy": np.array([self.robot_init_x, self.robot_init_y]),
-                "init_rot_quat": self._robot_init_quat,
-            },
-            "obj_init_options": {"episode_id": obj_episode_id},
-        }
-        reset_kwargs: dict[str, Any] = {"options": env_reset_options}
+        # Reset — robot init is handled by prepackaged_config internally.
+        # deterministic_episodes=True: pass episode_id for reproducible object placement
+        #   (matches X-VLA, starVLA reference evals).
+        # deterministic_episodes=False: no obj_init_options, random placement each reset
+        #   (matches GR00T reference eval which uses vectorized envs with auto-reset).
+        reset_kwargs: dict[str, Any] = {}
+        if self.deterministic_episodes:
+            episode_idx = task.get("episode_idx", 0)
+            reset_kwargs["options"] = {"obj_init_options": {"episode_id": episode_idx}}
         if self.seed is not None:
             reset_kwargs["seed"] = self.seed
         obs, _ = self._env.reset(**reset_kwargs)
@@ -212,27 +127,22 @@ class SimplerEnvBenchmark(StepBenchmark):
             raw_action = raw_action.tolist()
         assert len(raw_action) == 7, f"Action dimension mismatch: got {len(raw_action)}, expected 7"
 
-        # [x, y, z, roll, pitch, yaw, gripper] -> ManiSkill2 format
+        # [pos3, rot3, gripper] — pass directly to env.step().
+        # No rotation conversion: the controller (arm_pd_ee_target_delta_pose_align2)
+        # uses Rotation.from_rotvec() which interprets action[3:6] as a rotation vector.
+        # All reference implementations feed their rotation values straight through.
         pos = np.array(raw_action[:3])
-        if self._control_mode_override or self._pass_rotation_raw:
-            # Absolute EE control (X-VLA) or raw pass-through (GR00T):
-            # rotation passed directly without euler→axangle conversion.
-            rot = np.array(raw_action[3:6])
-        else:
-            # Default delta control: convert euler → axis-angle for ManiSkill2
-            from vla_eval.rotation import euler_xyz_to_matrix, matrix_to_quat, quat_to_axisangle
-
-            mat = euler_xyz_to_matrix(np.array(raw_action[3:6]))
-            rot = quat_to_axisangle(matrix_to_quat(mat))
+        rot = np.array(raw_action[3:6])
         gripper = 1.0 if raw_action[6] > 0.5 else -1.0
-
         env_action = np.concatenate([pos, rot, [gripper]])
+
         assert self._env is not None
         obs, reward, done, truncated, info = self._env.step(env_action)
 
         info["truncated"] = truncated
-        if self._accumulate_success and done:
+        if done:
             self._success_seen = True
+
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
@@ -241,19 +151,30 @@ class SimplerEnvBenchmark(StepBenchmark):
         )
 
         image = get_image_from_maniskill2_obs_dict(self._env, raw_obs)
-        obs = self._build_obs_dict(image)
+        if self.image_size is not None and image.shape[:2] != self.image_size:
+            import cv2
+
+            image = cv2.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
+
+        obs: Observation = {
+            "images": {"primary": image},
+            "task_description": self._task_description,
+            "task_name": self.task_name,
+        }
+
         if self.send_state:
             agent = raw_obs.get("agent", {})
             extra = raw_obs.get("extra", {})
-            # Send base_pose + tcp_pose so model servers can compute
-            # base-relative EE pose (required by X-VLA, GR00T, etc.)
+
+            # Send base_pose + tcp_pose for model servers that compute
+            # base-relative EE pose (X-VLA, GR00T, etc.)
             base_pose = agent.get("base_pose")
             tcp_pose = extra.get("tcp_pose")
             if base_pose is not None and tcp_pose is not None:
                 obs["base_pose"] = np.asarray(base_pose, dtype=np.float32)
                 obs["tcp_pose"] = np.asarray(tcp_pose, dtype=np.float32)
-            # Compute base-relative EE pose (8D: pos3+quat4_wxyz+gripper_openness).
-            # Matches NVIDIA's ManiSkill2 fork (youliangtan/ManiSkill2_real2sim).
+
+            # Send pre-computed EE state if available (8D: pos3 + quat4_wxyz + gripper)
             eef = agent.get("eef_pos")
             if eef is not None:
                 obs["states"] = np.asarray(eef, dtype=np.float32)
@@ -263,8 +184,7 @@ class SimplerEnvBenchmark(StepBenchmark):
                 bp = np.asarray(base_pose, dtype=np.float64).flatten()
                 tp = np.asarray(tcp_pose, dtype=np.float64).flatten()
 
-                # Build 4x4 transforms (ManiSkill2 quaternion: wxyz)
-                def _pose7_to_mat4(p):
+                def _pose7_to_mat4(p: np.ndarray) -> np.ndarray:
                     m = np.eye(4)
                     q_wxyz = p[3:7]
                     q_xyzw = np.array([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
@@ -278,7 +198,7 @@ class SimplerEnvBenchmark(StepBenchmark):
                 pos = ee_in_base[:3, 3]
                 q_xyzw = matrix_to_quat(ee_in_base[:3, :3])
                 q_wxyz = np.array([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
-                # Gripper openness: 1 - closedness. Use env's get_gripper_closedness if available.
+
                 assert self._env is not None
                 try:
                     closedness = self._env.unwrapped.agent.get_gripper_closedness()
@@ -287,26 +207,27 @@ class SimplerEnvBenchmark(StepBenchmark):
                     qpos = agent.get("qpos")
                     gripper_open = float(qpos[-1]) if qpos is not None else 0.0
                 obs["states"] = np.concatenate([pos, q_wxyz, [gripper_open]]).astype(np.float32)
+
         return obs
 
     def check_done(self, step_result: StepResult) -> bool:
-        # Run until truncated (max_episode_steps), never stop early on
-        # terminated.  The success condition can flip back to False if the
-        # robot disturbs the object after a momentary success.
+        if self.success_mode == "early_stop":
+            return step_result.done or step_result.info.get("truncated", False)
+        # truncation and accumulate: run until max_episode_steps
         return step_result.info.get("truncated", False)
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
-        # Default: success = terminated on the final step (at truncation).
-        # accumulate_success: success if terminated at any point during the episode
-        # (matches GR00T official eval which OR-accumulates success).
-        success = self._success_seen if self._accumulate_success else step_result.done
-        return {"success": success}
+        if self.success_mode == "accumulate":
+            return {"success": self._success_seen}
+        # truncation: success = terminated on final step
+        # early_stop: success = terminated (which triggered the stop)
+        return {"success": step_result.done}
 
     def get_metadata(self) -> dict[str, Any]:
         return {
+            "task_name": self.task_name,
+            "success_mode": self.success_mode,
             "max_steps": self.max_episode_steps,
-            "env_name": self.env_name,
-            "robot": self.robot,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:

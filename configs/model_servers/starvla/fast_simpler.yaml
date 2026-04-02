@@ -6,3 +6,8 @@ args:
   checkpoint: StarVLA/Qwen-FAST-Bridge-RT-1
   unnorm_key: bridge_dataset
   unnorm_type: q99
+  euler_to_axisangle: true
+  gripper_invert: false
+  adaptive_ensemble_horizon: 7
+  adaptive_ensemble_alpha: 0.1
+  observation_params: '{"success_mode": "truncation", "max_episode_steps": 120}'

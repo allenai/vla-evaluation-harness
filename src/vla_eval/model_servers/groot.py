@@ -163,11 +163,10 @@ class GR00TModelServer(PredictModelServer):
 
     def get_observation_params(self) -> dict[str, Any]:
         return {
-            "send_wrist_image": True,
             "send_state": True,
-            "pass_rotation_raw": True,
-            "accumulate_success": True,
-            "prepackaged_config": True,
+            "max_episode_steps": 720,
+            "success_mode": "accumulate",
+            "deterministic_episodes": False,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
