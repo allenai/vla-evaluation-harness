@@ -20,13 +20,13 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 | | [DB-MemVLA](https://arxiv.org/abs/2510.23511) | ⬜<br>[97.0%](https://huggingface.co/Dexmal/libero-db-memvla) | · | ⬜<br>[84.4%](https://huggingface.co/Dexmal/simpler-db-memvla) | · | · | · | |
 | | [DB-GR00TN1](https://arxiv.org/abs/2510.23511) | ⬜<br>94.8%† | · | · | · | · | · | |
 | [starVLA/starVLA](https://github.com/starVLA/starVLA) | Qwen3-FAST | ⬜<br>95.4%† | · | ⬜<br>31.6%† | · | · | · | |
-| | Qwen3-OFT | ⬜<br>[96.6%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-LIBERO-4in1) | · | ⬜<br>[59.6%](https://huggingface.co/StarVLA/Qwen3VL-OFT-Bridge-RT-1) | · | · | ⬜<br>[50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | |
+| | Qwen3-OFT | ⬜<br>[96.6%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-LIBERO-4in1) | · | ⬜<br>[42.7%](https://huggingface.co/StarVLA/Qwen3VL-OFT-Bridge-RT-1) | · | · | ⬜<br>[50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | |
 | | Qwen3-PI | ⬜<br>[95.7%](https://huggingface.co/StarVLA/Qwen3-VL-PI-LIBERO-4in1) | · | ⬜<br>60.9%† | · | · | · | |
 | | Qwen3-GR00T | ⬜<br>96.5%† | ⬜<br>3.76† | ⬜<br>[65.3%](https://huggingface.co/StarVLA/Qwen3VL-GR00T-Bridge-RT-1) | · | · | · | |
 
 <!-- StarVLA Qwen2.5 variants (also available):
 | [starVLA/starVLA](https://github.com/starVLA/starVLA) | Q2.5-FAST | ⬜<br>[95.2%](https://huggingface.co/StarVLA/Qwen2.5-VL-FAST-LIBERO-4in1) | · | ⬜<br>[58.6%](https://huggingface.co/StarVLA/Qwen-FAST-Bridge-RT-1) | · | · | · | |
-| | Q2.5-OFT | ⬜<br>[96.1%](https://huggingface.co/StarVLA/Qwen2.5-VL-OFT-LIBERO-4in1) | · | ⬜<br>[44.2%](https://huggingface.co/StarVLA/Qwen-OFT-Bridge-RT-1) | · | · | · | |
+| | Q2.5-OFT | ⬜<br>[96.1%](https://huggingface.co/StarVLA/Qwen2.5-VL-OFT-LIBERO-4in1) | · | ⬜<br>[41.8%](https://huggingface.co/StarVLA/Qwen-OFT-Bridge-RT-1) | · | · | · | |
 | | Q2.5-PI | ⬜<br>95.4% | · | ⬜<br>[62.5%](https://huggingface.co/StarVLA/Qwen-PI-Bridge-RT-1) | · | · | · | |
 | | Q2.5-GR00T | ⬜<br>[95.4%](https://huggingface.co/StarVLA/Qwen2.5-VL-GR00T-LIBERO-4in1) | ⬜<br>[3.79](https://huggingface.co/Simplicissimus-S/StarVLA-QwenGR00T_Qwen2.5-VL-3B-Instruct-Action_calvin_D_D) | ⬜<br>[63.6%](https://huggingface.co/StarVLA/Qwen-GR00T-Bridge-RT-1) | · | · | · | |
 -->
