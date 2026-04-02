@@ -1,8 +1,8 @@
 # SimplerEnv + X-VLA ManiSkill2 patches
 # Extends simpler:latest with:
 #   1. Absolute EE control mode (use_delta=False) + euler rotation
-#   2. kwargs.setdefault instead of kwargs.update in prepackaged config
-#      so that user-specified control_mode is preserved.
+#   2. Sink camera aligned with Bridge dataset (for eggplant task)
+#   3. kwargs.setdefault to preserve user control_mode override
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
 FROM ${BASE_IMAGE}
@@ -15,8 +15,32 @@ RUN cd /app/ManiSkill2_real2sim \
     && patch -p1 < /tmp/xvla_absolute_ee.patch \
     && rm /tmp/xvla_absolute_ee.patch
 
-# 2. Fix prepackaged_config to preserve user-overridden kwargs (e.g. control_mode).
-#    Replace kwargs.update(prepackaged) with setdefault-based merge.
+# 2. Align sink camera + robot init with Bridge dataset (eggplant task).
+#    X-VLA was trained on BridgeData which uses a specific camera viewpoint.
+RUN cd /app/ManiSkill2_real2sim && python3 -c "\
+import pathlib; \
+p = pathlib.Path('mani_skill2_real2sim/agents/configs/widowx/defaults.py'); \
+s = p.read_text(); \
+# Replace sink camera position/rotation with Bridge dataset camera \
+s = s.replace(\"p=[-0.00300001, -0.21, 0.39]\", \"p=[0.00, -0.16, 0.336]\"); \
+s = s.replace(\"q=[-0.907313, 0.0782, -0.36434, -0.194741]\", \"q=[0.909182, -0.0819809, 0.347277, 0.214629]\"); \
+# Remove fov/near/far (use intrinsic instead) \
+s = s.replace(\"                fov=1.5,  # ignored if intrinsic is passed\\n\", \"\"); \
+s = s.replace(\"                near=0.01,\\n\", \"\"); \
+s = s.replace(\"                far=10,\\n\", \"\"); \
+p.write_text(s); \
+print('Patched sink camera config'); \
+# Also align sink robot init with standard widowx \
+p2 = pathlib.Path('mani_skill2_real2sim/envs/custom_scenes/base_env.py'); \
+s2 = p2.read_text(); \
+s2 = s2.replace(\"qpos = np.array([-0.2600599, -0.12875618, 0.04461369, -0.00652761, 1.7033415, -0.26983038, 0.037,\\n                                 0.037])\", \
+                \"qpos = np.array([-0.01840777,  0.0398835,   0.22242722,  -0.00460194,  1.36524296,  0.00153398, 0.037, 0.037])\"); \
+s2 = s2.replace(\"robot_init_height = 0.85\", \"robot_init_height = 0.870\"); \
+s2 = s2.replace(\"init_y = 0.070\", \"init_y = 0.028\"); \
+p2.write_text(s2); \
+print('Patched sink robot init');"
+
+# 3. Fix prepackaged_config to preserve user-overridden kwargs (e.g. control_mode).
 RUN cd /app/ManiSkill2_real2sim && \
     sed -i 's/kwargs\.update(self\._setup_prepackaged_env_init_config())/prepackaged = self._setup_prepackaged_env_init_config()\n            for _k, _v in prepackaged.items():\n                kwargs.setdefault(_k, _v)/' \
         mani_skill2_real2sim/envs/custom_scenes/move_near_in_scene.py \
