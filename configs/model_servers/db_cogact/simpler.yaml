@@ -4,4 +4,4 @@
 extends: _base.yaml
 args:
   model_path: Dexmal/simpler-db-cogact
-  chunk_size: 16
+  chunk_size: 5

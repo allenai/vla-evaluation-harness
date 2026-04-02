@@ -17,6 +17,7 @@
 #     "timm",
 #     "einops",
 #     "scipy",
+#     "transforms3d",
 #     "huggingface-hub",
 # ]
 #
@@ -444,6 +445,12 @@ class StarVLAModelServer(PredictModelServer):
                 actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
             # else: pass through {0,1} — benchmark binarizes at 0.5
             # to the correct env convention (+1=open, -1=close).
+
+            # Adaptive ensemble BEFORE euler→axisangle (reference applies
+            # ensemble on euler values, then converts the ensembled action).
+            if self._ensembler is not None:
+                actions = self._ensembler(actions)[np.newaxis]  # (D,) → (1, D)
+
             # Euler → axis-angle conversion (required by SimplerEnv controller)
             if self.euler_to_axisangle and actions.shape[-1] >= 6:
                 from transforms3d.euler import euler2axangle
@@ -451,9 +458,6 @@ class StarVLAModelServer(PredictModelServer):
                 for t in range(actions.shape[0]):
                     axis, angle = euler2axangle(actions[t, 3], actions[t, 4], actions[t, 5])
                     actions[t, 3:6] = axis * angle
-            # Adaptive ensemble: weighted average over sliding window of predictions
-            if self._ensembler is not None:
-                actions = self._ensembler(actions)[np.newaxis]  # (D,) → (1, D)
             outputs.append({"actions": actions})
         return outputs
 
