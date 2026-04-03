@@ -30,6 +30,16 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import (
+    GRIPPER_01,
+    GRIPPER_CLOSE_POS,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    RAW,
+    ROTATION_EULER,
+    DimSpec,
+)
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -48,6 +58,8 @@ class GR00TModelServer(PredictModelServer):
         video_key: str | None = None,
         action_keys: list[str] | None = None,
         invert_gripper: bool = False,
+        image_resolution: int | None = None,
+        bridge_rotation: bool = False,
         *,
         chunk_size: int = 16,
         action_ensemble: str = "newest",
@@ -59,6 +71,8 @@ class GR00TModelServer(PredictModelServer):
         self.video_key = video_key  # None = auto-detect from modality config
         self.action_keys = action_keys
         self.invert_gripper = invert_gripper
+        self.image_resolution = image_resolution
+        self.bridge_rotation = bridge_rotation
         self._policy = None
         self._modality_config: dict[str, Any] | None = None
         self._state_dims: dict[str, int] = {}
@@ -148,12 +162,33 @@ class GR00TModelServer(PredictModelServer):
         )
 
     def get_observation_params(self) -> dict[str, Any]:
-        return {"send_wrist_image": True, "send_state": True}
+        return {
+            "send_wrist_image": True,
+            "send_state": True,
+            "pass_rotation_raw": True,
+            "accumulate_success": True,
+            "prepackaged_config": True,
+        }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        gripper = GRIPPER_CLOSE_POS if self.invert_gripper else GRIPPER_01
+        return {"position": POSITION_DELTA, "rotation": ROTATION_EULER, "gripper": gripper}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {"image": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
+
+    _BRIDGE_DEFAULT_ROT = np.array([[0, 0, 1.0], [0, 1.0, 0], [-1.0, 0, 0]])
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         self._load_model()
         assert self._policy is not None and self._modality_config is not None
         B = len(obs_batch)
+
+        if self.image_resolution:
+            import cv2
+
+        if self.bridge_rotation:
+            from vla_eval.rotation import matrix_to_euler_xyz, quat_to_matrix
 
         video_keys = self._modality_config["video"].modality_keys
         if self.video_key is not None:
@@ -168,6 +203,8 @@ class GR00TModelServer(PredictModelServer):
             for idx, vk in enumerate(video_keys):
                 if idx < len(img_values):
                     img = np.asarray(img_values[idx], dtype=np.uint8)
+                    if self.image_resolution and img.shape[:2] != (self.image_resolution, self.image_resolution):
+                        img = cv2.resize(img, (self.image_resolution, self.image_resolution))
                     if img.ndim == 3:
                         img = img[np.newaxis, ...]  # (T=1, H, W, C)
                 else:
@@ -194,6 +231,16 @@ class GR00TModelServer(PredictModelServer):
             if raw_state is None:
                 continue
             state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
+
+            # Apply bridge rotation correction for SimplerEnv WidowX
+            if self.bridge_rotation and len(state_arr) >= 8:
+                quat_wxyz = state_arr[3:7]  # [w,x,y,z] from ManiSkill2
+                quat_xyzw = np.array([quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]])
+                rm = quat_to_matrix(quat_xyzw)
+                rpy = matrix_to_euler_xyz(rm @ self._BRIDGE_DEFAULT_ROT.T)
+                gripper = state_arr[7] if len(state_arr) > 7 else 0.0
+                state_arr = np.array([*state_arr[:3], *rpy, 0.0, gripper], dtype=np.float32)
+
             offset = 0
             for sk in state_keys:
                 dim = self._state_dims.get(sk, 1)

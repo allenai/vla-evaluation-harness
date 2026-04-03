@@ -5,3 +5,4 @@ extends: _base.yaml
 args:
   checkpoint: StarVLA/Qwen-FAST-Bridge-RT-1
   unnorm_key: bridge_dataset
+  unnorm_type: q99

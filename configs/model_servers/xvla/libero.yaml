@@ -1,7 +1,6 @@
 # X-VLA model server — LIBERO (direct HuggingFace loading)
 # Loads the model directly; no external server needed.
 #
-# Usage: vla-eval serve --config configs/model_servers/xvla/libero.yaml
 #
 # Available model_path values:
 #   2toINF/X-VLA-Libero, 2toINF/X-VLA-WidowX, 2toINF/X-VLA-Calvin-ABC_D, ...

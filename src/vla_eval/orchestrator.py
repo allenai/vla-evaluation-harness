@@ -11,11 +11,14 @@ import time
 from pathlib import Path
 from typing import Any, cast
 
+from filelock import FileLock, Timeout
+
 import websockets
 
 from vla_eval.config import EvalConfig, ServerConfig
 from vla_eval.connection import Connection
 from vla_eval.registry import resolve_import_string
+from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
 from vla_eval.runners.async_runner import AsyncEpisodeRunner
 from vla_eval.runners.clock import Clock
@@ -80,6 +83,24 @@ class Orchestrator:
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
 
+        # Fail fast: claim the output path via file lock (shard mode).
+        self._output_file_lock: FileLock | None = None
+        if self.num_shards is not None and self.shard_id is not None:
+            output_dir = Path(self.config.get("output_dir", "./results"))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            safe_name = re.sub(r"[^\w\-.]", "_", name)
+            output_path = output_dir / f"{safe_name}_shard{self.shard_id}of{self.num_shards}.json"
+            if output_path.exists():
+                raise FileExistsError(
+                    f"Result file already exists: {output_path}\nRemove it or use a different output_dir."
+                )
+            lock = FileLock(str(output_path) + ".lock", timeout=0)
+            try:
+                lock.acquire()
+                self._output_file_lock = lock
+            except Timeout:
+                raise FileExistsError(f"Another eval is already writing to {output_path}")
+
         # Connect to model server FIRST to get observation requirements
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
         await conn.connect(benchmark=cfg.benchmark)
@@ -103,6 +124,31 @@ class Orchestrator:
         except Exception:
             await conn.close()
             raise
+
+        # Cross-validate action/observation specs between server and benchmark.
+        try:
+            bench_action_spec: dict[str, DimSpec] = {}
+            bench_obs_spec: dict[str, DimSpec] = {}
+            server_action_spec: dict[str, DimSpec] = {}
+            server_obs_spec: dict[str, DimSpec] = {}
+            try:
+                bench_action_spec = benchmark.get_action_spec()
+                bench_obs_spec = benchmark.get_observation_spec()
+            except NotImplementedError:
+                logger.debug("Benchmark %s does not implement specs yet", name)
+            # Deserialize server specs from HELLO handshake
+            for key, raw in conn.server_info.get("action_spec", {}).items():
+                server_action_spec[key] = DimSpec.from_dict(raw)
+            for key, raw in conn.server_info.get("observation_spec", {}).items():
+                server_obs_spec[key] = DimSpec.from_dict(raw)
+            if (server_action_spec or server_obs_spec) and (bench_action_spec or bench_obs_spec):
+                warnings = check_specs(server_action_spec, bench_action_spec, server_obs_spec, bench_obs_spec)
+                for w in warnings:
+                    logger.warning("Spec mismatch: %s", w)
+                if not warnings:
+                    logger.info("Spec validation passed (server↔benchmark compatible)")
+        except Exception as exc:
+            logger.warning("Spec validation failed: %s", exc)
 
         # Warn if benchmark supports seeding but config doesn't specify one
         if "seed" in sig.parameters and "seed" not in merged_params:
@@ -300,5 +346,10 @@ class Orchestrator:
 
         output_path.write_text(json.dumps(output, indent=2, default=str))
         logger.info("Results saved to %s", output_path)
+
+        # Release file lock after successful save
+        if self._output_file_lock is not None:
+            self._output_file_lock.release()
+            self._output_file_lock = None
 
         return output

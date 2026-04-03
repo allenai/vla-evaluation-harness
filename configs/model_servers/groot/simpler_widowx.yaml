@@ -1,0 +1,9 @@
+# GR00T N1.6 — SimplerEnv WidowX (official NVIDIA checkpoint)
+script: "src/vla_eval/model_servers/groot.py"
+args:
+  model_path: nvidia/GR00T-N1.6-bridge
+  embodiment_tag: OXE_WIDOWX
+  image_resolution: 256
+  chunk_size: 16
+  bridge_rotation: true
+  port: 8000

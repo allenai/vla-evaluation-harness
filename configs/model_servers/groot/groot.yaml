@@ -2,7 +2,6 @@
 # Weight: nvidia/GR00T-N1.6-3B (HuggingFace)
 # Action chunking enabled (chunk_size=16).
 #
-# Usage: vla-eval serve --config configs/model_servers/groot/groot.yaml
 #
 # Available embodiment_tags for foundation model: GR1, ROBOCASA_PANDA_OMRON, BEHAVIOR_R1_PRO
 # Fine-tuned checkpoints may support: LIBERO_PANDA, OXE_GOOGLE, OXE_WIDOWX, UNITREE_G1

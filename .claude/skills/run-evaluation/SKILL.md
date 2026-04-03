@@ -249,6 +249,19 @@ vla-eval merge -c configs/libero_spatial.yaml -o results/libero_spatial.json
 vla-eval test --all
 ```
 
+### Parallel evaluations of different models
+
+Shard result files are named by benchmark + shard ID (e.g.
+`LIBEROBenchmark_libero_spatial_shard0of10.json`). If two evals use the
+same benchmark config, shard count, and output directory, they will
+collide. The orchestrator prevents this with a file lock — the second
+eval will **fail immediately** with `FileExistsError` rather than
+silently overwriting results.
+
+If you hit this error, either:
+- Use **different output directories** (modify `output_dir` in the config), or
+- Use **different shard counts** (e.g. `--num-shards 10` vs `--num-shards 8`).
+
 ### Troubleshooting
 
 | Problem | Solution |

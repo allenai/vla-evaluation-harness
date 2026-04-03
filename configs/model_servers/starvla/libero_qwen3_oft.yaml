@@ -2,4 +2,5 @@
 extends: _base.yaml
 args:
   checkpoint: StarVLA/Qwen3-VL-OFT-LIBERO-4in1
+  unnorm_type: minmax
   observation_params: '{"send_wrist_image": true}'

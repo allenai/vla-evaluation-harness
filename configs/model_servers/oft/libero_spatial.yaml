@@ -2,7 +2,6 @@
 # Weight: moojink/openvla-7b-oft-finetuned-libero-spatial (HuggingFace)
 # Action chunking enabled (parallel decoding, 26× faster than OpenVLA).
 #
-# Usage: vla-eval serve --config configs/model_servers/oft/libero_spatial.yaml
 extends: _base.yaml
 args:
   pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-spatial

@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -182,3 +183,16 @@ class VLABenchBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self._max_steps}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_EULER,
+            "gripper": GRIPPER_RAW,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "primary": IMAGE_RGB,
+            "language": LANGUAGE,
+        }

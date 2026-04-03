@@ -1,5 +1,4 @@
 # X-VLA model server — CALVIN (ABC→D evaluation)
-# Usage: vla-eval serve --config configs/model_servers/xvla/calvin.yaml
 extends: _base.yaml
 args:
   model_path: "2toINF/X-VLA-Calvin-ABC_D"

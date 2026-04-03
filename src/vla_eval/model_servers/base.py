@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Coroutine, Dict, Literal
 
+from vla_eval.specs import DimSpec
 from vla_eval.types import Action, Observation
 
 # Type alias for the async send_action callback injected by the framework.
@@ -80,6 +81,28 @@ class ModelServer(ABC):
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
         """Called at episode end. Optional."""
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        """Declare the action output format of this model server.
+
+        Returns a ``{component_name: DimSpec}`` dict describing what this
+        server produces.  The orchestrator compares this against the
+        benchmark's action spec and warns on mismatches.
+
+        Override in every subclass — the default raises ``NotImplementedError``.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must override get_action_spec()")
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        """Declare the observation input format this model server expects.
+
+        Returns a ``{component_name: DimSpec}`` dict describing what this
+        server needs from the benchmark.  The orchestrator warns when the
+        benchmark doesn't provide a declared component.
+
+        Override in every subclass — the default raises ``NotImplementedError``.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must override get_observation_spec()")
 
     def get_observation_params(self) -> dict[str, Any]:
         """Declare observation requirements for this model.

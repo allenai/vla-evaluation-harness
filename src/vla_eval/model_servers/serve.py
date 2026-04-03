@@ -90,10 +90,22 @@ async def _handle_connection(
 
             if msg.type == MessageType.HELLO:
                 obs_params = model_server.get_observation_params()
+                extra: dict[str, Any] = {}
+                if obs_params:
+                    extra["observation_params"] = obs_params
+                try:
+                    action_spec = model_server.get_action_spec()
+                    obs_spec = model_server.get_observation_spec()
+                    if action_spec:
+                        extra["action_spec"] = {k: v.to_dict() for k, v in action_spec.items()}
+                    if obs_spec:
+                        extra["observation_spec"] = {k: v.to_dict() for k, v in obs_spec.items()}
+                except NotImplementedError:
+                    pass
                 reply_payload = make_hello_payload(
                     model_server=type(model_server).__name__,
                     capabilities={},
-                    **({"observation_params": obs_params} if obs_params else {}),
+                    **extra,
                 )
                 reply = Message(type=MessageType.HELLO, payload=reply_payload, seq=msg.seq)
                 await ws.send(pack_message(reply))

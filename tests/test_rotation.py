@@ -8,6 +8,7 @@ import pytest
 from vla_eval.rotation import (
     axisangle_to_matrix,
     axisangle_to_rot6d_contiguous,
+    axisangle_to_rot6d_interleaved,
     euler_xyz_to_matrix,
     euler_xyz_to_rot6d_interleaved,
     gram_schmidt,
@@ -112,6 +113,14 @@ class TestInterleaved:
         assert v6[3] == pytest.approx(mat[1, 1])
         assert v6[4] == pytest.approx(mat[2, 0])
         assert v6[5] == pytest.approx(mat[2, 1])
+
+    def test_axisangle_roundtrip(self):
+        for _ in range(50):
+            aa = RNG.standard_normal(3) * 2.0
+            v6 = axisangle_to_rot6d_interleaved(aa)
+            mat = rot6d_interleaved_to_matrix(v6)
+            mat2 = axisangle_to_matrix(aa)
+            np.testing.assert_allclose(mat, mat2, atol=1e-5)
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -277,4 +278,13 @@ class KinetixBenchmark(StepBenchmark):
         return {
             "max_steps": self._max_episode_steps,
             "action_dim": ACTION_DIM,
+        }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"action": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "viewport": IMAGE_RGB,
+            "language": LANGUAGE,
         }

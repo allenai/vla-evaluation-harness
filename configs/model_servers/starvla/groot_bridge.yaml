@@ -4,3 +4,4 @@
 extends: _base.yaml
 args:
   checkpoint: StarVLA/Qwen-GR00T-Bridge
+  unnorm_type: q99

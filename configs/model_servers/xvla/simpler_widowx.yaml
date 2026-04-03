@@ -1,0 +1,10 @@
+# X-VLA model server — SimplerEnv WidowX
+# Checkpoint trained on BridgeData (domain_id=0)
+# euler_offset: coordinate frame correction matching official eval
+extends: _base.yaml
+args:
+  model_path: "2toINF/X-VLA-WidowX"
+  benchmark_profile: "simpler_widowx"
+  domain_id: 0
+  chunk_size: 30
+  euler_offset: "0,1.5707963,0"

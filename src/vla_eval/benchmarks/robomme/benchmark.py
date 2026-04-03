@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 _DEFAULT_TASK_LIST = [
@@ -206,6 +207,20 @@ class RoboMMEBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self.max_steps, "action_space": self.action_space}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"action": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {
+            "agentview": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
+        if self.send_wrist_image:
+            spec["wrist"] = IMAGE_RGB
+        if self.send_state:
+            spec["state"] = RAW
+        return spec
 
     def cleanup(self) -> None:
         if self._env is not None:

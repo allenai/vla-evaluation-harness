@@ -31,6 +31,15 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import (
+    GRIPPER_CLOSE_POS,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    ROTATION_AA,
+    STATE_EEF_POS_AA_GRIP,
+    DimSpec,
+)
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -127,6 +136,18 @@ class OFTModelServer(PredictModelServer):
         if self.use_proprio:
             params["send_state"] = True
         return params
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {"image": IMAGE_RGB}
+        if self.num_images_in_input >= 2:
+            spec["wrist_image"] = IMAGE_RGB
+        if self.use_proprio:
+            spec["state"] = STATE_EEF_POS_AA_GRIP
+        spec["language"] = LANGUAGE
+        return spec
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from experiments.robot.openvla_utils import get_vla_action

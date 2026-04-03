@@ -1,0 +1,16 @@
+# SimplerEnv + X-VLA ManiSkill2 patches
+# Extends simpler:latest with:
+#   1. Absolute EE control mode + euler interpretation (xvla_absolute_ee.patch)
+#   2. Sink camera/init alignment with Bridge dataset (xvla_sink_camera.patch)
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+FROM ${BASE_IMAGE}
+
+SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
+
+COPY docker/xvla_absolute_ee.patch /tmp/xvla_absolute_ee.patch
+COPY docker/xvla_sink_camera.patch /tmp/xvla_sink_camera.patch
+RUN cd /app/ManiSkill2_real2sim \
+    && patch -p1 < /tmp/xvla_absolute_ee.patch \
+    && patch -p1 < /tmp/xvla_sink_camera.patch \
+    && rm /tmp/xvla_absolute_ee.patch /tmp/xvla_sink_camera.patch

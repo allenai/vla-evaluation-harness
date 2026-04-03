@@ -2,7 +2,6 @@
 # Weight: CogACT/CogACT-Base (HuggingFace)
 # Output: 16 actions × 7-DoF (future_action_window_size=15 → 16 steps)
 #
-# Usage: vla-eval serve --config configs/model_servers/cogact/cogact.yaml
 #
 # Available checkpoints:
 #   CogACT/CogACT-Small  (action_model_type: DiT-S)

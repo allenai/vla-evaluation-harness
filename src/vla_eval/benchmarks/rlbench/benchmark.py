@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 # The Docker entrypoint starts Xvfb and sets DISPLAY=:99.
@@ -154,3 +155,17 @@ class RLBenchBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self._max_steps}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        # 8D: 7 joint velocities + 1 discrete gripper
+        return {
+            "joints": DimSpec("joints", 7, "joint_velocity"),
+            "gripper": GRIPPER_RAW,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "front": IMAGE_RGB,
+            "wrist": IMAGE_RGB,
+            "language": LANGUAGE,
+        }

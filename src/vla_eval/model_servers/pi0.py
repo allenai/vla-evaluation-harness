@@ -28,6 +28,7 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -98,6 +99,16 @@ class Pi0ModelServer(PredictModelServer):
         if self.state_key:
             params["send_state"] = True
         return params
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"actions": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {"image": IMAGE_RGB}
+        if self.state_key:
+            spec["state"] = RAW
+        spec["language"] = LANGUAGE
+        return spec
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         self._load_model()

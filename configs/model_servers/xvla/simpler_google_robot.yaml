@@ -1,0 +1,10 @@
+# X-VLA model server — SimplerEnv Google Robot
+# Checkpoint trained on RT1 data (domain_id=1)
+# action_stride=2 + max_chunk_actions=10 match official eval speedup
+# relative_position=True: positions are deltas accumulated from current EE
+extends: _base.yaml
+args:
+  model_path: "2toINF/X-VLA-WidowX"
+  benchmark_profile: "simpler"
+  domain_id: 1
+  chunk_size: 30

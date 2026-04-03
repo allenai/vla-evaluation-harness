@@ -1,7 +1,6 @@
 # π₀.5 model server — LIBERO (direct OpenPI inference)
 # Loads the policy checkpoint directly; no external server needed.
 #
-# Usage: vla-eval serve --config configs/model_servers/pi0/libero.yaml
 #
 # Available config_name values (see openpi repo):
 #   pi0_fast_libero, pi05_libero, pi0_fast_droid, pi05_droid, ...

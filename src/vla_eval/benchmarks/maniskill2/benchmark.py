@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import GRIPPER_CLOSE_NEG, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 # Prevent display issues in headless environments
@@ -162,6 +163,19 @@ class ManiSkill2Benchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self.max_episode_steps}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_EULER,
+            "gripper": GRIPPER_CLOSE_NEG,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "base_camera": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
 
     def _get_obj_name(self) -> str:
         """Extract object name from the environment for goal description."""

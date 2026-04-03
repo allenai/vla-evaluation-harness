@@ -46,6 +46,7 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -80,21 +81,22 @@ def _block_logging_hijack() -> Iterator[None]:
 class StarVLAModelServer(PredictModelServer):
     """Generic starVLA model server for all Qwen* frameworks."""
 
-    chunk_size = 1
-    action_ensemble: str = "newest"
-
     def __init__(
         self,
         checkpoint: str,
         *,
         unnorm_key: str | None = None,
+        unnorm_type: str = "q99",
         use_bf16: bool = False,
         observation_params: str | None = None,
+        chunk_size: int = 1,
+        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.checkpoint = checkpoint
         self.unnorm_key = unnorm_key
+        self.unnorm_type = unnorm_type
         self.use_bf16 = use_bf16
         self._observation_params: dict[str, Any] = {}
         if observation_params:
@@ -319,6 +321,31 @@ class StarVLAModelServer(PredictModelServer):
     def get_observation_params(self) -> dict[str, Any]:
         return dict(self._observation_params)
 
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"gripper": GRIPPER_CLOSE_POS}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {"image": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
+
+    def _unnormalize(self, normalized: np.ndarray) -> np.ndarray:
+        """Unnormalize actions using the configured stat keys.
+
+        ``unnorm_type="minmax"`` uses ``min``/``max`` keys (matches the
+        reference starVLA LIBERO eval).  ``"q99"`` uses ``q01``/``q99``
+        (matches ``baseframework.unnormalize_actions``).
+        """
+        stats = self._action_stats
+        if self.unnorm_type == "q99":
+            low, high = np.array(stats["q01"]), np.array(stats["q99"])
+        else:
+            low, high = np.array(stats["min"]), np.array(stats["max"])
+        mask = stats.get("mask", np.ones_like(low, dtype=bool))
+        normalized = np.clip(normalized, -1, 1)
+        # Binarize gripper (dim 6) before unnormalization
+        if normalized.shape[-1] > 6:
+            normalized[..., 6] = np.where(normalized[..., 6] < 0.5, 0, 1)
+        return np.where(mask, 0.5 * (normalized + 1) * (high - low) + low, normalized)
+
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         from PIL import Image as PILImage
 
@@ -329,8 +356,6 @@ class StarVLAModelServer(PredictModelServer):
             if isinstance(img, np.ndarray):
                 return PILImage.fromarray(img).convert("RGB")
             return img
-
-        from starVLA.model.framework.base_framework import baseframework
 
         examples = []
         for obs in obs_batch:
@@ -359,8 +384,7 @@ class StarVLAModelServer(PredictModelServer):
 
         outputs = []
         for i in range(len(obs_batch)):
-            actions = np.asarray(actions_batch[i])
-            actions = baseframework.unnormalize_actions(actions, self._action_stats)
+            actions = self._unnormalize(np.asarray(actions_batch[i]))
             # Convert gripper: unnormalize outputs {0=close, 1=open}.
             # LIBERO expects: +1=close, -1=open (discretized at 0).
             # Map 0(close)→+1, 1(open)→-1.

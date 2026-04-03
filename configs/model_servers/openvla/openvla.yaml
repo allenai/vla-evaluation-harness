@@ -2,7 +2,6 @@
 # Weight: openvla/openvla-7b (HuggingFace)
 # No action chunking (chunk_size=1), returns 7-dim actions.
 #
-# Usage: vla-eval serve --config configs/model_servers/openvla/openvla.yaml
 #
 # For task-specific unnormalization, set unnorm_key to match the
 # training dataset (e.g. "bridge_orig" for BridgeData V2).

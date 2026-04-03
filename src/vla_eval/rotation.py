@@ -72,6 +72,11 @@ def euler_xyz_to_rot6d_interleaved(euler: np.ndarray) -> np.ndarray:
     return matrix_to_rot6d_interleaved(euler_xyz_to_matrix(euler))
 
 
+def axisangle_to_rot6d_interleaved(aa: np.ndarray) -> np.ndarray:
+    """Axis-angle (3-D) → interleaved 6-D rotation."""
+    return matrix_to_rot6d_interleaved(axisangle_to_matrix(aa)).astype(np.float32)
+
+
 # ---------------------------------------------------------------------------
 # Contiguous rot6d  (model-server convention)
 # ---------------------------------------------------------------------------
@@ -156,6 +161,11 @@ def axisangle_to_matrix(aa: np.ndarray) -> np.ndarray:
 def axisangle_to_rot6d_contiguous(aa: np.ndarray) -> np.ndarray:
     """Axis-angle (3-D) → contiguous 6-D rotation."""
     return matrix_to_rot6d_contiguous(axisangle_to_matrix(aa)).astype(np.float32)
+
+
+def euler_xyz_to_rot6d_contiguous(euler: np.ndarray) -> np.ndarray:
+    """Extrinsic XYZ Euler → contiguous 6-D rotation."""
+    return matrix_to_rot6d_contiguous(euler_xyz_to_matrix(euler)).astype(np.float32)
 
 
 # ---------------------------------------------------------------------------

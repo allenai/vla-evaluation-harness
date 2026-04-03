@@ -1,0 +1,7 @@
+# X-VLA model server — RoboTwin 2.0
+extends: _base.yaml
+args:
+  model_path: "2toINF/X-VLA-WidowX"
+  benchmark_profile: "robotwin"
+  domain_id: 6
+  chunk_size: 30

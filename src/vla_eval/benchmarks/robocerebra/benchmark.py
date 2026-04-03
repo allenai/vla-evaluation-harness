@@ -12,6 +12,15 @@ import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.rotation import quat_to_axisangle
+from vla_eval.specs import (
+    GRIPPER_CLOSE_POS,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    ROTATION_AA,
+    STATE_EEF_POS_AA_GRIP,
+    DimSpec,
+)
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -246,6 +255,24 @@ class RoboCerebraBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": 400}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_AA,
+            "gripper": GRIPPER_CLOSE_POS,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {
+            "agentview": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
+        if self.send_wrist_image:
+            spec["wrist"] = IMAGE_RGB
+        if self.send_state:
+            spec["state"] = STATE_EEF_POS_AA_GRIP
+        return spec
 
     def render(self) -> np.ndarray | None:
         try:

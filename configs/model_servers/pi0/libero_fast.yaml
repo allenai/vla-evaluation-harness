@@ -1,6 +1,5 @@
 # π₀-FAST model server — LIBERO (direct OpenPI inference)
 #
-# Usage: vla-eval serve --config configs/model_servers/pi0/libero_fast.yaml
 #
 # Pi0-FAST uses FAST tokenizer — a different, lower-performing variant than Pi0.5.
 # For Pi0.5 (96.85% on LIBERO), use libero.yaml instead.

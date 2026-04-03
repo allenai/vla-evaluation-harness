@@ -11,15 +11,8 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, POSITION_DELTA, RAW, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
-
-
-def _euler2axangle(euler: np.ndarray) -> np.ndarray:
-    """Convert Euler angles (roll, pitch, yaw) to compact axis-angle vector."""
-    from transforms3d.euler import euler2axangle as _e2a
-
-    axis, angle = _e2a(float(euler[0]), float(euler[1]), float(euler[2]))
-    return np.asarray(axis) * angle
 
 
 class SimplerEnvBenchmark(StepBenchmark):
@@ -73,9 +66,22 @@ class SimplerEnvBenchmark(StepBenchmark):
         obj_episode_range: list[int] | None = None,
         rgb_overlay_path: str | None = None,
         seed: int | None = None,
+        send_state: bool = False,
+        control_mode: str | None = None,
+        image_size: list[int] | tuple[int, int] | None = None,
+        pass_rotation_raw: bool = False,
+        accumulate_success: bool = False,
+        prepackaged_config: bool = False,
     ) -> None:
         super().__init__()
         self.seed = seed
+        self.send_state = send_state
+        self._control_mode_override = control_mode
+        self._pass_rotation_raw = pass_rotation_raw
+        self._accumulate_success = accumulate_success
+        self._prepackaged_config = prepackaged_config
+        self._success_seen = False
+        self.image_size = tuple(image_size) if image_size is not None else None
         self.env_name = env_name
         self.scene_name = scene_name
         self.robot = robot
@@ -120,6 +126,10 @@ class SimplerEnvBenchmark(StepBenchmark):
 
     def _build_obs_dict(self, image: np.ndarray) -> dict[str, Any]:
         """Wrap image and task description into an Observation dict."""
+        if self.image_size is not None and image.shape[:2] != self.image_size:
+            import cv2
+
+            image = cv2.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
         return {"images": {"primary": image}, "task_description": self._task_description}
 
     # ------------------------------------------------------------------
@@ -142,22 +152,30 @@ class SimplerEnvBenchmark(StepBenchmark):
         )
 
         # Close previous env — new env per episode (matches reference)
+        self._success_seen = False
         if self._env is not None:
             self._env.close()
 
-        control_mode = get_robot_control_mode(self.robot, "vla")
-        build_kwargs: dict[str, Any] = dict(
-            obs_mode="rgbd",
-            robot=self.robot,
-            scene_name=task.get("scene_name", self.scene_name),
-            control_freq=self.control_freq,
-            sim_freq=self.sim_freq,
-            max_episode_steps=self.max_episode_steps,
-            control_mode=control_mode,
-            camera_cfgs={"add_segmentation": True},
-        )
-        if self.rgb_overlay_path is not None:
-            build_kwargs["rgb_overlay_path"] = self.rgb_overlay_path
+        if self._prepackaged_config:
+            build_kwargs: dict[str, Any] = dict(
+                obs_mode="rgbd",
+                prepackaged_config=True,
+                max_episode_steps=self.max_episode_steps,
+            )
+        else:
+            control_mode = self._control_mode_override or get_robot_control_mode(self.robot, "vla")
+            build_kwargs = dict(
+                obs_mode="rgbd",
+                robot=self.robot,
+                scene_name=task.get("scene_name", self.scene_name),
+                control_freq=self.control_freq,
+                sim_freq=self.sim_freq,
+                max_episode_steps=self.max_episode_steps,
+                control_mode=control_mode,
+                camera_cfgs={"add_segmentation": True},
+            )
+            if self.rgb_overlay_path is not None:
+                build_kwargs["rgb_overlay_path"] = self.rgb_overlay_path
 
         self._env = build_maniskill2_env(
             task.get("env_name", self.env_name),
@@ -196,14 +214,25 @@ class SimplerEnvBenchmark(StepBenchmark):
 
         # [x, y, z, roll, pitch, yaw, gripper] -> ManiSkill2 format
         pos = np.array(raw_action[:3])
-        axangle = _euler2axangle(np.array(raw_action[3:6]))
+        if self._control_mode_override or self._pass_rotation_raw:
+            # Absolute EE control (X-VLA) or raw pass-through (GR00T):
+            # rotation passed directly without euler→axangle conversion.
+            rot = np.array(raw_action[3:6])
+        else:
+            # Default delta control: convert euler → axis-angle for ManiSkill2
+            from vla_eval.rotation import euler_xyz_to_matrix, matrix_to_quat, quat_to_axisangle
+
+            mat = euler_xyz_to_matrix(np.array(raw_action[3:6]))
+            rot = quat_to_axisangle(matrix_to_quat(mat))
         gripper = 1.0 if raw_action[6] > 0.5 else -1.0
 
-        env_action = np.concatenate([pos, axangle, [gripper]])
+        env_action = np.concatenate([pos, rot, [gripper]])
         assert self._env is not None
         obs, reward, done, truncated, info = self._env.step(env_action)
 
         info["truncated"] = truncated
+        if self._accumulate_success and done:
+            self._success_seen = True
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
@@ -212,7 +241,53 @@ class SimplerEnvBenchmark(StepBenchmark):
         )
 
         image = get_image_from_maniskill2_obs_dict(self._env, raw_obs)
-        return self._build_obs_dict(image)
+        obs = self._build_obs_dict(image)
+        if self.send_state:
+            agent = raw_obs.get("agent", {})
+            extra = raw_obs.get("extra", {})
+            # Send base_pose + tcp_pose so model servers can compute
+            # base-relative EE pose (required by X-VLA, GR00T, etc.)
+            base_pose = agent.get("base_pose")
+            tcp_pose = extra.get("tcp_pose")
+            if base_pose is not None and tcp_pose is not None:
+                obs["base_pose"] = np.asarray(base_pose, dtype=np.float32)
+                obs["tcp_pose"] = np.asarray(tcp_pose, dtype=np.float32)
+            # Compute base-relative EE pose (8D: pos3+quat4_wxyz+gripper_openness).
+            # Matches NVIDIA's ManiSkill2 fork (youliangtan/ManiSkill2_real2sim).
+            eef = agent.get("eef_pos")
+            if eef is not None:
+                obs["states"] = np.asarray(eef, dtype=np.float32)
+            elif base_pose is not None and tcp_pose is not None:
+                from vla_eval.rotation import quat_to_matrix, matrix_to_quat
+
+                bp = np.asarray(base_pose, dtype=np.float64).flatten()
+                tp = np.asarray(tcp_pose, dtype=np.float64).flatten()
+
+                # Build 4x4 transforms (ManiSkill2 quaternion: wxyz)
+                def _pose7_to_mat4(p):
+                    m = np.eye(4)
+                    q_wxyz = p[3:7]
+                    q_xyzw = np.array([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
+                    m[:3, :3] = quat_to_matrix(q_xyzw)
+                    m[:3, 3] = p[:3]
+                    return m
+
+                base_mat = _pose7_to_mat4(bp)
+                tcp_mat = _pose7_to_mat4(tp)
+                ee_in_base = np.linalg.inv(base_mat) @ tcp_mat
+                pos = ee_in_base[:3, 3]
+                q_xyzw = matrix_to_quat(ee_in_base[:3, :3])
+                q_wxyz = np.array([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
+                # Gripper openness: 1 - closedness. Use env's get_gripper_closedness if available.
+                assert self._env is not None
+                try:
+                    closedness = self._env.unwrapped.agent.get_gripper_closedness()
+                    gripper_open = 1.0 - float(closedness)
+                except Exception:
+                    qpos = agent.get("qpos")
+                    gripper_open = float(qpos[-1]) if qpos is not None else 0.0
+                obs["states"] = np.concatenate([pos, q_wxyz, [gripper_open]]).astype(np.float32)
+        return obs
 
     def check_done(self, step_result: StepResult) -> bool:
         # Run until truncated (max_episode_steps), never stop early on
@@ -221,8 +296,11 @@ class SimplerEnvBenchmark(StepBenchmark):
         return step_result.info.get("truncated", False)
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
-        # Success = terminated on the final step (evaluated at truncation).
-        return {"success": step_result.done}
+        # Default: success = terminated on the final step (at truncation).
+        # accumulate_success: success if terminated at any point during the episode
+        # (matches GR00T official eval which OR-accumulates success).
+        success = self._success_seen if self._accumulate_success else step_result.done
+        return {"success": success}
 
     def get_metadata(self) -> dict[str, Any]:
         return {
@@ -230,3 +308,19 @@ class SimplerEnvBenchmark(StepBenchmark):
             "env_name": self.env_name,
             "robot": self.robot,
         }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_EULER,
+            "gripper": GRIPPER_CLOSE_POS,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {
+            "primary": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
+        if self.send_state:
+            spec["state"] = RAW
+        return spec

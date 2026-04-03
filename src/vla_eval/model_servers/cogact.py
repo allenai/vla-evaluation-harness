@@ -28,6 +28,7 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
 
 from vla_eval.model_servers.base import SessionContext
@@ -67,6 +68,12 @@ class CogACTModelServer(PredictModelServer):
         self.use_ddim = use_ddim
         self.num_ddim_steps = num_ddim_steps
         self._model = None
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"actions": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {"image": IMAGE_RGB, "language": LANGUAGE}
 
     def _load_model(self) -> None:
         if self._model is not None:

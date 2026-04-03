@@ -23,6 +23,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -438,4 +439,19 @@ class RoboTwinBenchmark(StepBenchmark):
             "task_name": self.task_name,
             "action_dim": 14,
             "max_episodes_per_task": self.test_num,
+        }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        # 14D dual-arm joint positions
+        return {
+            "joints": DimSpec("joints", 14, "joint_positions"),
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "head_camera": IMAGE_RGB,
+            "left_camera": IMAGE_RGB,
+            "right_camera": IMAGE_RGB,
+            "state": STATE_JOINT,
+            "language": LANGUAGE,
         }

@@ -10,6 +10,15 @@ import numpy as np
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.benchmarks.libero.utils import preprocess_libero_image
 from vla_eval.rotation import matrix_to_quat, quat_to_axisangle
+from vla_eval.specs import (
+    GRIPPER_CLOSE_POS,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_DELTA,
+    ROTATION_AA,
+    STATE_EEF_POS_AA_GRIP,
+    DimSpec,
+)
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 # EGL for headless rendering
@@ -239,6 +248,24 @@ class LIBEROBenchmark(StepBenchmark):
             "max_episodes_per_task": 50,  # bounded by initial_states per task
             "suite": self.suite,
         }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_AA,
+            "gripper": GRIPPER_CLOSE_POS,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {
+            "agentview": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
+        if self.send_wrist_image:
+            spec["wrist"] = IMAGE_RGB
+        if self.send_state:
+            spec["state"] = STATE_EEF_POS_AA_GRIP
+        return spec
 
     def render(self) -> np.ndarray | None:
         try:

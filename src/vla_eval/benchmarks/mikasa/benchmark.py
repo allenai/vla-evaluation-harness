@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 os.environ.setdefault("DISPLAY", "")
@@ -168,3 +169,16 @@ class MIKASABenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self._max_steps_override or 90}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        # 8D: 7 joint deltas + 1 gripper (pd_joint_delta_pos)
+        return {
+            "joints": DimSpec("joints", 7, "joint_delta_pos"),
+            "gripper": GRIPPER_RAW,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {
+            "base_camera": IMAGE_RGB,
+            "language": LANGUAGE,
+        }

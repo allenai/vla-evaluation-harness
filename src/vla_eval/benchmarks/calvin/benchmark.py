@@ -17,6 +17,17 @@ import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
+from vla_eval.specs import (
+    GRIPPER_CLOSE_NEG,
+    IMAGE_RGB,
+    LANGUAGE,
+    POSITION_ABSOLUTE,
+    POSITION_DELTA,
+    ROTATION_EULER,
+    ROTATION_EULER_ACCEPTS_AA,
+    STATE_EEF_POS_EULER_GRIP,
+    DimSpec,
+)
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -589,3 +600,27 @@ class CALVINBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": (self._ep_len or EP_LEN) * NUM_SUBTASKS}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        if self.absolute_action:
+            return {
+                "position": POSITION_ABSOLUTE,
+                "rotation": ROTATION_EULER_ACCEPTS_AA,
+                "gripper": GRIPPER_CLOSE_NEG,
+            }
+        return {
+            "position": POSITION_DELTA,
+            "rotation": ROTATION_EULER,
+            "gripper": GRIPPER_CLOSE_NEG,
+        }
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {
+            "rgb_static": IMAGE_RGB,
+            "language": LANGUAGE,
+        }
+        if self.send_wrist_image:
+            spec["rgb_gripper"] = IMAGE_RGB
+        if self.send_state:
+            spec["state"] = STATE_EEF_POS_EULER_GRIP
+        return spec
