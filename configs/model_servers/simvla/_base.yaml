@@ -1,0 +1,13 @@
+# SimVLA model server — shared base
+#
+# Loads SmolVLM-VLA checkpoints and lazily clones the pinned reference repo
+# on first startup to access model classes and norm stats.
+
+script: "src/vla_eval/model_servers/simvla.py"
+args:
+  smolvlm_model: HuggingFaceTB/SmolVLM-500M-Instruct
+  repo_url: https://github.com/LUOyk1999/SimVLA.git
+  repo_rev: 32700d0ad8991996e123e4b685abe370ce6e9aab
+  image_size: 384
+  chunk_size: 10
+  port: 8000

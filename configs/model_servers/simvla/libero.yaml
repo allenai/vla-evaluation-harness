@@ -1,0 +1,9 @@
+# SimVLA — LIBERO evaluation
+#
+# Usage: vla-eval serve --config configs/model_servers/simvla/libero.yaml
+
+extends: _base.yaml
+args:
+  checkpoint: YuankaiLuo/SimVLA-LIBERO
+  norm_stats_subdir: norm_stats
+  norm_stats_filename: libero_norm.json
