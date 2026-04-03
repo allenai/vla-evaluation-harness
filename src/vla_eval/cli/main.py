@@ -392,6 +392,17 @@ def _discover_shard_groups(config_path: str) -> dict[str, list[Path]]:
     return groups
 
 
+def _write_json_durable(path: Path, data: str) -> None:
+    """Write text to *path* and fsync to ensure it is on disk before returning."""
+    import os
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def cmd_merge(args: argparse.Namespace) -> None:
     """Merge shard result files."""
     import glob
@@ -401,6 +412,10 @@ def cmd_merge(args: argparse.Namespace) -> None:
 
     if not args.files and not args.config:
         _stderr_console().print("[red]ERROR: provide shard files or --config/-c to auto-discover[/red]")
+        sys.exit(1)
+
+    if args.clean and not args.output:
+        _stderr_console().print("[red]ERROR: --clean requires --output (refusing to delete shards without saving)[/red]")
         sys.exit(1)
 
     # When --config is given, merge each sub-benchmark separately.
@@ -435,9 +450,12 @@ def cmd_merge(args: argparse.Namespace) -> None:
                     out = output_base
                 else:
                     out = output_base.parent / f"{output_base.stem}_{name}{output_base.suffix}"
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_text(json.dumps(merged, indent=2, default=str))
+                _write_json_durable(out, json.dumps(merged, indent=2, default=str))
                 _stderr_console().print(f"Merged result saved to {out}")
+                if args.clean:
+                    for p in paths:
+                        p.unlink()
+                    _stderr_console().print(f"Deleted {len(paths)} shard files for {name}")
             else:
                 print(json.dumps(merged, indent=2, default=str))
             merged_count += 1
@@ -470,9 +488,12 @@ def cmd_merge(args: argparse.Namespace) -> None:
 
     output = Path(args.output) if args.output else None
     if output:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(merged, indent=2, default=str))
+        _write_json_durable(output, json.dumps(merged, indent=2, default=str))
         _stderr_console().print(f"Merged result saved to {output}")
+        if args.clean:
+            for p in paths:
+                p.unlink()
+            _stderr_console().print(f"Deleted {len(paths)} shard files")
     else:
         print(json.dumps(merged, indent=2, default=str))
 
@@ -832,6 +853,9 @@ examples:
         "--config", "-c", default=None, help="Config YAML — auto-discover shard files from output_dir"
     )
     merge_parser.add_argument("--output", "-o", default=None, help="Output path for merged JSON (default: stdout)")
+    merge_parser.add_argument(
+        "--clean", action="store_true", help="Delete shard files after successful merge (requires --output)"
+    )
     merge_parser.add_argument("--verbose", "-v", action="store_true")
     merge_parser.set_defaults(func=cmd_merge)
 
