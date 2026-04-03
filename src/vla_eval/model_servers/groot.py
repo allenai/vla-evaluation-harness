@@ -164,7 +164,7 @@ class GR00TModelServer(PredictModelServer):
     def get_observation_params(self) -> dict[str, Any]:
         return {
             "send_state": True,
-            "max_episode_steps": 720,
+            "max_episode_steps": 300,
             "success_mode": "accumulate",
             "deterministic_episodes": False,
         }

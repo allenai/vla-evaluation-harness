@@ -1,0 +1,11 @@
+# SimplerEnv + NVIDIA eef_pos patch for GR00T N1.6
+# Extends the base simpler image with ManiSkill2 patches from NVIDIA's
+# internal fork (squarefk/SimplerEnv) that add EE proprioception.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+FROM ${BASE_IMAGE}
+
+SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
+
+COPY docker/apply_eef_pos_patch.py /tmp/
+RUN python /tmp/apply_eef_pos_patch.py
