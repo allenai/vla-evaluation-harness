@@ -149,9 +149,9 @@ class StarVLAModelServer(PredictModelServer):
         self.use_bf16 = use_bf16
         self.euler_to_axisangle = euler_to_axisangle
         self.gripper_invert = gripper_invert
-        self._ensembler: _AdaptiveEnsembler | None = None
-        if adaptive_ensemble_horizon is not None:
-            self._ensembler = _AdaptiveEnsembler(adaptive_ensemble_horizon, adaptive_ensemble_alpha)
+        self._ensemble_horizon = adaptive_ensemble_horizon
+        self._ensemble_alpha = adaptive_ensemble_alpha
+        self._ensemblers: dict[str, _AdaptiveEnsembler] = {}
         self._observation_params: dict[str, Any] = {}
         if observation_params:
             import json
@@ -212,10 +212,12 @@ class StarVLAModelServer(PredictModelServer):
 
         _patches: list[tuple] = []  # (obj, attr_name, original_value)
 
-        # 1) flash_attention_2 → kernels-community/flash-attn2
+        # 1) flash_attention_2 → kernels-community/flash-attn2 or eager
         #    starVLA hardcodes attn_implementation="flash_attention_2" which
         #    requires a manually-compiled flash-attn wheel.  The ``kernels``
         #    package provides a pre-compiled, env-compatible drop-in.
+        #    Falls back to "eager" if neither is available (NOT "sdpa" —
+        #    sdpa produces wrong outputs for Qwen3-VL action prediction).
         from transformers import Qwen2_5_VLForConditionalGeneration, Qwen3VLForConditionalGeneration
 
         def _patch_from_pretrained(cls_to_patch: Any) -> None:
@@ -224,7 +226,13 @@ class StarVLAModelServer(PredictModelServer):
             @classmethod
             def _patched(cls, *args, **kwargs):
                 if kwargs.get("attn_implementation") == "flash_attention_2":
-                    kwargs["attn_implementation"] = "kernels-community/flash-attn2"
+                    try:
+                        from transformers.utils import is_flash_attn_2_available
+
+                        if not is_flash_attn_2_available():
+                            kwargs["attn_implementation"] = "kernels-community/flash-attn2"
+                    except ImportError:
+                        kwargs["attn_implementation"] = "eager"
                 return orig(cls, *args, **kwargs)
 
             _patches.append((cls_to_patch, "from_pretrained", classmethod(orig)))
@@ -448,8 +456,9 @@ class StarVLAModelServer(PredictModelServer):
 
             # Adaptive ensemble BEFORE euler→axisangle (reference applies
             # ensemble on euler values, then converts the ensembled action).
-            if self._ensembler is not None:
-                actions = self._ensembler(actions)[np.newaxis]  # (D,) → (1, D)
+            ensembler = self._ensemblers.get(ctx_batch[i].session_id)
+            if ensembler is not None:
+                actions = ensembler(actions)[np.newaxis]  # (D,) → (1, D)
 
             # Euler → axis-angle conversion (required by SimplerEnv controller)
             if self.euler_to_axisangle and actions.shape[-1] >= 6:
@@ -462,13 +471,14 @@ class StarVLAModelServer(PredictModelServer):
         return outputs
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        if self._ensembler is not None:
-            self._ensembler.reset()
+        if self._ensemble_horizon is not None:
+            self._ensemblers[ctx.session_id] = _AdaptiveEnsembler(
+                self._ensemble_horizon, self._ensemble_alpha
+            )
         await super().on_episode_start(config, ctx)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        if self._ensembler is not None:
-            self._ensembler.reset()
+        self._ensemblers.pop(ctx.session_id, None)
         await super().on_episode_end(result, ctx)
 
 
