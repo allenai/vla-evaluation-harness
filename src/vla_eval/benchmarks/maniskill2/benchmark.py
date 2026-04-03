@@ -52,7 +52,7 @@ class ManiSkill2Benchmark(StepBenchmark):
     Args:
         tasks: List of ManiSkill2 task IDs (e.g. ``["PickCube-v0"]``).
         max_episode_steps: Max steps per episode (default 400).
-        image_size: Camera resolution as ``[width, height]`` (default [256, 256]).
+        render_resolution: Camera resolution as ``[width, height]`` (default [256, 256]).
         enabled_cameras: Camera names to include (default ``["base_camera"]``).
     """
 
@@ -61,14 +61,14 @@ class ManiSkill2Benchmark(StepBenchmark):
         tasks: list[str] | None = None,
         episodes_per_task: int = 50,
         max_episode_steps: int = 400,
-        image_size: list[int] | tuple[int, int] = (256, 256),
+        render_resolution: list[int] | tuple[int, int] = (256, 256),
         enabled_cameras: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.tasks = tasks or DEFAULT_TASKS
         self.episodes_per_task = episodes_per_task
         self.max_episode_steps = max_episode_steps
-        self.image_size = tuple(image_size)
+        self.render_resolution = tuple(render_resolution)
         self.enabled_cameras = enabled_cameras or ["base_camera"]
 
         self._env = None
@@ -102,7 +102,7 @@ class ManiSkill2Benchmark(StepBenchmark):
                 obs_mode="rgbd",
                 control_mode="pd_ee_delta_pose",
                 render_mode="cameras",
-                camera_cfgs=dict(width=self.image_size[0], height=self.image_size[1]),
+                camera_cfgs=dict(width=self.render_resolution[0], height=self.render_resolution[1]),
                 max_episode_steps=self.max_episode_steps,
             )
             self._current_task = env_name

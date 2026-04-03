@@ -41,7 +41,6 @@ class SimplerEnvBenchmark(StepBenchmark):
             ``"accumulate"`` — run to end, success if ever terminated.
         send_state: Include proprioceptive state (base_pose, tcp_pose,
             EE pose) in observations for models that need it.
-        image_size: Resize images to ``[H, W]`` before sending.
         seed: Random seed for ``env.reset()``.
     """
 
@@ -51,7 +50,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         max_episode_steps: int | None = None,
         success_mode: str = "truncation",
         send_state: bool = False,
-        image_size: list[int] | tuple[int, int] | None = None,
         seed: int | None = None,
         deterministic_episodes: bool = True,
         control_mode: str | None = None,
@@ -64,7 +62,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.max_episode_steps = max_episode_steps
         self.success_mode = success_mode
         self.send_state = send_state
-        self.image_size = tuple(image_size) if image_size is not None else None
         self.seed = seed
         self.deterministic_episodes = deterministic_episodes
         self.control_mode = control_mode
@@ -154,10 +151,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         )
 
         image = get_image_from_maniskill2_obs_dict(self._env, raw_obs)
-        if self.image_size is not None and image.shape[:2] != self.image_size:
-            import cv2
-
-            image = cv2.resize(image, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
 
         obs: Observation = {
             "images": {"primary": image},

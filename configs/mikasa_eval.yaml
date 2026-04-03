@@ -17,6 +17,6 @@ benchmarks:
         - "RotateLenientPos-v0"
         - "InterceptSlow-v0"
         - "TakeItBack-v0"
-      image_size: [256, 256]
+      render_resolution: [256, 256]
     action_dim: 8
 

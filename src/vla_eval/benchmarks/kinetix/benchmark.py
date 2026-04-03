@@ -72,8 +72,7 @@ class KinetixBenchmark(StepBenchmark):
           ``env.step(rng, state, action, params)`` returns new state — no
           mutation. JAX RNG keys are split on every step.
         - **Pixel observations**: Rendered from the 2D physics state. Default
-          resolution is 125×125 (screen_dim=500, downscale=4). Resized to
-          ``image_size`` via PIL if different.
+          resolution is 125×125 (screen_dim=500, downscale=4).
         - **Symbolic state**: Also included in observations under ``"state"``
           for models (like RTC) that use symbolic input.
         - **Env recreation per task**: Each task loads a different level file,

@@ -78,12 +78,12 @@ class MIKASABenchmark(StepBenchmark):
         tasks: list[str] | None = None,
         episodes_per_task: int = 10,
         max_episode_steps: int | None = None,
-        image_size: list[int] | tuple[int, int] = (256, 256),
+        render_resolution: list[int] | tuple[int, int] = (256, 256),
     ) -> None:
         super().__init__()
         self._task_names = tasks or DEFAULT_TASKS
         self._max_steps_override = max_episode_steps
-        self._image_size = tuple(image_size)
+        self._render_resolution = tuple(render_resolution)
         self._env: Any = None
         self._current_task: str | None = None
         self._task_desc: str = ""
@@ -158,7 +158,7 @@ class MIKASABenchmark(StepBenchmark):
                         img = img[0]
                     images[cam_name] = img
         if not images:
-            images["base_camera"] = np.zeros((*self._image_size, 3), dtype=np.uint8)
+            images["base_camera"] = np.zeros((*self._render_resolution, 3), dtype=np.uint8)
         return {"images": images, "task_description": self._task_desc}
 
     def check_done(self, step_result: StepResult) -> bool:

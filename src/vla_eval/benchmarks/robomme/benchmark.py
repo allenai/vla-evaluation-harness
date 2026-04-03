@@ -58,7 +58,6 @@ class RoboMMEBenchmark(StepBenchmark):
         action_space: ``"joint_angle"`` (8D) or ``"ee_pose"`` (7D).
         dataset: Dataset split — ``"test"``, ``"val"``, or ``"train"``.
         max_steps: Maximum steps per episode (paper default: 1300).
-        image_size: Camera resolution as ``[height, width]``.
         send_wrist_image: Include wrist camera in observations.
         send_state: Include proprioceptive state in observations.
         send_video_history: Send conditioning video on the first observation.
@@ -70,7 +69,6 @@ class RoboMMEBenchmark(StepBenchmark):
         action_space: str = "joint_angle",
         dataset: str = "test",
         max_steps: int = 1300,
-        image_size: list[int] | None = None,
         send_wrist_image: bool = True,
         send_state: bool = True,
         send_video_history: bool = True,
@@ -80,7 +78,6 @@ class RoboMMEBenchmark(StepBenchmark):
         self.action_space = action_space
         self.dataset = dataset
         self.max_steps = max_steps
-        self.image_size = tuple(image_size or [256, 256])
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
         self.send_video_history = send_video_history
@@ -93,14 +90,6 @@ class RoboMMEBenchmark(StepBenchmark):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    def _resize(self, img: np.ndarray) -> np.ndarray:
-        """Resize image to ``self.image_size`` if dimensions differ."""
-        if img.shape[:2] == self.image_size:
-            return img
-        import cv2
-
-        return cv2.resize(img, (self.image_size[1], self.image_size[0]), interpolation=cv2.INTER_AREA)
 
     # ------------------------------------------------------------------
     # Benchmark ABC
@@ -171,7 +160,6 @@ class RoboMMEBenchmark(StepBenchmark):
             return {"images": {}, "task_description": self._task_description}
 
         front = front_list[-1]
-        front = self._resize(front)
 
         obs: dict[str, Any] = {
             "images": {"agentview": front},
@@ -181,7 +169,7 @@ class RoboMMEBenchmark(StepBenchmark):
         if self.send_wrist_image:
             wrist_list = raw_obs.get("wrist_rgb_list")
             if wrist_list:
-                obs["images"]["wrist"] = self._resize(wrist_list[-1])
+                obs["images"]["wrist"] = wrist_list[-1]
 
         if self.send_state:
             joint = np.asarray(raw_obs["joint_state_list"][-1], dtype=np.float64)
@@ -189,9 +177,9 @@ class RoboMMEBenchmark(StepBenchmark):
             obs["states"] = np.concatenate([joint, gripper]).astype(np.float32)
 
         if self.send_video_history and self._video_frames:
-            obs["video_history"] = [self._resize(f) for f in self._video_frames]
+            obs["video_history"] = list(self._video_frames)
             if self.send_wrist_image and self._wrist_video_frames:
-                obs["wrist_video_history"] = [self._resize(f) for f in self._wrist_video_frames]
+                obs["wrist_video_history"] = list(self._wrist_video_frames)
             obs["episode_restart"] = True
             # Clear — sent only once per episode
             self._video_frames = []

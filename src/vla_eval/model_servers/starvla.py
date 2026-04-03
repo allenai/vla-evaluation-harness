@@ -134,6 +134,7 @@ class StarVLAModelServer(PredictModelServer):
         unnorm_type: str = "q99",
         use_bf16: bool = False,
         observation_params: str | None = None,
+        image_size: list[int] | None = None,
         chunk_size: int = 1,
         action_ensemble: str = "newest",
         euler_to_axisangle: bool = False,
@@ -152,6 +153,7 @@ class StarVLAModelServer(PredictModelServer):
         self._ensemble_horizon = adaptive_ensemble_horizon
         self._ensemble_alpha = adaptive_ensemble_alpha
         self._ensemblers: dict[str, _AdaptiveEnsembler] = {}
+        self._image_size: tuple[int, int] | None = tuple(image_size) if image_size else None
         self._observation_params: dict[str, Any] = {}
         if observation_params:
             import json
@@ -409,13 +411,16 @@ class StarVLAModelServer(PredictModelServer):
         return np.where(mask, 0.5 * (normalized + 1) * (high - low) + low, normalized)
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
+        import cv2
         from PIL import Image as PILImage
 
         self._load_model()
         assert self._model is not None
 
-        def _to_pil(img: Any) -> PILImage.Image:
+        def _prepare_img(img: Any) -> PILImage.Image:
             if isinstance(img, np.ndarray):
+                if self._image_size and img.shape[:2] != self._image_size:
+                    img = cv2.resize(img, (self._image_size[1], self._image_size[0]), interpolation=cv2.INTER_AREA)
                 return PILImage.fromarray(img).convert("RGB")
             return img
 
@@ -423,9 +428,9 @@ class StarVLAModelServer(PredictModelServer):
         for obs in obs_batch:
             images_source = obs.get("images", {})
             if isinstance(images_source, dict):
-                pil_images = [_to_pil(v) for v in images_source.values()]
+                pil_images = [_prepare_img(v) for v in images_source.values()]
             else:
-                pil_images = [_to_pil(images_source)]
+                pil_images = [_prepare_img(images_source)]
 
             example: dict[str, Any] = {
                 "image": pil_images,

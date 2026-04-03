@@ -101,7 +101,6 @@ class CogACTModelServer(PredictModelServer):
 
     def get_observation_params(self) -> dict[str, Any]:
         return {
-            "image_size": [self.image_resolution, self.image_resolution],
             "success_mode": "truncation",
         }
 
