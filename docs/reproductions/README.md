@@ -22,7 +22,7 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 | [starVLA/starVLA](https://github.com/starVLA/starVLA) | Qwen3-FAST | ⬜<br>95.4%† | · | ⬜<br>31.6%† | · | · | · | |
 | | Qwen3-OFT | ⬜<br>[96.6%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-LIBERO-4in1) | · | ⬜<br>[42.7%](https://huggingface.co/StarVLA/Qwen3VL-OFT-Bridge-RT-1) | · | · | ⬜<br>[50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | |
 | | Qwen3-PI | ⬜<br>[95.7%](https://huggingface.co/StarVLA/Qwen3-VL-PI-LIBERO-4in1) | · | ⬜<br>60.9%† | · | · | · | |
-| | Qwen3-GR00T | ⬜<br>96.5%† | ⬜<br>3.76† | ⬜<br>[65.3%](https://huggingface.co/StarVLA/Qwen3VL-GR00T-Bridge-RT-1) | · | · | · | |
+| | Qwen3-GR00T | ⬜<br>96.5%† | ⬜<br>3.76† | ✅<br>**66.7%** / [65.3%](https://huggingface.co/StarVLA/Qwen3VL-GR00T-Bridge-RT-1) | · | · | · | |
 
 <!-- StarVLA Qwen2.5 variants (also available):
 | [starVLA/starVLA](https://github.com/starVLA/starVLA) | Q2.5-FAST | ⬜<br>[95.2%](https://huggingface.co/StarVLA/Qwen2.5-VL-FAST-LIBERO-4in1) | · | ⬜<br>[58.6%](https://huggingface.co/StarVLA/Qwen-FAST-Bridge-RT-1) | · | · | · | |
