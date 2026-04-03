@@ -10,4 +10,4 @@ args:
   gripper_invert: false
   adaptive_ensemble_horizon: 7
   adaptive_ensemble_alpha: 0.1
-  observation_params: '{"success_mode": "truncation", "max_episode_steps": 120}'
+  observation_params: '{"success_mode": "truncation", "max_episode_steps": 120, "image_size": [224, 224]}'

@@ -99,11 +99,9 @@ class SimplerEnvBenchmark(StepBenchmark):
         make_kwargs: dict[str, Any] = {}
         if self.control_mode is not None:
             make_kwargs["control_mode"] = self.control_mode
-        self._env = simpler_env.make(self.task_name, **make_kwargs)
-
-        # Override max_episode_steps if configured (e.g. X-VLA=1200, GR00T=10000)
         if self.max_episode_steps is not None:
-            self._env._max_episode_steps = self.max_episode_steps
+            make_kwargs["max_episode_steps"] = self.max_episode_steps
+        self._env = simpler_env.make(self.task_name, **make_kwargs)
 
         # Reset — robot init is handled by prepackaged_config internally.
         # deterministic_episodes=True: pass episode_id for reproducible object placement
