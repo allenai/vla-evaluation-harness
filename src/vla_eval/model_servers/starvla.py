@@ -153,7 +153,7 @@ class StarVLAModelServer(PredictModelServer):
         self._ensemble_horizon = adaptive_ensemble_horizon
         self._ensemble_alpha = adaptive_ensemble_alpha
         self._ensemblers: dict[str, _AdaptiveEnsembler] = {}
-        self._image_size: tuple[int, int] | None = tuple(image_size) if image_size else None
+        self._image_size: tuple[int, int] | None = (image_size[0], image_size[1]) if image_size else None
         self._observation_params: dict[str, Any] = {}
         if observation_params:
             import json
@@ -379,7 +379,16 @@ class StarVLAModelServer(PredictModelServer):
             unnorm_key = next(iter(norm_stats))
         if unnorm_key not in norm_stats:
             raise ValueError(f"unnorm_key={unnorm_key!r} not found, available: {list(norm_stats.keys())}")
-        self._action_stats = norm_stats[unnorm_key]["action"]
+        stats = norm_stats[unnorm_key]["action"]
+        self._action_stats = stats
+        # Pre-compute unnormalization arrays (avoid per-step np.array allocation)
+        if self.unnorm_type == "q99":
+            self._unnorm_low = np.array(stats["q01"])
+            self._unnorm_high = np.array(stats["q99"])
+        else:
+            self._unnorm_low = np.array(stats["min"])
+            self._unnorm_high = np.array(stats["max"])
+        self._unnorm_mask = stats.get("mask", np.ones_like(self._unnorm_low, dtype=bool))
         logger.info("Model loaded on %s (unnorm_key=%s)", device, unnorm_key)
 
     def get_observation_params(self) -> dict[str, Any]:
@@ -398,12 +407,7 @@ class StarVLAModelServer(PredictModelServer):
         reference starVLA LIBERO eval).  ``"q99"`` uses ``q01``/``q99``
         (matches ``baseframework.unnormalize_actions``).
         """
-        stats = self._action_stats
-        if self.unnorm_type == "q99":
-            low, high = np.array(stats["q01"]), np.array(stats["q99"])
-        else:
-            low, high = np.array(stats["min"]), np.array(stats["max"])
-        mask = stats.get("mask", np.ones_like(low, dtype=bool))
+        low, high, mask = self._unnorm_low, self._unnorm_high, self._unnorm_mask
         normalized = np.clip(normalized, -1, 1)
         # Binarize gripper (dim 6) before unnormalization
         if normalized.shape[-1] > 6:

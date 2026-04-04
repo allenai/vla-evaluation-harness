@@ -202,25 +202,16 @@ class SimplerEnvBenchmark(StepBenchmark):
             if eef is not None:
                 obs["states"] = np.asarray(eef, dtype=np.float32)
             elif base_pose is not None and tcp_pose is not None:
-                from vla_eval.rotation import quat_to_matrix, matrix_to_quat
+                from vla_eval.rotation import matrix_to_quat, pose7_wxyz_to_mat4, quat_xyzw_to_wxyz
 
                 bp = np.asarray(base_pose, dtype=np.float64).flatten()
                 tp = np.asarray(tcp_pose, dtype=np.float64).flatten()
 
-                def _pose7_to_mat4(p: np.ndarray) -> np.ndarray:
-                    m = np.eye(4)
-                    q_wxyz = p[3:7]
-                    q_xyzw = np.array([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
-                    m[:3, :3] = quat_to_matrix(q_xyzw)
-                    m[:3, 3] = p[:3]
-                    return m
-
-                base_mat = _pose7_to_mat4(bp)
-                tcp_mat = _pose7_to_mat4(tp)
+                base_mat = pose7_wxyz_to_mat4(bp)
+                tcp_mat = pose7_wxyz_to_mat4(tp)
                 ee_in_base = np.linalg.inv(base_mat) @ tcp_mat
                 pos = ee_in_base[:3, 3]
-                q_xyzw = matrix_to_quat(ee_in_base[:3, :3])
-                q_wxyz = np.array([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
+                q_wxyz = quat_xyzw_to_wxyz(matrix_to_quat(ee_in_base[:3, :3]))
 
                 assert self._env is not None
                 try:

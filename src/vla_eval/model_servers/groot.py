@@ -196,6 +196,8 @@ class GR00TModelServer(PredictModelServer):
         if self.image_resolution:
             import cv2
 
+        from vla_eval.rotation import quat_wxyz_to_xyzw
+
         if self.bridge_rotation:
             from vla_eval.rotation import matrix_to_euler_xyz, quat_to_matrix
 
@@ -246,17 +248,15 @@ class GR00TModelServer(PredictModelServer):
             if len(state_arr) >= 8:
                 if self.bridge_rotation:
                     # WidowX: convert quaternion to bridge-frame euler angles
-                    quat_wxyz = state_arr[3:7]
-                    quat_xyzw = np.array([quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]])
+                    quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
                     rm = quat_to_matrix(quat_xyzw)
                     rpy = matrix_to_euler_xyz(rm @ self._BRIDGE_DEFAULT_ROT.T)
-                    gripper = state_arr[7]
-                    state_arr = np.array([*state_arr[:3], *rpy, 0.0, gripper], dtype=np.float32)
+                    state_arr = np.array([*state_arr[:3], *rpy, 0.0, state_arr[7]], dtype=np.float32)
                 else:
                     # Google Robot: reorder quaternion wxyz→xyzw, invert gripper
-                    qw, qx, qy, qz = state_arr[3], state_arr[4], state_arr[5], state_arr[6]
+                    quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
                     gripper_closedness = 1.0 - state_arr[7]
-                    state_arr = np.array([*state_arr[:3], qx, qy, qz, qw, gripper_closedness], dtype=np.float32)
+                    state_arr = np.array([*state_arr[:3], *quat_xyzw, gripper_closedness], dtype=np.float32)
 
             offset = 0
             for sk in state_keys:
