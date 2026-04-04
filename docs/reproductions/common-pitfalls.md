@@ -20,11 +20,12 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 | | Gripper closedness formula | ~0.4 error/step | WidowX joint limit range |
 | **Actions** | Dimension mismatch | Crash or 0% | 20D raw vs 7D expected |
 | | Absolute vs delta mode | 0% | Robot flies away |
+| | Unnorm stat keys (min/max vs q99) | 0%→functional | starVLA LIBERO |
 | | chunk_size mismatch | 0-30pp | GR00T: 16→1 for SimplerEnv |
 | **Episodes** | max_steps too low | 0% | X-VLA: 120 vs 1200 needed |
 | | Wrong termination logic | Inflated scores | terminated vs truncated |
 | | Random vs deterministic placement | 40pp+ | GR00T eggplant: 50% vs 4% |
-| **Environment** | Internal fork differences | 10-80pp | NVIDIA eef_pos, instruction wording |
+| **Environment** | Internal fork differences | 0-80pp | NVIDIA eef_pos, X-VLA absolute EE |
 
 ---
 
@@ -89,6 +90,12 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 
 **Action type (qpos vs ee)** — RoboTwin supports both; sending EE as qpos = 0%.
 
+**Unnormalization stat keys (min/max vs q01/q99)**
+- Models may unnormalize actions using different statistic keys from the same stats file. starVLA LIBERO uses `min`/`max`; starVLA SimplerEnv uses `q01`/`q99` (1st/99th percentile). These give different scaling bounds.
+- Impact: starVLA LIBERO 0% with q99 → functional with min/max.
+- Detection: Check the reference eval's unnormalization function for which keys it reads.
+- Fix: Add `unnorm_type` parameter (`minmax` vs `q99`).
+
 ## 5. Evaluation Protocol
 
 **chunk_size / n_action_steps**
@@ -108,8 +115,12 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 ## 6. Environment / Infra
 
 **Internal forks**
-- Some codebases evaluate using internal forks with patches not in the public repos. NVIDIA's GR00T uses `squarefk/SimplerEnv` + `youliangtan/ManiSkill2_real2sim` which add eef_pos proprioception, instruction wording changes, and new tasks. Reported scores from internal forks may not be reproducible on official SimplerEnv.
-- Detection: Check if the official eval references a git submodule or specific fork URL.
+- Some codebases evaluate using forks with patches not in the public repos:
+  - **NVIDIA GR00T**: uses `squarefk/SimplerEnv` + `youliangtan/ManiSkill2_real2sim` which add eef_pos proprioception, instruction wording changes, and new tasks.
+  - **X-VLA**: uses `255isWhite/SimplerEnv` which patches ManiSkill2 for absolute EE control mode and sink camera alignment. Without these patches, X-VLA gets 0% on SimplerEnv.
+- Reported scores from internal forks may not be reproducible on official SimplerEnv.
+- Detection: Check if the official eval references a git submodule, specific fork URL, or custom Dockerfile.
+
 
 ---
 
