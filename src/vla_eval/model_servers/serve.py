@@ -361,6 +361,12 @@ def _resolve_cli_type(
     if annotation is str or annotation is _EMPTY:
         return (str, False, False)
 
+    # list/dict types: accept JSON string on CLI
+    if origin is list or annotation is list:
+        import json
+
+        return (json.loads, False, False)  # type: ignore[return-value]
+
     return (None, False, True)  # unknown → skip
 
 

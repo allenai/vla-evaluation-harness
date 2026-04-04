@@ -360,6 +360,10 @@ def cmd_serve(args: argparse.Namespace) -> None:
     for key, value in server_args.items():
         if isinstance(value, bool):
             cmd.append(f"--{key}" if value else f"--no-{key}")
+        elif isinstance(value, (list, dict)):
+            import json
+
+            cmd.extend([f"--{key}", json.dumps(value)])
         else:
             cmd.extend([f"--{key}", str(value)])
 
