@@ -40,4 +40,3 @@ coverage.xml
 src/vla_eval/_version.py
 
 .claude/scheduled_tasks.lock
-docs/reproductions/data/starvla/reproduction_gap_investigation.md
