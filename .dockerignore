@@ -9,3 +9,4 @@
 !docker/*_entrypoint.sh
 !docker/*.patch
 
+!docker/apply_eef_pos_patch.py
