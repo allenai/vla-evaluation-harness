@@ -53,10 +53,14 @@ class SimplerEnvBenchmark(StepBenchmark):
         seed: int | None = None,
         deterministic_episodes: bool = True,
         control_mode: str | None = None,
+        gripper_mode: str = "binary",
     ) -> None:
         super().__init__()
         assert success_mode in ("truncation", "early_stop", "accumulate"), (
             f"Invalid success_mode={success_mode!r}. Expected: truncation, early_stop, accumulate"
+        )
+        assert gripper_mode in ("binary", "sticky"), (
+            f"Invalid gripper_mode={gripper_mode!r}. Expected: binary, sticky"
         )
         self.task_name = task_name
         self.max_episode_steps = max_episode_steps
@@ -65,10 +69,16 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.seed = seed
         self.deterministic_episodes = deterministic_episodes
         self.control_mode = control_mode
+        self.gripper_mode = gripper_mode
 
         self._env: Any = None
         self._task_description: str = ""
         self._success_seen: bool = False
+        # Sticky gripper state (Google Robot)
+        self._sticky_action_is_on: bool = False
+        self._sticky_gripper_action: float = 0.0
+        self._gripper_action_repeat: int = 0
+        self._sticky_gripper_num_repeat: int = 15
 
     def cleanup(self) -> None:
         if self._env is not None:
@@ -90,6 +100,9 @@ class SimplerEnvBenchmark(StepBenchmark):
 
         # Close previous env — new env per episode (matches reference)
         self._success_seen = False
+        self._sticky_action_is_on = False
+        self._sticky_gripper_action = 0.0
+        self._gripper_action_repeat = 0
         if self._env is not None:
             self._env.close()
 
@@ -133,7 +146,23 @@ class SimplerEnvBenchmark(StepBenchmark):
         # All reference implementations feed their rotation values straight through.
         pos = np.array(raw_action[:3])
         rot = np.array(raw_action[3:6])
-        gripper = 1.0 if raw_action[6] > 0.5 else -1.0
+        if self.gripper_mode == "sticky":
+            # Google Robot: relative gripper with sticky repeat (15 steps)
+            g = float(raw_action[6]) * 2 - 1  # [0,1] → [-1,1]
+            relative = -g
+            if abs(relative) > 0.5 and not self._sticky_action_is_on:
+                self._sticky_action_is_on = True
+                self._sticky_gripper_action = relative
+            if self._sticky_action_is_on:
+                self._gripper_action_repeat += 1
+                relative = self._sticky_gripper_action
+            if self._gripper_action_repeat == self._sticky_gripper_num_repeat:
+                self._sticky_action_is_on = False
+                self._gripper_action_repeat = 0
+                self._sticky_gripper_action = 0.0
+            gripper = relative
+        else:
+            gripper = 1.0 if raw_action[6] > 0.5 else -1.0
         env_action = np.concatenate([pos, rot, [gripper]])
 
         assert self._env is not None

@@ -74,7 +74,48 @@ src = src.replace(old_block, new_block)
 p.write_text(src)
 print("✓ widowx.py patched")
 
-# ── 3. put_on_in_scene.py: fix eggplant instruction wording ───────────
+# ── 3. googlerobot.py: add ee_link, ee_pose, get_gripper_closedness ───
+p = MS2 / "agents/robots/googlerobot.py"
+src = p.read_text()
+src = src.replace(
+    'self.base_inertial_link = [\n'
+    '            x for x in self.robot.get_links() if x.name == "link_base_inertial"\n'
+    '        ][0]',
+    'self.base_inertial_link = [\n'
+    '            x for x in self.robot.get_links() if x.name == "link_base_inertial"\n'
+    '        ][0]\n'
+    '        self.ee_link = [x for x in self.robot.get_links() if x.name == "link_gripper_tcp"][0]',
+)
+old_gr_block = (
+    "    @property\n"
+    "    def base_pose(self):\n"
+    "        return self.base_link.get_pose()\n"
+    "\n"
+    "    def set_base_pose"
+)
+new_gr_block = (
+    "    @property\n"
+    "    def base_pose(self):\n"
+    "        return self.base_link.get_pose()\n"
+    "\n"
+    "    @property\n"
+    "    def ee_pose(self):\n"
+    "        return self.ee_link.get_pose()\n"
+    "\n"
+    "    def get_gripper_closedness(self):\n"
+    "        import numpy as _np\n"
+    "        finger_qpos = self.robot.get_qpos()[-4:-2]\n"
+    "        finger_qlim = self.robot.get_qlimits()[-4:-2, -1]\n"
+    "        return _np.maximum(_np.mean(finger_qpos / finger_qlim), 0.0)\n"
+    "\n"
+    "    def set_base_pose"
+)
+assert old_gr_block in src, "googlerobot.py: base_pose block not found"
+src = src.replace(old_gr_block, new_gr_block)
+p.write_text(src)
+print("✓ googlerobot.py patched")
+
+# ── 4. put_on_in_scene.py: fix eggplant instruction wording ───────────
 p = MS2 / "envs/custom_scenes/put_on_in_scene.py"
 src = p.read_text()
 src = src.replace(

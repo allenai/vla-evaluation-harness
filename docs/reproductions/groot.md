@@ -8,11 +8,11 @@ NVIDIA's generalist robot foundation model. [GitHub](https://github.com/NVIDIA/I
 | Benchmark | Reproduced | Reported | Verdict |
 |-----------|:----------:|:--------:|:-------:|
 | LIBERO | **94.9%** | 97.0% | Approximate (-2.1pp) |
-| SimplerEnv WidowX | WIP | 57.1%* | WIP (200-episode eval in progress) |
-| SimplerEnv Google Robot | — | 67.7%** | Not yet evaluated |
+| SimplerEnv WidowX | **29.6%** | 57.1%* | Partial (eggplant gap) |
+| SimplerEnv Google Robot | **59.7%** | 67.7%** | Approximate (-8pp) |
 
-\* 4-task subset avg (Spoon 64.5, Carrot 65.5, Eggplant 93.0, Stack 5.5). Full 7-task avg = 62.1%.
-\** Non-standard 6-task set.
+\* 4-task subset avg. Full 7-task avg = 62.1%.
+\** 6-task set.
 
 ### LIBERO
 
@@ -32,7 +32,6 @@ NVIDIA's generalist robot foundation model. [GitHub](https://github.com/NVIDIA/I
 | **Average** | **94.9%** | **97.0%** |
 
 -2.1pp gap likely due to community checkpoint vs official NVIDIA fine-tuning.
-Official NVIDIA does not release LIBERO checkpoints — only training recipe.
 
 ### SimplerEnv — WidowX VM
 
@@ -42,28 +41,25 @@ Official NVIDIA does not release LIBERO checkpoints — only training recipe.
 | **Server config** | [`configs/model_servers/groot/simpler_widowx.yaml`](../../configs/model_servers/groot/simpler_widowx.yaml) |
 | **Benchmark config** | [`configs/simpler_all_tasks_groot.yaml`](../../configs/simpler_all_tasks_groot.yaml) |
 | **Docker image** | `simpler-groot` (base simpler + eef_pos patch) |
-| **Results** | WIP (200-episode eval in progress) |
+| **Results** | [`data/groot-simpler-widowx/`](data/groot-simpler-widowx/) (partial) |
 
-Requires a patched Docker image (`Dockerfile.simpler_groot`) that adds `eef_pos`
-proprioception from NVIDIA's internal ManiSkill2 fork. Without this patch, the
-model receives incorrect state (robot base pose instead of EE-in-base-frame pose).
+200 episodes per task. `chunk_size: 1`, `max_episode_steps: 300`.
 
-Reference eval protocol: `--n_action_steps 1 --max_episode_steps 300 --n_envs 5`,
-200 episodes per task. Our config uses `chunk_size: 1`, `max_episode_steps: 300`.
+| Task | Reproduced (200eps) | Reported (200eps) |
+|------|:-------------------:|:-----------------:|
+| Stack | 2.0% | 5.5% |
+| Carrot | 54.5% | 65.5% |
+| Spoon | 54.0% | 64.5% |
+| Eggplant | 8.0% | 93% |
+| **Average** | **29.6%** | **57.1%** |
 
-Preliminary results (24 episodes per task):
+Stack matches (2% vs 5.5%). Carrot/Spoon have ~10pp gap. Eggplant has a known
+issue: `deterministic_episodes=False` (random object placement) produces very
+low success (8%). With `deterministic_episodes=True`, eggplant reaches 50%.
+The remaining gap to 93% and the carrot/spoon ~10pp gap may be due to
+differences between our official SimplerEnv and NVIDIA's internal fork.
 
-| Task | Reproduced | Reported (200eps) |
-|------|:----------:|:-----------------:|
-| Stack | 4.2% | 5.5% |
-| Carrot | 54.2% | 65.5% |
-| Spoon | 50.0% | 64.5% |
-| Eggplant | 4.2% | 93% |
-
-Stack matches. Carrot/Spoon are in reasonable range given 24 episodes.
-Eggplant has a known issue with `deterministic_episodes=False` — random object
-placement produces very low success. With `deterministic_episodes=True`, eggplant
-reaches 50%. The gap to 93% is under investigation. Full 200-episode eval pending.
+State input verified identical to reference WidowXBridgeEnv (diff < 1e-15).
 
 ### SimplerEnv — Google Robot
 
@@ -71,8 +67,28 @@ reaches 50%. The gap to 93% is under investigation. Full 200-episode eval pendin
 |---|---|
 | **Checkpoint** | `nvidia/GR00T-N1.6-fractal` (official NVIDIA) |
 | **Server config** | [`configs/model_servers/groot/simpler_google_robot.yaml`](../../configs/model_servers/groot/simpler_google_robot.yaml) |
+| **Benchmark config** | [`configs/simpler_google_robot_tasks.yaml`](../../configs/simpler_google_robot_tasks.yaml) |
+| **Docker image** | `simpler-groot` (base simpler + eef_pos patch) |
+| **Results** | [`data/groot-simpler-google/`](data/groot-simpler-google/) |
 
-Not yet evaluated. Requires sticky gripper (15-step repeat) not yet implemented.
+24 episodes per task (reference uses 200). `chunk_size: 1`, `max_episode_steps: 300`.
+Sticky gripper (15-step repeat) for Google Robot.
+
+| Task | Reproduced (24eps) | Reported (200eps) |
+|------|:------------------:|:-----------------:|
+| pick_coke_can | 100% | 97.5% |
+| pick_object | 100% | 87% |
+| move_near | 58.3% | 75.5% |
+| open_drawer | 0% | 44% |
+| close_drawer | 100% | 87.5% |
+| place_in_closed_drawer | 0% | 14.5% |
+| **Average** | **59.7%** | **67.7%** |
+
+pick_coke_can, pick_object, close_drawer reproduced (100%). move_near within
+24-episode variance. open_drawer 0% vs 44% needs investigation (24eps may be
+insufficient). place_in_closed_drawer 0% vs 14.5% is within 24-episode variance.
+
+State input verified identical to reference GoogleFractalEnv (diff = 0.0).
 
 ## Configuration Notes
 
@@ -80,5 +96,9 @@ Not yet evaluated. Requires sticky gripper (15-step repeat) not yet implemented.
 - `Gr00tPolicy` handles normalization, tokenization, and action decoding internally.
 - `embodiment_tag` per benchmark: `LIBERO_PANDA`, `OXE_WIDOWX`, `OXE_GOOGLE`.
 - `chunk_size=1` for SimplerEnv (reference `--n_action_steps 1`), `chunk_size=16` for LIBERO.
-- `invert_gripper=True` for LIBERO, `False` for SimplerEnv WidowX.
-- SimplerEnv WidowX requires eef_pos patch: EE pose in base frame + gripper width from joint limits.
+- `invert_gripper=True` for LIBERO, `False` for SimplerEnv.
+- SimplerEnv requires eef_pos Docker patch (`Dockerfile.simpler_groot`):
+  - WidowX: `ee_gripper_link` + bridge rotation + joint-limit gripper closedness
+  - Google Robot: `link_gripper_tcp` + quaternion wxyz→xyzw reorder + gripper closedness
+- Google Robot uses sticky gripper (15-step repeat) and relative gripper actions.
+- WidowX uses binary gripper (>0.5 → open).
