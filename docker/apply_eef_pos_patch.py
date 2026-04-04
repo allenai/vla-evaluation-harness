@@ -1,4 +1,5 @@
 """Apply NVIDIA eef_pos patches to ManiSkill2_real2sim (in-place)."""
+
 import pathlib
 
 MS2 = pathlib.Path("/app/ManiSkill2_real2sim/mani_skill2_real2sim")
@@ -78,20 +79,16 @@ print("✓ widowx.py patched")
 p = MS2 / "agents/robots/googlerobot.py"
 src = p.read_text()
 src = src.replace(
-    'self.base_inertial_link = [\n'
+    "self.base_inertial_link = [\n"
     '            x for x in self.robot.get_links() if x.name == "link_base_inertial"\n'
-    '        ][0]',
-    'self.base_inertial_link = [\n'
+    "        ][0]",
+    "self.base_inertial_link = [\n"
     '            x for x in self.robot.get_links() if x.name == "link_base_inertial"\n'
-    '        ][0]\n'
+    "        ][0]\n"
     '        self.ee_link = [x for x in self.robot.get_links() if x.name == "link_gripper_tcp"][0]',
 )
 old_gr_block = (
-    "    @property\n"
-    "    def base_pose(self):\n"
-    "        return self.base_link.get_pose()\n"
-    "\n"
-    "    def set_base_pose"
+    "    @property\n    def base_pose(self):\n        return self.base_link.get_pose()\n\n    def set_base_pose"
 )
 new_gr_block = (
     "    @property\n"

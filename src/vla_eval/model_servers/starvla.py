@@ -477,9 +477,7 @@ class StarVLAModelServer(PredictModelServer):
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         if self._ensemble_horizon is not None:
-            self._ensemblers[ctx.session_id] = _AdaptiveEnsembler(
-                self._ensemble_horizon, self._ensemble_alpha
-            )
+            self._ensemblers[ctx.session_id] = _AdaptiveEnsembler(self._ensemble_horizon, self._ensemble_alpha)
         await super().on_episode_start(config, ctx)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:

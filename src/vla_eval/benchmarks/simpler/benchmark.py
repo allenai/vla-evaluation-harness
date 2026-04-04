@@ -59,9 +59,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         assert success_mode in ("truncation", "early_stop", "accumulate"), (
             f"Invalid success_mode={success_mode!r}. Expected: truncation, early_stop, accumulate"
         )
-        assert gripper_mode in ("binary", "sticky"), (
-            f"Invalid gripper_mode={gripper_mode!r}. Expected: binary, sticky"
-        )
+        assert gripper_mode in ("binary", "sticky"), f"Invalid gripper_mode={gripper_mode!r}. Expected: binary, sticky"
         self.task_name = task_name
         self.max_episode_steps = max_episode_steps
         self.success_mode = success_mode
