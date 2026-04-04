@@ -9,7 +9,7 @@ Cross-embodiment VLA with soft prompts. [GitHub](https://github.com/2toinf/X-VLA
 |-----------|:----------:|:--------:|:-------:|
 | LIBERO | **97.4%** | 98.1% | Reproduced |
 | CALVIN ABC→D | **4.30** | 4.43 | Reproduced |
-| SimplerEnv WidowX | **WIP** | 95.8% | WIP |
+| SimplerEnv WidowX | **94.8%** | 95.8% | Reproduced |
 | RoboTwin | — | 70.0%/39.0% | Not yet evaluated |
 
 ### LIBERO
@@ -76,11 +76,17 @@ See [common-pitfalls.md](common-pitfalls.md) for detailed patterns.
 | **Checkpoint** | `2toINF/X-VLA-WidowX` (official) |
 | **Server config** | [`configs/model_servers/xvla/simpler_widowx.yaml`](../../configs/model_servers/xvla/simpler_widowx.yaml) |
 | **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
-| **Results** | WIP |
+| **Results** | [`data/xvla-simpler/`](data/xvla-simpler/) |
 
-Status: **WIP** (pipeline fixes applied, re-evaluation pending).
+4 tasks × 24 episodes. Requires [patched ManiSkill2](https://github.com/255isWhite/SimplerEnv) for absolute EE control + sink camera alignment.
 
-Reported: 95.8% avg (Spoon 100%, Carrot 91.7%, Block 95.8%, Eggplant 95.8%).
+| Task | Reproduced | Reported |
+|------|:----------:|:--------:|
+| Stack | 95.8% | 95.8% |
+| Carrot | 91.7% | 91.7% |
+| Spoon | 95.8% | 100% |
+| Eggplant | 95.8% | 95.8% |
+| **Average** | **94.8%** | **95.8%** |
 
 Pipeline audit: 7 discrepancies found and fixed:
 1. **`simpler_widowx` profile missing** (BLOCKER) — Server crashed on startup. Fixed: added profile.
