@@ -60,6 +60,7 @@ class GR00TModelServer(PredictModelServer):
         invert_gripper: bool = False,
         image_resolution: int | None = None,
         bridge_rotation: bool = False,
+        observation_params: str | dict | None = None,
         *,
         chunk_size: int = 16,
         action_ensemble: str = "newest",
@@ -73,6 +74,13 @@ class GR00TModelServer(PredictModelServer):
         self.invert_gripper = invert_gripper
         self.image_resolution = image_resolution
         self.bridge_rotation = bridge_rotation
+        self._extra_obs_params: dict[str, Any] = {}
+        if observation_params:
+            import json
+
+            self._extra_obs_params = (
+                json.loads(observation_params) if isinstance(observation_params, str) else observation_params
+            )
         self._policy = None
         self._modality_config: dict[str, Any] | None = None
         self._state_dims: dict[str, int] = {}
@@ -162,13 +170,14 @@ class GR00TModelServer(PredictModelServer):
         )
 
     def get_observation_params(self) -> dict[str, Any]:
-        return {
-            "send_wrist_image": True,
+        params: dict[str, Any] = {
             "send_state": True,
-            "pass_rotation_raw": True,
-            "accumulate_success": True,
-            "prepackaged_config": True,
+            "max_episode_steps": 300,
+            "success_mode": "accumulate",
+            "deterministic_episodes": False,
         }
+        params.update(self._extra_obs_params)
+        return params
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         gripper = GRIPPER_CLOSE_POS if self.invert_gripper else GRIPPER_01
@@ -186,6 +195,8 @@ class GR00TModelServer(PredictModelServer):
 
         if self.image_resolution:
             import cv2
+
+        from vla_eval.rotation import quat_wxyz_to_xyzw
 
         if self.bridge_rotation:
             from vla_eval.rotation import matrix_to_euler_xyz, quat_to_matrix
@@ -232,14 +243,20 @@ class GR00TModelServer(PredictModelServer):
                 continue
             state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
 
-            # Apply bridge rotation correction for SimplerEnv WidowX
-            if self.bridge_rotation and len(state_arr) >= 8:
-                quat_wxyz = state_arr[3:7]  # [w,x,y,z] from ManiSkill2
-                quat_xyzw = np.array([quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]])
-                rm = quat_to_matrix(quat_xyzw)
-                rpy = matrix_to_euler_xyz(rm @ self._BRIDGE_DEFAULT_ROT.T)
-                gripper = state_arr[7] if len(state_arr) > 7 else 0.0
-                state_arr = np.array([*state_arr[:3], *rpy, 0.0, gripper], dtype=np.float32)
+            # State transformation for SimplerEnv.
+            # eef_pos from ManiSkill2: [x, y, z, qw, qx, qy, qz, gripper_openness]
+            if len(state_arr) >= 8:
+                if self.bridge_rotation:
+                    # WidowX: convert quaternion to bridge-frame euler angles
+                    quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
+                    rm = quat_to_matrix(quat_xyzw)
+                    rpy = matrix_to_euler_xyz(rm @ self._BRIDGE_DEFAULT_ROT.T)
+                    state_arr = np.array([*state_arr[:3], *rpy, 0.0, state_arr[7]], dtype=np.float32)
+                else:
+                    # Google Robot: reorder quaternion wxyz→xyzw, invert gripper
+                    quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
+                    gripper_closedness = 1.0 - state_arr[7]
+                    state_arr = np.array([*state_arr[:3], *quat_xyzw, gripper_closedness], dtype=np.float32)
 
             offset = 0
             for sk in state_keys:

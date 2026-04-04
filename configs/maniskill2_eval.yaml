@@ -21,6 +21,6 @@ benchmarks:
         - "PickSingleEGAD-v0"
         - "PickClutterYCB-v0"
       max_episode_steps: 400
-      image_size: [256, 256]
+      render_resolution: [256, 256]
       enabled_cameras: ["base_camera"]
 

@@ -9,7 +9,7 @@ server:
   url: "ws://localhost:8000"
 
 docker:
-  image: ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+  image: ghcr.io/allenai/vla-evaluation-harness/simpler-groot:latest
   env:
     - "NVIDIA_DRIVER_CAPABILITIES=all"          # Vulkan/graphics for SAPIEN rendering
   volumes:
@@ -22,7 +22,7 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: stack_green_cube
     mode: sync
-    episodes_per_task: 24
+    episodes_per_task: 200  # GR00T N1.6 reference uses 200 eps/task
     params:
       task_name: "widowx_stack_cube"
 
@@ -30,7 +30,7 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_carrot_on_plate
     mode: sync
-    episodes_per_task: 24
+    episodes_per_task: 200  # GR00T N1.6 reference uses 200 eps/task
     params:
       task_name: "widowx_carrot_on_plate"
 
@@ -38,7 +38,7 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_spoon_on_tablecloth
     mode: sync
-    episodes_per_task: 24
+    episodes_per_task: 200  # GR00T N1.6 reference uses 200 eps/task
     params:
       task_name: "widowx_spoon_on_towel"
 
@@ -46,6 +46,6 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_eggplant_in_basket
     mode: sync
-    episodes_per_task: 24
+    episodes_per_task: 200  # GR00T N1.6 reference uses 200 eps/task
     params:
       task_name: "widowx_put_eggplant_in_basket"

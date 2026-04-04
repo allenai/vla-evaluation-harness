@@ -207,3 +207,25 @@ def matrix_to_euler_xyz(mat: np.ndarray) -> np.ndarray:
         y = np.arctan2(-mat[2, 0], sy)
         z = 0.0
     return np.array([x, y, z])
+
+
+# ── Quaternion convention helpers ──────────────────────────────────────
+# ManiSkill2/transforms3d use wxyz; our rotation utilities use xyzw.
+
+
+def quat_wxyz_to_xyzw(q: np.ndarray) -> np.ndarray:
+    """Convert quaternion from ``[w, x, y, z]`` to ``[x, y, z, w]``."""
+    return np.array([q[1], q[2], q[3], q[0]])
+
+
+def quat_xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
+    """Convert quaternion from ``[x, y, z, w]`` to ``[w, x, y, z]``."""
+    return np.array([q[3], q[0], q[1], q[2]])
+
+
+def pose7_wxyz_to_mat4(p: np.ndarray) -> np.ndarray:
+    """Convert a 7D pose ``[x, y, z, qw, qx, qy, qz]`` to a 4x4 matrix."""
+    m = np.eye(4)
+    m[:3, :3] = quat_to_matrix(quat_wxyz_to_xyzw(p[3:7]))
+    m[:3, 3] = p[:3]
+    return m

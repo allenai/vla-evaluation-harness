@@ -101,6 +101,7 @@ class _XVLABenchmarkProfile:
     unflip_wrist: bool = False  # un-flip wrist image (benchmark sends it flipped)
     euler_state: bool = False  # True: state[3:6] is euler XYZ, not axis-angle
     rot6d_convention: str = "interleaved"  # "interleaved" or "contiguous"
+    gripper_threshold_map: dict[str, float] | None = None  # per-task gripper thresholds
 
 
 _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
@@ -138,6 +139,12 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         gripper_threshold=0.7,
         gripper_close_above=False,
         output_action_dim=7,
+        gripper_threshold_map={
+            "widowx_stack_cube": 0.91,
+            "widowx_spoon_on_towel": 0.7,
+            "widowx_carrot_on_plate": 0.95,
+            "widowx_put_eggplant_in_basket": 0.8,
+        },
     ),
     "vlabench": _XVLABenchmarkProfile(
         image_keys=("primary", "front", "wrist"),
@@ -172,6 +179,7 @@ _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
     "simpler_widowx": {
         "send_state": True,
         "max_episode_steps": 1200,
+        "success_mode": "early_stop",
         "control_mode": "arm_pd_ee_target_base_pose_gripper_pd_joint_pos",
     },
     "vlabench": {"send_wrist_image": True, "send_state": True},
@@ -331,6 +339,7 @@ class XVLAModelServer(PredictModelServer):
         self._euler_state = profile.euler_state if profile is not None else False
         self._gripper_threshold = profile.gripper_threshold if profile is not None else 0.5
         self._gripper_close_above = profile.gripper_close_above if profile is not None else True
+        self._gripper_threshold_map = profile.gripper_threshold_map if profile is not None else None
         rot6d_conv = profile.rot6d_convention if profile is not None else "interleaved"
         if rot6d_conv == "contiguous":
             self._rot6d_to_matrix = _rot6d_to_matrix_contig
@@ -514,9 +523,14 @@ class XVLAModelServer(PredictModelServer):
 
         # Convert EE6D 20-D → 7-D when requested
         if self.output_action_dim == 7 and raw_actions.shape[-1] == 20:
+            # Resolve per-task gripper threshold (e.g. X-VLA SimplerEnv WidowX)
+            threshold = self._gripper_threshold
+            if self._gripper_threshold_map is not None:
+                task_name = obs.get("task_name", "")
+                threshold = self._gripper_threshold_map.get(task_name, threshold)
             converted = _convert_ee6d_to_7d(
                 raw_actions,
-                self._gripper_threshold,
+                threshold,
                 self._gripper_close_above,
                 self._rot6d_to_matrix,
             )

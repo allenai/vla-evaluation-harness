@@ -9,7 +9,7 @@ Paper: [arxiv 2510.23511](https://arxiv.org/abs/2510.23511) (DexboticVLM) / [arx
 |-----------|:----------:|:--------:|:-------:|
 | LIBERO | **94.7%** | 94.9% | Reproduced |
 | CALVIN ABC→D | **4.02** | 4.06 | Reproduced |
-| SimplerEnv WidowX | WIP | 69.5% | WIP (needs `simpler_env.make` migration) |
+| SimplerEnv WidowX | **63.5%** | 69.5% | Approximate (−6pp) |
 
 ### LIBERO
 
@@ -61,10 +61,19 @@ Pipeline audit: All items match. No discrepancies.
 | **Checkpoint** | `Dexmal/simpler-db-cogact` (official) |
 | **Server config** | [`configs/model_servers/db_cogact/simpler.yaml`](../../configs/model_servers/db_cogact/simpler.yaml) |
 | **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
-| **Results** | WIP |
+| **Results** | [`data/dexbotic/`](data/dexbotic/) |
 
-WIP — needs migration to `simpler_env.make()` for correct visual domain matching.
-Previous results used `build_maniskill2_env` with explicit parameters, which may differ from the official `prepackaged_config` environment.
+4 tasks × 24 episodes. `chunk_size=5` (matching reference `replan_step`).
+
+| Task | Reproduced | Reported |
+|------|:----------:|:--------:|
+| Stack | 41.7% | — |
+| Carrot | 33.3% | — |
+| Spoon | 83.3% | — |
+| Eggplant | 95.8% | — |
+| **Average** | **63.5%** | **69.5%** |
+
+~6pp gap. Per-task reported scores not available (only overall 69.5% on HF).
 
 ### RoboTwin 2.0
 
@@ -88,5 +97,5 @@ Reported: 58.5% avg on 4 tasks (adjust_bottle 99%, grab_roller 89%, place_empty_
 - Requires `transformers==4.46.3` (v5.x causes meta device issue).
 - Action indexing bug fix: `actions[0]` → full chunk. See [common-pitfalls.md](common-pitfalls.md#8-serialization--data-bugs).
 - numpy bool serialization fix. See [common-pitfalls.md](common-pitfalls.md#8-serialization--data-bugs).
-- SimplerEnv image_size resize (224×224) via `get_observation_params()`.
+- SimplerEnv image resize (224×224) handled internally by `process_images()`.
 

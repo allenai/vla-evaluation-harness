@@ -3,54 +3,74 @@
 VLA framework with pluggable action heads. [GitHub](https://github.com/starVLA/starVLA) (branch `starVLA`) |
 No formal paper. Results from README + assets.
 
-## Checkpoints
-
-| Benchmark | Variant | Checkpoint | Source |
-|-----------|---------|------------|--------|
-| LIBERO | Multiple variants | Not yet identified on HF | unclear |
-| CALVIN ABC→D | QwenGR00T (Q2.5-action) | `Simplicissimus-S/StarVLA-QwenGR00T_Qwen2.5-VL-3B-Instruct-Action_calvin_D_D` | community |
-| SimplerEnv WidowX | Multiple variants | `StarVLA/Qwen-GR00T-Bridge-RT-1` etc. | official (Bridge+RT-1 trained) |
-| RoboTwin | Qwen3-OFT | Multiple | official |
-
 ## Results Summary
 
-| Benchmark | Reproduced | Best Reported | Verdict |
-|-----------|:----------:|:-------------:|:-------:|
+| Benchmark | Reproduced | Reported | Verdict |
+|-----------|:----------:|:--------:|:-------:|
 | LIBERO | — | 96.6% (Qwen3-OFT) | Not yet evaluated |
-| CALVIN ABC→D | — | 3.79 (QwenGR00T Q2.5-action) | Not yet evaluated |
-| SimplerEnv WidowX | — | 65.3% (Qwen3-GR00T) | Not yet evaluated |
-| RoboTwin | — | 50.4% (Qwen3-OFT, Protocol B) | Not yet evaluated |
+| CALVIN ABC→D | — | 3.79 (Q2.5-GR00T) | Not yet evaluated |
+| SimplerEnv WidowX | **66.7%** (Qwen3-GR00T) | 65.3% | Reproduced |
+| SimplerEnv WidowX | 20.8% (Qwen3-OFT) | 42.7% | Not reproduced (env issue) |
+| RoboTwin | — | 50.4% (Qwen3-OFT) | Not yet evaluated |
+
+### SimplerEnv — WidowX VM
+
+#### Qwen3-GR00T (Reproduced)
+
+| | |
+|---|---|
+| **Checkpoint** | `StarVLA/Qwen3VL-GR00T-Bridge-RT-1` (official) |
+| **Server config** | [`configs/model_servers/starvla/groot_qwen3_simpler.yaml`](../../configs/model_servers/starvla/groot_qwen3_simpler.yaml) |
+| **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
+| **Results** | [`data/starvla/`](data/starvla/) |
+
+4 tasks x 24 episodes. Adaptive ensemble (horizon=7, alpha=0.1). Euler-to-axisangle conversion.
+
+| Task | Reproduced | Reported (avg of 4 runs) |
+|------|:----------:|:------------------------:|
+| Stack | 25.0% | 18.8% |
+| Carrot | 58.3% | 59.4% |
+| Spoon | 83.3% | 75.0% |
+| Eggplant | 100% | 100% |
+| **Average** | **66.7%** | **65.3%** |
+
+#### Qwen3-OFT (Not reproduced)
+
+| | |
+|---|---|
+| **Checkpoint** | `StarVLA/Qwen3VL-OFT-Bridge-RT-1` (official) |
+| **Server config** | [`configs/model_servers/starvla/oft_qwen3_simpler.yaml`](../../configs/model_servers/starvla/oft_qwen3_simpler.yaml) |
+
+Result: 20.8% vs reported 42.7%. Running the author's evaluation logic directly
+(no framework) in our environment produces the same low result, confirming the
+gap is environmental, not a code bug. The Qwen3-GR00T variant reproduces
+successfully with the same integration code, ruling out framework-level issues.
+See [`data/starvla/reproduction_gap_investigation.md`](data/starvla/reproduction_gap_investigation.md) for details.
 
 ### Reported Scores by Variant
 
-**LIBERO** (all single-policy, 30K steps):
+**SimplerEnv WidowX** (VM, from author's eval logs shipped with checkpoints):
 
-| Variant | Spatial | Object | Goal | Long | Avg |
-|---------|:-------:|:------:|:----:|:----:|:---:|
-| Qwen2.5-VL-FAST | 97.3 | 97.2 | 96.1 | 90.2 | 95.2 |
-| Qwen2.5-VL-OFT | 97.4 | 98.0 | 96.8 | 92.0 | 96.1 |
-| Qwen2.5-VL-PI | 98.2 | 99.2 | 95.6 | 88.4 | 95.4 |
-| Qwen2.5-VL-GR00T | 97.8 | 98.2 | 94.6 | 90.8 | 95.4 |
-| Qwen3-VL-FAST | 97.3 | 97.4 | 96.3 | 90.6 | 95.4 |
-| Qwen3-VL-OFT | 97.8 | 98.6 | 96.2 | 93.8 | 96.6 |
-| Qwen3-VL-PI | 98.8 | 99.6 | 95.8 | 88.4 | 95.7 |
-| Qwen3-VL-GR00T | 97.8 | 98.8 | 97.4 | 92.0 | 96.5 |
-
-**SimplerEnv WidowX** (VM):
-
-| Variant | Spoon | Carrot | Block | Eggplant | Avg |
+| Variant | Spoon | Carrot | Stack | Eggplant | Avg |
 |---------|:-----:|:------:|:-----:|:--------:|:---:|
 | Qwen2.5-VL-FAST | 71.9 | 41.7 | 36.5 | 84.4 | 58.6 |
 | Qwen2.5-VL-GR00T | 82.3 | 54.2 | 40.6 | 70.1 | 63.6 |
 | Qwen3-VL-OFT | 90.3 | 38.5 | 9.7 | 100.0 | 59.6 |
 | Qwen3-VL-GR00T | 83.0 | 59.4 | 18.8 | 100.0 | 65.3 |
 
-**CALVIN ABC→D**: QwenGR00T (Q2.5-VL-3B-action) = 3.79. FAST/OFT: "will be released soon."
+**LIBERO** (all single-policy, 30K steps):
+
+| Variant | Spatial | Object | Goal | Long | Avg |
+|---------|:-------:|:------:|:----:|:----:|:---:|
+| Qwen3-VL-OFT | 97.8 | 98.6 | 96.2 | 93.8 | 96.6 |
+| Qwen3-VL-GR00T | 97.8 | 98.8 | 97.4 | 92.0 | 96.5 |
+
+**CALVIN ABC→D**: Q2.5-VL-GR00T = 3.79.
 
 ### Previous Reproduction Attempts
 
-**StarVLA Q2.5-GR00T × LIBERO**: 29.6% spatial (reported 95.4%) — excluded.
-Possible causes: wrong checkpoint (Bridge+RT-1 instead of LIBERO-finetuned?), model server bug, or missing configuration.
+**StarVLA Q2.5-GR00T x LIBERO**: 29.6% spatial (reported 95.4%) — excluded.
+Possible causes: wrong checkpoint (Bridge+RT-1 instead of LIBERO-finetuned?).
 
 **Excluded variants**:
 - StarVLA Q2.5-OFT / Q3-OFT: Supply <7 obs/s (chunk_size=1). 4-20 hours per suite.
@@ -58,12 +78,11 @@ Possible causes: wrong checkpoint (Bridge+RT-1 instead of LIBERO-finetuned?), mo
 
 ## Configuration Notes
 
-- StarVLA is a **framework**, not a single model. Results vary by action head × backbone combination.
-- `-action` suffix (e.g., `Qwen2.5-VL-3B-Instruct-Action`) denotes an action-specialized backbone variant.
+- StarVLA is a **framework**, not a single model. Results vary by action head x backbone.
 - SimplerEnv checkpoints trained on **Bridge + RT-1** data (not Bridge alone).
 - LIBERO reported as single-policy (all 4 suites jointly), not per-suite finetuned.
-- RoboTwin uses Protocol B (multi-task) — not comparable to Protocol A entries (X-VLA, Pi0).
+- RoboTwin uses Protocol B (multi-task) — not comparable to Protocol A entries.
 
 ## Data
 
-No evaluation data yet.
+- [`data/starvla/`](data/starvla/) — Qwen3-GR00T SimplerEnv results + OFT investigation

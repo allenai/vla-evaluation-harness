@@ -23,7 +23,6 @@
 # ///
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 from pathlib import Path
@@ -36,7 +35,6 @@ import numpy as np
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +100,9 @@ class CogACTModelServer(PredictModelServer):
         self._device = None
 
     def get_observation_params(self) -> dict[str, Any]:
-        return {"image_size": [self.image_resolution, self.image_resolution]}
+        return {
+            "success_mode": "truncation",
+        }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"actions": RAW}
@@ -404,73 +404,6 @@ class CogACTModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CogACT model server (uv script)")
-    parser.add_argument("--model_path", required=True, help="Path to CogACT checkpoint")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--cfg_scale", type=float, default=1.5)
-    parser.add_argument("--num_ddim_steps", type=int, default=10)
-    chunk_group = parser.add_mutually_exclusive_group(required=True)
-    chunk_group.add_argument("--chunk_size", type=int, help="Fixed replan step (actions per inference)")
-    chunk_group.add_argument(
-        "--chunk_size_map",
-        type=json.loads,
-        help='JSON suite→chunk_size map, e.g. \'{"libero_spatial":12,"libero_object":16}\'',
-    )
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--use_text_template", action="store_true")
-    parser.add_argument(
-        "--camera_keys",
-        type=json.loads,
-        default=None,
-        help='JSON list of camera keys, e.g. \'["head_camera", "left_camera", "right_camera"]\'',
-    )
-    # CI/LAAS flags — DRAFT, untested
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference (DRAFT, untested)")
-    parser.add_argument("--laas", action="store_true", help="Enable Latency-Aware Action Selection (DRAFT, untested)")
-    parser.add_argument("--hz", type=float, default=10.0, help="Environment Hz for LAAS delay computation")
-    parser.add_argument("--max_batch_size", type=int, default=16, help="Max batch size for batched inference")
-    parser.add_argument(
-        "--max_wait_time", type=float, default=0.05, help="Max wait time in seconds for batch accumulation"
-    )
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    kwargs: dict[str, Any] = {
-        "action_ensemble": args.action_ensemble,
-        "continuous_inference": args.ci,
-        "laas": args.laas,
-        "hz": args.hz,
-    }
-    if args.max_batch_size > 1:
-        kwargs["max_batch_size"] = args.max_batch_size
-        kwargs["max_wait_time"] = args.max_wait_time
-
-    server = CogACTModelServer(
-        model_path=args.model_path,
-        cfg_scale=args.cfg_scale,
-        num_ddim_steps=args.num_ddim_steps,
-        use_text_template=args.use_text_template,
-        chunk_size=args.chunk_size,
-        chunk_size_map=args.chunk_size_map,
-        camera_keys=args.camera_keys,
-        **kwargs,
-    )
-    if args.chunk_size_map:
-        logger.info("Per-suite chunk_size: %s", server.chunk_size_map)
-
-    logger.info("Pre-loading model...")
-    server._load_model()
-    mode = (
-        f"batch (max_batch={args.max_batch_size}, wait={args.max_wait_time}s)" if args.max_batch_size > 1 else "single"
-    )
-    logger.info("Model ready [%s], starting server on ws://%s:%d", mode, args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(CogACTModelServer)

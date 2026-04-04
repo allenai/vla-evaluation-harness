@@ -14,7 +14,7 @@ benchmarks:
     params:
       tasks:
         - reach_target
-      image_size: 256
+      render_resolution: 256
       max_steps: 200
     action_dim: 8
 

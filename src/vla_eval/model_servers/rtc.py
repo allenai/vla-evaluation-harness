@@ -47,7 +47,6 @@ Reference:
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import logging
 import pickle
@@ -75,7 +74,6 @@ import numpy as np
 
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
-from vla_eval.model_servers.serve import serve
 
 logger = logging.getLogger(__name__)
 
@@ -358,52 +356,6 @@ class RTCModelServer(PredictModelServer):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="RTC diffusion policy model server")
-    parser.add_argument("--checkpoint_dir", default=None, help="Directory with worlds_l_<level>.pkl files")
-    parser.add_argument("--rtc_src_path", default=None, help="Path to RTC repo src/ directory")
-    parser.add_argument("--action_dim", type=int, default=DEFAULT_ACTION_DIM)
-    parser.add_argument("--obs_dim", type=int, default=679, help="Observation dimensionality (679 for Kinetix large)")
-    parser.add_argument("--prediction_horizon", type=int, default=DEFAULT_PREDICTION_HORIZON)
-    parser.add_argument("--denoising_steps", type=int, default=DEFAULT_DENOISING_STEPS)
-    parser.add_argument("--obs_history", type=int, default=1)
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--chunk_size", type=int, default=DEFAULT_PREDICTION_HORIZON)
-    parser.add_argument("--action_ensemble", default="newest")
-    parser.add_argument("--inference_delay", type=float, default=0.0, help="Artificial inference delay in seconds")
-    parser.add_argument("--ci", action="store_true", help="Enable Continuous Inference")
-    parser.add_argument("--laas", action="store_true", help="Enable LAAS (requires --ci)")
-    parser.add_argument("--hz", type=float, default=10.0)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    from vla_eval.model_servers.serve import run_server
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
-
-    if args.laas and not args.ci:
-        parser.error("--laas requires --ci")
-
-    server = RTCModelServer(
-        checkpoint_dir=args.checkpoint_dir,
-        rtc_src_path=args.rtc_src_path,
-        action_dim=args.action_dim,
-        obs_dim=args.obs_dim,
-        prediction_horizon=args.prediction_horizon,
-        denoising_steps=args.denoising_steps,
-        obs_history=args.obs_history,
-        inference_delay=args.inference_delay,
-        chunk_size=args.chunk_size,
-        action_ensemble=args.action_ensemble,
-        continuous_inference=args.ci,
-        laas=args.laas,
-        hz=args.hz,
-    )
-
-    if args.checkpoint_dir:
-        logger.info("Pre-loading all models...")
-        server._load_all_models()
-
-    logger.info("Starting RTC model server on ws://%s:%d", args.host, args.port)
-    serve(server, host=args.host, port=args.port)
+    run_server(RTCModelServer)

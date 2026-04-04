@@ -4,4 +4,11 @@
 extends: _base.yaml
 args:
   checkpoint: StarVLA/Qwen3VL-OFT-Bridge-RT-1
+  unnorm_key: oxe_bridge
   unnorm_type: q99
+  euler_to_axisangle: true
+  gripper_invert: false
+  adaptive_ensemble_horizon: 7
+  adaptive_ensemble_alpha: 0.1
+  image_size: [224, 224]
+  observation_params: '{"success_mode": "truncation", "max_episode_steps": 120}'

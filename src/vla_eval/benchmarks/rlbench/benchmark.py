@@ -32,19 +32,19 @@ class RLBenchBenchmark(StepBenchmark):
 
     Args:
         tasks: List of RLBench task file names (snake_case).
-        image_size: Camera resolution (square).
+        render_resolution: Camera resolution (square).
         max_steps: Maximum steps per episode.
     """
 
     def __init__(
         self,
         tasks: list[str] | None = None,
-        image_size: int = 256,
+        render_resolution: int = 256,
         max_steps: int = 200,
     ) -> None:
         super().__init__()
         self._task_names = tasks or DEFAULT_TASKS
-        self._image_size = image_size
+        self._render_resolution = render_resolution
         self._max_steps = max_steps
         self._env = None  # rlbench.environment.Environment
         self._task_env = None  # rlbench.task_environment.TaskEnvironment
@@ -76,7 +76,7 @@ class RLBenchBenchmark(StepBenchmark):
             depth=False,
             point_cloud=False,
             mask=False,
-            image_size=(self._image_size, self._image_size),
+            render_resolution=(self._render_resolution, self._render_resolution),
         )
         cam_off = CameraConfig()
         cam_off.set_all(False)

@@ -17,6 +17,7 @@
 #     "timm",
 #     "einops",
 #     "scipy",
+#     "transforms3d",
 #     "huggingface-hub",
 # ]
 #
@@ -55,6 +56,50 @@ from vla_eval.model_servers.predict import PredictModelServer
 logger = logging.getLogger(__name__)
 
 
+class _AdaptiveEnsembler:
+    """Cosine-similarity-weighted action ensemble over a sliding window.
+
+    Matches the reference starVLA ``AdaptiveEnsembler``: on each step the model
+    outputs a chunk of predicted actions.  The ensembler aligns past predictions
+    to the current timestep (prediction *i* steps ago → take its *i*-th action)
+    and computes a weighted average using cosine similarity to the newest.
+
+    Args:
+        horizon: Number of past predictions to keep.
+        alpha: Temperature for cosine-similarity weighting (0 = uniform).
+    """
+
+    def __init__(self, horizon: int = 7, alpha: float = 0.1) -> None:
+        from collections import deque
+
+        self.horizon = horizon
+        self.alpha = alpha
+        self._history: deque[np.ndarray] = deque(maxlen=horizon)
+
+    def reset(self) -> None:
+        self._history.clear()
+
+    def __call__(self, cur_action: np.ndarray) -> np.ndarray:
+        """Ensemble *cur_action* (chunk, D) and return a single (D,) action."""
+        self._history.append(cur_action)
+        n = len(self._history)
+
+        # Align: from i-th oldest prediction, take its (n-1-i)-th action
+        if cur_action.ndim == 1:
+            aligned = np.stack(list(self._history))
+        else:
+            aligned = np.stack([pred[idx] for idx, pred in zip(range(n - 1, -1, -1), self._history)])
+
+        # Cosine-similarity weighting relative to the newest prediction
+        ref = aligned[-1]
+        dot = np.sum(aligned * ref, axis=1)
+        norms = np.linalg.norm(aligned, axis=1) * np.linalg.norm(ref) + 1e-7
+        weights = np.exp(self.alpha * dot / norms)
+        weights /= weights.sum()
+
+        return np.sum(weights[:, None] * aligned, axis=0)
+
+
 @contextlib.contextmanager
 def _block_logging_hijack() -> Iterator[None]:
     """Prevent starVLA from clobbering the caller's logging configuration.
@@ -89,8 +134,13 @@ class StarVLAModelServer(PredictModelServer):
         unnorm_type: str = "q99",
         use_bf16: bool = False,
         observation_params: str | None = None,
+        image_size: list[int] | None = None,
         chunk_size: int = 1,
         action_ensemble: str = "newest",
+        euler_to_axisangle: bool = False,
+        gripper_invert: bool = True,
+        adaptive_ensemble_horizon: int | None = None,
+        adaptive_ensemble_alpha: float = 0.1,
         **kwargs: Any,
     ) -> None:
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
@@ -98,6 +148,12 @@ class StarVLAModelServer(PredictModelServer):
         self.unnorm_key = unnorm_key
         self.unnorm_type = unnorm_type
         self.use_bf16 = use_bf16
+        self.euler_to_axisangle = euler_to_axisangle
+        self.gripper_invert = gripper_invert
+        self._ensemble_horizon = adaptive_ensemble_horizon
+        self._ensemble_alpha = adaptive_ensemble_alpha
+        self._ensemblers: dict[str, _AdaptiveEnsembler] = {}
+        self._image_size: tuple[int, int] | None = (image_size[0], image_size[1]) if image_size else None
         self._observation_params: dict[str, Any] = {}
         if observation_params:
             import json
@@ -158,10 +214,12 @@ class StarVLAModelServer(PredictModelServer):
 
         _patches: list[tuple] = []  # (obj, attr_name, original_value)
 
-        # 1) flash_attention_2 → kernels-community/flash-attn2
+        # 1) flash_attention_2 → kernels-community/flash-attn2 or eager
         #    starVLA hardcodes attn_implementation="flash_attention_2" which
         #    requires a manually-compiled flash-attn wheel.  The ``kernels``
         #    package provides a pre-compiled, env-compatible drop-in.
+        #    Falls back to "eager" if neither is available (NOT "sdpa" —
+        #    sdpa produces wrong outputs for Qwen3-VL action prediction).
         from transformers import Qwen2_5_VLForConditionalGeneration, Qwen3VLForConditionalGeneration
 
         def _patch_from_pretrained(cls_to_patch: Any) -> None:
@@ -170,7 +228,13 @@ class StarVLAModelServer(PredictModelServer):
             @classmethod
             def _patched(cls, *args, **kwargs):
                 if kwargs.get("attn_implementation") == "flash_attention_2":
-                    kwargs["attn_implementation"] = "kernels-community/flash-attn2"
+                    try:
+                        from transformers.utils import is_flash_attn_2_available
+
+                        if not is_flash_attn_2_available():
+                            kwargs["attn_implementation"] = "kernels-community/flash-attn2"
+                    except ImportError:
+                        kwargs["attn_implementation"] = "eager"
                 return orig(cls, *args, **kwargs)
 
             _patches.append((cls_to_patch, "from_pretrained", classmethod(orig)))
@@ -315,7 +379,16 @@ class StarVLAModelServer(PredictModelServer):
             unnorm_key = next(iter(norm_stats))
         if unnorm_key not in norm_stats:
             raise ValueError(f"unnorm_key={unnorm_key!r} not found, available: {list(norm_stats.keys())}")
-        self._action_stats = norm_stats[unnorm_key]["action"]
+        stats = norm_stats[unnorm_key]["action"]
+        self._action_stats = stats
+        # Pre-compute unnormalization arrays (avoid per-step np.array allocation)
+        if self.unnorm_type == "q99":
+            self._unnorm_low = np.array(stats["q01"])
+            self._unnorm_high = np.array(stats["q99"])
+        else:
+            self._unnorm_low = np.array(stats["min"])
+            self._unnorm_high = np.array(stats["max"])
+        self._unnorm_mask = stats.get("mask", np.ones_like(self._unnorm_low, dtype=bool))
         logger.info("Model loaded on %s (unnorm_key=%s)", device, unnorm_key)
 
     def get_observation_params(self) -> dict[str, Any]:
@@ -334,12 +407,7 @@ class StarVLAModelServer(PredictModelServer):
         reference starVLA LIBERO eval).  ``"q99"`` uses ``q01``/``q99``
         (matches ``baseframework.unnormalize_actions``).
         """
-        stats = self._action_stats
-        if self.unnorm_type == "q99":
-            low, high = np.array(stats["q01"]), np.array(stats["q99"])
-        else:
-            low, high = np.array(stats["min"]), np.array(stats["max"])
-        mask = stats.get("mask", np.ones_like(low, dtype=bool))
+        low, high, mask = self._unnorm_low, self._unnorm_high, self._unnorm_mask
         normalized = np.clip(normalized, -1, 1)
         # Binarize gripper (dim 6) before unnormalization
         if normalized.shape[-1] > 6:
@@ -347,13 +415,16 @@ class StarVLAModelServer(PredictModelServer):
         return np.where(mask, 0.5 * (normalized + 1) * (high - low) + low, normalized)
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
+        import cv2
         from PIL import Image as PILImage
 
         self._load_model()
         assert self._model is not None
 
-        def _to_pil(img: Any) -> PILImage.Image:
+        def _prepare_img(img: Any) -> PILImage.Image:
             if isinstance(img, np.ndarray):
+                if self._image_size and img.shape[:2] != self._image_size:
+                    img = cv2.resize(img, (self._image_size[1], self._image_size[0]), interpolation=cv2.INTER_AREA)
                 return PILImage.fromarray(img).convert("RGB")
             return img
 
@@ -361,9 +432,9 @@ class StarVLAModelServer(PredictModelServer):
         for obs in obs_batch:
             images_source = obs.get("images", {})
             if isinstance(images_source, dict):
-                pil_images = [_to_pil(v) for v in images_source.values()]
+                pil_images = [_prepare_img(v) for v in images_source.values()]
             else:
-                pil_images = [_to_pil(images_source)]
+                pil_images = [_prepare_img(images_source)]
 
             example: dict[str, Any] = {
                 "image": pil_images,
@@ -385,12 +456,37 @@ class StarVLAModelServer(PredictModelServer):
         outputs = []
         for i in range(len(obs_batch)):
             actions = self._unnormalize(np.asarray(actions_batch[i]))
-            # Convert gripper: unnormalize outputs {0=close, 1=open}.
-            # LIBERO expects: +1=close, -1=open (discretized at 0).
-            # Map 0(close)→+1, 1(open)→-1.
-            actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            # Gripper: unnormalize outputs {0=close, 1=open}.
+            if self.gripper_invert:
+                # LIBERO convention: +1=close, -1=open.
+                actions[:, 6] = 1.0 - 2.0 * actions[:, 6]
+            # else: pass through {0,1} — benchmark binarizes at 0.5
+            # to the correct env convention (+1=open, -1=close).
+
+            # Adaptive ensemble BEFORE euler→axisangle (reference applies
+            # ensemble on euler values, then converts the ensembled action).
+            ensembler = self._ensemblers.get(ctx_batch[i].session_id)
+            if ensembler is not None:
+                actions = ensembler(actions)[np.newaxis]  # (D,) → (1, D)
+
+            # Euler → axis-angle conversion (required by SimplerEnv controller)
+            if self.euler_to_axisangle and actions.shape[-1] >= 6:
+                from transforms3d.euler import euler2axangle
+
+                for t in range(actions.shape[0]):
+                    axis, angle = euler2axangle(actions[t, 3], actions[t, 4], actions[t, 5])
+                    actions[t, 3:6] = axis * angle
             outputs.append({"actions": actions})
         return outputs
+
+    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+        if self._ensemble_horizon is not None:
+            self._ensemblers[ctx.session_id] = _AdaptiveEnsembler(self._ensemble_horizon, self._ensemble_alpha)
+        await super().on_episode_start(config, ctx)
+
+    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
+        self._ensemblers.pop(ctx.session_id, None)
+        await super().on_episode_end(result, ctx)
 
 
 if __name__ == "__main__":

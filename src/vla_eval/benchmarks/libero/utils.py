@@ -42,10 +42,10 @@ def resize_with_pad(images: np.ndarray, height: int, width: int) -> np.ndarray:
 
 
 def preprocess_libero_image(img: np.ndarray, resolution: int = 256) -> np.ndarray:
-    """Flip and resize a LIBERO camera image.
+    """Flip a LIBERO camera image (both axes) and ensure uint8.
 
-    LIBERO images need to be flipped on both axes, then resized with padding.
+    LIBERO's MuJoCo cameras produce images that are flipped on both axes
+    relative to the convention expected by VLA models.
     """
     img = np.ascontiguousarray(img[::-1, ::-1])
-    img = convert_to_uint8(resize_with_pad(img, resolution, resolution))
-    return img
+    return convert_to_uint8(img)
