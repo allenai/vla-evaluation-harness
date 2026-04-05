@@ -106,7 +106,7 @@ def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) ->
         n = task["num_episodes"]
         errs = task.get("num_errors", 0)
         total_errors += errs
-        successes = int(task.get("mean_success", 0.0) * n)
+        successes = round(task.get("mean_success", 0.0) * n)
         tr = task.get("mean_success", 0.0)
         tc = "green" if tr >= 0.5 else "red"
         err_tag = f" [yellow]⚠ {errs} errors[/yellow]" if errs else ""
@@ -132,6 +132,11 @@ class ResultCollector:
         self.mode = mode
         self.metric_keys = metric_keys or {}
         self._episodes: dict[str, list[EpisodeResult]] = {}  # task -> episodes
+
+    @property
+    def error_count(self) -> int:
+        """Count of episodes with a failure_reason across all tasks."""
+        return sum(1 for eps in self._episodes.values() for e in eps if e.get("failure_reason"))
 
     def record(self, task_name: str, episode_result: EpisodeResult) -> None:
         """Record a single episode result."""

@@ -27,6 +27,8 @@ from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
 logger = logging.getLogger(__name__)
 
+_SAFE_NAME_RE = re.compile(r"[^\w\-.]")
+
 
 class Orchestrator:
     """Coordinates evaluation: creates benchmarks, runners, connections, and runs episodes.
@@ -68,6 +70,18 @@ class Orchestrator:
         self._output_file_lock: FileLock | None = None
         self._progress_path: Path | None = None
 
+    @property
+    def _output_dir(self) -> Path:
+        d = Path(self.config.get("output_dir", "./results"))
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _shard_stem(self, safe_name: str) -> str:
+        """Return the base filename stem for shard files (without extension)."""
+        if self.num_shards is not None and self.shard_id is not None:
+            return f"{safe_name}_shard{self.shard_id}of{self.num_shards}"
+        return safe_name
+
     async def run(self) -> list[dict[str, Any]]:
         """Run all benchmarks defined in config."""
         benchmark_configs = self.config.get("benchmarks", [])
@@ -97,16 +111,14 @@ class Orchestrator:
         """Run a single benchmark evaluation."""
         cfg = EvalConfig.from_dict(bench_cfg)
         name = cfg.resolved_name()
+        safe_name = _SAFE_NAME_RE.sub("_", name)
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
 
         # Fail fast: claim the output path via file lock (shard mode).
         self._output_file_lock = None
         if self.num_shards is not None and self.shard_id is not None:
-            output_dir = Path(self.config.get("output_dir", "./results"))
-            output_dir.mkdir(parents=True, exist_ok=True)
-            safe_name = re.sub(r"[^\w\-.]", "_", name)
-            output_path = output_dir / f"{safe_name}_shard{self.shard_id}of{self.num_shards}.json"
+            output_path = self._output_dir / f"{self._shard_stem(safe_name)}.json"
             if output_path.exists():
                 raise FileExistsError(
                     f"Result file already exists: {output_path}\nRemove it or use a different output_dir."
@@ -119,20 +131,14 @@ class Orchestrator:
                 raise FileExistsError(f"Another eval is already writing to {output_path}")
 
         try:
-            return await self._run_benchmark_inner(cfg, name)
+            return await self._run_benchmark_inner(cfg, name, safe_name)
         finally:
             self._release_file_lock()
 
-    async def _run_benchmark_inner(self, cfg: EvalConfig, name: str) -> dict[str, Any]:
-        """Inner benchmark logic. Lock release is handled by the caller."""
+    async def _run_benchmark_inner(self, cfg: EvalConfig, name: str, safe_name: str) -> dict[str, Any]:
+        """Run benchmark episodes, collect results, and save."""
         # Set up progress file for live monitoring
-        output_dir = Path(self.config.get("output_dir", "./results"))
-        output_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = re.sub(r"[^\w\-.]", "_", name)
-        if self.num_shards is not None and self.shard_id is not None:
-            self._progress_path = output_dir / f"{safe_name}_shard{self.shard_id}of{self.num_shards}.progress"
-        else:
-            self._progress_path = output_dir / f"{safe_name}.progress"
+        self._progress_path = self._output_dir / f"{self._shard_stem(safe_name)}.progress"
 
         # Connect to model server FIRST to get observation requirements
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
@@ -233,8 +239,19 @@ class Orchestrator:
         collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
 
         total_items = len(work_items)
-        errors_count = 0
         self._update_progress(0, total_items, 0)
+
+        def record_failure(reason: str, detail: str) -> None:
+            collector.record(
+                task_name,
+                {
+                    "episode_id": ep,
+                    "metrics": {"success": False},
+                    "failure_reason": reason,
+                    "failure_detail": detail,
+                },
+            )
+            self._update_progress(item_idx + 1, total_items, collector.error_count)
 
         try:
             for item_idx, (task, ep) in enumerate(work_items):
@@ -259,7 +276,7 @@ class Orchestrator:
                         status,
                         ep_result.get("steps", 0),
                     )
-                    self._update_progress(item_idx + 1, total_items, errors_count)
+                    self._update_progress(item_idx + 1, total_items, collector.error_count)
                 except ConnectionError as exc:
                     # Server unreachable after all retries — save partial and abort
                     logger.error(
@@ -269,18 +286,8 @@ class Orchestrator:
                         task_name,
                         ep,
                     )
-                    collector.record(
-                        task_name,
-                        {
-                            "episode_id": ep,
-                            "metrics": {"success": False},
-                            "failure_reason": "server_unreachable",
-                            "failure_detail": str(exc),
-                        },
-                    )
-                    errors_count += 1
-                    self._update_progress(item_idx + 1, total_items, errors_count)
-                    return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
+                    record_failure("server_unreachable", str(exc))
+                    return self._save_results(collector, cfg, safe_name, partial=True, server_info=conn.server_info)
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
                     close_reason = exc.rcvd.reason if exc.rcvd else None
@@ -293,22 +300,12 @@ class Orchestrator:
                         close_code,
                         close_reason,
                     )
-                    collector.record(
-                        task_name,
-                        {
-                            "episode_id": ep,
-                            "metrics": {"success": False},
-                            "failure_reason": "connection_closed",
-                            "failure_detail": f"code={close_code} reason={close_reason}",
-                        },
-                    )
-                    errors_count += 1
-                    self._update_progress(item_idx + 1, total_items, errors_count)
+                    record_failure("connection_closed", f"code={close_code} reason={close_reason}")
                     try:
                         await conn.reconnect()
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
+                        return self._save_results(collector, cfg, safe_name, partial=True, server_info=conn.server_info)
                 except TimeoutError as exc:
                     logger.warning(
                         "  [%d/%d] %s ep%d: TimeoutError (act timeout=%ss)",
@@ -318,22 +315,12 @@ class Orchestrator:
                         ep,
                         self._server_cfg.timeout,
                     )
-                    collector.record(
-                        task_name,
-                        {
-                            "episode_id": ep,
-                            "metrics": {"success": False},
-                            "failure_reason": "timeout",
-                            "failure_detail": f"timeout={self._server_cfg.timeout}s: {exc}",
-                        },
-                    )
-                    errors_count += 1
-                    self._update_progress(item_idx + 1, total_items, errors_count)
+                    record_failure("timeout", f"timeout={self._server_cfg.timeout}s: {exc}")
                     try:
                         await conn.reconnect()
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
-                        return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
+                        return self._save_results(collector, cfg, safe_name, partial=True, server_info=conn.server_info)
                 except Exception:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
@@ -342,27 +329,18 @@ class Orchestrator:
                         task_name,
                         ep,
                     )
-                    collector.record(
-                        task_name,
-                        {
-                            "episode_id": ep,
-                            "metrics": {"success": False},
-                            "failure_reason": "exception",
-                            "failure_detail": traceback.format_exc(),
-                        },
-                    )
-                    errors_count += 1
-                    self._update_progress(item_idx + 1, total_items, errors_count)
+                    record_failure("exception", traceback.format_exc())
         finally:
             benchmark.cleanup()
             await conn.close()
 
-        return self._save_results(collector, cfg, partial=False, server_info=conn.server_info)
+        return self._save_results(collector, cfg, safe_name, partial=False, server_info=conn.server_info)
 
     def _save_results(
         self,
         collector: ResultCollector,
         cfg: EvalConfig,
+        safe_name: str,
         *,
         partial: bool,
         server_info: dict[str, Any] | None = None,
@@ -370,8 +348,6 @@ class Orchestrator:
         """Save results to disk. Marks output as partial when the run was interrupted."""
         collector.print_summary()
 
-        output_dir = Path(self.config.get("output_dir", "./results"))
-        output_dir.mkdir(parents=True, exist_ok=True)
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
 
         if server_info is not None:
@@ -380,17 +356,13 @@ class Orchestrator:
         if partial:
             output["partial"] = True
 
-        # Sanitize benchmark name to prevent path traversal
-        name = cfg.resolved_name()
-        safe_name = re.sub(r"[^\w\-.]", "_", name)
-
         # Add shard metadata
         if self.num_shards is not None and self.shard_id is not None:
             output["shard"] = {"id": self.shard_id, "total": self.num_shards}
-            output_path = output_dir / f"{safe_name}_shard{self.shard_id}of{self.num_shards}.json"
+            output_path = self._output_dir / f"{self._shard_stem(safe_name)}.json"
         else:
             tag = "partial" if partial else cfg.mode
-            output_path = output_dir / f"{safe_name}_{tag}_{int(time.time())}.json"
+            output_path = self._output_dir / f"{safe_name}_{tag}_{int(time.time())}.json"
 
         output_path.write_text(json.dumps(output, indent=2, default=str))
         logger.info("Results saved to %s", output_path)
