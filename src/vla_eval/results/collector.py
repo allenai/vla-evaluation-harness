@@ -101,6 +101,24 @@ def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) 
             result[f"{agg_type}_{key}"] = round(fn(values), 4)
 
 
+def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) -> None:
+    """Print per-task summary table with error annotations. Shared by collector and merge."""
+    total_errors = 0
+    for task in tasks:
+        n = task["num_episodes"]
+        errs = task.get("num_errors", 0)
+        total_errors += errs
+        evaluated = n - errs
+        tr = task.get("mean_success", 0.0)
+        tc = "green" if tr >= 0.5 else "red"
+        err_tag = f" [yellow]({errs} err)[/yellow]" if errs else ""
+        console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * evaluated)}/{evaluated}){err_tag}")
+    console.print(f"{'─' * 60}")
+    console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    if total_errors:
+        console.print(f"  [yellow]{total_errors} episode(s) excluded from metrics (infra errors)[/yellow]")
+
+
 class ResultCollector:
     """Aggregates episode results into task-level and benchmark-level metrics.
 
@@ -175,20 +193,7 @@ class ResultCollector:
         console.print(f"\n{'=' * 60}")
         console.print(f"[bold]Benchmark: {result['benchmark']}[/bold] (mode: {result['mode']})")
         console.print(f"{'=' * 60}")
-        total_errors = 0
-        for task in result["tasks"]:
-            n = task["num_episodes"]
-            errs = task.get("num_errors", 0)
-            total_errors += errs
-            evaluated = n - errs
-            tr = task.get("mean_success", 0.0)
-            tc = "green" if tr >= 0.5 else "red"
-            err_tag = f" [yellow]({errs} err)[/yellow]" if errs else ""
-            console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * evaluated)}/{evaluated}){err_tag}")
-        console.print(f"{'─' * 60}")
-        console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
-        if total_errors:
-            console.print(f"  [yellow]{total_errors} episode(s) excluded from metrics (infra errors)[/yellow]")
+        print_task_table(console, result["tasks"], rate, rate_color)
         console.print(f"{'=' * 60}\n")
 
     def to_json(self, config: dict[str, Any] | None = None) -> str:
