@@ -8,6 +8,7 @@ import logging
 import math
 import re
 import time
+import traceback
 from pathlib import Path
 from typing import Any, cast
 
@@ -238,7 +239,7 @@ class Orchestrator:
                         status,
                         ep_result.get("steps", 0),
                     )
-                except ConnectionError:
+                except ConnectionError as exc:
                     # Server unreachable after all retries — save partial and abort
                     logger.error(
                         "  [%d/%d] %s ep%d: server unreachable, aborting benchmark",
@@ -253,6 +254,7 @@ class Orchestrator:
                             "episode_id": ep,
                             "metrics": {"success": False},
                             "failure_reason": "server_unreachable",
+                            "failure_detail": str(exc),
                         },
                     )
                     return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
@@ -273,7 +275,8 @@ class Orchestrator:
                         {
                             "episode_id": ep,
                             "metrics": {"success": False},
-                            "failure_reason": f"connection_closed_{close_code}",
+                            "failure_reason": "connection_closed",
+                            "failure_detail": f"code={close_code} reason={close_reason}",
                         },
                     )
                     try:
@@ -281,7 +284,7 @@ class Orchestrator:
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
                         return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
-                except TimeoutError:
+                except TimeoutError as exc:
                     logger.warning(
                         "  [%d/%d] %s ep%d: TimeoutError (act timeout=%ss)",
                         item_idx + 1,
@@ -296,6 +299,7 @@ class Orchestrator:
                             "episode_id": ep,
                             "metrics": {"success": False},
                             "failure_reason": "timeout",
+                            "failure_detail": f"timeout={self._server_cfg.timeout}s: {exc}",
                         },
                     )
                     try:
@@ -303,7 +307,7 @@ class Orchestrator:
                     except ConnectionError:
                         logger.error("Reconnect failed, aborting benchmark")
                         return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
-                except Exception:
+                except Exception as exc:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
                         item_idx + 1,
@@ -317,6 +321,7 @@ class Orchestrator:
                             "episode_id": ep,
                             "metrics": {"success": False},
                             "failure_reason": "exception",
+                            "failure_detail": traceback.format_exc(),
                         },
                     )
         finally:

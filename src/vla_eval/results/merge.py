@@ -132,7 +132,8 @@ def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
 
     if metric_keys:
         merged["metric_keys"] = metric_keys
-        _aggregate_metrics(merged, all_episodes_flat, metric_keys)
+        completed = [e for e in all_episodes_flat if not e.get("failure_reason")]
+        _aggregate_metrics(merged, completed, metric_keys)
 
     return merged
 
@@ -166,11 +167,18 @@ def print_merge_report(merged: dict[str, Any]) -> None:
     con.print(f"\n{'=' * 60}")
     con.print(f"[bold]Benchmark: {merged['benchmark']}[/bold]")
     con.print(f"{'=' * 60}")
+    total_errors = 0
     for task in merged["tasks"]:
         n = task["num_episodes"]
+        errs = task.get("num_errors", 0)
+        total_errors += errs
+        evaluated = n - errs
         tr = task.get("mean_success", 0.0)
         tc = "green" if tr >= 0.5 else "red"
-        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
+        err_tag = f" [yellow]({errs} err)[/yellow]" if errs else ""
+        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * evaluated)}/{evaluated}){err_tag}")
     con.print(f"{'─' * 60}")
     con.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    if total_errors:
+        con.print(f"  [yellow]{total_errors} episode(s) excluded from metrics (infra errors)[/yellow]")
     con.print(f"{'=' * 60}\n")

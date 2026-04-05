@@ -25,6 +25,7 @@ class EpisodeResult(TypedDict):
     steps: NotRequired[int]
     elapsed_sec: NotRequired[float]
     failure_reason: NotRequired[str | None]
+    failure_detail: NotRequired[str | None]
 
 
 class TaskResult(TypedDict):
@@ -33,6 +34,7 @@ class TaskResult(TypedDict):
     task: str
     episodes: list[EpisodeResult]
     num_episodes: int
+    num_errors: NotRequired[int]
     avg_steps: float
 
 
@@ -63,16 +65,26 @@ def _extract_seed(config: dict[str, Any]) -> int | None:
 
 
 def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, str]) -> TaskResult:
-    """Build a TaskResult with aggregated metrics from episodes."""
-    total_steps = sum(e.get("steps", 0) for e in episodes)
-    n = len(episodes) or 1
+    """Build a TaskResult with aggregated metrics from episodes.
+
+    Episodes with a ``failure_reason`` (infra errors like connection loss,
+    timeout, etc.) are excluded from metric aggregation so they don't
+    inflate the failure rate.  They are still counted in ``num_episodes``
+    and reported separately via ``num_errors``.
+    """
+    completed = [e for e in episodes if not e.get("failure_reason")]
+    num_errors = len(episodes) - len(completed)
+    total_steps = sum(e.get("steps", 0) for e in completed)
+    n = len(completed) or 1
     result = TaskResult(
         task=task_name,
         episodes=episodes,
         num_episodes=len(episodes),
         avg_steps=total_steps / n,
     )
-    _aggregate_metrics(result, episodes, metric_keys)
+    if num_errors:
+        result["num_errors"] = num_errors
+    _aggregate_metrics(result, completed, metric_keys)
     return result
 
 
@@ -127,6 +139,7 @@ class ResultCollector:
 
         tasks = [self.get_task_result(t) for t in self._episodes]
         all_episodes = [e for eps in self._episodes.values() for e in eps]
+        completed = [e for e in all_episodes if not e.get("failure_reason")]
 
         config = config or {}
         result = BenchmarkResult(
@@ -143,10 +156,10 @@ class ResultCollector:
         if seed is not None:
             result["seed"] = seed
 
-        # Store metric_keys and add benchmark-level aggregates
+        # Store metric_keys and add benchmark-level aggregates (excluding infra errors)
         if self.metric_keys:
             result["metric_keys"] = self.metric_keys
-            _aggregate_metrics(result, all_episodes, self.metric_keys)
+            _aggregate_metrics(result, completed, self.metric_keys)
 
         return result
 
@@ -162,13 +175,20 @@ class ResultCollector:
         console.print(f"\n{'=' * 60}")
         console.print(f"[bold]Benchmark: {result['benchmark']}[/bold] (mode: {result['mode']})")
         console.print(f"{'=' * 60}")
+        total_errors = 0
         for task in result["tasks"]:
             n = task["num_episodes"]
+            errs = task.get("num_errors", 0)
+            total_errors += errs
+            evaluated = n - errs
             tr = task.get("mean_success", 0.0)
             tc = "green" if tr >= 0.5 else "red"
-            console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
+            err_tag = f" [yellow]({errs} err)[/yellow]" if errs else ""
+            console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * evaluated)}/{evaluated}){err_tag}")
         console.print(f"{'─' * 60}")
         console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+        if total_errors:
+            console.print(f"  [yellow]{total_errors} episode(s) excluded from metrics (infra errors)[/yellow]")
         console.print(f"{'=' * 60}\n")
 
     def to_json(self, config: dict[str, Any] | None = None) -> str:
