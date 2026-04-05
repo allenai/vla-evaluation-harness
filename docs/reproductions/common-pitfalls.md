@@ -10,6 +10,7 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 | | Euler vs axis-angle confusion | Partial failure | Small angles mask the bug |
 | | Missing euler offset | 0% | X-VLA SimplerEnv |
 | | Quaternion wxyz vs xyzw | Corrupted state | Subtle near identity rotations |
+| | quat→axisangle antipodal normalization | 14-40pp | OFT: 83→97% (Goal), 56→95% (Long) |
 | | Bridge rotation correction | Degraded perf | GR00T SimplerEnv |
 | **Gripper** | Threshold mismatch | 1-5pp | 0.5 vs 0.7 vs 0.8 |
 | | Polarity inversion | Catastrophic | Gripper does the opposite |
@@ -49,6 +50,11 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 **Quaternion convention (wxyz vs xyzw)**
 - ManiSkill2 and `transforms3d` use wxyz. Most other libraries use xyzw. Inline index reordering is error-prone.
 - Fix: Use explicit helpers (`quat_wxyz_to_xyzw`) instead of `q[1], q[2], q[3], q[0]`.
+
+**quat→axisangle antipodal normalization**
+- Our `quat_to_axisangle` normalizes `w < 0` quaternions by flipping the sign (angle ∈ [0, π]). The robosuite implementation does not (angle ∈ [0, 2π]). Training data generated with robosuite convention means the model expects the non-antipodal representation.
+- Impact: OFT Goal 83.4% → 97.4%, Long 55.8% → 95.4%. Longer episodes amplify the effect.
+- Fix: Use `quat_no_antipodal=True` in `get_observation_params()` for models trained with robosuite data.
 
 **Bridge rotation correction**
 - GR00T SimplerEnv WidowX requires `quat_to_matrix(xyzw) @ default_rot.T → euler` to convert ManiSkill2 quaternions to Bridge convention. Google Robot requires wxyz→xyzw reorder without euler conversion.

@@ -130,7 +130,7 @@ class OFTModelServer(PredictModelServer):
         logger.info("OpenVLA-OFT model loaded.")
 
     def get_observation_params(self) -> dict[str, Any]:
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = {"env_seed": 0, "quat_no_antipodal": True}
         if self.num_images_in_input >= 2:
             params["send_wrist_image"] = True
         if self.use_proprio:

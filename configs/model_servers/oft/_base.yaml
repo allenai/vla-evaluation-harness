@@ -3,5 +3,5 @@
 script: "src/vla_eval/model_servers/oft.py"
 args:
   num_images_in_input: 2
-  chunk_size: 10
+  chunk_size: 8
   port: 8000
