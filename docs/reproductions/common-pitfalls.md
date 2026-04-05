@@ -10,6 +10,7 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 | | Euler vs axis-angle confusion | Partial failure | Small angles mask the bug |
 | | Missing euler offset | 0% | X-VLA SimplerEnv |
 | | Quaternion wxyz vs xyzw | Corrupted state | Subtle near identity rotations |
+| | quat→axisangle antipodal normalization | 14-40pp | OFT: 83→97% (Goal), 56→95% (Long) |
 | | Bridge rotation correction | Degraded perf | GR00T SimplerEnv |
 | **Gripper** | Threshold mismatch | 1-5pp | 0.5 vs 0.7 vs 0.8 |
 | | Polarity inversion | Catastrophic | Gripper does the opposite |
@@ -25,7 +26,9 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 | **Episodes** | max_steps too low | 0% | X-VLA: 120 vs 1200 needed |
 | | **No standard termination semantics** | **Scores not comparable** | truncation vs accumulate |
 | | Random vs deterministic placement | 40pp+ | GR00T eggplant: 50% vs 4% |
-| **Environment** | Internal fork differences | 0-80pp | NVIDIA eef_pos, X-VLA absolute EE |
+| **Image preprocessing** | Missing center crop at eval | ~3pp | OpenVLA: trained with random crop aug |
+| **Environment** | env.seed mismatch | Unknown | OpenVLA uses env.seed(0) not seed(7) |
+| | Internal fork differences | 0-80pp | NVIDIA eef_pos, X-VLA absolute EE |
 
 ---
 
@@ -47,6 +50,11 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 **Quaternion convention (wxyz vs xyzw)**
 - ManiSkill2 and `transforms3d` use wxyz. Most other libraries use xyzw. Inline index reordering is error-prone.
 - Fix: Use explicit helpers (`quat_wxyz_to_xyzw`) instead of `q[1], q[2], q[3], q[0]`.
+
+**quat→axisangle antipodal normalization**
+- Our `quat_to_axisangle` normalizes `w < 0` quaternions by flipping the sign (angle ∈ [0, π]). The robosuite implementation does not (angle ∈ [0, 2π]). Training data generated with robosuite convention means the model expects the non-antipodal representation.
+- Impact: OFT Goal 83.4% → 97.4%, Long 55.8% → 95.4%. Longer episodes amplify the effect.
+- Fix: Use `quat_no_antipodal=True` in `get_observation_params()` for models trained with robosuite data.
 
 **Bridge rotation correction**
 - GR00T SimplerEnv WidowX requires `quat_to_matrix(xyzw) @ default_rot.T → euler` to convert ManiSkill2 quaternions to Bridge convention. Google Robot requires wxyz→xyzw reorder without euler conversion.
@@ -116,7 +124,19 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 **Random vs deterministic episode placement**
 - GR00T eggplant: 50% with deterministic placement vs 4% with random. Match the official protocol and use enough episodes (200+) for random.
 
-## 6. Environment / Infra
+## 6. Image Preprocessing
+
+**Center crop** (OpenVLA, OpenVLA-OFT)
+- Fine-tuned checkpoints trained with random crop augmentation (`crop_scale=0.9`). At eval time, center crop (area 90%, then resize back) must be applied.
+- Isolated impact: ~3pp (OpenVLA LIBERO 73.3% → 76.4%).
+- Reference: `openvla/experiments/robot/openvla_utils.py:crop_and_resize()`.
+- Detection: check if reference config has `center_crop: true` or `image_aug` in checkpoint name.
+
+## 7. Environment / Infra
+
+**env.seed**
+- Some references use a different seed for the environment (`env.seed()`) than for the global random state (`set_seed_everywhere()`). For example, the OpenVLA LIBERO reference uses `env.seed(0)` while setting the random seed to 7. The LIBERO `env.seed()` comment says it "seems to affect object positions even when using fixed initial state." Individual impact not measured.
+- Detection: check the reference eval's environment setup for explicit `env.seed()` calls.
 
 **Internal forks**
 - Some codebases evaluate using forks with patches not in the public repos:
@@ -126,17 +146,3 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 - Detection: Check if the official eval references a git submodule, specific fork URL, or custom Dockerfile.
 
 
----
-
-## Quick Checklist
-
-Before claiming a reproduction:
-
-- [ ] Rotation convention matches (euler/axis-angle/rot6d/quaternion wxyz vs xyzw)
-- [ ] Action dimension and mode (absolute vs delta) match
-- [ ] Gripper: threshold, polarity, sticky mechanism if needed
-- [ ] State: correct key, format, source, and eef_pos if required
-- [ ] Episode budget (max_steps) and chunk_size match official eval
-- [ ] Termination logic matches (truncation vs early_stop vs accumulate)
-- [ ] Image preprocessing matches (resize method, flip, resolution)
-- [ ] Env version matches (check for internal forks, patches)

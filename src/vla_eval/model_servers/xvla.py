@@ -536,9 +536,14 @@ class XVLAModelServer(PredictModelServer):
             )
             # Apply euler offset if configured (convert axis-angle → euler → +offset)
             if self._euler_offset is not None:
+                single = converted.ndim == 1
+                if single:
+                    converted = converted[np.newaxis]
                 for i in range(len(converted)):
                     euler = matrix_to_euler_xyz(axisangle_to_matrix(converted[i, 3:6]))
                     converted[i, 3:6] = euler + self._euler_offset
+                if single:
+                    converted = converted[0]
             return {"actions": converted}
 
         return {"actions": raw_actions}

@@ -5,3 +5,5 @@ args:
   unnorm_key: libero_spatial
   chunk_size: 1
   port: 8000
+  jpeg_roundtrip: true
+  center_crop: true

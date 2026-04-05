@@ -7,7 +7,7 @@ No formal paper. Results from README + assets.
 
 | Benchmark | Reproduced | Reported | Verdict |
 |-----------|:----------:|:--------:|:-------:|
-| LIBERO Spatial | **85.8%** (Qwen3-OFT) | 97.8% | Partial (1 task 0%, rest 95.3%) |
+| LIBERO Spatial | **96.8%** (Qwen3-OFT) | 97.8% | Reproduced |
 | CALVIN ABC→D | — | 3.79 (Q2.5-GR00T) | Not yet evaluated |
 | SimplerEnv WidowX | **66.7%** (Qwen3-GR00T) | 65.3% | Reproduced |
 | SimplerEnv WidowX | **64.6%** (Q2.5-FAST) | 58.6% | Reproduced |
@@ -27,20 +27,19 @@ No formal paper. Results from README + assets.
 
 | Task | Reproduced | Reported |
 |------|:----------:|:--------:|
-| bowl between plate and ramekin | 0% | — |
-| bowl next to ramekin | 84% | — |
-| bowl from table center | 98% | — |
-| bowl on cookie box | 100% | — |
-| bowl in top drawer | 88% | — |
-| bowl on ramekin | 94% | — |
+| bowl between plate and ramekin | 100% | — |
+| bowl from table center | 100% | — |
 | bowl next to cookie box | 98% | — |
+| bowl on cookie box | 98% | — |
 | bowl on stove | 98% | — |
-| bowl next to plate | 98% | — |
-| bowl on wooden cabinet | 100% | — |
-| **Average** | **85.8%** | **97.8%** |
+| bowl next to ramekin | 96% | — |
+| bowl on wooden cabinet | 96% | — |
+| bowl in top drawer | 94% | — |
+| bowl next to plate | 94% | — |
+| bowl on ramekin | 94% | — |
+| **Average** | **96.8%** | **97.8%** |
 
-First task is 0/50. Excluding it, the remaining 9 tasks average 95.3%.
-Same task reported as failing in [#22](https://github.com/allenai/vla-evaluation-harness/issues/22).
+Within binomial 95% CI (±1.9pp).
 
 ### SimplerEnv — WidowX VM
 

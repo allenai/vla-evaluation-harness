@@ -41,6 +41,35 @@ def test_to_json_returns_valid_json():
     assert isinstance(parsed["tasks"], list)
 
 
+def test_errors_included_in_metrics():
+    """All episodes count toward metrics. Errors are reported but not excluded."""
+    collector = ResultCollector("bench", mode="sync", metric_keys={"success": "mean"})
+    collector.record("task_a", {"episode_id": 0, "metrics": {"success": True}, "steps": 10})
+    collector.record("task_a", {"episode_id": 1, "metrics": {"success": False}, "steps": 20})
+    collector.record("task_a", {"episode_id": 2, "metrics": {"success": False}, "failure_reason": "timeout"})
+    collector.record("task_a", {"episode_id": 3, "metrics": {"success": False}, "failure_reason": "exception"})
+
+    task = collector.get_task_result("task_a")
+    # Success rate = 1/4 (all episodes count)
+    assert task.get("mean_success") == pytest.approx(0.25)
+    assert task["num_episodes"] == 4
+    assert task["num_errors"] == 2  # episodes with any failure_reason
+
+    result = collector.get_benchmark_result()
+    assert result.get("mean_success") == pytest.approx(0.25)
+
+
+def test_num_errors_absent_when_no_errors():
+    """When no errors occur, num_errors should be absent from task result."""
+    collector = ResultCollector("bench", mode="sync", metric_keys={"success": "mean"})
+    collector.record("task_a", {"episode_id": 0, "metrics": {"success": True}, "steps": 5})
+    collector.record("task_a", {"episode_id": 1, "metrics": {"success": False}, "steps": 10})
+
+    task = collector.get_task_result("task_a")
+    assert "num_errors" not in task
+    assert task.get("mean_success") == pytest.approx(0.5)
+
+
 def test_custom_metric_aggregation():
     """Benchmark-specific metrics (e.g. completed_subtasks) are aggregated."""
     collector = ResultCollector(
@@ -151,6 +180,46 @@ def test_merge_rejects_benchmark_mismatch():
 def test_merge_empty_raises():
     with pytest.raises(ValueError, match="No shard files"):
         merge_shards([])
+
+
+def test_merge_excludes_infra_errors():
+    """Merged results should exclude infra-errored episodes from metrics."""
+    mk = {"success": "mean"}
+    shard0 = _make_shard(
+        0,
+        2,
+        [
+            {
+                "task": "A",
+                "episodes": [
+                    {"episode_id": 0, "metrics": {"success": True}, "steps": 10},
+                    {"episode_id": 2, "metrics": {"success": False}, "failure_reason": "timeout"},
+                ],
+            }
+        ],
+        metric_keys=mk,
+    )
+    shard1 = _make_shard(
+        1,
+        2,
+        [
+            {
+                "task": "A",
+                "episodes": [
+                    {"episode_id": 1, "metrics": {"success": False}, "steps": 20},
+                    {"episode_id": 3, "metrics": {"success": False}, "failure_reason": "connection_closed"},
+                ],
+            }
+        ],
+        metric_keys=mk,
+    )
+
+    merged = merge_shards([shard0, shard1])
+    # 4 total episodes, all count → mean_success = 1/4
+    assert merged.get("mean_success") == pytest.approx(0.25)
+    task = merged["tasks"][0]
+    assert task["num_episodes"] == 4
+    assert task["num_errors"] == 2  # episodes with failure_reason
 
 
 def test_load_shard_files_rejects_non_shard(tmp_path):

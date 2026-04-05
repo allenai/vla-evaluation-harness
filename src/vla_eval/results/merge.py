@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from vla_eval import __version__
-from vla_eval.results.collector import _aggregate_metrics, _build_task_result, _extract_seed
+from vla_eval.results.collector import _aggregate_metrics, _build_task_result, _extract_seed, print_task_table
 
 logger = logging.getLogger(__name__)
 
@@ -166,11 +166,5 @@ def print_merge_report(merged: dict[str, Any]) -> None:
     con.print(f"\n{'=' * 60}")
     con.print(f"[bold]Benchmark: {merged['benchmark']}[/bold]")
     con.print(f"{'=' * 60}")
-    for task in merged["tasks"]:
-        n = task["num_episodes"]
-        tr = task.get("mean_success", 0.0)
-        tc = "green" if tr >= 0.5 else "red"
-        con.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
-    con.print(f"{'─' * 60}")
-    con.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    print_task_table(con, merged["tasks"], rate, rate_color)
     con.print(f"{'=' * 60}\n")

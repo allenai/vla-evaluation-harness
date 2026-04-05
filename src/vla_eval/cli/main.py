@@ -252,6 +252,11 @@ def cmd_run(args: argparse.Namespace) -> None:
     if server_url is not None:
         config.setdefault("server", {})["url"] = server_url
 
+    # CLI override for output directory
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir is not None:
+        config["output_dir"] = output_dir
+
     # CLI overrides for benchmark params (applied to all benchmark entries)
     param_overrides = getattr(args, "param", None)
     if param_overrides:
@@ -749,6 +754,11 @@ execution flow:
         "--server-url",
         default=None,
         help="Override server URL (e.g. ws://my-host:8000). Avoids per-host config files.",
+    )
+    run_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Override output directory (default: from config YAML, or ./results/)",
     )
     run_parser.add_argument(
         "--param",

@@ -231,6 +231,7 @@ class Connection:
             return
         logger.warning("Connection lost, attempting reconnect...")
         await self._connect_with_backoff()
+        await self._hello_handshake()
 
     async def _listener_loop(self) -> None:
         """Background loop: read messages and dispatch to on_action callback.

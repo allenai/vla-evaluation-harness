@@ -1,0 +1,4 @@
+extends: _base.yaml
+args:
+  pretrained_checkpoint: moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10
+  unnorm_key: libero_10_no_noops

@@ -19,6 +19,7 @@
 # ///
 from __future__ import annotations
 
+import io
 import logging
 from typing import Any
 
@@ -45,6 +46,8 @@ class OpenVLAModelServer(PredictModelServer):
         model_path: str = "openvla/openvla-7b",
         unnorm_key: str | None = None,
         *,
+        jpeg_roundtrip: bool = False,
+        center_crop: bool = False,
         chunk_size: int = 1,
         action_ensemble: str = "newest",
         **kwargs: Any,
@@ -52,9 +55,14 @@ class OpenVLAModelServer(PredictModelServer):
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.model_path = model_path
         self.unnorm_key = unnorm_key
+        self.jpeg_roundtrip = jpeg_roundtrip
+        self.center_crop = center_crop
         self._model = None
         self._processor = None
         self._device = None
+
+    def get_observation_params(self) -> dict[str, Any]:
+        return {"env_seed": 0}  # OpenVLA reference uses env.seed(0)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}
@@ -79,13 +87,37 @@ class OpenVLAModelServer(PredictModelServer):
         ).to(self._device)
         logger.info("OpenVLA model loaded.")
 
-    @staticmethod
-    def _obs_to_pil(obs: Observation) -> Any:
+    def _preprocess_image(self, obs: Observation) -> Any:
+        """Convert observation image to PIL with optional RLDS-matching preprocessing."""
         from PIL import Image as PILImage
 
         images_dict = obs.get("images", {})
         img_array = next(iter(images_dict.values())) if isinstance(images_dict, dict) else images_dict
-        return PILImage.fromarray(img_array).convert("RGB") if isinstance(img_array, np.ndarray) else img_array
+        if isinstance(img_array, np.ndarray):
+            pil = PILImage.fromarray(img_array).convert("RGB")
+        else:
+            pil = img_array
+
+        if self.jpeg_roundtrip:
+            buf = io.BytesIO()
+            pil.save(buf, format="JPEG")
+            buf.seek(0)
+            pil = PILImage.open(buf).convert("RGB")
+
+        # Resize to 224×224 with Lanczos (matches reference eval).
+        pil = pil.resize((224, 224), resample=PILImage.Resampling.LANCZOS)
+
+        if self.center_crop:
+            # Center crop (scale=0.9) then resize back — matches training augmentation.
+            w, h = pil.size
+            crop_h = int(h * (0.9**0.5))
+            crop_w = int(w * (0.9**0.5))
+            top = (h - crop_h) // 2
+            left = (w - crop_w) // 2
+            pil = pil.crop((left, top, left + crop_w, top + crop_h))
+            pil = pil.resize((w, h), resample=PILImage.Resampling.LANCZOS)
+
+        return pil
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         import torch
@@ -94,7 +126,7 @@ class OpenVLAModelServer(PredictModelServer):
         assert self._model is not None
         assert self._processor is not None
 
-        pil_image = self._obs_to_pil(obs)
+        pil_image = self._preprocess_image(obs)
         task_description = obs.get("task_description", "")
         prompt = f"In: What action should the robot take to {task_description}?\nOut:"
 

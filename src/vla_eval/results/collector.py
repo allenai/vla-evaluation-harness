@@ -25,6 +25,7 @@ class EpisodeResult(TypedDict):
     steps: NotRequired[int]
     elapsed_sec: NotRequired[float]
     failure_reason: NotRequired[str | None]
+    failure_detail: NotRequired[str | None]
 
 
 class TaskResult(TypedDict):
@@ -33,6 +34,7 @@ class TaskResult(TypedDict):
     task: str
     episodes: list[EpisodeResult]
     num_episodes: int
+    num_errors: NotRequired[int]
     avg_steps: float
 
 
@@ -63,7 +65,13 @@ def _extract_seed(config: dict[str, Any]) -> int | None:
 
 
 def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, str]) -> TaskResult:
-    """Build a TaskResult with aggregated metrics from episodes."""
+    """Build a TaskResult with aggregated metrics from all episodes.
+
+    All episodes count toward metrics equally — no exclusions.
+    Episodes with ``failure_reason`` are included as failures (success=False)
+    and their count is reported separately via ``num_errors`` for visibility.
+    """
+    num_errors = sum(1 for e in episodes if e.get("failure_reason"))
     total_steps = sum(e.get("steps", 0) for e in episodes)
     n = len(episodes) or 1
     result = TaskResult(
@@ -72,6 +80,8 @@ def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, st
         num_episodes=len(episodes),
         avg_steps=total_steps / n,
     )
+    if num_errors:
+        result["num_errors"] = num_errors
     _aggregate_metrics(result, episodes, metric_keys)
     return result
 
@@ -89,6 +99,24 @@ def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) 
             result[f"{agg_type}_{key}"] = round(fn(values), 4)
 
 
+def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) -> None:
+    """Print per-task summary table with error annotations. Shared by collector and merge."""
+    total_errors = 0
+    for task in tasks:
+        n = task["num_episodes"]
+        errs = task.get("num_errors", 0)
+        total_errors += errs
+        successes = round(task.get("mean_success", 0.0) * n)
+        tr = task.get("mean_success", 0.0)
+        tc = "green" if tr >= 0.5 else "red"
+        err_tag = f" [yellow]⚠ {errs} errors[/yellow]" if errs else ""
+        console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({successes}/{n}){err_tag}")
+    console.print(f"{'─' * 60}")
+    console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    if total_errors:
+        console.print(f"  [yellow]⚠ {total_errors} episodes had errors — success rate may be understated[/yellow]")
+
+
 class ResultCollector:
     """Aggregates episode results into task-level and benchmark-level metrics.
 
@@ -104,6 +132,11 @@ class ResultCollector:
         self.mode = mode
         self.metric_keys = metric_keys or {}
         self._episodes: dict[str, list[EpisodeResult]] = {}  # task -> episodes
+
+    @property
+    def error_count(self) -> int:
+        """Count of episodes with a failure_reason across all tasks."""
+        return sum(1 for eps in self._episodes.values() for e in eps if e.get("failure_reason"))
 
     def record(self, task_name: str, episode_result: EpisodeResult) -> None:
         """Record a single episode result."""
@@ -162,13 +195,7 @@ class ResultCollector:
         console.print(f"\n{'=' * 60}")
         console.print(f"[bold]Benchmark: {result['benchmark']}[/bold] (mode: {result['mode']})")
         console.print(f"{'=' * 60}")
-        for task in result["tasks"]:
-            n = task["num_episodes"]
-            tr = task.get("mean_success", 0.0)
-            tc = "green" if tr >= 0.5 else "red"
-            console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({int(tr * n)}/{n})")
-        console.print(f"{'─' * 60}")
-        console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+        print_task_table(console, result["tasks"], rate, rate_color)
         console.print(f"{'=' * 60}\n")
 
     def to_json(self, config: dict[str, Any] | None = None) -> str:

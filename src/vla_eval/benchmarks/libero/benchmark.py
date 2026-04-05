@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import math
+
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
@@ -24,6 +26,20 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 # EGL for headless rendering
 os.environ.setdefault("EGL_PLATFORM", "device")
 os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
+
+
+def _quat_to_axisangle_robosuite(quat: np.ndarray) -> np.ndarray:
+    """Robosuite-style quat [x,y,z,w] → axis-angle. No antipodal normalization."""
+    q = quat.copy()
+    if q[3] > 1.0:
+        q[3] = 1.0
+    elif q[3] < -1.0:
+        q[3] = -1.0
+    den = np.sqrt(1.0 - q[3] * q[3])
+    if math.isclose(den, 0.0):
+        return np.zeros(3, dtype=np.float32)
+    return (q[:3] * 2.0 * math.acos(q[3]) / den).astype(np.float32)
+
 
 LIBERO_ENV_RESOLUTION = 256
 LIBERO_DUMMY_ACTION = [0.0] * 6 + [-1.0]
@@ -68,6 +84,8 @@ class LIBEROBenchmark(StepBenchmark):
             initial dummy-wait steps.
         max_steps: Override the default suite-specific max step count.
             When None, uses ``MAX_STEP_MAPPING[suite]``.
+        env_seed: Seed for ``env.seed()``.  When None, defaults to ``seed``.
+            OpenVLA reference uses ``env_seed=0`` separately from ``seed=7``.
     """
 
     def __init__(
@@ -79,10 +97,14 @@ class LIBEROBenchmark(StepBenchmark):
         send_state: bool = False,
         absolute_action: bool = False,
         max_steps: int | None = None,
+        env_seed: int | None = None,
+        quat_no_antipodal: bool = False,
     ) -> None:
         super().__init__()
         self.suite = suite
         self.seed = seed
+        self._quat_to_aa = _quat_to_axisangle_robosuite if quat_no_antipodal else quat_to_axisangle
+        self.env_seed = env_seed if env_seed is not None else seed
         self.num_steps_wait = num_steps_wait
         self.send_wrist_image = send_wrist_image
         self.send_state = send_state
@@ -163,7 +185,7 @@ class LIBEROBenchmark(StepBenchmark):
                 "camera_widths": LIBERO_ENV_RESOLUTION,
             }
             env = OffScreenRenderEnv(**env_args)
-            env.seed(self.seed)
+            env.seed(self.env_seed)
             self._env = env
             self._current_task_id = task_id
 
@@ -221,7 +243,7 @@ class LIBEROBenchmark(StepBenchmark):
             obs_dict["states"] = np.concatenate(
                 [
                     raw_obs["robot0_eef_pos"],
-                    quat_to_axisangle(raw_obs["robot0_eef_quat"]),
+                    self._quat_to_aa(raw_obs["robot0_eef_quat"]),
                     raw_obs["robot0_gripper_qpos"],
                 ]
             )
