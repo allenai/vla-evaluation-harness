@@ -160,19 +160,23 @@ Shard result files are named by benchmark + shard count. If two evals share the 
 
 ## Monitoring shard progress
 
-With many shards running, check progress via log files:
+Each shard writes a `.progress` file that updates after every episode:
 ```bash
-# Count completed episodes per shard
-for i in $(seq 0 $((NUM_SHARDS - 1))); do
-  eps=$(grep -c "SUCCESS\|FAIL" results/shard_${i}.log 2>/dev/null || echo 0)
-  echo "Shard $i: $eps episodes"
-done
+# View all shard progress at a glance
+cat results/*.progress 2>/dev/null | python3 -c "
+import sys, json
+total_done = total_all = total_err = 0
+for line in sys.stdin:
+    p = json.loads(line)
+    total_done += p['completed']; total_all += p['total']; total_err += p['errors']
+print(f'{total_done}/{total_all} episodes ({total_err} errors)')
+"
 
-# Check for errors
-grep -rh "ERROR\|exception" results/shard_*.log | head -10
+# Or just check raw files
+cat results/*.progress
 
-# Count finished shard JSON files
-find results/ -name '*shard*of*.json' | wc -l
+# Count finished shards (progress file is removed when result JSON is written)
+ls results/*shard*of*.json 2>/dev/null | wc -l
 ```
 
 ## Troubleshooting

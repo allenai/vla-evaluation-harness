@@ -66,6 +66,7 @@ class Orchestrator:
         self.shard_id = shard_id
         self.num_shards = num_shards
         self._output_file_lock: FileLock | None = None
+        self._progress_path: Path | None = None
 
     async def run(self) -> list[dict[str, Any]]:
         """Run all benchmarks defined in config."""
@@ -83,6 +84,14 @@ class Orchestrator:
         if self._output_file_lock is not None:
             self._output_file_lock.release()
             self._output_file_lock = None
+
+    def _update_progress(self, completed: int, total: int, errors: int) -> None:
+        """Write a lightweight progress file for live monitoring."""
+        if self._progress_path is None:
+            return
+        tmp = self._progress_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"completed": completed, "total": total, "errors": errors}))
+        tmp.replace(self._progress_path)  # atomic on POSIX
 
     async def _run_benchmark(self, bench_cfg: dict[str, Any]) -> dict[str, Any]:
         """Run a single benchmark evaluation."""
@@ -116,6 +125,15 @@ class Orchestrator:
 
     async def _run_benchmark_inner(self, cfg: EvalConfig, name: str) -> dict[str, Any]:
         """Inner benchmark logic. Lock release is handled by the caller."""
+        # Set up progress file for live monitoring
+        output_dir = Path(self.config.get("output_dir", "./results"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = re.sub(r"[^\w\-.]", "_", name)
+        if self.num_shards is not None and self.shard_id is not None:
+            self._progress_path = output_dir / f"{safe_name}_shard{self.shard_id}of{self.num_shards}.progress"
+        else:
+            self._progress_path = output_dir / f"{safe_name}.progress"
+
         # Connect to model server FIRST to get observation requirements
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
         await conn.connect(benchmark=cfg.benchmark)
@@ -215,6 +233,8 @@ class Orchestrator:
         collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
 
         total_items = len(work_items)
+        errors_count = 0
+        self._update_progress(0, total_items, 0)
 
         try:
             for item_idx, (task, ep) in enumerate(work_items):
@@ -239,6 +259,7 @@ class Orchestrator:
                         status,
                         ep_result.get("steps", 0),
                     )
+                    self._update_progress(item_idx + 1, total_items, errors_count)
                 except ConnectionError as exc:
                     # Server unreachable after all retries — save partial and abort
                     logger.error(
@@ -257,6 +278,8 @@ class Orchestrator:
                             "failure_detail": str(exc),
                         },
                     )
+                    errors_count += 1
+                    self._update_progress(item_idx + 1, total_items, errors_count)
                     return self._save_results(collector, cfg, partial=True, server_info=conn.server_info)
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
@@ -279,6 +302,8 @@ class Orchestrator:
                             "failure_detail": f"code={close_code} reason={close_reason}",
                         },
                     )
+                    errors_count += 1
+                    self._update_progress(item_idx + 1, total_items, errors_count)
                     try:
                         await conn.reconnect()
                     except Exception:
@@ -302,6 +327,8 @@ class Orchestrator:
                             "failure_detail": f"timeout={self._server_cfg.timeout}s: {exc}",
                         },
                     )
+                    errors_count += 1
+                    self._update_progress(item_idx + 1, total_items, errors_count)
                     try:
                         await conn.reconnect()
                     except Exception:
@@ -324,6 +351,8 @@ class Orchestrator:
                             "failure_detail": traceback.format_exc(),
                         },
                     )
+                    errors_count += 1
+                    self._update_progress(item_idx + 1, total_items, errors_count)
         finally:
             benchmark.cleanup()
             await conn.close()
@@ -365,5 +394,9 @@ class Orchestrator:
 
         output_path.write_text(json.dumps(output, indent=2, default=str))
         logger.info("Results saved to %s", output_path)
+
+        # Remove progress file — the result JSON replaces it
+        if self._progress_path is not None and self._progress_path.exists():
+            self._progress_path.unlink()
 
         return output
