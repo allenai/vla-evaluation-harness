@@ -1,28 +1,26 @@
-# Skill: add-benchmark
+---
+name: add-benchmark
+description: "Add a new simulation benchmark to the VLA evaluation harness. Use this skill whenever the user wants to integrate, create, or add a new benchmark or simulation environment — e.g. 'add ManiSkill3', 'integrate OmniGibson', 'hook up a new sim'. Also use when they ask how benchmarks are structured or want to understand the benchmark interface."
+---
 
-Add a new simulation benchmark to the VLA evaluation harness.
+# Add Benchmark
 
-## Trigger
+Integrate a new simulation benchmark into vla-eval. Benchmarks run inside Docker containers and communicate with model servers over WebSocket + msgpack.
 
-User asks to add/create/integrate a new benchmark (e.g. "add ManiSkill3 benchmark", "integrate OmniGibson").
+## 1. Gather requirements
 
-## Steps
-
-### 1. Gather Requirements
-
-Ask the user (if not already provided):
+Ask the user for (if not already provided):
 - **Benchmark name** (e.g. `maniskill3`)
 - **Simulation framework** (e.g. MuJoCo, SAPIEN, PyBullet, Isaac Sim)
-- **Key dependencies** (pip packages needed inside Docker)
-- **Observation format** (which cameras, image resolution, whether to include proprioceptive state)
-- **Action space** (dimension, format — e.g. 7-DoF delta EEF + gripper)
-- **Success condition** (how to detect task completion)
-- **Max steps per episode** (if fixed or per-task)
+- **Key pip dependencies** needed inside Docker
+- **Observation format** — cameras, resolution, whether to include proprioceptive state
+- **Action space** — dimension, format (e.g. 7-DoF delta EEF + gripper)
+- **Success condition** — how to detect task completion
+- **Max steps per episode**
 
-### 2. Create Benchmark Module
+## 2. Create the benchmark module
 
 Create `src/vla_eval/benchmarks/<name>/`:
-
 ```
 src/vla_eval/benchmarks/<name>/
 ├── __init__.py      # empty
@@ -30,63 +28,100 @@ src/vla_eval/benchmarks/<name>/
 └── utils.py         # optional helpers
 ```
 
-**`benchmark.py`** must subclass `Benchmark` from `vla_eval.benchmarks.base` and implement **6 required methods**:
+Subclass `StepBenchmark` from `vla_eval.benchmarks.base` and implement the required methods:
 
 ```python
-from vla_eval.benchmarks.base import Benchmark, StepResult
+from typing import Any
 
-class MyBenchmark(Benchmark):
-    def __init__(self, **kwargs):
+import numpy as np
+
+from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.specs import DimSpec
+from vla_eval.types import Action, EpisodeResult, Observation, Task
+
+
+class MyBenchmark(StepBenchmark):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__()
         # Accept benchmark-specific params from config YAML `params:` section.
-        # Lazily import heavy deps (MuJoCo, SAPIEN, etc.) — NOT at module level.
+        # Lazily import heavy deps (MuJoCo, SAPIEN) — NOT at module level,
+        # because the registry resolves the class without loading the sim.
         ...
 
-    def get_tasks(self) -> list[dict[str, Any]]:
+    # --- Required methods (6) ---
+
+    def get_tasks(self) -> list[Task]:
         # Return list of task dicts. Each MUST have a "name" key.
         # May include "suite" for task filtering.
         ...
 
-    def reset(self, task: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
-        # Reset env for task. Returns (env_handle, initial_obs_dict).
-        # env_handle is opaque — passed back to step().
-        # obs_dict should be the output of make_obs().
-        # task dict has "episode_idx" (int) injected by orchestrator.
+    def reset(self, task: Task) -> Any:
+        # Reset env for task. Store env on self. Return initial raw observation.
+        # task dict has "episode_idx" (int) injected by the orchestrator.
         ...
 
-    def step(self, env: Any, action: dict[str, Any]) -> StepResult:
+    def step(self, action: Action) -> StepResult:
         # action dict has "actions" key (np.ndarray from model server).
         # Return StepResult(obs, reward, done, info).
         ...
 
-    def make_obs(self, raw_obs: Any, task: dict[str, Any]) -> dict[str, Any]:
+    def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         # Convert raw env observation to dict for model server.
-        # Convention: {"images": {"cam_name": np.ndarray HWC uint8},
-        #              "task_description": str}
-        # Optionally add "states": np.ndarray for proprioception.
+        # Convention:
+        #   {"images": {"cam_name": np.ndarray HWC uint8},
+        #    "task_description": str}
+        # Optionally add "state": np.ndarray for proprioception.
         ...
 
-    def is_done(self, step_result: StepResult) -> bool:
-        # Return True to end the episode.
-        ...
-
-    def get_result(self, step_result: StepResult) -> dict[str, Any]:
+    def get_step_result(self, step_result: StepResult) -> EpisodeResult:
+        # Extract episode result from the final StepResult.
         # Must return at least {"success": bool}.
         ...
 
+    # --- Optional overrides ---
+
+    def check_done(self, step_result: StepResult) -> bool:
+        # Default: step_result.done. Override for custom termination logic.
+        return step_result.done
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        # Declare the action format this benchmark's env consumes.
+        # The orchestrator compares this against the model server's spec
+        # and warns on mismatches — catching convention bugs early.
+        ...
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        # Declare the observation format this benchmark produces.
+        ...
+
+    def get_metric_keys(self) -> dict[str, str]:
+        # Declare which metrics from get_step_result() to aggregate.
+        # Default: {"success": "mean"} (= success rate).
+        # Aggregation options: "mean", "sum", "max", "min".
+        return {"success": "mean"}
+
     def get_metadata(self) -> dict[str, Any]:
-        # Optional. Return {"max_steps": N} for benchmark default.
+        # Return {"max_steps": N} for benchmark default.
+        return {}
+
+    def cleanup(self) -> None:
+        # Release resources (envs, renderers). Called at end of evaluation.
         ...
 ```
 
-### Key Patterns (from existing implementations)
+### Async bridge (automatic)
 
-- **Lazy imports**: Put heavy sim imports (torch, robosuite, sapien) inside methods, not at module top. This allows the registry to resolve the class without loading the sim.
-- **Env reuse**: LIBERO reuses env across episodes of the same task. SimplerEnv creates a fresh env per episode. Choose based on the sim's reset semantics.
-- **Action processing**: Model servers output raw continuous actions. The benchmark must convert to sim-specific format (e.g. discretize gripper, convert euler→axis-angle).
-- **Image preprocessing**: If the sim outputs non-standard images (flipped, wrong resolution), handle in `make_obs()`.
-- **EGL headless rendering**: Set `os.environ.setdefault("PYOPENGL_PLATFORM", "egl")` at module top if the sim uses OpenGL.
+`StepBenchmark` auto-bridges your sync methods to the async `Benchmark` parent interface. The orchestrator/runners call the async methods (`start_episode`, `apply_action`, `get_observation`, `is_done`, `get_result`) — you never implement those directly.
 
-### 3. Create Config YAML
+### Key patterns from existing implementations
+
+- **Lazy imports**: Put heavy sim imports (`torch`, `robosuite`, `sapien`) inside methods, not at module level.
+- **Env reuse**: LIBERO reuses envs across episodes of the same task. SimplerEnv creates fresh envs per episode. Choose based on your sim's reset semantics.
+- **Action processing**: Model servers output raw continuous actions. Convert to sim-specific format in `step()` (e.g. discretize gripper, convert euler→axis-angle).
+- **Image preprocessing**: Handle non-standard images (flipped, wrong resolution) in `make_obs()`.
+- **EGL headless rendering**: Add `os.environ.setdefault("PYOPENGL_PLATFORM", "egl")` at module top if the sim uses OpenGL.
+
+## 3. Create config YAML
 
 Create `configs/<name>_eval.yaml`:
 
@@ -95,7 +130,7 @@ server:
   url: "ws://localhost:8000"
 
 docker:
-  image: <name>
+  image: ghcr.io/allenai/vla-evaluation-harness/<name>:latest
   env: []     # e.g. ["NVIDIA_DRIVER_CAPABILITIES=all"] for Vulkan
   volumes: [] # e.g. ["/path/to/data:/data:ro"]
 
@@ -106,55 +141,55 @@ benchmarks:
     mode: sync
     episodes_per_task: 50
     params:
-      # All keys here are passed as **kwargs to MyBenchmark.__init__()
+      # All keys here passed as **kwargs to MyBenchmark.__init__()
       suite: default
       seed: 7
 ```
 
-- `benchmark` field: full import string in `module.path:ClassName` format
+- `benchmark` field: `module.path:ClassName` import string
 - `params`: arbitrary dict passed to constructor — no schema enforcement
 - `max_steps`: omit to use `get_metadata()["max_steps"]`, or set explicitly to override
 
-### 4. Create Dockerfile
+## 4. Create Dockerfile
 
 Create `docker/Dockerfile.<name>`:
 
 ```dockerfile
-FROM <base_image>
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
-# Install harness
-WORKDIR /workspace
-COPY pyproject.toml README.md ./
-COPY src/ src/
-ARG HARNESS_VERSION=0.0.0
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
-RUN pip install .
+# Install benchmark-specific dependencies
+RUN pip install <benchmark-packages>
 
-COPY configs/ configs/
-
-ENTRYPOINT ["vla-eval"]
-CMD ["run", "--config", "/workspace/configs/<name>_eval.yaml"]
+# Copy benchmark code
+COPY src/vla_eval/benchmarks/<name>/ src/vla_eval/benchmarks/<name>/
 ```
 
-### 5. Register in Build/Push Scripts
+All benchmark Dockerfiles inherit from the base image (`docker/Dockerfile.base`) which already installs the harness. Your Dockerfile only needs to add benchmark-specific dependencies and code.
 
-Add the new benchmark to the arrays in `docker/build.sh` and `docker/push.sh`:
+## 5. Register in build/push scripts
 
-- `BENCHMARKS=(... <name> ...)` in `docker/build.sh`
-- `IMAGES=(... <name> ...)` in `docker/push.sh`
+Add to the `BENCHMARKS` array in `docker/build.sh` and the `IMAGES` array in `docker/push.sh`:
 
-If the name contains underscores (e.g. `mikasa_robo`), the scripts automatically convert them to hyphens for the Docker image name (`mikasa-robo`).
+```bash
+BENCHMARKS=(... <name> ...)
+```
 
-### 6. Verify
+Underscores in names are auto-converted to hyphens for Docker image names (e.g. `mikasa_robo` → `mikasa-robo`).
 
-1. Run `make check` — lint + format + type check
-2. Run `make test` — ensure existing tests still pass
-3. Run `vla-eval test --validate` — validate all config import strings (including the new one)
-4. Run `vla-eval test -c configs/<name>_eval.yaml` — smoke-test the benchmark (requires Docker + the benchmark image; runs 1 episode with an EchoModelServer, no real model or GPU needed)
+## 6. Verify
 
-### Reference Implementations
+```bash
+make check                                    # lint + format + type check
+make test                                     # existing tests still pass
+vla-eval test --validate                      # validate all config import strings
+vla-eval test -c configs/<name>_eval.yaml     # smoke-test (1 episode, EchoModelServer, no GPU needed — requires Docker + image)
+```
 
-- **LIBERO** (`benchmarks/libero/benchmark.py`): MuJoCo tabletop, env reuse, suite-specific max_steps, image flip preprocessing
-- **SimplerEnv** (`benchmarks/simpler/benchmark.py`): SAPIEN+Vulkan, new env per episode, Euler→axis-angle action conversion
-- **CALVIN** (`benchmarks/calvin/benchmark.py`): PyBullet, chained subtasks, delta actions, hardcoded normalization stats
+## Reference implementations
 
+| Benchmark | File | Key patterns |
+|---|---|---|
+| LIBERO | `benchmarks/libero/benchmark.py` | MuJoCo tabletop, env reuse, suite-specific max_steps, image flip |
+| SimplerEnv | `benchmarks/simpler/benchmark.py` | SAPIEN+Vulkan, new env per episode, euler→axis-angle conversion |
+| CALVIN | `benchmarks/calvin/benchmark.py` | PyBullet, chained subtasks, delta actions, hardcoded normalization |
