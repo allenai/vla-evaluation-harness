@@ -1,0 +1,7 @@
+# TokenDrop + Modulation (perceptual memory) — RoboMME
+# Reported: 38.04% avg success rate
+extends: _base.yaml
+args:
+  config_name: mme_vla_suite
+  checkpoint: Yinpei/mme_vla_suite/perceptual-tokendrop-modul
+  use_history: true

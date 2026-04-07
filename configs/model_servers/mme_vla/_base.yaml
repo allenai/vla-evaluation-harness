@@ -1,0 +1,13 @@
+# MME-VLA model server — shared base for all RoboMME baselines
+# Paper: https://arxiv.org/abs/2603.04639
+# Code: https://github.com/RoboMME/robomme_policy_learning
+# Weights: https://huggingface.co/Yinpei/mme_vla_suite
+script: "src/vla_eval/model_servers/mme_vla.py"
+args:
+  image_key: "observation/image"
+  wrist_image_key: "observation/wrist_image"
+  state_key: "observation/state"
+  state_dim: 8
+  image_resolution: 224
+  chunk_size: 16
+  port: 8000

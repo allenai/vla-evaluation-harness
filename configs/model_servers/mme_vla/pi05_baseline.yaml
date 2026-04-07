@@ -1,0 +1,7 @@
+# π₀.5 baseline (no memory) — RoboMME
+# Reported: 17.93% avg success rate
+extends: _base.yaml
+args:
+  config_name: pi05_baseline
+  checkpoint: Yinpei/pi05_baseline
+  use_history: false
