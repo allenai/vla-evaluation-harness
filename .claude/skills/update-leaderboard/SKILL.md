@@ -71,12 +71,9 @@ After user approval:
 
 ## Commit hygiene
 
-Separate automated sync changes from manual curation into distinct commits:
+Keep automated sync output and human-curated entries in separate commits. Phase 1 sync changes (API pulls, citations, coverage) are mechanical and reproducible; Phase 3 entries involve judgment. Mixing them makes review harder and prevents reverting one without the other.
 
-1. **First commit**: Phase 1 external sync output only (API sync, citations, coverage). These are mechanical, reproducible changes.
-2. **Second commit**: Phase 3 curated entries from paper extraction. These involve human judgment.
-
-This separation makes review easier and allows reverting one without the other. Always create a PR branch — never commit directly to main.
+Always create a PR branch — never commit directly to main.
 
 ## Single-paper mode
 
