@@ -1,7 +1,7 @@
 name: Update Leaderboard Data
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+    - cron: '0 6 1,15 * *'  # Bi-weekly: 1st and 15th of each month, 06:00 UTC
   workflow_dispatch:
     inputs:
       source:
@@ -53,7 +53,7 @@ jobs:
           commit-message: 'data: update leaderboard data'
           title: 'data: update leaderboard data'
           body: |
-            Automated weekly leaderboard data update.
+            Automated bi-weekly leaderboard data update.
 
             ### External leaderboards
             ${{ steps.sync.outputs.sync_summary || '- No changes' }}
