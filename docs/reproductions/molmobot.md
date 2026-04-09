@@ -47,6 +47,17 @@ The base `PredictModelServer` assumes stateless per-call inference, but MolmoBot
 
 To preserve this behavior the harness subclasses `ModelServer` directly and keys per-episode state by `ctx.session_id`, reset in `on_episode_start`.
 
+**Future refactor: move the per-step clamp into the benchmark.**
+Of the three pieces of state above, only the per-step safety clamp actually requires knowing the env's latest `qpos` — and the benchmark's `step()` method already has that information. If the clamp is moved into `MolmoSpacesBenchmark.step()` (it reads `self._task`'s current `qpos`, subtracts the incoming absolute target, scales the delta, adds it back), the model server becomes a stateless chunk producer that can inherit from `PredictModelServer`. That enables three wins currently left on the table:
+
+1. **Cross-session batching** via `max_batch_size > 1` — the 16 sharded clients that today serialize through a single synchronous `get_action_chunk` call could be batched into one GPU forward pass. The reproduction run observed GPU utilization of 15–25% precisely because the current `ModelServer` path has no batching hook; a batched `PredictModelServer` path should saturate the GPU and cut wall time materially.
+2. **Event-loop offloading** — `PredictModelServer` runs `predict()` in a dedicated thread pool, so one shard's blocking inference no longer freezes the other shards' `on_observation` dispatches on the same event loop.
+3. **Simpler reuse** — any other VLA ported to this benchmark can use the stock `PredictModelServer` path instead of reimplementing session state management.
+
+The frame-history logic (`n_obs_steps=2`, `obs_step_delta=8`) can still live in the model server via a small `prev_frames: dict[session_id, ...]` keyed on `ctx.session_id`, because `chunk_size == obs_step_delta == 8` means "the previous chunk refill" is exactly "8 steps ago". No per-step state needed on the server side.
+
+This refactor is intentionally out of scope for the initial landing: it would require a fresh 200-episode reproduction run to confirm the numerical score is unchanged, which costs ~3 hours of GPU time. The current path mirrors `SynthVLAPolicy` bit-for-bit, which is the safer starting point for "does this integration reproduce the paper at all?".
+
 ### Critical config pins (from MolmoBot paper reproduction)
 
 The MolmoBot paper ([README](https://github.com/allenai/MolmoBot/blob/main/MolmoBot/README.md#running-the-sim-eval-for-franka)) runs eval with:
