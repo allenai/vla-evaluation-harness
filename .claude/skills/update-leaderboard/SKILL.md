@@ -69,6 +69,15 @@ After user approval:
    ```
 3. Show the final diff to the user.
 
+## Commit hygiene
+
+Separate automated sync changes from manual curation into distinct commits:
+
+1. **First commit**: Phase 1 external sync output only (API sync, citations, coverage). These are mechanical, reproducible changes.
+2. **Second commit**: Phase 3 curated entries from paper extraction. These involve human judgment.
+
+This separation makes review easier and allows reverting one without the other. Always create a PR branch — never commit directly to main.
+
 ## Single-paper mode
 
 When the user provides a specific arxiv ID or URL, skip Phases 1–2 and go directly to Phase 3 for that paper.
