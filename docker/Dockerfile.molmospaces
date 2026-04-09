@@ -1,0 +1,26 @@
+# MolmoSpaces-Bench evaluation environment
+# Assets are NOT embedded — mount via volume: -v /data/molmospaces:/assets
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Python 3.11 (no conda needed — molmo-spaces requires 3.11+) ──────
+# The base image already has Python 3.11 via Miniforge.
+
+# ── MolmoSpaces + MuJoCo dependencies ────────────────────────────────
+RUN uv pip install --no-cache-dir "molmo-spaces[mujoco]"
+
+# ── Install evaluation harness ────────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+# ── Asset directory (mount at runtime) ────────────────────────────────
+ENV MLSPACES_ASSETS_DIR=/assets
+
+ENTRYPOINT ["vla-eval"]
+CMD ["run", "--config", "/workspace/configs/molmospaces_pick.yaml"]

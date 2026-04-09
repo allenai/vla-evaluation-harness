@@ -1,0 +1,27 @@
+# MolmoSpaces-Bench: pick-and-place (Franka FR3, procthor-objaverse)
+# Matches MolmoBot paper's eval pipeline (FrankaState8ClampAbsPosConfig, horizon=600).
+
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/molmospaces:latest
+  volumes:
+    - "${MLSPACES_ASSETS_DIR:-/data/molmospaces}:/data/molmospaces"
+    - "${MLSPACES_BENCHMARK_DIR:-/data/molmospaces-bench}:/benchmark"
+  env:
+    - "MUJOCO_GL=egl"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.molmospaces.benchmark:MolmoSpacesBenchmark"
+    mode: sync
+    episodes_per_task: 1
+    max_steps: 600
+    params:
+      benchmark_dir: "/benchmark/procthor-objaverse/FrankaPickandPlaceHardBench/FrankaPickandPlaceHardBench_20260212_200ep_json_benchmark"
+      eval_config_cls: "olmo.eval.configure_molmo_spaces:FrankaState8ClampAbsPosConfig"
+      task_horizon: 600
+      send_wrist_image: true
+      send_state: true

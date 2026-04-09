@@ -97,6 +97,7 @@ BENCHMARK_REGISTRY: dict[str, str] = {
     "rlbench":      "configs/rlbench_eval.yaml",
     "robocerebra":  "configs/robocerebra_eval.yaml",
     "kinetix":      "configs/kinetix_eval.yaml",
+    "molmospaces":  "configs/molmospaces_pick_and_place.yaml",
 }
 
 # Each model server has one designated smoke test config.
