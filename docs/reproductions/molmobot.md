@@ -98,13 +98,27 @@ The model server emits a flat 8-D action vector per step:
 
 The benchmark splits this back into MolmoSpaces's per-move-group dict (`{"arm": ..., "gripper": ...}`) in `step()`.
 
+### Asset baking (Docker image layout)
+
+The `allenai/molmospaces` HuggingFace dataset repo is ~13 TB when enumerated end to end (MuJoCo + USD, every scene/object/grasp source in `DATA_TYPE_TO_SOURCE_TO_VERSION`). The *actually required* subset for a Franka pick-and-place eval is ~15 GB: the `franka_droid` robot, the `thor` object catalog, the procthor-objaverse scenes that benchmark episodes reference, the matching Objaverse object bundle, DROID grasps, and the `molmospaces-bench-v2` JSON specs.
+
+`molmo_spaces` extracts these lazily on first import, so `docker/Dockerfile.molmospaces` triggers the extraction at build time with
+
+```dockerfile
+ENV MLSPACES_ASSETS_DIR=/assets \
+    MLSPACES_CACHE_DIR=/cache/molmo-spaces-resources
+RUN python -c "import molmo_spaces; from molmo_spaces.evaluation.benchmark_schema import load_all_episodes"
+```
+
+The resulting layers are ~15 GB of cached tarballs under `/cache/molmo-spaces-resources` plus ~228 MB of symlinks under `/assets`. Final image is **31.4 GB**, comparable to the other heavy benchmark images (`robocasa` 35.6 GB, `robotwin` 28.6 GB) and well within the "Zero Setup" Docker pattern used by the rest of vla-eval — users `docker pull` and `docker run`, no manual asset download or volume mount required. The benchmark YAML points at the in-image path (`/assets/benchmarks/molmospaces-bench-v2/...`).
+
 ## Known Limitations
 
 - Only the pick-and-place task on `procthor-objaverse` has been end-to-end reproduced. The benchmark class is task-agnostic (code path shared across all 8 MolmoSpaces-Bench task types), but other task/scene combinations have not been numerically validated.
 - Some older benchmark JSONs in MolmoSpaces-Bench v2 (e.g. `procthor-10k/FrankaPickHardBench_20260212_200ep`) still reference the legacy `mujoco_thor.tasks.pick_task.PickTask` class path and fail to load under the current `molmo_spaces` package. Newer `procthor-objaverse` benchmarks use the correct `molmo_spaces.tasks.*` paths.
 - Flow-matching inference in `SynthManipMolmoInferenceWrapper.get_action_chunk` does not accept an external `torch.Generator` by default, so runs are not bit-exact reproducible across hosts. Per-episode results can flip between runs; aggregate scores over ≥50 episodes are stable.
 - `max_episodes` in `molmo_spaces.evaluation.run_evaluation` only slices the local `episodes` list for the info log; `JsonEvalRunner` reloads the full benchmark directory and ignores the subset. To run a smaller eval, write a filtered `benchmark.json` to a new directory and point at that.
-- The MolmoSpaces package is git-only (`molmo-spaces @ git+https://github.com/allenai/molmospaces.git`); first import lazily extracts ~15 GB of MuJoCo assets (Franka robot, iTHOR / procthor scene subsets, Objaverse objects, grasps) into `~/.cache/molmo-spaces-resources`.
+- `molmo-spaces` is git-only (`molmo-spaces @ git+https://github.com/allenai/molmospaces.git`) rather than a PyPI release, so builds are sensitive to upstream main landing schema-changing commits. Pin a specific commit in the Dockerfile if long-term reproducibility matters.
 
 ## Sharding & Throughput
 
