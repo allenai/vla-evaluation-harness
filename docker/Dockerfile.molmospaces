@@ -1,0 +1,46 @@
+# MolmoSpaces-Bench evaluation environment
+# Assets (Franka robot, iTHOR/procthor scenes, THOR/Objaverse objects, DROID grasps)
+# are embedded in the image via molmo_spaces's lazy installer. First `import molmo_spaces`
+# downloads the sources pinned in DATA_TYPE_TO_SOURCE_TO_VERSION (~15 GB extracted) from
+# the allenai/molmospaces HuggingFace dataset into $MLSPACES_CACHE_DIR and symlinks them
+# under $MLSPACES_ASSETS_DIR; we bake both into the image here so end users don't need a
+# manual download + volume mount.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# ── Conda environment (molmo-spaces requires Python 3.11) ─────────────
+RUN conda create -n molmospaces python=3.11 -y && conda clean -afy
+SHELL ["conda", "run", "-n", "molmospaces", "/bin/bash", "-c"]
+
+# ── PyTorch with CUDA 12.1 (bfloat16 inference for policy server smoke tests) ─
+RUN uv pip install --no-cache-dir "torch==2.3.1" \
+        --index-url https://download.pytorch.org/whl/cu121
+
+# ── molmo-spaces (git-only) + MuJoCo bindings ──────────────────────────
+# Pinned to a specific commit so asset versions in DATA_TYPE_TO_SOURCE_TO_VERSION
+# stay stable across image rebuilds.
+RUN uv pip install --no-cache-dir \
+        "molmo-spaces[mujoco] @ git+https://github.com/allenai/molmospaces.git"
+
+# ── Pre-install benchmark assets (~15 GB) into the image layer ────────
+# MolmoSpaces lazily extracts assets on first `import molmo_spaces`. Trigger
+# the extraction at build time so users get a ready-to-run image.
+ENV MLSPACES_ASSETS_DIR=/assets \
+    MLSPACES_CACHE_DIR=/cache/molmo-spaces-resources \
+    MUJOCO_GL=egl \
+    JAX_PLATFORMS=cpu
+RUN mkdir -p /assets /cache/molmo-spaces-resources \
+    && python -c "import molmo_spaces; from molmo_spaces.evaluation.benchmark_schema import load_all_episodes; print('molmo_spaces assets installed')"
+
+# ── Install evaluation harness ────────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "molmospaces", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/molmospaces_pick_and_place.yaml"]

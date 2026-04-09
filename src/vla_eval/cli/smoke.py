@@ -97,6 +97,7 @@ BENCHMARK_REGISTRY: dict[str, str] = {
     "rlbench":      "configs/rlbench_eval.yaml",
     "robocerebra":  "configs/robocerebra_eval.yaml",
     "kinetix":      "configs/kinetix_eval.yaml",
+    "molmospaces":  "configs/molmospaces_pick_and_place.yaml",
 }
 
 # Each model server has one designated smoke test config.
@@ -113,6 +114,7 @@ SERVER_REGISTRY: dict[str, str] = {
     "starvla_oft":          "configs/model_servers/starvla/oft_simpler.yaml",
     "starvla_pi":           "configs/model_servers/starvla/pi_simpler.yaml",
     "starvla_fast":         "configs/model_servers/starvla/fast_simpler.yaml",
+    "molmobot":             "configs/model_servers/molmobot/droid.yaml",
 }
 # fmt: on
 

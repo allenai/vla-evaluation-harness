@@ -21,9 +21,12 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 | | Gripper closedness formula | ~0.4 error/step | WidowX joint limit range |
 | **Actions** | Dimension mismatch | Crash or 0% | 20D raw vs 7D expected |
 | | Absolute vs delta mode | 0% | Robot flies away |
+| | **Wrong `action_type` on same model** | **0%** | **MolmoBot `joint_pos_rel` vs `joint_pos`** |
 | | Unnorm stat keys (min/max vs q99) | 0%→functional | starVLA LIBERO |
 | | chunk_size mismatch | 0-30pp | GR00T: 16→1 for SimplerEnv |
+| | Gripper raw-range mismatch | 0% | MolmoBot emits ∈[0,255], needs clamp to {0,255} |
 | **Episodes** | max_steps too low | 0% | X-VLA: 120 vs 1200 needed |
+| | **Wrong `task_horizon` / `policy_dt_ms`** | **0-30pp** | **MolmoBot default 500 + 5 Hz vs paper 600 + 15 Hz** |
 | | **No standard termination semantics** | **Scores not comparable** | truncation vs accumulate |
 | | Random vs deterministic placement | 40pp+ | GR00T eggplant: 50% vs 4% |
 | **Image preprocessing** | Missing center crop at eval | ~3pp | OpenVLA: trained with random crop aug |
@@ -96,6 +99,16 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 
 **Absolute vs delta mode** — Robot flies away if absolute positions are interpreted as deltas.
 
+**Same model, different `action_type` in the eval config**
+- A single codebase can ship multiple eval configs for the same checkpoint that differ only in how the action is interpreted. Reproduction failure often comes from picking the wrong one.
+- MolmoBot case: the default Franka eval configs are `FrankaState8ClampConfig` (joint_pos_rel / 5 Hz policy) and `FrankaState8ClampAbsPosConfig` (joint_pos / 15 Hz policy). The paper's README pins `FrankaState8ClampAbsPosConfig` for MolmoBot-DROID. Running the same checkpoint under the `_rel` config scored 0/11 (all episodes fail) because the model emits absolute joint targets while the env adds them to current qpos as deltas.
+- Fix: always use the exact config class named in the model card's reproduction command, not the one with the most "default"-sounding name.
+
+**Gripper raw-range mismatch**
+- A model's gripper head output range is set at train time and rarely matches the env's command range. MolmoBot outputs gripper in roughly [0, 255] (consistent with the robosuite/DROID convention) and the reference policy (`SynthVLAPolicy`) applies `np.where(gripper > 128, 255, 0)` before sending to the env.
+- Symptom: without the clamp, the gripper oscillates or stays permanently half-closed. With the clamp it snaps discretely to open/closed.
+- Detection: compare `action_spec` units between the training pipeline and the eval harness; check whether the reference policy applies a `clamp_gripper` step in its post-processing.
+
 **Action type (qpos vs ee)** — RoboTwin supports both; sending EE as qpos = 0%.
 
 **Unnormalization stat keys (min/max vs q01/q99)**
@@ -112,6 +125,12 @@ Pitfalls identified during systematic pipeline verification of 5+ VLA codebases 
 
 **max_episode_steps**
 - X-VLA SimplerEnv: 0% with 120 steps, functional with 1200. Always match the official eval's budget.
+- MolmoBot pick-and-place: paper's README specifies `task_horizon=600`, other configs default to 500. Truncating episodes early can shave ~10pp off a 57% task.
+
+**policy_dt_ms (control rate)**
+- The step rate at which the model is queried is encoded in the eval config, not the model weights. Mismatching it is equivalent to changing the robot's dynamics at test time.
+- MolmoBot case: `FrankaState8ClampAbsPosConfig` uses `policy_dt_ms=66` (≈15 Hz). An alternative config (`SynthVLAFrankaBenchmarkOriginalEvalConfig`) ships with `policy_dt_ms=200` (5 Hz). Running MolmoBot-DROID at 5 Hz produced 0/11 because at 3× the intended time step the commanded joint positions were far outside the training distribution.
+- Detection: compare `policy_dt_ms`, `ctrl_dt_ms`, and `sim_dt_ms` between the reference eval config and whatever the harness is loading.
 
 **Termination semantics (cross-model comparability warning)**
 - SimplerEnv has no standard success protocol. Two semantics are used on the **same** tasks:
