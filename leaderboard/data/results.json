@@ -3577,6 +3577,34 @@
       "notes": "ABC→D split. Score inferred from text: 'improving avg length by 0.71 compared to GraspVLA (1.97)'. Per-task breakdown not explicit in table"
     },
     {
+      "model": "atomicvla",
+      "display_name": "AtomicVLA",
+      "params": "4.17B",
+      "model_paper": "https://arxiv.org/abs/2603.07648",
+      "benchmark": "calvin",
+      "weight_type": "finetuned",
+      "overall_score": 4.09,
+      "source_paper": "https://arxiv.org/abs/2603.07648",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "ABC->D, 1000 chains. Built on pi0 with K=5 skill experts."
+    },
+    {
+      "model": "atomicvla_star",
+      "display_name": "AtomicVLA*",
+      "params": "4.81B",
+      "model_paper": "https://arxiv.org/abs/2603.07648",
+      "benchmark": "calvin",
+      "weight_type": "finetuned",
+      "overall_score": 4.27,
+      "source_paper": "https://arxiv.org/abs/2603.07648",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "ABC->D, 1000 chains. Built on pi0.5 with K=8 skill experts."
+    },
+    {
       "model": "ava_vla",
       "display_name": "AVA-VLA",
       "params": null,
@@ -3942,6 +3970,20 @@
       "date_added": "2026-03-04"
     },
     {
+      "model": "mmada_vla",
+      "display_name": "MMaDA-VLA",
+      "params": "8B",
+      "model_paper": "https://arxiv.org/abs/2603.25406",
+      "benchmark": "calvin",
+      "weight_type": "finetuned",
+      "overall_score": 4.78,
+      "source_paper": "https://arxiv.org/abs/2603.25406",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "ABC->D, 1000 chains. MMaDA-8B-Base backbone. Discrete diffusion."
+    },
+    {
       "model": "mode",
       "display_name": "MoDE",
       "params": "~100M",
@@ -4180,6 +4222,20 @@
       "notes": "ABC→D split."
     },
     {
+      "model": "roboalign",
+      "display_name": "RoboAlign",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2603.21341",
+      "benchmark": "calvin",
+      "weight_type": "finetuned",
+      "overall_score": 2.57,
+      "source_paper": "https://arxiv.org/abs/2603.21341",
+      "source_table": "Table 3",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "ABC->D, 1000 chains. Qwen2.5VL-7B-Ins backbone, RL-refined reasoning."
+    },
+    {
       "model": "robobert",
       "display_name": "RoboBERT",
       "params": "unknown",
@@ -4318,6 +4374,20 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "CALVIN ABC→D split, diffusion-based subgoal planning"
+    },
+    {
+      "model": "tempofit_pi0_5",
+      "display_name": "TempoFit (pi0.5)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.07647",
+      "benchmark": "calvin",
+      "weight_type": "finetuned",
+      "overall_score": 3.87,
+      "source_paper": "https://arxiv.org/abs/2603.07647",
+      "source_table": "Table II",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "ABC->D. Training-free temporal KV memory on frozen pi0.5."
     },
     {
       "model": "think_proprio",
@@ -4829,6 +4899,46 @@
       "notes": "4D representation VLA"
     },
     {
+      "model": "a1_vla",
+      "display_name": "A1",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2604.05672",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.6,
+      "suite_scores": {
+        "libero_spatial": 97.4,
+        "libero_object": 99.8,
+        "libero_goal": 97.6,
+        "libero_10": 91.4
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05672",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Fully open-source truncated VLA."
+    },
+    {
+      "model": "accerl",
+      "display_name": "AcceRL",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2603.18464",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 99.4,
+      "suite_scores": {
+        "libero_spatial": 99.6,
+        "libero_object": 100.0,
+        "libero_goal": 98.8,
+        "libero_10": 99.1
+      },
+      "source_paper": "https://arxiv.org/abs/2603.18464",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Distributed async RL framework. OpenVLA-OFT backbone, RL fine-tuned."
+    },
+    {
       "model": "acot_vla",
       "display_name": "ACoT-VLA",
       "params": null,
@@ -4988,6 +5098,46 @@
       }
     },
     {
+      "model": "atomicvla",
+      "display_name": "AtomicVLA",
+      "params": "3B",
+      "model_paper": "https://arxiv.org/abs/2603.07648",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.6,
+      "suite_scores": {
+        "libero_spatial": 96.8,
+        "libero_object": 98.0,
+        "libero_goal": 96.4,
+        "libero_10": 95.2
+      },
+      "source_paper": "https://arxiv.org/abs/2603.07648",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Built on pi0."
+    },
+    {
+      "model": "atomicvla_star",
+      "display_name": "AtomicVLA*",
+      "params": "3.5B",
+      "model_paper": "https://arxiv.org/abs/2603.07648",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 97.8,
+      "suite_scores": {
+        "libero_spatial": 98.8,
+        "libero_object": 98.8,
+        "libero_goal": 97.2,
+        "libero_10": 96.2
+      },
+      "source_paper": "https://arxiv.org/abs/2603.07648",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Built on pi0.5."
+    },
+    {
       "model": "ava_vla",
       "display_name": "AVA-VLA",
       "params": null,
@@ -5067,6 +5217,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "BEING-H0.5 specialist model LIBERO results. Avg 98.9%, Long=97.4 explicitly stated. Other suites ~99% from text."
+    },
+    {
+      "model": "clad",
+      "display_name": "CLaD",
+      "params": "0.66B",
+      "model_paper": "https://arxiv.org/abs/2603.29409",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.5,
+      "suite_scores": {
+        "libero_spatial": 97.3,
+        "libero_object": 95.7,
+        "libero_goal": 94.3,
+        "libero_10": 94.7
+      },
+      "source_paper": "https://arxiv.org/abs/2603.29409",
+      "source_table": "Table 6",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Cross-modal latent dynamics planning. 50 rollouts/task."
     },
     {
       "model": "clap_rf",
@@ -5247,6 +5417,26 @@
       "notes": "ContextVLA framework applied to pi0-FAST base model (8-frame multi-frame input). Spatial 98.3%, Object 99.2%, Goal 95.6%, Long 90.2%, Avg 95.8%."
     },
     {
+      "model": "coral_simvla",
+      "display_name": "CORAL (SimVLA)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.09298",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 99.3,
+      "suite_scores": {
+        "libero_spatial": 99.6,
+        "libero_object": 99.8,
+        "libero_goal": 99.0,
+        "libero_10": 98.8
+      },
+      "source_paper": "https://arxiv.org/abs/2603.09298",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Per-task LoRA experts (1 expert per task, rank-16). SimVLA backbone."
+    },
+    {
       "model": "cosmos_policy",
       "display_name": "CosmosPolicy",
       "params": "7B",
@@ -5386,6 +5576,46 @@
       "notes": "Depth-aware VLA based on pi0 re-implementation with added depth expert. No pretraining on large-scale data."
     },
     {
+      "model": "dfm_vla_embed",
+      "display_name": "DFM-VLA (Embed)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.26320",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.7,
+      "suite_scores": {
+        "libero_spatial": 96.8,
+        "libero_object": 98.8,
+        "libero_goal": 94.4,
+        "libero_10": 92.6
+      },
+      "source_paper": "https://arxiv.org/abs/2603.26320",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Discrete flow matching with embedding-guided velocity. Built on UniVLA."
+    },
+    {
+      "model": "dfm_vla_head",
+      "display_name": "DFM-VLA (Head)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.26320",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 93.5,
+      "suite_scores": {
+        "libero_spatial": 94.2,
+        "libero_object": 96.4,
+        "libero_goal": 92.8,
+        "libero_10": 90.4
+      },
+      "source_paper": "https://arxiv.org/abs/2603.26320",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Discrete flow matching with auxiliary velocity head. Built on UniVLA."
+    },
+    {
       "model": "diffusion_policy",
       "display_name": "Diffusion Policy",
       "params": "~80M",
@@ -5466,6 +5696,26 @@
       "notes": "Discrete diffusion action decoding; avg of 4 suites"
     },
     {
+      "model": "dit4dit",
+      "display_name": "DiT4DiT",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.10448",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 98.6,
+      "suite_scores": {
+        "libero_spatial": 98.4,
+        "libero_object": 99.6,
+        "libero_goal": 98.6,
+        "libero_10": 97.6
+      },
+      "source_paper": "https://arxiv.org/abs/2603.10448",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Video-action model coupling video DiT with action DiT. Trained from scratch on LIBERO."
+    },
+    {
       "model": "dit_policy",
       "display_name": "DiT Policy",
       "params": "~100M",
@@ -5544,6 +5794,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "World knowledge-enhanced VLA"
+    },
+    {
+      "model": "dualcot_vla",
+      "display_name": "DualCoT-VLA",
+      "params": "4B",
+      "model_paper": "https://arxiv.org/abs/2603.22280",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 98.8,
+      "suite_scores": {
+        "libero_spatial": 99.4,
+        "libero_object": 99.8,
+        "libero_goal": 97.8,
+        "libero_10": 98.2
+      },
+      "source_paper": "https://arxiv.org/abs/2603.22280",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Qwen3-VL-4B backbone. Parallel visual-linguistic CoT."
     },
     {
       "model": "dvla",
@@ -5721,6 +5991,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "3B model. Suite scores from Table I of RD-VLA paper (2602.07845): Spatial=92.0, Object=97.2, Goal=90.2, Long=79.4, Avg=89.7."
+    },
+    {
+      "model": "fast_wam",
+      "display_name": "Fast-WAM",
+      "params": "6B",
+      "model_paper": "https://arxiv.org/abs/2603.16666",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 97.6,
+      "suite_scores": {
+        "libero_spatial": 98.2,
+        "libero_object": 100.0,
+        "libero_goal": 97.0,
+        "libero_10": 95.2
+      },
+      "source_paper": "https://arxiv.org/abs/2603.16666",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "No embodied pretraining. 500 demos/suite, 20K steps."
     },
     {
       "model": "flower",
@@ -5945,6 +6235,26 @@
       "notes": "GR00T N1.5 baseline (without HAMLET) on LIBERO benchmark. Avg of 4 suites."
     },
     {
+      "model": "gst_vla",
+      "display_name": "GST-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.09079",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.4,
+      "suite_scores": {
+        "libero_spatial": 98.2,
+        "libero_object": 97.4,
+        "libero_goal": 97.1,
+        "libero_10": 92.6
+      },
+      "source_paper": "https://arxiv.org/abs/2603.09079",
+      "source_table": "Table II",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Gaussian Spatial Tokenizer + Depth-Aware CoT."
+    },
+    {
       "model": "gvf_tape",
       "display_name": "GVF-TAPE",
       "params": null,
@@ -6024,6 +6334,26 @@
       "task_scores": {
         "reported_avg": 98.6
       }
+    },
+    {
+      "model": "instructvla",
+      "display_name": "InstructVLA",
+      "params": "1.5B",
+      "model_paper": "https://arxiv.org/abs/2507.17520",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.8,
+      "suite_scores": {
+        "libero_spatial": 97.3,
+        "libero_object": 99.6,
+        "libero_goal": 96.5,
+        "libero_10": 89.8
+      },
+      "source_paper": "https://arxiv.org/abs/2507.17520",
+      "source_table": "Table 10",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "VLA-IT paradigm. 3 seeds, 500 trials. Uses wrist view."
     },
     {
       "model": "internvla_m1",
@@ -6146,6 +6476,46 @@
       "notes": "Knowledge-insulating VLA trained from scratch"
     },
     {
+      "model": "lada",
+      "display_name": "LaDA",
+      "params": "0.6B",
+      "model_paper": "https://arxiv.org/abs/2603.12967",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 93.6,
+      "suite_scores": {
+        "libero_spatial": 95.2,
+        "libero_object": 99.2,
+        "libero_goal": 93.6,
+        "libero_10": 86.4
+      },
+      "source_paper": "https://arxiv.org/abs/2603.12967",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Language-grounded decoupled action representation. CLIP-RT architecture."
+    },
+    {
+      "model": "lamp",
+      "display_name": "LaMP",
+      "params": "3B",
+      "model_paper": "https://arxiv.org/abs/2603.25399",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 98.3,
+      "suite_scores": {
+        "libero_spatial": 99.4,
+        "libero_object": 99.8,
+        "libero_goal": 97.4,
+        "libero_10": 96.7
+      },
+      "source_paper": "https://arxiv.org/abs/2603.25399",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "3D scene flow as latent motion prior. Built on pi0."
+    },
+    {
       "model": "langforce",
       "display_name": "LangForce",
       "params": null,
@@ -6164,6 +6534,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "LangForce on LIBERO benchmark. Avg of 4 suites."
+    },
+    {
+      "model": "lar_moe16",
+      "display_name": "LAR-MoE16",
+      "params": "150M",
+      "model_paper": "https://arxiv.org/abs/2603.08476",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.2,
+      "suite_scores": {
+        "libero_spatial": 98.0,
+        "libero_object": 99.0,
+        "libero_goal": 96.0,
+        "libero_10": 88.0
+      },
+      "source_paper": "https://arxiv.org/abs/2603.08476",
+      "source_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "MoE with 16 experts. 150M params."
     },
     {
       "model": "lara_vla",
@@ -7118,6 +7508,26 @@
       "notes": "RL-finetuned VLA, trained on 130 LIBERO tasks, avg of 4 suites"
     },
     {
+      "model": "roboalign",
+      "display_name": "RoboAlign",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2603.21341",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 86.8,
+      "suite_scores": {
+        "libero_spatial": 93.8,
+        "libero_object": 96.0,
+        "libero_goal": 87.2,
+        "libero_10": 70.0
+      },
+      "source_paper": "https://arxiv.org/abs/2603.21341",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "RL-based reasoning alignment. Qwen2.5VL-7B-Ins backbone."
+    },
+    {
       "model": "robomm",
       "display_name": "RoboMM",
       "params": "unknown",
@@ -7172,6 +7582,26 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04"
+    },
+    {
+      "model": "saivla_0",
+      "display_name": "SaiVLA-0",
+      "params": "8B",
+      "model_paper": "https://arxiv.org/abs/2603.08124",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 99.0,
+      "suite_scores": {
+        "libero_spatial": 99.8,
+        "libero_object": 100.0,
+        "libero_goal": 98.2,
+        "libero_10": 97.8
+      },
+      "source_paper": "https://arxiv.org/abs/2603.08124",
+      "source_table": "Table 7",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Concept-and-protocol paper with preliminary evidence. Qwen-VL-8B frozen + Pons Adapter."
     },
     {
       "model": "scale_vla",
@@ -7333,6 +7763,46 @@
       "notes": "3D spatial representation VLA"
     },
     {
+      "model": "spr_vla",
+      "display_name": "SPR-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.09292",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 90.6,
+      "suite_scores": {
+        "libero_spatial": 92.4,
+        "libero_object": 93.0,
+        "libero_goal": 94.2,
+        "libero_10": 82.8
+      },
+      "source_paper": "https://arxiv.org/abs/2603.09292",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "See, Plan, Rewind. Progress-aware VLA. Per-suite trained variant."
+    },
+    {
+      "model": "spr_vla_joint",
+      "display_name": "SPR-VLA (joint)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.09292",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 91.8,
+      "suite_scores": {
+        "libero_spatial": 93.2,
+        "libero_object": 95.4,
+        "libero_goal": 93.2,
+        "libero_10": 85.4
+      },
+      "source_paper": "https://arxiv.org/abs/2603.09292",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Progress-aware VLA. Jointly trained variant."
+    },
+    {
       "model": "srpo",
       "display_name": "SRPO",
       "params": null,
@@ -7372,6 +7842,146 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04",
       "notes": "overall_score corrected to 4-suite mean 94.3 (was 93.6). "
+    },
+    {
+      "model": "starvla_fast_qwen",
+      "display_name": "StarVLA-FAST (Qwen3-VL)",
+      "params": "4B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.4,
+      "suite_scores": {
+        "libero_spatial": 97.3,
+        "libero_object": 97.4,
+        "libero_goal": 96.3,
+        "libero_10": 90.6
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "AR tokenization. Qwen3-VL-4B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_groot_cosmos",
+      "display_name": "StarVLA-GR00T (Cosmos)",
+      "params": "2B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.2,
+      "suite_scores": {
+        "libero_spatial": 97.4,
+        "libero_object": 98.0,
+        "libero_goal": 95.1,
+        "libero_10": 90.4
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Dual-system reasoning. Cosmos-Predict2-2B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_groot_qwen",
+      "display_name": "StarVLA-GR00T (Qwen3-VL)",
+      "params": "4B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.5,
+      "suite_scores": {
+        "libero_spatial": 97.8,
+        "libero_object": 98.8,
+        "libero_goal": 97.4,
+        "libero_10": 92.0
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Dual-system reasoning. Qwen3-VL-4B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_oft_cosmos",
+      "display_name": "StarVLA-OFT (Cosmos)",
+      "params": "2B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.8,
+      "suite_scores": {
+        "libero_spatial": 98.6,
+        "libero_object": 97.6,
+        "libero_goal": 95.0,
+        "libero_10": 91.8
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Parallel regression. Cosmos-Predict2-2B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_oft_qwen",
+      "display_name": "StarVLA-OFT (Qwen3-VL)",
+      "params": "4B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 96.6,
+      "suite_scores": {
+        "libero_spatial": 97.8,
+        "libero_object": 98.6,
+        "libero_goal": 96.2,
+        "libero_10": 93.8
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Parallel regression. Qwen3-VL-4B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_pi_cosmos",
+      "display_name": "StarVLA-pi (Cosmos)",
+      "params": "2B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.5,
+      "suite_scores": {
+        "libero_spatial": 98.9,
+        "libero_object": 98.3,
+        "libero_goal": 94.4,
+        "libero_10": 90.4
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Flow-matching denoising. Cosmos-Predict2-2B backbone. 30K steps."
+    },
+    {
+      "model": "starvla_pi_qwen",
+      "display_name": "StarVLA-pi (Qwen3-VL)",
+      "params": "4B",
+      "model_paper": "https://arxiv.org/abs/2604.05014",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 95.7,
+      "suite_scores": {
+        "libero_spatial": 98.8,
+        "libero_object": 99.6,
+        "libero_goal": 95.8,
+        "libero_10": 88.4
+      },
+      "source_paper": "https://arxiv.org/abs/2604.05014",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Flow-matching denoising. Qwen3-VL-4B backbone. 30K steps."
     },
     {
       "model": "streamvla",
@@ -7772,6 +8382,29 @@
       "notes": "T=8 future video horizon (best configuration per ablation)"
     },
     {
+      "model": "vla_opd",
+      "display_name": "VLA-OPD",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.26666",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": null,
+      "suite_scores": {
+        "libero_spatial": 93.4,
+        "libero_object": 95.3,
+        "libero_goal": 94.5,
+        "libero_10": 90.2
+      },
+      "task_scores": {
+        "reported_avg": 93.4
+      },
+      "source_paper": "https://arxiv.org/abs/2603.26666",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "1-traj SFT (1 demo/task), NOT standard 50-demo protocol. On-policy distillation + GRPO."
+    },
+    {
       "model": "vla_os",
       "display_name": "VLA-OS",
       "params": "0.5B",
@@ -7869,6 +8502,26 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04"
+    },
+    {
+      "model": "vla_thinker",
+      "display_name": "VLA-Thinker",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2603.14523",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 97.5,
+      "suite_scores": {
+        "libero_spatial": 98.7,
+        "libero_object": 99.0,
+        "libero_goal": 95.2,
+        "libero_10": 96.9
+      },
+      "source_paper": "https://arxiv.org/abs/2603.14523",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "OpenVLA-OFT backbone. Thinking-with-image reasoning + GRPO RL."
     },
     {
       "model": "vlash",
@@ -7999,6 +8652,26 @@
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-04"
+    },
+    {
+      "model": "world2act_groot",
+      "display_name": "World2Act (GR00T-N1.6-ft)",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.10422",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 98.1,
+      "suite_scores": {
+        "libero_spatial": 99.5,
+        "libero_object": 100.0,
+        "libero_goal": 98.8,
+        "libero_10": 94.0
+      },
+      "source_paper": "https://arxiv.org/abs/2603.10422",
+      "source_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Post-training framework using skill-compositional world models on GR00T-N1.6-ft."
     },
     {
       "model": "worldvla",
@@ -10768,6 +11441,20 @@
       }
     },
     {
+      "model": "cortical_policy",
+      "display_name": "Cortical Policy",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.21051",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 81.0,
+      "source_paper": "https://arxiv.org/abs/2603.21051",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "18-task PerAct subset. 100 demos/task. Multi-task. Mean over 3 seeds."
+    },
+    {
       "model": "d4r_align",
       "display_name": "D4R-Align",
       "params": null,
@@ -10952,6 +11639,20 @@
       "task_scores": {
         "reported_avg": 74.0
       }
+    },
+    {
+      "model": "hypermvp",
+      "display_name": "HyperMVP",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.04848",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 71.1,
+      "source_paper": "https://arxiv.org/abs/2603.04848",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "18-task PerAct subset. 100 demos/task. Multi-task. Self-supervised hyperbolic pretraining. Mean over 4 runs."
     },
     {
       "model": "image_bc_cnn",
@@ -13757,6 +14458,24 @@
         "easy": 55.2,
         "hard": 5.0
       }
+    },
+    {
+      "model": "fast_wam",
+      "display_name": "Fast-WAM",
+      "params": "6B",
+      "model_paper": "https://arxiv.org/abs/2603.16666",
+      "benchmark": "robotwin_v2",
+      "weight_type": "finetuned",
+      "overall_score": null,
+      "suite_scores": {
+        "easy": 91.88,
+        "hard": 91.78
+      },
+      "source_paper": "https://arxiv.org/abs/2603.16666",
+      "source_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-04-09",
+      "notes": "Protocol B. ~50 tasks, 2500 clean + 25000 DR demos. No embodied pretraining."
     },
     {
       "model": "future_vla",
