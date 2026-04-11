@@ -1,9 +1,7 @@
 # VLANeXt model server (DravenALG/VLANeXt)
 # Qwen3-VL-2B + SigLIP2 + flow-matching diffusion action head, 8-action chunks.
-#
-# Requires:
-#   VLANEXT_ROOT env var pointing to VLANeXt repo clone.
-#   Checkpoints from https://huggingface.co/DravenALG/VLANeXt
+# Auto-clones VLANeXt repo on first run (or set VLANEXT_ROOT to skip).
+# Checkpoints: https://huggingface.co/DravenALG/VLANeXt
 script: "src/vla_eval/model_servers/vlanext.py"
 args:
   chunk_size: 8
