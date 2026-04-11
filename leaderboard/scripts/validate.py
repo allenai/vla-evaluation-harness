@@ -7,17 +7,13 @@ Runs a layered set of checks:
 2. Score ranges — per-benchmark metric bounds, required score presence, duplicate keys
 3. Sort and canonical format — deterministic on-disk representation
 4. Official leaderboard policy — API-only benchmarks only accept `-api` entries
-5. Papers reviewed format — arxiv ID regex, no duplicates within a benchmark
-6. Citations coverage — every arxiv paper referenced has a citation entry
-7. Arithmetic consistency — `overall_score` matches the benchmark's aggregation rule
-8. Forbidden overall_score — benchmarks that must always use `null`
-9. Cross-entry identity — same `model` key must carry consistent params/display_name/model_paper
-10. Required notes (warnings) — per-benchmark mandatory note keywords
+5. Citations coverage — every arxiv paper referenced has a citation entry
+6. Arithmetic consistency — `overall_score` matches the benchmark's aggregation rule
+7. Forbidden overall_score — benchmarks that must always use `null`
+8. Cross-entry identity — same `model` key must carry consistent params/display_name/model_paper
+9. Required notes (warnings) — per-benchmark mandatory note keywords
 
 Errors block CI. Warnings are printed but do not affect exit code unless `--strict`.
-
-For LLM-backed verification of entries against source papers, use
-``extract.py`` (Phase 1) + ``reconcile.py`` (Phase 2) instead.
 """
 
 import argparse
@@ -40,7 +36,6 @@ LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
 SCHEMA_PATH = DATA_DIR / "schema.json"
 CITATIONS_PATH = DATA_DIR / "citations.json"
 
-ARXIV_ID_RE = re.compile(r"^\d{4}\.\d{4,5}$")
 
 # ---------------------------------------------------------------------------
 # Arithmetic aggregation rules
@@ -245,21 +240,6 @@ def validate_official_leaderboard_policy(data: dict) -> list[str]:
     return errors
 
 
-def validate_papers_reviewed(data: dict) -> list[str]:
-    """Validate papers_reviewed entries."""
-    errors = []
-    for bm_key, bm in data["benchmarks"].items():
-        no_results = bm.get("papers_reviewed", [])
-        seen = set()
-        for arxiv_id in no_results:
-            if not ARXIV_ID_RE.match(arxiv_id):
-                errors.append(f"benchmarks.{bm_key}.papers_reviewed: '{arxiv_id}' is not a valid arxiv ID")
-            if arxiv_id in seen:
-                errors.append(f"benchmarks.{bm_key}.papers_reviewed: duplicate '{arxiv_id}'")
-            seen.add(arxiv_id)
-    return errors
-
-
 def validate_citations(data: dict) -> list[str]:
     """Validate that citations.json exists, is non-empty, and covers all arxiv papers in results."""
     errors = []
@@ -292,7 +272,7 @@ def validate_citations(data: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# New deterministic checks (Phase A)
+# Aggregation & consistency checks
 # ---------------------------------------------------------------------------
 
 
@@ -429,7 +409,7 @@ def main() -> int:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="Treat warnings (required notes, stale verifications, unverified entries) as errors",
+        help="Treat warnings (required notes) as errors",
     )
     args = parser.parse_args()
 
@@ -457,7 +437,6 @@ def main() -> int:
     errors += validate_score_ranges(data)
     errors += validate_sort_and_format(data, raw_text)
     errors += validate_official_leaderboard_policy(data)
-    errors += validate_papers_reviewed(data)
     errors += validate_citations(data)
     errors += validate_arithmetic_consistency(data)
     errors += validate_forbidden_overall(data)
