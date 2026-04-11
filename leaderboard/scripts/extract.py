@@ -528,7 +528,7 @@ def _fetch_s2_citations(arxiv_id: str, limit: int = 1000) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Typer CLI (lazy import — typer is a PEP 723 dependency, not in the project venv)
+# CLI
 # ---------------------------------------------------------------------------
 
 import typer  # noqa: E402
