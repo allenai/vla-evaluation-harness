@@ -16,15 +16,10 @@
 
 ### Benchmarks
 
-| Benchmark | Metric | Unit | Range |
-|-----------|--------|------|-------|
-| LIBERO, LIBERO-Plus, LIBERO-Pro | success_rate | % | 0–100 |
-| LIBERO-Mem | subgoal_completion_rate | % | 0–100 |
-| CALVIN | avg_len | subtasks | 0–5 |
-| SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin 1.0, RoboTwin 2.0, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboChallenge | success_rate | % | 0–100 |
-| RoboArena | elo_rating | Elo | 0–2000 |
+17 benchmarks: LIBERO, LIBERO-Plus, LIBERO-Pro, LIBERO-Mem, CALVIN, SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin v1, RoboTwin v2, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboArena, RoboChallenge.
 
-Each benchmark declares its metric, range, and optionally `suites`/`tasks` in `benchmarks.json`. Every benchmark has a `detail_notes` field displayed as a banner on the leaderboard frontend.
+- **Metrics, suites, tasks**: `benchmarks.json`
+- **Evaluation protocols, caveats, risky patterns**: `benchmarks/{key}.md`
 
 ### Result Fields
 
