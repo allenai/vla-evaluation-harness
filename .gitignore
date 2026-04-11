@@ -40,3 +40,6 @@ coverage.xml
 src/vla_eval/_version.py
 
 .claude/scheduled_tasks.lock
+
+# Leaderboard paper cache (used by verify.py)
+leaderboard/.cache/
