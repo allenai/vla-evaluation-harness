@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VLA Leaderboard Entries",
+  "type": "object",
+  "required": ["last_updated", "results"],
+  "properties": {
+    "last_updated": { "type": "string", "format": "date" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model", "display_name", "benchmark", "weight_type", "curated_by", "date_added"],
+        "additionalProperties": false,
+        "properties": {
+          "model": { "type": "string" },
+          "display_name": { "type": "string" },
+          "name_in_paper": { "type": ["string", "null"], "description": "Exact model label from the source paper's results table." },
+          "benchmark": { "type": "string" },
+          "overall_score": { "type": ["number", "null"] },
+          "suite_scores": {
+            "type": "object",
+            "additionalProperties": { "type": "number" }
+          },
+          "task_scores": {
+            "type": "object",
+            "additionalProperties": { "type": "number" }
+          },
+          "source_paper": { "type": ["string", "null"], "format": "uri" },
+          "source_table": { "type": ["string", "null"] },
+          "curated_by": { "type": "string" },
+          "notes": { "type": "string" },
+          "date_added": { "type": "string", "format": "date" },
+          "params": { "type": ["string", "null"] },
+          "model_paper": { "type": ["string", "null"], "format": "uri" },
+          "weight_type": { "type": "string", "enum": ["shared", "finetuned"] }
+        }
+      }
+    }
+  }
+}

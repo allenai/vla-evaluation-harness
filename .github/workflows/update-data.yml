@@ -35,14 +35,19 @@ jobs:
           fi
           python leaderboard/scripts/sync_external.py --apply $SOURCE_ARG
 
-      - name: Fetch coverage and citations
-        id: stats
+      - name: Scan citing papers and update coverage
+        id: coverage
         continue-on-error: true
         env:
           SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
-        run: |
-          python leaderboard/scripts/update_coverage.py --fetch
-          python leaderboard/scripts/update_citations.py --fetch
+        run: uv run leaderboard/scripts/extract.py scan
+
+      - name: Fetch citations
+        id: citations
+        continue-on-error: true
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+        run: python leaderboard/scripts/update_citations.py --fetch
 
       - name: Validate results
         run: python leaderboard/scripts/validate.py

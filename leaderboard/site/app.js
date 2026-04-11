@@ -33,10 +33,13 @@
 
   // ─── Bootstrap ─────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    fetch('./results.json')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(json => { data = json; init(); })
-      .catch(err => { if (loadingEl) loadingEl.textContent = 'Failed to load: ' + err.message; });
+    Promise.all([
+      fetch('./leaderboard.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch('./benchmarks.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+    ]).then(([leaderboard, benchmarks]) => {
+      data = { ...leaderboard, benchmarks };
+      init();
+    }).catch(err => { if (loadingEl) loadingEl.textContent = 'Failed to load: ' + err.message; });
 
     fetch('./coverage.json')
       .then(r => r.ok ? r.json() : null)
