@@ -16,14 +16,21 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import itertools
 import json
+import os
 import re
 import subprocess
-import sys
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
 
 # ---------------------------------------------------------------------------
 # Constants & paths
@@ -43,8 +50,8 @@ FETCH_FAILURES_PATH = CACHE_DIR / "fetch_failures.json"
 PAPER_BUDGET = 80_000
 _ARXIV_RE = re.compile(r"arxiv\.org/abs/(\d+\.\d+)")
 
-# Thread-safe accumulator for fetch failures (flushed at end of run)
-_pending_failures: dict[str, str] = {}
+# Lock for thread-safe fetch failure writes
+_failures_lock = threading.Lock()
 
 
 def _extract_arxiv_id(url: str | None) -> str | None:
@@ -55,8 +62,6 @@ def _extract_arxiv_id(url: str | None) -> str | None:
 
 
 def _now_iso() -> str:
-    from datetime import datetime, timezone
-
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
@@ -170,6 +175,7 @@ def _fetch_url(url: str, timeout: int = 30) -> str | None:
                 continue
             if attempt == 2:
                 return None
+            time.sleep(5)
         except (urllib.error.URLError, OSError, TimeoutError):
             if attempt < 2:
                 time.sleep(5)
@@ -220,13 +226,19 @@ def _save_fetch_failures(failures: dict[str, str]) -> None:
     FETCH_FAILURES_PATH.write_text(json.dumps(failures, indent=2, sort_keys=True) + "\n")
 
 
-@functools.lru_cache(maxsize=None)
+def _record_failure(arxiv_id: str, reason: str) -> None:
+    """Thread-safe: append one failure and flush to disk immediately."""
+    with _failures_lock:
+        failures = _load_fetch_failures()
+        failures[arxiv_id] = reason
+        _save_fetch_failures(failures)
+
+
 def _load_paper_markdown(arxiv_id: str) -> str | None:
     p = _paper_md_path(arxiv_id)
     return p.read_text(encoding="utf-8") if p.exists() else None
 
 
-@functools.lru_cache(maxsize=None)
 def _paper_hash(arxiv_id: str) -> str | None:
     meta = _paper_meta_path(arxiv_id)
     if not meta.exists():
@@ -453,9 +465,8 @@ def extract_one(arxiv_id: str, all_rules: str, model: str, *, timeout: int = 600
     paper_md = _load_paper_markdown(arxiv_id)
     if paper_md is None:
         if not _fetch_paper(arxiv_id):
-            _pending_failures[arxiv_id] = f"HTML not available, {_now_iso()}"
+            _record_failure(arxiv_id, f"HTML not available, {_now_iso()}")
             return None
-        _load_paper_markdown.cache_clear()
         paper_md = _load_paper_markdown(arxiv_id)
         if paper_md is None:
             return None
@@ -492,8 +503,6 @@ def extract_one(arxiv_id: str, all_rules: str, model: str, *, timeout: int = 600
 
 
 def _fetch_s2_citations(arxiv_id: str, limit: int = 1000) -> list[dict]:
-    import os
-
     headers = {"Accept": "application/json"}
     api_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
     if api_key:
@@ -534,9 +543,6 @@ def _fetch_s2_citations(arxiv_id: str, limit: int = 1000) -> list[dict]:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-
-import typer  # noqa: E402
-from typing import Annotated, Optional  # noqa: E402
 
 app = typer.Typer(help="Extract benchmark scores from arxiv papers via LLM.", add_completion=False)
 
@@ -648,58 +654,56 @@ def run(
     print(f"Extracting {len(targets)} papers (workers={workers}, model={model}, timeout={timeout}s)...")
     all_rules = _load_all_benchmark_rules()
 
-    import signal
-    import threading
-
-    lock = threading.Lock()
-    signal.signal(signal.SIGTERM, lambda s, f: sys.exit(130))
-
     def _do(arxiv_id: str) -> tuple[str, dict | None]:
         return arxiv_id, extract_one(arxiv_id, all_rules, model, timeout=timeout, resume=False)
 
-    n_ok, n_empty, n_fail = 0, 0, 0
+    def _tally(aid: str, result: dict | None, counters: list[int]) -> None:
+        """Update counters [ok, empty, fail] and print progress."""
+        if result is None:
+            counters[2] += 1
+            print(f"  FAIL {aid}")
+        elif not result.get("benchmarks"):
+            counters[1] += 1
+        else:
+            n_bm = len(result["benchmarks"])
+            n_models = sum(len(b.get("models", [])) for b in result["benchmarks"])
+            counters[0] += 1
+            print(f"  OK   {aid} ({n_bm} benchmarks, {n_models} models)")
+        total = sum(counters)
+        if total % 20 == 0:
+            print(f"  --- {total}/{len(targets)} ---")
+
+    counters = [0, 0, 0]  # [ok, empty, fail]
+
     if workers <= 1:
         for aid in targets:
             aid, result = _do(aid)
-            if result is None:
-                n_fail += 1
-                print(f"  FAIL {aid}")
-            elif not result.get("benchmarks"):
-                n_empty += 1
-            else:
-                n_bm = len(result["benchmarks"])
-                n_models = sum(len(b.get("models", [])) for b in result["benchmarks"])
-                n_ok += 1
-                print(f"  OK   {aid} ({n_bm} benchmarks, {n_models} models)")
+            _tally(aid, result, counters)
     else:
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            futs = {executor.submit(_do, aid): aid for aid in targets}
-            for fut in as_completed(futs):
-                aid, result = fut.result()
-                with lock:
-                    if result is None:
-                        n_fail += 1
-                        print(f"  FAIL {aid}")
-                    elif not result.get("benchmarks"):
-                        n_empty += 1
+            # Submit in batches (2x workers) for graceful Ctrl+C
+            futs: dict = {}
+            target_iter = iter(targets)
+            for aid in itertools.islice(target_iter, workers * 2):
+                futs[executor.submit(_do, aid)] = aid
+            while futs:
+                for fut in as_completed(futs):
+                    aid = futs.pop(fut)
+                    try:
+                        _, result = fut.result()
+                    except Exception as exc:
+                        print(f"  CRASH {aid}: {exc}")
+                        counters[2] += 1
+                        result = None  # skip _tally, already counted
                     else:
-                        n_bm = len(result["benchmarks"])
-                        n_models = sum(len(b.get("models", [])) for b in result["benchmarks"])
-                        n_ok += 1
-                        print(f"  OK   {aid} ({n_bm} benchmarks, {n_models} models)")
-                    total = n_ok + n_empty + n_fail
-                    if total % 20 == 0:
-                        print(f"  --- {total}/{len(targets)} ---")
+                        _tally(aid, result, counters)
+                    # Refill from iterator
+                    next_aid = next(target_iter, None)
+                    if next_aid is not None:
+                        futs[executor.submit(_do, next_aid)] = next_aid
+                    break  # back to as_completed with updated futs
 
-    # Flush accumulated fetch failures
-    if _pending_failures:
-        existing = _load_fetch_failures()
-        existing.update(_pending_failures)
-        _save_fetch_failures(existing)
-        _pending_failures.clear()
-
+    n_ok, n_empty, n_fail = counters
     print(f"\nDone: ok={n_ok} empty={n_empty} fail={n_fail} total={len(targets)}")
     failures = _load_fetch_failures()
     if failures:

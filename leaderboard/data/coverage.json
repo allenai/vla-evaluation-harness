@@ -1,1 +1,108 @@
-{}
+{
+  "last_updated": "2026-04-11",
+  "total_extracted": 0,
+  "benchmarks": {
+    "calvin": {
+      "display_name": "CALVIN",
+      "arxiv_id": "2112.03227",
+      "citing_papers": 423,
+      "extracted": 0
+    },
+    "kinetix": {
+      "display_name": "Kinetix",
+      "arxiv_id": "2506.07339",
+      "citing_papers": 76,
+      "extracted": 0
+    },
+    "libero": {
+      "display_name": "LIBERO",
+      "arxiv_id": "2306.03310",
+      "citing_papers": 660,
+      "extracted": 0
+    },
+    "libero_mem": {
+      "display_name": "LIBERO-Mem",
+      "arxiv_id": "2511.11478",
+      "citing_papers": 7,
+      "extracted": 0
+    },
+    "libero_plus": {
+      "display_name": "LIBERO-Plus",
+      "arxiv_id": "2510.13626",
+      "citing_papers": 51,
+      "extracted": 0
+    },
+    "libero_pro": {
+      "display_name": "LIBERO-Pro",
+      "arxiv_id": "2510.03827",
+      "citing_papers": 29,
+      "extracted": 0
+    },
+    "maniskill2": {
+      "display_name": "ManiSkill2",
+      "arxiv_id": "2302.04659",
+      "citing_papers": 276,
+      "extracted": 0
+    },
+    "mikasa": {
+      "display_name": "MIKASA-Robo",
+      "arxiv_id": "2502.10550",
+      "citing_papers": 14,
+      "extracted": 0
+    },
+    "rlbench": {
+      "display_name": "RLBench",
+      "arxiv_id": "1909.12271",
+      "citing_papers": 635,
+      "extracted": 0
+    },
+    "roboarena": {
+      "display_name": "RoboArena",
+      "arxiv_id": "2506.18123",
+      "citing_papers": 31,
+      "extracted": 0
+    },
+    "robocasa": {
+      "display_name": "RoboCasa",
+      "arxiv_id": "2406.02523",
+      "citing_papers": 243,
+      "extracted": 0
+    },
+    "robocerebra": {
+      "display_name": "RoboCerebra",
+      "arxiv_id": "2506.06677",
+      "citing_papers": 14,
+      "extracted": 0
+    },
+    "robochallenge": {
+      "display_name": "RoboChallenge",
+      "arxiv_id": "2510.17950",
+      "citing_papers": 5,
+      "extracted": 0
+    },
+    "robotwin_v1": {
+      "display_name": "RoboTwin 1.0",
+      "arxiv_id": "2409.02920",
+      "citing_papers": 69,
+      "extracted": 0
+    },
+    "robotwin_v2": {
+      "display_name": "RoboTwin 2.0",
+      "arxiv_id": "2506.18088",
+      "citing_papers": 151,
+      "extracted": 0
+    },
+    "simpler_env": {
+      "display_name": "SimplerEnv",
+      "arxiv_id": "2405.05941",
+      "citing_papers": 304,
+      "extracted": 0
+    },
+    "vlabench": {
+      "display_name": "VLABench",
+      "arxiv_id": "2412.18194",
+      "citing_papers": 86,
+      "extracted": 0
+    }
+  }
+}

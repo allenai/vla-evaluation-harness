@@ -19,6 +19,9 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -147,9 +150,6 @@ def refine(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-
-import typer  # noqa: E402
-from typing import Annotated, Optional  # noqa: E402
 
 app = typer.Typer(help="Refine raw extractions into leaderboard.json.", add_completion=False)
 
