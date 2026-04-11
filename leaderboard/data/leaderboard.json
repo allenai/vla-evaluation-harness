@@ -1,0 +1,765 @@
+{
+  "last_updated": "2026-04-11",
+  "benchmarks": {
+    "libero": {
+      "display_name": "LIBERO",
+      "paper_url": "https://arxiv.org/abs/2306.03310",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "libero_spatial",
+        "libero_object",
+        "libero_goal",
+        "libero_10",
+        "libero_90"
+      ],
+      "expand_suites": true,
+      "avg_position": 4,
+      "avg_label": "Avg (w/o 90)",
+      "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported.",
+      "contributing_section": "LIBERO"
+    },
+    "libero_plus": {
+      "display_name": "LIBERO-Plus",
+      "paper_url": "https://arxiv.org/abs/2510.13626",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "camera",
+        "robot",
+        "language",
+        "light",
+        "background",
+        "noise",
+        "layout"
+      ],
+      "detail_notes": "LIBERO-Plus (<a href='https://arxiv.org/abs/2510.13626'>2510.13626</a>). Robustness benchmark applying 7 perturbation dimensions (Camera, Robot, Language, Light, Background, Noise, Layout) to LIBERO tasks. Models are trained on standard LIBERO and evaluated zero-shot under perturbations. <strong>overall_score = paper-reported aggregate</strong> (averaged across all suite×perturbation cells, not simply the mean of 7 dimension scores).",
+      "contributing_section": "LIBERO-Plus"
+    },
+    "libero_pro": {
+      "display_name": "LIBERO-Pro",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "paper_url": "https://arxiv.org/abs/2510.03827",
+      "suites": [
+        "goal_env",
+        "goal_lang_aug",
+        "goal_obj",
+        "goal_ori",
+        "goal_original",
+        "goal_pos",
+        "goal_position",
+        "goal_sem",
+        "goal_task",
+        "goal_vision_aug",
+        "language_perturbation",
+        "libero_10",
+        "libero_goal",
+        "libero_object",
+        "libero_spatial",
+        "long_env",
+        "long_obj",
+        "long_ori",
+        "long_pos",
+        "long_position",
+        "long_sem",
+        "long_task",
+        "object_env",
+        "object_obj",
+        "object_ori",
+        "object_perturbation",
+        "object_pos",
+        "object_position",
+        "object_sem",
+        "object_task",
+        "pos_10",
+        "pos_goal",
+        "pos_object",
+        "pos_spatial",
+        "spatial_env",
+        "spatial_lang_aug",
+        "spatial_obj",
+        "spatial_ori",
+        "spatial_original",
+        "spatial_pos",
+        "spatial_position",
+        "spatial_sem",
+        "spatial_task",
+        "spatial_vision_aug",
+        "swap_perturbation",
+        "task_10",
+        "task_goal",
+        "task_object",
+        "task_perturbation",
+        "task_spatial"
+      ],
+      "detail_notes": "LIBERO-Pro robustness benchmark (<a href='https://arxiv.org/abs/2510.03827'>2510.03827</a>). Standard protocol: 4 suites (goal, spatial, long, object) × 5 perturbations (original, object_swap, position, semantic, task) = 20 cells. Optional 6th perturbation: environment (object suite only). <code>overall_score</code> = mean of 20 core cells (excl env). Null if &lt;20 cells reported.",
+      "contributing_section": "LIBERO-Pro"
+    },
+    "libero_mem": {
+      "display_name": "LIBERO-Mem",
+      "metric": {
+        "name": "subgoal_completion_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "paper_url": "https://arxiv.org/abs/2511.11478",
+      "tasks": [
+        "T1",
+        "T10",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "detail_notes": "LIBERO-Mem memory benchmark (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). 10 tasks (T1–T10). Metric: <strong>subgoal completion rate</strong> (not task success rate). 20 rollouts per task.",
+      "contributing_section": "LIBERO-Mem"
+    },
+    "calvin": {
+      "display_name": "CALVIN",
+      "paper_url": "https://arxiv.org/abs/2112.03227",
+      "metric": {
+        "name": "avg_len",
+        "unit": "subtasks",
+        "range": [
+          0,
+          5
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "1_task",
+        "2_tasks",
+        "3_tasks",
+        "4_tasks",
+        "5_tasks"
+      ],
+      "detail_notes": "ABC→D split only (train on A/B/C, eval on D). Metric: avg completed subtasks in a chain of 5 (0–5), not success rate. Standard: 1000 eval chains.",
+      "contributing_section": "CALVIN"
+    },
+    "simpler_env": {
+      "display_name": "SimplerEnv",
+      "paper_url": "https://arxiv.org/abs/2405.05941",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "google_robot_vm",
+        "google_robot_va",
+        "widowx_vm"
+      ],
+      "_note": "Three independent evaluation dimensions. Do NOT average across them.",
+      "tasks": [
+        "close_drawer_va",
+        "move_near_va",
+        "move_near_vm",
+        "open_close_drawer_va",
+        "open_close_drawer_vm",
+        "open_drawer_va",
+        "open_top_drawer_place_apple_vm",
+        "pick_coke_can_va",
+        "pick_coke_can_vm",
+        "place_apple_in_drawer_va",
+        "place_apple_in_drawer_vm",
+        "put_carrot_on_plate_vm",
+        "put_eggplant_in_basket_vm",
+        "put_spoon_on_towel_vm",
+        "reported_avg",
+        "stack_block_vm"
+      ],
+      "detail_notes": "3 independent evaluation dimensions (Google Robot VM, Google Robot VA, WidowX VM). Scores should never be averaged across them. <strong>Google Robot VM</strong> and <strong>VA</strong> are both standardized to the <strong>3-task average</strong> (Pick Coke Can, Move Near, Open/Close Drawer) for consistent ranking. Papers reporting 4 tasks (adding Place Apple in Drawer) have the 4th task shown in sub-scores; original 4-task averages are recorded in Notes. All <code>task_scores</code> keys must end with <code>_vm</code> or <code>_va</code> to indicate the evaluation protocol.",
+      "contributing_section": "SimplerEnv"
+    },
+    "maniskill2": {
+      "display_name": "ManiSkill2",
+      "paper_url": "https://arxiv.org/abs/2302.04659",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "tasks": [
+        "AssemblingKits",
+        "CloseCabinetDoor",
+        "Excavate",
+        "Fill",
+        "Hang",
+        "LiftCube",
+        "MoveBucket",
+        "OpenCabinetDoor",
+        "OpenCabinetDrawer",
+        "PegInsertionSide",
+        "PickClutterYCB",
+        "PickCube",
+        "PickSingleEGAD",
+        "PickSingleYCB",
+        "Pinch",
+        "PlugCharger",
+        "Pour",
+        "PushChair",
+        "PushCube",
+        "StackCube",
+        "TurnFaucet",
+        "TurnFaucetLeft",
+        "TurnFaucetRight",
+        "Write"
+      ],
+      "suites": [
+        "PickClutterYCB",
+        "PickCube",
+        "PickSingleEGAD",
+        "PickSingleYCB",
+        "StackCube"
+      ],
+      "detail_notes": "Task subsets vary significantly — 14+ different combinations exist across papers. The most common 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB) covers ~24% of entries. A second common 5-task set (Fill, Hang, PickCube, PickSingleYCB, StackCube) covers ~19%. <strong>Scores across different task subsets are not directly comparable.</strong> Averaging methods also vary (weighted vs arithmetic). Check notes for which tasks were evaluated. <strong>Only entries using the standard 5-task set have a sortable overall score</strong> — other task subsets are shown but not ranked.",
+      "contributing_section": "ManiSkill2"
+    },
+    "rlbench": {
+      "display_name": "RLBench",
+      "paper_url": "https://arxiv.org/abs/1909.12271",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "close_box",
+        "close_jar",
+        "drag_stick",
+        "insert_block",
+        "insert_peg",
+        "lamp_on",
+        "meat_off_grill",
+        "open_box",
+        "open_drawer",
+        "open_fridge",
+        "open_jar",
+        "open_wine",
+        "phone_on_base",
+        "pick_and_lift",
+        "pickup_cup",
+        "place_cups",
+        "place_wine",
+        "play_jenga",
+        "push_block",
+        "push_buttons",
+        "put_block",
+        "put_in_cupboard",
+        "put_in_drawer",
+        "put_in_safe",
+        "put_knife",
+        "screw_bulb",
+        "slide_block",
+        "sort_mustard",
+        "sort_shape",
+        "stack_blocks",
+        "stack_cups",
+        "sweep_to_dustpan",
+        "take_umbrella",
+        "turn_tap"
+      ],
+      "tasks": [
+        "close_jar",
+        "drag_stick",
+        "insert_peg",
+        "meat_off_grill",
+        "open_drawer",
+        "place_cups",
+        "place_wine",
+        "push_buttons",
+        "put_in_cupboard",
+        "put_in_drawer",
+        "put_in_safe",
+        "screw_bulb",
+        "slide_block",
+        "sort_shape",
+        "stack_blocks",
+        "stack_cups",
+        "sweep_to_dustpan",
+        "turn_tap"
+      ],
+      "detail_notes": "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores.",
+      "results": [
+        {
+          "model": "tgm-vla",
+          "display_name": "TGM-VLA",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2603.00615",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 90.5,
+          "source_paper": "https://arxiv.org/abs/2603.00615",
+          "source_table": "Table I",
+          "notes": "18-task subset (PerAct protocol), 25 variations/task, 100 demos/task",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "bridgevla",
+          "display_name": "BridgeVLA",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2506.07961",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 88.2,
+          "source_paper": "https://arxiv.org/abs/2506.07961",
+          "source_table": "Table 1",
+          "notes": "18-task subset (PerAct protocol), 25 variations/task",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "audio-vla",
+          "display_name": "Audio-VLA",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2511.09958",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 55.1,
+          "source_paper": "https://arxiv.org/abs/2511.09958",
+          "source_table": "Table I",
+          "notes": "5-task subset, non-standard protocol with contact audio modality",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "d3p",
+          "display_name": "D3P",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2511.00555",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 76.3,
+          "source_paper": "https://arxiv.org/abs/2511.00555",
+          "source_table": "Table I",
+          "notes": "6-task subset (Open Drawer, Push Button, Stack Wine, Slide Block, Sweep to Dustpan, Turn Tap)",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "hiveformer",
+          "display_name": "HiveFormer",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2209.04899",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 88.4,
+          "source_paper": "https://arxiv.org/abs/2209.04899",
+          "source_table": "Table 2",
+          "notes": "10-task single-task learning; multi-task on 74 tasks: 83.3%",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "cqn",
+          "display_name": "CQN",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2407.07787",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 77.5,
+          "source_paper": "https://arxiv.org/abs/2407.07787",
+          "source_table": "Table 1",
+          "notes": "20-task subset, RL-based (coarse-to-fine Q-network), 3-level discretization",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "mini-diffuser",
+          "display_name": "Mini-Diffuser",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2505.09430",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 77.6,
+          "source_paper": "https://arxiv.org/abs/2505.09430",
+          "source_table": "Table 2",
+          "notes": "18-task subset (PerAct protocol), 95.4% of 3D Diffuser Actor performance",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "mole-vla",
+          "display_name": "MoLe-VLA",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2503.20384",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 60.8,
+          "source_paper": "https://arxiv.org/abs/2503.20384",
+          "source_table": "Table 1",
+          "notes": "10-task subset (VLA efficiency method, dynamic layer-skipping)",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "lan-o3dp",
+          "display_name": "Lan-o3dp",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2407.00451",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 68.7,
+          "source_paper": "https://arxiv.org/abs/2407.00451",
+          "source_table": "Table I",
+          "notes": "21-task subset, object-centric 3D diffusion policy, 40 demos/task",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "mind",
+          "display_name": "MinD",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2506.18897",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 63.0,
+          "source_paper": "https://arxiv.org/abs/2506.18897",
+          "source_table": "Table 1",
+          "notes": "7-task subset, dual-system world model with video diffusion",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "anybimanual",
+          "display_name": "AnyBimanual",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2412.06779",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": null,
+          "source_paper": "https://arxiv.org/abs/2412.06779",
+          "source_table": "Table 1",
+          "notes": "12-task bimanual subset (RLBench2), 17.33% improvement over prior methods; non-standard bimanual protocol",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        },
+        {
+          "model": "match-policy",
+          "display_name": "MATCH POLICY",
+          "params": null,
+          "model_paper": "https://arxiv.org/abs/2409.15517",
+          "benchmark": "rlbench",
+          "weight_type": "finetuned",
+          "overall_score": 53.4,
+          "source_paper": "https://arxiv.org/abs/2409.15517",
+          "source_table": "Table I",
+          "notes": "6-task subset (Phone-on-Base, Stack-Wine, etc.), 10 demo episodes, point cloud registration approach",
+          "curated_by": "opus 4.6",
+          "date_added": "2026-03-04"
+        }
+      ],
+      "contributing_section": "RLBench"
+    },
+    "robocasa": {
+      "display_name": "RoboCasa",
+      "paper_url": "https://arxiv.org/abs/2406.02523",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "detail_notes": "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>). <strong>Training data varies widely</strong> (50–300 demos/task). Check <em>notes</em> for <code>demos_per_task</code> and <code>task_count</code>. Scores from different training budgets are not directly comparable.",
+      "contributing_section": "RoboCasa"
+    },
+    "robotwin_v1": {
+      "display_name": "RoboTwin 1.0",
+      "paper_url": "https://arxiv.org/abs/2409.02920",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "detail_notes": "RoboTwin 1.0 (ECCV 2024). Task counts vary by paper (4–17). Scores across different task subsets are not directly comparable.",
+      "tasks": [
+        "block_hammer_beat",
+        "block_hammer_beat_20demo",
+        "block_hammer_beat_50demo",
+        "block_handover",
+        "block_handover_20demo",
+        "block_handover_50demo",
+        "blocks_stack",
+        "blocks_stack_easy",
+        "blocks_stack_easy_20demo",
+        "blocks_stack_easy_50demo",
+        "blocks_stack_hard",
+        "blocks_stack_hard_20demo",
+        "blocks_stack_hard_50demo",
+        "bottle_adjust",
+        "container_place",
+        "container_place_20demo",
+        "container_place_50demo",
+        "diverse_bottles_pick",
+        "diverse_bottles_pick_20demo",
+        "diverse_bottles_pick_50demo",
+        "dual_bottles_pick_easy",
+        "dual_bottles_pick_hard",
+        "dual_shoes_place",
+        "empty_cup_place",
+        "empty_cup_place_messy",
+        "mug_hanging_easy",
+        "mug_hanging_hard",
+        "mug_hanging_hard_20demo",
+        "mug_hanging_hard_50demo",
+        "pick_apple_messy",
+        "pick_apple_messy_20demo",
+        "pick_apple_messy_50demo",
+        "put_apple_cabinet",
+        "shoe_place",
+        "tool_adjust"
+      ],
+      "contributing_section": "RoboTwin"
+    },
+    "robotwin_v2": {
+      "display_name": "RoboTwin 2.0",
+      "paper_url": "https://arxiv.org/abs/2506.18088",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "easy",
+        "hard"
+      ],
+      "detail_notes": "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist — scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos — Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task — Hard is in-distribution (near-zero gaps). Check entry notes for protocol.",
+      "tasks": [
+        "beat_block_hammer",
+        "click_bell",
+        "handover_mic",
+        "move_can_pot",
+        "move_pillbottles_pad",
+        "move_playingcard_away",
+        "pick_diverse_bottles",
+        "place_burger_fries",
+        "place_container_plate",
+        "place_mouse_pad",
+        "place_phone_stand",
+        "shake_bottle"
+      ],
+      "contributing_section": "RoboTwin"
+    },
+    "vlabench": {
+      "display_name": "VLABench",
+      "paper_url": "https://arxiv.org/abs/2412.18194",
+      "detail_notes": "Standard: Track 1-4 Progress Score (PS) avg. Official 6-track system from OpenMOSS/VLABench: (1) in_distribution, (2) cross_category, (3) common_sense, (4) semantic_instruction, (5) cross_task [open], (6) unseen_texture. Metrics: IS (Intention Score) = approached correct object; PS (Progress Score) = task completion. overall_score = Track 1-4 PS avg. Entries from the original VLABench paper (2412.18194) use a pre-track IS-based protocol and have overall_score=null.",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "suites": [
+        "avg_IS",
+        "avg_PS",
+        "common_sense",
+        "commonsense_IS",
+        "commonsense_PS",
+        "composite_task_avg",
+        "cross_category",
+        "cross_category_IS",
+        "cross_category_PS",
+        "in_dist_IS",
+        "in_dist_PS",
+        "in_distribution",
+        "intention_score",
+        "lang_generalization_avg",
+        "level_2b_lang_generalization",
+        "level_2c_unseen_task",
+        "level_2d_composite",
+        "progress_score",
+        "seen_base",
+        "seen_commonsense",
+        "semantic_instruction",
+        "semantic_instruction_IS",
+        "semantic_instruction_PS",
+        "unseen_base",
+        "unseen_commonsense",
+        "unseen_task_avg",
+        "unseen_texture_IS",
+        "unseen_texture_PS"
+      ],
+      "tasks": [
+        "add_condiment",
+        "get_coffee",
+        "select_apple",
+        "select_chemistry_tube",
+        "set_study_table",
+        "texas_holdem"
+      ],
+      "contributing_section": "VLABench"
+    },
+    "mikasa": {
+      "display_name": "MIKASA-Robo",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "paper_url": "https://arxiv.org/abs/2502.10550",
+      "tasks": [
+        "InterceptMedium",
+        "RememberColor3",
+        "RememberColor5",
+        "RememberColor9",
+        "ShellGameTouch"
+      ],
+      "detail_notes": "Standard protocol: 5-task VLA evaluation (ShellGameTouch, InterceptMedium, RememberColor3/5/9) from the MIKASA paper, endorsed by MemoryVLA (ICLR 2026). <code>overall_score</code> = arithmetic mean of 5 tasks. Entries using non-standard task sets (e.g., ELMUR 4-task) have <code>overall_score</code> = null.",
+      "contributing_section": "MIKASA-Robo"
+    },
+    "kinetix": {
+      "display_name": "Kinetix",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "paper_url": "https://arxiv.org/abs/2506.07339",
+      "_note": "Benchmark protocol (12 dynamic tasks) defined by the RTC paper (2506.07339), using the Kinetix simulator (2410.23208).",
+      "suites": [
+        "d0",
+        "d1",
+        "d2",
+        "d3",
+        "d4"
+      ],
+      "detail_notes": "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based, no vision/language. Scores depend on (inference_delay <em>d</em>, execution_horizon <em>e</em>). Entries at different <em>d</em> values are <strong>not directly comparable</strong> (~11pp gap between d=0 and d=4 for the same method).",
+      "contributing_section": "Kinetix"
+    },
+    "robocerebra": {
+      "display_name": "RoboCerebra",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "paper_url": "https://arxiv.org/abs/2506.06677",
+      "suites": [
+        "ideal",
+        "memory_execution",
+        "memory_exploration",
+        "mix",
+        "observation_mismatching",
+        "random_disturbance"
+      ],
+      "tasks": [
+        "Ideal",
+        "Memory_Execution",
+        "Memory_Exploration",
+        "Mix",
+        "Observation_Mismatching",
+        "Random_Disturbance"
+      ],
+      "detail_notes": "Embodied reasoning benchmark (<a href='https://arxiv.org/abs/2506.06677'>2506.06677</a>) with 6 evaluation dimensions. <code>overall_score</code> = mean of 6 dimensions. <strong>Architecture types</strong>: end-to-end VLAs, hierarchical (VLM+controller), and oracle (GT-Plan) upper bounds are not directly comparable. Check <em>notes</em> for architecture type.",
+      "contributing_section": "RoboCerebra"
+    },
+    "roboarena": {
+      "display_name": "RoboArena",
+      "paper_url": "https://arxiv.org/abs/2506.18123",
+      "official_leaderboard": "https://robo-arena.github.io/",
+      "metric": {
+        "name": "elo_rating",
+        "unit": "Elo",
+        "range": [
+          0,
+          2000
+        ],
+        "higher_is_better": true
+      },
+      "_note": "Elo-based pairwise arena ranking from distributed real-robot A/B evaluations across 7 institutions using DROID platform",
+      "detail_notes": "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of robot manipulation policies.",
+      "contributing_section": "RoboArena"
+    },
+    "robochallenge": {
+      "display_name": "RoboChallenge",
+      "paper_url": "https://arxiv.org/abs/2510.17950",
+      "official_leaderboard": "https://robochallenge.ai/leaderboard",
+      "metric": {
+        "name": "success_rate",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "higher_is_better": true
+      },
+      "_note": "30 real-robot tasks across 4 platforms (UR5, Franka, ARX5, ALOHA). Progress score (0-100) also reported.",
+      "suites": [
+        "progress_score"
+      ],
+      "detail_notes": "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Scores synced from official leaderboard API. Manual paper extractions are not accepted.",
+      "contributing_section": "RoboChallenge"
+    }
+  },
+  "results": []
+}
