@@ -33,6 +33,7 @@
           "avg_position": { "type": "integer", "minimum": 0, "description": "Insert Avg column after this many suite columns (default: end)" },
           "avg_label": { "type": "string", "description": "Custom label for the Avg column (e.g. 'Avg (w/o 90)')" },
           "detail_notes": { "type": "string", "description": "Info note shown when viewing this benchmark's detail view" },
+          "contributing_section": { "type": "string", "description": "Heading of the matching CONTRIBUTING.md 'Benchmark-Specific Caveats' subsection; consumed by verify.py to slice the per-benchmark rules" },
           "suites": { "type": "array", "items": { "type": "string" } },
           "tasks": { "type": "array", "items": { "type": "string" } },
           "papers_reviewed": {
@@ -52,6 +53,7 @@
         "properties": {
           "model": { "type": "string" },
           "display_name": { "type": "string" },
+          "name_in_paper": { "type": ["string", "null"], "description": "Exact model label from the source paper's results table; used by reconcile.py for identity matching. display_name is the curator-controlled leaderboard label." },
           "benchmark": { "type": "string" },
           "overall_score": { "type": ["number", "null"] },
           "suite_scores": {
@@ -62,7 +64,6 @@
             "type": "object",
             "additionalProperties": { "type": "number" }
           },
-          "num_episodes": { "type": "integer", "minimum": 1 },
           "source_paper": { "type": ["string", "null"], "format": "uri" },
           "source_table": { "type": ["string", "null"] },
           "curated_by": { "type": "string" },
