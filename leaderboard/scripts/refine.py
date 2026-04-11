@@ -160,15 +160,14 @@ def _flatten_scores(scores_obj: dict) -> tuple[dict, dict]:
 
 
 # ---------------------------------------------------------------------------
-# Dedup
+# Dedup (rule-based fallback)
 # ---------------------------------------------------------------------------
 
-# Priority: original evaluation > reproduction > cited baseline
 _PROVENANCE_PRIORITY = {"original": 0, "reproduction": 1, "cited_baseline": 2, "unknown": 3}
 
 
 def _dedup_entries(entries: list[dict]) -> list[dict]:
-    """Deduplicate entries by (model, benchmark). Keep highest-priority provenance."""
+    """Rule-based dedup by (model, benchmark). Keep highest-priority provenance."""
     by_key: dict[tuple[str, str], list[dict]] = {}
     for e in entries:
         key = (e["model"], e["benchmark"])
@@ -179,7 +178,6 @@ def _dedup_entries(entries: list[dict]) -> list[dict]:
         if len(group) == 1:
             deduped.append(group[0])
         else:
-            # Sort by provenance priority, then by date (newest first)
             group.sort(
                 key=lambda e: (
                     _PROVENANCE_PRIORITY.get(e.get("_provenance", "unknown"), 3),
@@ -191,11 +189,174 @@ def _dedup_entries(entries: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# LLM-assisted refinement (per-benchmark batch)
+# ---------------------------------------------------------------------------
+
+_REFINE_SCHEMA: dict = {
+    "type": "object",
+    "required": ["groups", "rejections"],
+    "properties": {
+        "groups": {
+            "type": "array",
+            "description": "Groups of entries that refer to the same model. Each group merges into one entry.",
+            "items": {
+                "type": "object",
+                "required": ["canonical_key", "canonical_display_name", "entry_indices", "keep_index", "reason"],
+                "properties": {
+                    "canonical_key": {"type": "string", "description": "The model key to use for the merged entry"},
+                    "canonical_display_name": {"type": "string", "description": "Clean display name for the model"},
+                    "entry_indices": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Indices of entries in this group (0-based)",
+                    },
+                    "keep_index": {
+                        "type": "integer",
+                        "description": "Index of the entry to keep (best provenance/scores)",
+                    },
+                    "reason": {"type": "string"},
+                },
+            },
+        },
+        "rejections": {
+            "type": "array",
+            "description": "Entries to reject entirely (protocol violations, invalid data).",
+            "items": {
+                "type": "object",
+                "required": ["entry_index", "reason"],
+                "properties": {
+                    "entry_index": {"type": "integer"},
+                    "reason": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+
+def _call_claude_cli(
+    system_prompt: str, user_content: str, json_schema: dict, model: str = "sonnet", timeout: int = 300
+) -> dict:
+    import subprocess
+
+    cmd = [
+        "claude",
+        "--print",
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
+        "--json-schema",
+        json.dumps(json_schema),
+        "--output-format",
+        "json",
+        "--disallowedTools",
+        "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch,Read,Grep,Glob",
+        "--permission-mode",
+        "default",
+        "--no-session-persistence",
+    ]
+    result = subprocess.run(cmd, input=user_content, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {result.stderr[:500]}")
+    envelope = json.loads(result.stdout)
+    if envelope.get("is_error"):
+        raise RuntimeError(f"CLI error: {envelope.get('subtype')}")
+    structured = envelope.get("structured_output")
+    if not isinstance(structured, dict):
+        raise RuntimeError("no structured_output")
+    return structured
+
+
+def _llm_refine_benchmark(benchmark: str, entries: list[dict], model: str) -> list[dict]:
+    """Use LLM to deduplicate and review entries for one benchmark."""
+    if len(entries) <= 1:
+        return entries
+
+    # Build a compact summary for the LLM
+    summary_lines = []
+    for i, e in enumerate(entries):
+        summary_lines.append(
+            f"[{i}] key={e['model']} display={e['display_name']} "
+            f"source={e.get('source_paper', '')} "
+            f"provenance={e.get('_provenance', '?')} "
+            f"overall={e.get('overall_score')} "
+            f"weight={e.get('weight_type', '?')} "
+            f"params={e.get('params', '?')}"
+        )
+
+    system_prompt = f"""You are refining leaderboard entries for the {benchmark} benchmark.
+
+You will see a list of extracted entries. Your job:
+1. Identify entries that refer to the SAME model under different names
+   (e.g. "OpenVLA" and "OpenVLA-7B" and "OpenVLA (Kim et al.)" are the same model).
+   Group them and pick the best entry (prefer original > reproduction > cited_baseline).
+   Choose a clean canonical_key (lowercase, underscored) and display_name.
+2. Flag entries that should be REJECTED (invalid protocol, corrupt data).
+3. Entries that are genuinely different models should NOT be grouped.
+
+Return groups (for merging) and rejections (for removal). Entries not mentioned
+in any group or rejection are kept as-is."""
+
+    user_content = f"Benchmark: {benchmark}\n{len(entries)} entries:\n\n" + "\n".join(summary_lines)
+
+    try:
+        result = _call_claude_cli(system_prompt, user_content, _REFINE_SCHEMA, model=model)
+    except Exception as e:
+        print(f"  LLM refine failed for {benchmark}: {e}")
+        return entries
+
+    # Apply rejections
+    reject_indices = {r["entry_index"] for r in result.get("rejections", []) if 0 <= r["entry_index"] < len(entries)}
+
+    # Apply groups
+    consumed_indices: set[int] = set()
+    refined: list[dict] = []
+    for group in result.get("groups", []):
+        indices = [i for i in group.get("entry_indices", []) if 0 <= i < len(entries)]
+        keep_idx = group.get("keep_index")
+        if keep_idx is None or keep_idx not in indices:
+            continue
+        if keep_idx in reject_indices:
+            continue
+        kept = dict(entries[keep_idx])
+        kept["model"] = group.get("canonical_key", kept["model"])
+        kept["display_name"] = group.get("canonical_display_name", kept["display_name"])
+        refined.append(kept)
+        consumed_indices.update(indices)
+
+    # Add ungrouped, unrejected entries
+    for i, e in enumerate(entries):
+        if i not in consumed_indices and i not in reject_indices:
+            refined.append(e)
+
+    return refined
+
+
+def _llm_refine_all(entries: list[dict], model: str) -> list[dict]:
+    """Run LLM refinement per benchmark."""
+    from collections import defaultdict
+
+    by_bm: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_bm[e["benchmark"]].append(e)
+
+    refined: list[dict] = []
+    for bm in sorted(by_bm):
+        bm_entries = by_bm[bm]
+        print(f"  Refining {bm}: {len(bm_entries)} entries...")
+        result = _llm_refine_benchmark(bm, bm_entries, model)
+        print(f"    → {len(result)} entries ({len(bm_entries) - len(result)} removed)")
+        refined.extend(result)
+    return refined
+
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 
 
-def build_results(benchmark_filter: str | None = None) -> dict:
+def build_results(benchmark_filter: str | None = None, llm_model: str | None = None) -> dict:
     """Build leaderboard.json from extraction cache."""
     entries: list[dict] = []
 
@@ -255,8 +416,11 @@ def build_results(benchmark_filter: str | None = None) -> dict:
 
                 entries.append(entry)
 
-    # Dedup
+    # Dedup: rule-based first, then LLM if requested
     entries = _dedup_entries(entries)
+    if llm_model:
+        print(f"Running LLM refinement ({llm_model})...")
+        entries = _llm_refine_all(entries, llm_model)
 
     # Remove internal fields
     for e in entries:
@@ -310,13 +474,17 @@ app = typer.Typer(help="Build leaderboard.json from extraction cache.", add_comp
 def main(
     output: Annotated[Path, typer.Option("-o", help="Output path.")] = LEADERBOARD_PATH,
     benchmark: Annotated[Optional[str], typer.Option(help="Only include this benchmark.")] = None,
+    model: Annotated[
+        Optional[str],
+        typer.Option(help="Claude model for LLM-assisted refinement (e.g. sonnet). Omit for rule-based only."),
+    ] = None,
 ) -> None:
     """Compile extraction cache into leaderboard.json."""
     EXTRACTIONS_DIR.mkdir(parents=True, exist_ok=True)
     n_files = len(list(EXTRACTIONS_DIR.glob("*.json")))
-    typer.echo(f"Reading {n_files} extraction cache files...")
+    typer.echo(f"Reading {n_files} extraction files...")
 
-    data = build_results(benchmark_filter=benchmark)
+    data = build_results(benchmark_filter=benchmark, llm_model=model)
     output.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
     typer.echo(f"Wrote {output}")
