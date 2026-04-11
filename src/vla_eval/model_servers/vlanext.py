@@ -20,12 +20,15 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import sys
 from typing import Any
 
 import numpy as np
 import torch
 
+from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import (
     GRIPPER_CLOSE_POS,
     IMAGE_RGB,
@@ -35,11 +38,27 @@ from vla_eval.specs import (
     STATE_EEF_POS_AA_GRIP,
     DimSpec,
 )
-from vla_eval.model_servers.base import SessionContext
 from vla_eval.types import Action, Observation
-from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
+
+# VLANeXt is not pip-installable — shallow-clone once at runtime.
+_VLANEXT_REPO = "https://github.com/DravenALG/VLANeXt.git"
+_VLANEXT_REV = "219c255"
+_VLANEXT_CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "vla-eval/vlanext")
+
+
+def _ensure_vlanext() -> None:
+    """Make VLANeXt model importable via ``from src.models.VLANeXt import VLANeXt``."""
+    vlanext_root = os.environ.get("VLANEXT_ROOT", _VLANEXT_CACHE)
+    if not os.path.isdir(os.path.join(vlanext_root, "src", "models")):
+        logger.info("Cloning VLANeXt from %s …", _VLANEXT_REPO)
+        subprocess.check_call(["git", "clone", "--depth", "1", "--branch", "main", _VLANEXT_REPO, _VLANEXT_CACHE])
+        subprocess.check_call(["git", "-C", _VLANEXT_CACHE, "checkout", _VLANEXT_REV])
+        vlanext_root = _VLANEXT_CACHE
+    if vlanext_root not in sys.path:
+        sys.path.insert(0, vlanext_root)
+
 
 # LIBERO suite-specific action denormalization bounds (first 6 dims, excluding gripper).
 # From VLANeXt/src/datasets/libero_act.py
@@ -153,17 +172,7 @@ class VLANeXtModelServer(PredictModelServer):
         if self._model is not None:
             return
 
-        # VLANeXt is not pip-installable — locate it via VLANEXT_ROOT env var.
-        # Clone from https://github.com/DravenALG/VLANeXt and set VLANEXT_ROOT.
-        vlanext_root = os.environ.get("VLANEXT_ROOT", "")
-        if not vlanext_root:
-            raise RuntimeError(
-                "VLANEXT_ROOT environment variable must point to the VLANeXt repo root.  "
-                "Clone from https://github.com/DravenALG/VLANeXt and set VLANEXT_ROOT."
-            )
-        if vlanext_root not in sys.path:
-            sys.path.insert(0, vlanext_root)
-
+        _ensure_vlanext()
         from src.models.VLANeXt import VLANeXt
 
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
