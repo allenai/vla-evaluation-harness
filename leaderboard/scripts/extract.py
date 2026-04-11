@@ -43,6 +43,9 @@ FETCH_FAILURES_PATH = CACHE_DIR / "fetch_failures.json"
 PAPER_BUDGET = 80_000
 _ARXIV_RE = re.compile(r"arxiv\.org/abs/(\d+\.\d+)")
 
+# Thread-safe accumulator for fetch failures (flushed at end of run)
+_pending_failures: dict[str, str] = {}
+
 
 def _extract_arxiv_id(url: str | None) -> str | None:
     if not url:
@@ -223,6 +226,7 @@ def _load_paper_markdown(arxiv_id: str) -> str | None:
     return p.read_text(encoding="utf-8") if p.exists() else None
 
 
+@functools.lru_cache(maxsize=None)
 def _paper_hash(arxiv_id: str) -> str | None:
     meta = _paper_meta_path(arxiv_id)
     if not meta.exists():
@@ -239,8 +243,9 @@ def _extraction_cache_path(arxiv_id: str) -> Path:
     return EXTRACTIONS_DIR / f"{arxiv_id}.json"
 
 
-def _current_benchmark_keys() -> set[str]:
-    return {f.stem for f in BENCHMARKS_DIR.glob("*.md") if f.stem != "_global"}
+@functools.lru_cache(maxsize=1)
+def _current_benchmark_keys() -> frozenset[str]:
+    return frozenset(f.stem for f in BENCHMARKS_DIR.glob("*.md") if f.stem != "_global")
 
 
 def _load_cached_extraction(arxiv_id: str) -> dict | None:
@@ -444,17 +449,16 @@ def extract_one(arxiv_id: str, all_rules: str, model: str, *, timeout: int = 600
         if cached is not None:
             return cached
 
-    # Auto-fetch if not cached
-    if not _is_paper_cached(arxiv_id):
-        if not _fetch_paper(arxiv_id):
-            failures = _load_fetch_failures()
-            failures[arxiv_id] = f"HTML not available, {_now_iso()}"
-            _save_fetch_failures(failures)
-            return None
-
+    # Auto-fetch if not cached, then load
     paper_md = _load_paper_markdown(arxiv_id)
     if paper_md is None:
-        return None
+        if not _fetch_paper(arxiv_id):
+            _pending_failures[arxiv_id] = f"HTML not available, {_now_iso()}"
+            return None
+        _load_paper_markdown.cache_clear()
+        paper_md = _load_paper_markdown(arxiv_id)
+        if paper_md is None:
+            return None
 
     # Trim paper if over budget
     if len(paper_md) > PAPER_BUDGET:
@@ -474,7 +478,7 @@ def extract_one(arxiv_id: str, all_rules: str, model: str, *, timeout: int = 600
         "extracted_at": _now_iso(),
         "model_used": model,
         "paper_hash": _paper_hash(arxiv_id),
-        "extraction_scope": sorted(f.stem for f in BENCHMARKS_DIR.glob("*.md") if f.stem != "_global"),
+        "extraction_scope": sorted(_current_benchmark_keys()),
         "benchmarks": llm_output.get("benchmarks", []),
         "confidence": llm_output.get("confidence"),
     }
@@ -548,6 +552,8 @@ def scan(
     benchmarks = json.loads(BENCHMARKS_JSON_PATH.read_text())
     scan_results: dict[str, dict] = {}
     total_new = 0
+    EXTRACTIONS_DIR.mkdir(parents=True, exist_ok=True)
+    extracted_stems = {f.stem for f in EXTRACTIONS_DIR.glob("*.json")}
 
     for bm_key, bm in sorted(benchmarks.items()):
         if benchmark and bm_key != benchmark:
@@ -563,8 +569,7 @@ def scan(
             print(f"    error: {e}")
             continue
         citing_ids = {p["arxiv_id"] for p in citing}
-        # "reviewed" = has an extraction file (regardless of content)
-        reviewed = {f.stem for f in EXTRACTIONS_DIR.glob("*.json")} & citing_ids
+        reviewed = extracted_stems & citing_ids
         new_ids = citing_ids - reviewed
         total_new += len(new_ids)
         scan_results[bm_key] = {
@@ -584,17 +589,16 @@ def scan(
     )
 
     # Update coverage.json
-    total_extracted = len({f.stem for f in EXTRACTIONS_DIR.glob("*.json")})
     coverage = {
         "last_updated": _now_iso()[:10],
-        "total_extracted": total_extracted,
+        "total_extracted": len(extracted_stems),
         "benchmarks": {},
     }
-    for bm_key, bm in sorted(benchmarks.items()):
+    for bm_key in sorted(benchmarks):
         sr = scan_results.get(bm_key, {})
         coverage["benchmarks"][bm_key] = {
-            "display_name": bm.get("display_name", bm_key),
-            "arxiv_id": _extract_arxiv_id(bm.get("paper_url", "")) or "",
+            "display_name": benchmarks[bm_key].get("display_name", bm_key),
+            "arxiv_id": sr.get("arxiv_id", ""),
             "citing_papers": sr.get("citing_papers", 0),
             "extracted": sr.get("extracted", 0),
         }
@@ -688,6 +692,13 @@ def run(
                     total = n_ok + n_empty + n_fail
                     if total % 20 == 0:
                         print(f"  --- {total}/{len(targets)} ---")
+
+    # Flush accumulated fetch failures
+    if _pending_failures:
+        existing = _load_fetch_failures()
+        existing.update(_pending_failures)
+        _save_fetch_failures(existing)
+        _pending_failures.clear()
 
     print(f"\nDone: ok={n_ok} empty={n_empty} fail={n_fail} total={len(targets)}")
     failures = _load_fetch_failures()

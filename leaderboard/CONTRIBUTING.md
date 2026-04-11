@@ -4,8 +4,6 @@
 
 ## Data Structure
 
-The leaderboard data is split across several files:
-
 | File | Contents |
 |------|----------|
 | `data/benchmarks.json` | Benchmark registry (metrics, suites, tasks, display config) |
@@ -16,9 +14,21 @@ The leaderboard data is split across several files:
 | `extractions/{arxiv_id}.json` | Raw LLM extraction per paper (git tracked, incremental) |
 | `benchmarks/{key}.md` | Per-benchmark protocol definitions |
 
+### Benchmarks
+
+| Benchmark | Metric | Unit | Range |
+|-----------|--------|------|-------|
+| LIBERO, LIBERO-Plus, LIBERO-Pro | success_rate | % | 0–100 |
+| LIBERO-Mem | subgoal_completion_rate | % | 0–100 |
+| CALVIN | avg_len | subtasks | 0–5 |
+| SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin 1.0, RoboTwin 2.0, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboChallenge | success_rate | % | 0–100 |
+| RoboArena | elo_rating | Elo | 0–2000 |
+
+Each benchmark declares its metric, range, and optionally `suites`/`tasks` in `benchmarks.json`. Every benchmark has a `detail_notes` field displayed as a banner on the leaderboard frontend.
+
 ### Result Fields
 
-Each result entry in `leaderboard.json`:
+Each result in `leaderboard.json` is **self-contained** — model metadata is inlined:
 
 ```json
 {
@@ -33,16 +43,41 @@ Each result entry in `leaderboard.json`:
 }
 ```
 
+**Required**: `model`, `display_name`, `benchmark`, `weight_type`, `curated_by`, `date_added`
+
+**Key fields**:
+
 | Field | Meaning | Null when |
 |-------|---------|-----------|
-| `model_paper` | Paper that introduces the model | Proprietary model |
-| `source_paper` | Paper where this score was reported | API-synced entry |
-| `overall_score` | Aggregate score (controls ranking) | Non-standard protocol |
+| `model_paper` | Paper that **introduces the model** (architecture, training) | No arxiv paper (proprietary models) |
+| `source_paper` | Paper where this **specific score was reported** | Score from official leaderboard API |
+| `overall_score` | Aggregate score (controls ranking) | Non-standard protocol (→ `null`), or only per-suite scores available |
 | `params` | Parameter count (e.g. `"7B"`) | Unknown |
 | `name_in_paper` | Exact model label from the source paper (e.g. `"Ours (π₀)"`) | Not yet extracted |
 
+- `model_paper` / `source_paper` must be **full URLs** (`https://arxiv.org/abs/...`), not bare IDs — bare IDs render as broken links.
 - `weight_type`: `"shared"` (same checkpoint across benchmarks) or `"finetuned"` (trained on this benchmark).
-- `overall_score` = `null` when the evaluation protocol doesn't match the benchmark's standard. See `benchmarks/{key}.md` for each benchmark's standard.
+- `curated_by`: AI-extracted → `"refine.py (opus)"`; human-verified → GitHub handle (`"@user"`).
+- `notes`: Free-text for caveats (non-standard eval, different task subset, etc.).
+- `overall_score` must only be set when the entry uses the benchmark's **standard evaluation protocol**. Entries using non-standard task subsets, different task counts, or incompatible evaluation setups must set `overall_score` to `null` — this prevents misleading rankings while preserving the data. See `benchmarks/{key}.md` for each benchmark's standard protocol.
+- `validate.py` enforces: every entry must have at least one score (`overall_score`, `suite_scores`, or `task_scores`). For non-standard entries (`overall_score: null`), task/suite key names are not validated against the declared list since they use different protocols.
+
+## Score Provenance
+
+When adding scores, correctly attribute **who ran the evaluation**:
+
+| Scenario | `model_paper` | `source_paper` | `model` key |
+|----------|--------------|----------------|-------------|
+| Authors evaluate their own model | Model's paper | Same paper | Original key (e.g. `openvla`) |
+| Paper B re-trains/fine-tunes Model A from scratch | Model A's paper | Paper B | Separate key (e.g. `openvla_memoryvla`) |
+| Paper B downloads Model A's checkpoint and evaluates as-is | Model A's paper | Paper B | Original key; note eval setup differences in `notes` |
+| Paper B cites Paper A's score without re-running | Model A's paper | Paper A (original) | Original key |
+
+**Rules**:
+- Third-party reproductions always get a **separate model key** with a descriptive suffix (e.g. `openvla_memoryvla` = "OpenVLA reproduced by MemoryVLA authors"). Add `notes` explaining it is a reproduction.
+- Baseline copies (citing without re-running) are acceptable only when the original score is not already in the leaderboard.
+- When in doubt, create a separate entry — two entries can be merged later, but conflated runs cannot be separated.
+- **Non-standard evaluation protocols** (different task subsets, custom metrics, modified benchmarks) must NOT be filed under the standard benchmark. Either create a separate benchmark or omit the entry.
 
 ## Pipeline
 
@@ -59,7 +94,7 @@ sync_external.py   →  add API-synced entries (RoboArena, RoboChallenge)
 1. `extract.py scan` — find new citing papers
 2. `extract.py run --from-scan --workers 2` — extract from new papers
 3. `refine.py --model opus` — regenerate leaderboard.json
-4. `validate.py leaderboard.json` — check for errors
+4. `validate.py` — check for errors
 5. Review diff, commit
 
 ### Adding a new benchmark
@@ -68,6 +103,16 @@ sync_external.py   →  add API-synced entries (RoboArena, RoboChallenge)
 2. Add benchmark to `benchmarks.json`
 3. Re-run extraction on relevant papers: `extract.py run ARXIV_ID ...`
 4. `refine.py` will pick up the new benchmark automatically
+
+## Official Leaderboard Policy
+
+Benchmarks with `official_leaderboard` in `benchmarks.json` require **API-synced entries only** — `curated_by` must end with `-api`. Manual paper extractions are prohibited. `validate.py` enforces this.
+
+## CI/CD
+
+- **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `leaderboard.json` or `citations.json`
+- **`pages.yml`**: Deploys to GitHub Pages on push to main; regenerates `coverage.json` and `citations.json`
+- **`update-data.yml`**: Scans citing papers, syncs external sources, and opens a PR with updates. Bi-weekly schedule (1st and 15th of month).
 
 ## Benchmark Protocols
 
@@ -83,10 +128,6 @@ These are the **single source of truth** for benchmark rules. They are:
 - Included in `extract.py` LLM prompts for score extraction
 - Included in `refine.py` LLM prompts for curation
 - The reference for human curators
-
-## Official Leaderboard Policy
-
-Benchmarks with `official_leaderboard` in `benchmarks.json` require API-synced entries only — `curated_by` must end with `-api`.
 
 ## Schema
 
