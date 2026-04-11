@@ -29,7 +29,8 @@ jobs:
           python leaderboard/scripts/update_citations.py
           mkdir -p _site/leaderboard
           cp leaderboard/site/* _site/leaderboard/
-          cp leaderboard/data/results.json _site/leaderboard/
+          cp leaderboard/data/leaderboard.json _site/leaderboard/
+          cp leaderboard/data/benchmarks.json _site/leaderboard/
           cp leaderboard/data/coverage.json _site/leaderboard/
           cp leaderboard/data/citations.json _site/leaderboard/
 

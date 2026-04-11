@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VLA Benchmark Registry",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["display_name", "metric"],
+    "properties": {
+      "display_name": { "type": "string" },
+      "paper_url": { "type": "string", "format": "uri" },
+      "metric": {
+        "type": "object",
+        "required": ["name", "unit", "range", "higher_is_better"],
+        "properties": {
+          "name": { "type": "string" },
+          "unit": { "type": "string" },
+          "range": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "higher_is_better": { "type": "boolean" }
+        }
+      },
+      "official_leaderboard": { "type": "string", "format": "uri" },
+      "expand_suites": { "type": "boolean" },
+      "avg_position": { "type": "integer", "minimum": 0 },
+      "avg_label": { "type": "string" },
+      "detail_notes": { "type": "string" },
+      "contributing_section": { "type": "string" },
+      "suites": { "type": "array", "items": { "type": "string" } },
+      "tasks": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

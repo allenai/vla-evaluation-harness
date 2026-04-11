@@ -34,7 +34,8 @@ def canonical_json(data: dict) -> str:
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
 BENCHMARKS_PATH = DATA_DIR / "benchmarks.json"
-SCHEMA_PATH = DATA_DIR / "schema.json"
+SCHEMA_PATH = DATA_DIR / "leaderboard.schema.json"
+BENCHMARKS_SCHEMA_PATH = DATA_DIR / "benchmarks.schema.json"
 CITATIONS_PATH = DATA_DIR / "citations.json"
 
 
@@ -418,12 +419,18 @@ def main() -> int:
     raw_text = results_path.read_text()
     data = json.loads(raw_text)
 
-    # Load benchmarks registry from separate file and inject into data for validators
-    if "benchmarks" not in data and BENCHMARKS_PATH.exists():
-        data["benchmarks"] = json.loads(BENCHMARKS_PATH.read_text())
-
     with open(SCHEMA_PATH) as f:
         schema = json.load(f)
+
+    # Load and validate benchmarks registry
+    benchmarks = json.loads(BENCHMARKS_PATH.read_text()) if BENCHMARKS_PATH.exists() else {}
+    if BENCHMARKS_SCHEMA_PATH.exists():
+        bm_schema = json.loads(BENCHMARKS_SCHEMA_PATH.read_text())
+        bm_errors = validate_schema(benchmarks, bm_schema)
+        if bm_errors:
+            print(f"benchmarks.json schema errors: {len(bm_errors)}")
+            for e in bm_errors:
+                print(f"  - {e}")
 
     if args.fix:
         data["results"].sort(key=lambda r: (r["benchmark"], r["model"]))
@@ -439,8 +446,11 @@ def main() -> int:
     warnings: list[str] = []
 
     errors += validate_schema(data, schema)
-    errors += validate_score_ranges(data)
     errors += validate_sort_and_format(data, raw_text)
+
+    # Inject benchmarks for validators that need them (score_ranges, official_policy, etc.)
+    data["benchmarks"] = benchmarks
+    errors += validate_score_ranges(data)
     errors += validate_official_leaderboard_policy(data)
     errors += validate_citations(data)
     errors += validate_arithmetic_consistency(data)
