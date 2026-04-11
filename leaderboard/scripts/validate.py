@@ -33,6 +33,7 @@ def canonical_json(data: dict) -> str:
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
+BENCHMARKS_PATH = DATA_DIR / "benchmarks.json"
 SCHEMA_PATH = DATA_DIR / "schema.json"
 CITATIONS_PATH = DATA_DIR / "citations.json"
 
@@ -416,6 +417,10 @@ def main() -> int:
     results_path = Path(args.leaderboard_file) if args.leaderboard_file else LEADERBOARD_PATH
     raw_text = results_path.read_text()
     data = json.loads(raw_text)
+
+    # Load benchmarks registry from separate file and inject into data for validators
+    if "benchmarks" not in data and BENCHMARKS_PATH.exists():
+        data["benchmarks"] = json.loads(BENCHMARKS_PATH.read_text())
 
     with open(SCHEMA_PATH) as f:
         schema = json.load(f)
