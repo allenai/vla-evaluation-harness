@@ -4,21 +4,27 @@
 
 ## Data Structure
 
-All data lives in `leaderboard/data/results.json` — the single source of truth.
+Data is split into focused files under `leaderboard/data/`:
+
+| File | Contents |
+|------|----------|
+| `leaderboard.json` | Curated entries (`last_updated` + `results[]`) |
+| `benchmarks.json` | Benchmark registry (metrics, suites, tasks, display config) |
+| `leaderboard.schema.json` | JSON Schema for leaderboard.json |
+| `benchmarks.schema.json` | JSON Schema for benchmarks.json |
+| `citations.json` | Per-paper citation counts from Semantic Scholar |
+| `coverage.json` | Per-benchmark coverage stats |
+
+Per-benchmark protocol notes (standard split, metric formula, common
+deviations) live alongside the registry at `leaderboard/benchmarks/{key}.md`.
 
 ### Benchmarks
 
-| Benchmark | Metric | Unit | Range |
-|-----------|--------|------|-------|
-| LIBERO, LIBERO-Plus, LIBERO-Pro | success_rate | % | 0–100 |
-| LIBERO-Mem | subgoal_completion_rate | % | 0–100 |
-| CALVIN | avg_len | subtasks | 0–5 |
-| SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin 1.0, RoboTwin 2.0, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboChallenge | success_rate | % | 0–100 |
-| RoboArena | elo_rating | Elo | 0–2000 |
+17 benchmarks: LIBERO, LIBERO-Plus, LIBERO-Pro, LIBERO-Mem, CALVIN, SimplerEnv, RLBench, ManiSkill2, RoboCasa, RoboTwin v1, RoboTwin v2, VLABench, MIKASA-Robo, Kinetix, RoboCerebra, RoboArena, RoboChallenge.
 
-Each benchmark declares its metric, range, and optionally `suites`/`tasks`. See the JSON for the full registry.
+Each benchmark declares its metric, range, and optionally `suites`/`tasks` in `benchmarks.json`. See `leaderboard/benchmarks/{key}.md` for the protocol and risky-pattern notes for each benchmark.
 
-Every benchmark has a `detail_notes` field displayed as a banner on the leaderboard frontend. When changing a benchmark's scoring rules or comparability notes, update `detail_notes` in `results.json` to match.
+Every benchmark has a `detail_notes` field displayed as a banner on the leaderboard frontend. When changing a benchmark's scoring rules or comparability notes, update `detail_notes` in `benchmarks.json` and the corresponding `benchmarks/{key}.md` to match.
 
 ### Result Fields
 
@@ -76,7 +82,7 @@ When adding scores, correctly attribute **who ran the evaluation**:
 
 1. **Add entries** to the `results` array (sorted by `benchmark, model`). Keep `display_name` and `params` consistent across entries for the same model.
 
-2. **Update `last_updated`**: Set `last_updated` in `results.json` to today's date (`YYYY-MM-DD`) when adding or modifying result data. This is displayed on the frontend and must reflect the latest data change.
+2. **Update `last_updated`**: Set `last_updated` in `leaderboard.json` to today's date (`YYYY-MM-DD`) when adding or modifying result data. This is displayed on the frontend and must reflect the latest data change.
 
 3. **Validate**: `python leaderboard/scripts/validate.py`
    - Auto-fix sort order and formatting: `python leaderboard/scripts/validate.py --fix`
@@ -92,7 +98,7 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ## CI/CD
 
-- **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `results.json` or `citations.json`
+- **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `leaderboard.json` or `citations.json`
 - **`pages.yml`**: Deploys to GitHub Pages on push to main; regenerates `coverage.json` and `citations.json`
 - **`update-data.yml`**: Syncs external leaderboard sources weekly (Monday 06:00 UTC) and opens a PR with updates. Can also be triggered manually via `workflow_dispatch`.
 
