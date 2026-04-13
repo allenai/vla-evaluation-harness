@@ -9,6 +9,7 @@
 #     "pillow>=9.0",
 #     "numpy>=1.24",
 #     "accelerate",
+#     "huggingface-hub",
 # ]
 #
 # [tool.uv.sources]
@@ -21,6 +22,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -150,16 +152,46 @@ class VLANeXtModelServer(PredictModelServer):
         left = (w - crop) // 2
         return img[top : top + crop, left : left + crop]
 
+    @staticmethod
+    def _resolve_checkpoint(checkpoint: str, suite: str) -> str:
+        """Resolve *checkpoint* to a local ``.pt`` path.
+
+        If *checkpoint* is already a local file it is returned as-is.
+        Otherwise it is treated as a HuggingFace model ID and downloaded
+        via ``huggingface_hub.snapshot_download``.  The checkpoint file
+        matching *suite* is returned.
+        """
+        path = Path(checkpoint)
+        if path.is_file() and path.suffix == ".pt":
+            return str(path)
+
+        from huggingface_hub import snapshot_download
+
+        logger.info("Downloading model from HuggingFace Hub: %s", checkpoint)
+        local_dir = Path(snapshot_download(checkpoint))
+        candidates = sorted(
+            [p for p in local_dir.iterdir() if p.suffix == ".pt"],
+            key=lambda p: p.name,
+        )
+        if not candidates:
+            raise FileNotFoundError(f"No .pt files in {local_dir} (contents: {[p.name for p in local_dir.iterdir()]})")
+        # Prefer the checkpoint matching the suite name
+        for c in candidates:
+            if suite in c.stem:
+                return str(c)
+        return str(candidates[-1])
+
     def _load_model(self) -> None:
         if self._model is not None:
             return
 
         from src.models.VLANeXt import VLANeXt
 
+        ckpt_path = self._resolve_checkpoint(self.checkpoint_path, self.suite)
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info("Loading VLANeXt from %s on %s", self.checkpoint_path, self._device)
+        logger.info("Loading VLANeXt from %s on %s", ckpt_path, self._device)
 
-        checkpoint = torch.load(self.checkpoint_path, map_location="cpu")
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
         train_config = checkpoint["config"]
         model_config = train_config["model"]
         data_config = train_config["data"]

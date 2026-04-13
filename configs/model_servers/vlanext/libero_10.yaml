@@ -2,5 +2,5 @@
 # Checkpoint: DravenALG/VLANeXt (HuggingFace)
 extends: _base.yaml
 args:
-  checkpoint_path: checkpoints/VLANeXt_libero_10.pt
+  checkpoint_path: DravenALG/VLANeXt
   suite: libero_10
