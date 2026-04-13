@@ -25,7 +25,7 @@ jobs:
 
       - name: Build site
         run: |
-          uv run leaderboard/scripts/extract.py scan
+          python leaderboard/scripts/update_coverage.py
           python leaderboard/scripts/update_citations.py
           mkdir -p _site/leaderboard
           cp leaderboard/site/* _site/leaderboard/
