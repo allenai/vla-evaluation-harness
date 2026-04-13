@@ -237,7 +237,7 @@ class VLANeXtModelServer(PredictModelServer):
             PILImage.fromarray(agentview).convert("RGB") if isinstance(agentview, np.ndarray) else agentview
         )
         if self.center_crop_ratio < 1.0:
-            pil_agentview = pil_agentview.resize((256, 256), PILImage.LANCZOS)
+            pil_agentview = pil_agentview.resize((256, 256), PILImage.Resampling.LANCZOS)
 
         images = [pil_agentview]
         if view_mode == "multi" and "wrist" in images_dict:
@@ -246,7 +246,7 @@ class VLANeXtModelServer(PredictModelServer):
                 wrist = self._center_crop(wrist, self.center_crop_ratio)
             pil_wrist = PILImage.fromarray(wrist).convert("RGB") if isinstance(wrist, np.ndarray) else wrist
             if self.center_crop_ratio < 1.0:
-                pil_wrist = pil_wrist.resize((256, 256), PILImage.LANCZOS)
+                pil_wrist = pil_wrist.resize((256, 256), PILImage.Resampling.LANCZOS)
             images.append(pil_wrist)
 
         # --- Task description ---
