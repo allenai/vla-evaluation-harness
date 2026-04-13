@@ -718,25 +718,36 @@
   function renderCoverage() {
     if (!coverageBarEl || !coverageData) return;
     const bms = coverageData.benchmarks || {};
-    const keys = Object.keys(bms).sort((a, b) => (bms[b].citing_papers || 0) - (bms[a].citing_papers || 0));
+    const keys = Object.keys(bms).sort(
+      (a, b) => (bms[b].arxiv_citing_papers || bms[b].citing_papers || 0)
+              - (bms[a].arxiv_citing_papers || bms[a].citing_papers || 0)
+    );
 
     let html = '<div class="coverage-header">';
     html += '<span class="coverage-title">Paper Coverage by Benchmark</span>';
     html += `<span class="coverage-summary">${coverageData.total_results} results from ${coverageData.total_models} models`;
     if (coverageData.total_papers_reviewed) html += ` · ${coverageData.total_papers_reviewed} papers reviewed`;
     html += '</span></div>';
-    html += '<div class="coverage-explanation">Denominator = papers citing the benchmark paper (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener">Semantic Scholar</a>). Not all citing papers report evaluation results — this shows how much of that citation pool we have covered.</div>';
+    html += '<div class="coverage-explanation">Denominator = arXiv-preprint papers citing the benchmark (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener">Semantic Scholar</a>). Total citations in parentheses include non-arXiv publications that cannot be reviewed via the arxiv reading pipeline. Not every citing paper reports new evaluation numbers — this shows how much of the reviewable pool we have covered.</div>';
     html += '<div class="coverage-grid">';
 
     for (const key of keys) {
       const bm = bms[key];
-      const citing = bm.citing_papers;
+      const citingTotal = bm.citing_papers;
+      const citingArxiv = bm.arxiv_citing_papers || citingTotal;
       const reviewed = bm.papers_reviewed || 0;
-      if (!citing) continue; // skip if no citation data
-      const pct = Math.min(100, Math.round((reviewed / Math.max(1, citing)) * 100));
+      if (!citingArxiv) continue; // skip if no citation data
+      const pct = Math.min(100, Math.round((reviewed / Math.max(1, citingArxiv)) * 100));
       const barColor = pct > 15 ? 'var(--accent)' : pct > 5 ? '#da9679' : '#e24a8d';
-      html += `<div class="coverage-item" title="${reviewed} papers reviewed / ${citing} citing papers">`;
-      html += `<div class="coverage-label"><span>${escHtml(bm.display_name)}</span><span class="coverage-nums">${reviewed}/${citing}</span></div>`;
+      const showTotal = citingTotal && citingTotal !== citingArxiv;
+      const numsText = showTotal
+        ? `${reviewed}/${citingArxiv} <span class="coverage-nums-sub">(${citingTotal} total)</span>`
+        : `${reviewed}/${citingArxiv}`;
+      const titleText = showTotal
+        ? `${reviewed} reviewed / ${citingArxiv} arXiv citing (${citingTotal} total incl. non-arXiv)`
+        : `${reviewed} reviewed / ${citingArxiv} citing papers`;
+      html += `<div class="coverage-item" title="${titleText}">`;
+      html += `<div class="coverage-label"><span>${escHtml(bm.display_name)}</span><span class="coverage-nums">${numsText}</span></div>`;
       html += `<div class="coverage-track"><div class="coverage-fill" style="width:${Math.max(2, pct)}%;background:${barColor}"></div></div>`;
       html += '</div>';
     }

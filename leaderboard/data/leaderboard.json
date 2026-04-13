@@ -198,12 +198,11 @@
         "4_tasks": 75.6,
         "5_tasks": 68.4
       },
-      "num_episodes": 1000,
       "source_paper": "https://arxiv.org/abs/2510.23511",
       "source_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "CALVIN ABC→D split, avg_len = sum of completion rates / 100"
+      "notes": "CALVIN ABC→D split, avg_len = sum of completion rates / 100; 1000 episodes"
     },
     {
       "model": "deer_vla",
@@ -1876,12 +1875,11 @@
         "libero_goal": 95.2,
         "libero_10": 89.6
       },
-      "num_episodes": 2000,
       "source_paper": "https://arxiv.org/abs/2411.19650",
       "source_table": "Table 2",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "avg of 4 suites (libero_90 not evaluated)"
+      "notes": "avg of 4 suites (libero_90 not evaluated); 2000 episodes"
     },
     {
       "model": "deepthink_vla",
@@ -5913,7 +5911,6 @@
         "PickSingleEGAD": 44.0,
         "PickClutterYCB": 0.0
       },
-      "num_episodes": 250,
       "source_paper": "https://arxiv.org/abs/2411.19650",
       "source_table": "Table 5",
       "curated_by": "opus 4.6",
@@ -11122,12 +11119,11 @@
         "open_close_drawer_vm": 71.8,
         "open_top_drawer_place_apple_vm": 50.9
       },
-      "num_episodes": 96,
       "source_paper": "https://arxiv.org/abs/2411.19650",
       "source_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "VM 3-task avg=82.7% (orig 4-task=74.8%). Google Robot Visual Matching, 4-task standard SimplerEnv protocol (CogACT paper); Visual Matching (VM) protocol. 4-task evaluation."
+      "notes": "VM 3-task avg=82.7% (orig 4-task=74.8%). Google Robot Visual Matching, 4-task standard SimplerEnv protocol (CogACT paper); Visual Matching (VM) protocol. 4-task evaluation.; 96 episodes"
     },
     {
       "model": "depthvla",

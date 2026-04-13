@@ -678,6 +678,12 @@ tbody tr:last-child td {
   font-variant-numeric: tabular-nums;
 }
 
+.coverage-nums-sub {
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
 .coverage-track {
   height: 4px;
   background: var(--border);
