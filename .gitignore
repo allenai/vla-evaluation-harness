@@ -40,3 +40,6 @@ coverage.xml
 src/vla_eval/_version.py
 
 .claude/scheduled_tasks.lock
+
+# Leaderboard local cache (extract.py / refine.py working files)
+leaderboard/.cache/
