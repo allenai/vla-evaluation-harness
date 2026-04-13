@@ -13,7 +13,7 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# vlanext = { git = "https://github.com/hiteshK03/VLANeXt.git", rev = "99cd456" }
+# vlanext = { git = "https://github.com/DravenALG/VLANeXt.git", rev = "ff134c8" }
 #
 # [tool.uv]
 # exclude-newer = "2026-04-09T00:00:00Z"
