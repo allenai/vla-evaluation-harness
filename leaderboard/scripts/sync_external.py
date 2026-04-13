@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sync external leaderboard data from RoboChallenge and RoboArena APIs.
 
-Fetches live competition results and merges them into results.json.
+Fetches live competition results and merges them into leaderboard.json.
 Default is dry-run (prints changes). Use --apply to write.
 """
 
@@ -16,7 +16,7 @@ from datetime import date
 from pathlib import Path
 from typing import NamedTuple
 
-RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
+RESULTS_PATH = Path(__file__).parent.parent / "data" / "leaderboard.json"
 
 ROBOCHALLENGE_API = "https://robochallenge.ai/api/leaderboard/leaderboard_all.json"
 ROBOARENA_API = "https://roboarena-api-domain-name.online/api/leaderboard"
@@ -251,7 +251,7 @@ def _set_github_output(synced: list[str], num_changes: int) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync external leaderboard APIs into results.json.")
+    parser = argparse.ArgumentParser(description="Sync external leaderboard APIs into leaderboard.json.")
     parser.add_argument("--apply", action="store_true", help="Write changes (default is dry-run)")
     parser.add_argument("--source", choices=SOURCES, help="Sync only one source")
     parser.add_argument("--list-sources", action="store_true", help="Print available sources as JSON and exit")

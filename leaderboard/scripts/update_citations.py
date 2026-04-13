@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetch per-model-paper citation counts from Semantic Scholar.
 
-Reads all unique arxiv IDs from model_paper / source_paper fields in results.json,
+Reads all unique arxiv IDs from model_paper / source_paper fields in leaderboard.json,
 fetches citation counts from the Semantic Scholar batch API, and writes them to citations.json.
 
 Usage:
@@ -19,7 +19,7 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
+RESULTS_PATH = Path(__file__).parent.parent / "data" / "leaderboard.json"
 CITATIONS_PATH = Path(__file__).parent.parent / "data" / "citations.json"
 
 S2_BATCH_API = "https://api.semanticscholar.org/graph/v1/paper/batch"

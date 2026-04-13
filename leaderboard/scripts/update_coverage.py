@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Compute coverage stats, optionally fetching citation counts from Semantic Scholar.
 
-Without --fetch: updates entry counts from results.json, keeps cached citing_papers.
+Without --fetch: updates entry counts from leaderboard.json + benchmarks.json,
+keeps cached citing_papers.
 With --fetch: also fetches live citation counts from Semantic Scholar batch API.
 
 Writes coverage data to leaderboard/data/coverage.json for display on the leaderboard site.
@@ -18,7 +19,8 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
+RESULTS_PATH = Path(__file__).parent.parent / "data" / "leaderboard.json"
+BENCHMARKS_PATH = Path(__file__).parent.parent / "data" / "benchmarks.json"
 COVERAGE_PATH = Path(__file__).parent.parent / "data" / "coverage.json"
 
 S2_BATCH_API = "https://api.semanticscholar.org/graph/v1/paper/batch"
@@ -86,7 +88,7 @@ def main():
     args = parser.parse_args()
 
     results_data = json.loads(RESULTS_PATH.read_text())
-    benchmarks = results_data["benchmarks"]
+    benchmarks = json.loads(BENCHMARKS_PATH.read_text())
     results = results_data["results"]
     cached = load_cached_coverage()
     cached_bm = cached.get("benchmarks", {})

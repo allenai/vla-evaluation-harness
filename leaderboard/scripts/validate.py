@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate results.json against the JSON schema and check score ranges."""
+"""Validate leaderboard.json against the JSON schema and check score ranges."""
 
 import argparse
 import json
@@ -10,15 +10,17 @@ from pathlib import Path
 import jsonschema
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-RESULTS_PATH = DATA_DIR / "results.json"
-SCHEMA_PATH = DATA_DIR / "schema.json"
+LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
+BENCHMARKS_PATH = DATA_DIR / "benchmarks.json"
+LEADERBOARD_SCHEMA_PATH = DATA_DIR / "leaderboard.schema.json"
+BENCHMARKS_SCHEMA_PATH = DATA_DIR / "benchmarks.schema.json"
 CITATIONS_PATH = DATA_DIR / "citations.json"
 
 ARXIV_ID_RE = re.compile(r"^\d{4}\.\d{4,5}$")
 
 
 def canonical_json(data: dict) -> str:
-    """Return the canonical JSON serialization for results data."""
+    """Return the canonical JSON serialization used by leaderboard.json."""
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -128,12 +130,12 @@ def validate_official_leaderboard_policy(data: dict) -> list[str]:
 
 
 def validate_papers_reviewed(data: dict) -> list[str]:
-    """Validate papers_reviewed entries."""
+    """Validate papers_reviewed entries inside benchmarks registry."""
     errors = []
     for bm_key, bm in data["benchmarks"].items():
-        no_results = bm.get("papers_reviewed", [])
+        reviewed = bm.get("papers_reviewed", [])
         seen = set()
-        for arxiv_id in no_results:
+        for arxiv_id in reviewed:
             if not ARXIV_ID_RE.match(arxiv_id):
                 errors.append(f"benchmarks.{bm_key}.papers_reviewed: '{arxiv_id}' is not a valid arxiv ID")
             if arxiv_id in seen:
@@ -174,17 +176,27 @@ def validate_citations(data: dict) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate results.json against schema and leaderboard rules.")
-    parser.add_argument("results_file", nargs="?", default=None, help="Path to results.json (default: auto-detect)")
+    parser = argparse.ArgumentParser(description="Validate leaderboard.json against schema and leaderboard rules.")
+    parser.add_argument(
+        "leaderboard_file", nargs="?", default=None, help="Path to leaderboard.json (default: auto-detect)"
+    )
     parser.add_argument("--fix", action="store_true", help="Auto-fix sort order and canonical formatting")
     args = parser.parse_args()
 
-    results_path = Path(args.results_file) if args.results_file else RESULTS_PATH
+    results_path = Path(args.leaderboard_file) if args.leaderboard_file else LEADERBOARD_PATH
     raw_text = results_path.read_text()
     data = json.loads(raw_text)
 
-    with open(SCHEMA_PATH) as f:
-        schema = json.load(f)
+    with open(LEADERBOARD_SCHEMA_PATH) as f:
+        leaderboard_schema = json.load(f)
+
+    # Load and validate the benchmarks registry separately
+    benchmarks = json.loads(BENCHMARKS_PATH.read_text())
+    benchmarks_errors: list[str] = []
+    if BENCHMARKS_SCHEMA_PATH.exists():
+        with open(BENCHMARKS_SCHEMA_PATH) as f:
+            benchmarks_schema = json.load(f)
+        benchmarks_errors = validate_schema(benchmarks, benchmarks_schema)
 
     if args.fix:
         data["results"].sort(key=lambda r: (r["benchmark"], r["model"]))
@@ -196,14 +208,19 @@ def main() -> int:
         else:
             print("Nothing to fix: already sorted and canonical.")
 
-    errors = (
-        validate_schema(data, schema)
-        + validate_score_ranges(data)
-        + validate_sort_and_format(data, raw_text)
-        + validate_official_leaderboard_policy(data)
-        + validate_papers_reviewed(data)
-        + validate_citations(data)
-    )
+    errors: list[str] = []
+    errors += validate_schema(data, leaderboard_schema)
+    errors += [f"benchmarks.json: {e}" for e in benchmarks_errors]
+    errors += validate_sort_and_format(data, raw_text)
+
+    # Inject benchmarks for validators that need the registry (score_ranges,
+    # official_policy, papers_reviewed). Done AFTER --fix so the benchmarks
+    # registry never leaks back into leaderboard.json.
+    data["benchmarks"] = benchmarks
+    errors += validate_score_ranges(data)
+    errors += validate_official_leaderboard_policy(data)
+    errors += validate_papers_reviewed(data)
+    errors += validate_citations(data)
 
     if errors:
         print(f"FAILED: {len(errors)} error(s) found:")
