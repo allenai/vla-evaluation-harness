@@ -1,0 +1,430 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["typer>=0.12"]
+# ///
+"""Refine raw extractions into leaderboard.json.
+
+Two-stage pipeline:
+
+1. `build_candidates()` — deterministic Python step. Applies the protocol
+   gate (drop `matches_standard = no`, null out `partial`), computes
+   `overall_score` arithmetically from components, and emits candidate
+   entries in a pre-schema shape.
+
+2. LLM agent (opus) — receives the candidate entries via a temp file and
+   only handles FUZZY decisions: eligibility (drop "Ours"/ablation/quant
+   labels), dedup across papers, cross-benchmark identity consistency,
+   and substantive note composition.
+
+Why this split: protocol gating and arithmetic are deterministic rules —
+they do not need LLM judgment and the LLM was getting them wrong. The
+LLM now only tackles problems that require fuzzy reasoning.
+
+Usage::
+
+    uv run refine.py
+    uv run refine.py --model opus --benchmark libero
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from datetime import date
+from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
+
+ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"
+EXTRACTIONS_DIR = ROOT / ".cache" / "extractions"
+BENCHMARKS_DIR = ROOT / "benchmarks"
+BENCHMARKS_JSON_PATH = DATA_DIR / "benchmarks.json"
+LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
+SCHEMA_PATH = DATA_DIR / "leaderboard.schema.json"
+CANDIDATES_PATH = ROOT / ".cache" / "refine_candidates.json"
+
+# Mirrors validate.py's ARITHMETIC_RULES — the single source of truth for
+# how to aggregate component scores into overall_score.
+ARITHMETIC_RULES: dict[str, dict] = {
+    "libero": {
+        "container": "suite_scores",
+        "required_keys": ["libero_spatial", "libero_object", "libero_goal", "libero_10"],
+    },
+    "libero_plus": {
+        "container": "suite_scores",
+        "required_keys": ["camera", "robot", "language", "light", "background", "noise", "layout"],
+    },
+    "libero_pro": {
+        "container": "suite_scores",
+        "required_keys": [
+            f"{suite}_{pert}"
+            for suite in ("goal", "spatial", "long", "object")
+            for pert in ("ori", "obj", "pos", "sem", "task")
+        ],
+    },
+    "libero_mem": {
+        "container": "task_scores",
+        "required_keys": [f"T{i}" for i in range(1, 11)],
+    },
+    "mikasa": {
+        "container": "task_scores",
+        "required_keys": ["ShellGameTouch", "InterceptMedium", "RememberColor3", "RememberColor5", "RememberColor9"],
+    },
+    "vlabench": {
+        "container": "suite_scores",
+        "required_keys": ["in_dist_PS", "cross_category_PS", "commonsense_PS", "semantic_instruction_PS"],
+    },
+}
+
+# Benchmarks whose overall_score must ALWAYS be null (per CONTRIBUTING.md).
+FORBIDDEN_OVERALL: set[str] = {"simpler_env", "robotwin_v2"}
+
+
+# ---------------------------------------------------------------------------
+# Deterministic pre-step: build candidate entries from raw extractions
+# ---------------------------------------------------------------------------
+
+
+def _compute_overall(benchmark: str, suite: dict, task: dict) -> float | None:
+    """Compute overall_score from component scores per aggregation rule."""
+    if benchmark in FORBIDDEN_OVERALL:
+        return None
+    rule = ARITHMETIC_RULES.get(benchmark)
+    if rule is None:
+        return None
+    container = suite if rule["container"] == "suite_scores" else task
+    values = [container[k] for k in rule["required_keys"] if k in container]
+    if len(values) != len(rule["required_keys"]):
+        return None
+    return round(sum(values) / len(values), 1)
+
+
+def _to_plain_scores(container: dict | None) -> dict:
+    """Convert extraction score shape {k: {value, quote}} → {k: value}."""
+    if not container:
+        return {}
+    out = {}
+    for k, v in container.items():
+        val = v["value"] if isinstance(v, dict) else v
+        if isinstance(val, (int, float)):
+            out[k] = val
+    return out
+
+
+def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], dict]:
+    """Read extractions and emit candidate entries.
+
+    Applied here (deterministic):
+    - Protocol gate: drop `matches_standard == "no"`; null out `overall_score`
+      for `partial`/`unknown`; compute from components for `yes`.
+    - Arithmetic: mean of required component keys per ARITHMETIC_RULES.
+    - Forbidden overall enforcement (simpler_env, robotwin_v2).
+    - Schema field population (source_paper, source_table, etc).
+
+    NOT applied here (left to the LLM step):
+    - Eligibility filter (junk labels, ablation variants)
+    - Dedup across papers
+    - Cross-benchmark identity consistency
+    - Substantive note composition
+
+    Returns (candidates, stats) where stats tracks how each paper and row
+    was handled for pipeline audit.
+    """
+    candidates: list[dict] = []
+    stats = {
+        "extractions_total": 0,
+        "papers_empty": 0,  # extraction file had benchmarks:[] — citing paper, no scores
+        "papers_with_scores": 0,
+        "rows_total": 0,
+        "rows_drop_protocol_no": 0,
+        "rows_drop_empty_after_conversion": 0,
+        "rows_kept": 0,
+    }
+    for ext_file in sorted(EXTRACTIONS_DIR.glob("*.json")):
+        ext = json.loads(ext_file.read_text())
+        arxiv_id = ext.get("arxiv_id")
+        if not arxiv_id:
+            continue
+        stats["extractions_total"] += 1
+        source_paper = f"https://arxiv.org/abs/{arxiv_id}"
+        ext_benchmarks = ext.get("benchmarks") or []
+        if not ext_benchmarks:
+            stats["papers_empty"] += 1
+            continue
+        stats["papers_with_scores"] += 1
+        for bm in ext_benchmarks:
+            benchmark = bm.get("benchmark")
+            if benchmark_filter and benchmark != benchmark_filter:
+                continue
+            for m in bm.get("models", []):
+                stats["rows_total"] += 1
+                protocol = m.get("protocol") or {}
+                match = protocol.get("matches_standard", "unknown")
+                # Hard reject: LLM already judged this protocol non-matching
+                if match == "no":
+                    stats["rows_drop_protocol_no"] += 1
+                    continue
+                scores_raw = m.get("scores") or {}
+                suite_scores = _to_plain_scores(scores_raw.get("suite_scores"))
+                task_scores = _to_plain_scores(scores_raw.get("task_scores"))
+
+                # Arithmetic / protocol gate
+                if match == "yes":
+                    overall = _compute_overall(benchmark, suite_scores, task_scores)
+                    # Fallback: if no aggregation rule exists, use the
+                    # LLM-extracted overall (not forbidden benchmarks).
+                    if overall is None and benchmark not in FORBIDDEN_OVERALL and benchmark not in ARITHMETIC_RULES:
+                        raw_overall = scores_raw.get("overall_score")
+                        if isinstance(raw_overall, (int, float)):
+                            overall = raw_overall
+                else:
+                    overall = None
+
+                # Skip entries with no score at all (schema requires >=1).
+                if overall is None and not suite_scores and not task_scores:
+                    stats["rows_drop_empty_after_conversion"] += 1
+                    continue
+
+                stats["rows_kept"] += 1
+                candidates.append(
+                    {
+                        "name_in_paper": m.get("label", ""),
+                        "params": m.get("params"),
+                        "benchmark": benchmark,
+                        "weight_type": m.get("weight_type")
+                        if m.get("weight_type") in ("shared", "finetuned")
+                        else "shared",
+                        "overall_score": overall,
+                        "suite_scores": suite_scores,
+                        "task_scores": task_scores,
+                        "source_paper": source_paper,
+                        "source_table": scores_raw.get("source_table"),
+                        "protocol_match": match,
+                        "protocol_rationale": protocol.get("rationale", ""),
+                        "is_score_original": m.get("is_score_original", "unknown"),
+                    }
+                )
+    return candidates, stats
+
+
+def _print_stats(stats: dict) -> None:
+    """Print a one-page audit of what build_candidates() did."""
+    print(
+        f"Extractions scanned: {stats['extractions_total']}\n"
+        f"  papers with scores:              {stats['papers_with_scores']}\n"
+        f"  papers empty (cited, no scores): {stats['papers_empty']}\n"
+        f"Model rows processed: {stats['rows_total']}\n"
+        f"  dropped (protocol 'no'):         {stats['rows_drop_protocol_no']}\n"
+        f"  dropped (no score after conv):   {stats['rows_drop_empty_after_conversion']}\n"
+        f"  kept as candidates:              {stats['rows_kept']}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# LLM step: fuzzy decisions on pre-built candidates
+# ---------------------------------------------------------------------------
+
+
+def _load_benchmark_md(bm_key: str) -> str:
+    path = BENCHMARKS_DIR / f"{bm_key}.md"
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8")
+    if text.startswith("---"):
+        end = text.find("---", 3)
+        if end != -1:
+            text = text[end + 3 :].strip()
+    return text
+
+
+def _build_system_prompt() -> str:
+    return f"""You are the fuzzy-decision stage of the VLA leaderboard pipeline.
+
+## Context
+
+A deterministic Python step has already produced candidate entries in
+`{CANDIDATES_PATH}`. Each candidate is one (paper × benchmark × model)
+row from a raw extraction, with these fields already filled in:
+
+- `name_in_paper`: exact label from the paper's table
+- `params`, `benchmark`, `weight_type`
+- `overall_score`: either computed from components or null if the
+  protocol does not match standard. Do NOT recompute it.
+- `suite_scores`, `task_scores`: component scores, already plain numbers
+- `source_paper`, `source_table`
+- `protocol_match`: "yes" / "partial" / "unknown" (candidates with "no"
+  were already dropped by the python step)
+- `protocol_rationale`: the LLM rationale from the extraction step —
+  use this as the basis for your `notes` field
+- `is_score_original`: "original" / "cited_baseline" / "reproduction" / "unknown"
+
+## Your job (fuzzy decisions only)
+
+1. **Eligibility filter**: drop candidates whose `name_in_paper` indicates
+   junk. Specifically drop when `name_in_paper` is "Ours", "Our Method",
+   "Our Model", "Proposed", "This Work", "Baseline", contains "(Ours)" /
+   "(ours)", or is otherwise a placeholder with no public identity.
+   Also drop ablation / variant rows whose differentiator is ONLY:
+   - quantization (INT4, INT8, AWQ, PTQ, QAT, GPTQ, ...)
+   - parameter-efficient tuning (LoRA, QLoRA, adapter, ...)
+   - training-stage snapshots ("stage 1", "50% data", "w/o pretrain")
+   - horizon / chunk / hyperparameter sweeps ("k=1", "chunk=8")
+   - "+feature X", "w/o Y" style ablation tags
+   - An unnamed "row (b)" / "(c)" style label
+   Unless that variant IS clearly the paper's main contribution.
+
+2. **Dedup within (canonical_model, benchmark)**: candidates for the same
+   model under different labels collapse to one entry per benchmark. When
+   sources disagree, prefer `is_score_original == "original"` > `"reproduction"`
+   > `"cited_baseline"` > `"unknown"`. Among equals, prefer the entry with
+   more score detail (more suite/task keys, non-null overall).
+
+3. **Cross-benchmark identity**: the same `model` key across benchmarks
+   must carry the same `display_name`, `params`, and `model_paper`. Pick
+   the most detailed / most canonical values.
+
+4. **Compose `notes`**: for each kept entry, write a substantive,
+   human-readable note. Use the `protocol_rationale` field as the basis
+   (trim if long), and append origin info. NEVER write generic labels
+   like "partial protocol match" / "score cited" / empty. A reader
+   hovering the score should learn something specific about what was
+   evaluated and how.
+
+   Good: "ABC→D split with 1000 evaluation chains; avg_len metric; reproduction"
+   Good: "18/18 PerAct tasks, single camera view; cited from RVT paper Table 2"
+   Bad: "partial protocol match"
+   Bad: ""
+
+5. **Assign `model` key and `display_name`**: the `model` key is a clean
+   snake_case identifier (lowercase; π→pi, ₀→0; no spaces). The
+   `display_name` is what a human sees (can keep special characters).
+
+## Output
+
+Write `{LEADERBOARD_PATH}` as JSON:
+
+```
+{{
+  "last_updated": "{date.today().isoformat()}",
+  "results": [<entry>, ...]
+}}
+```
+
+Each entry must match the schema at `{SCHEMA_PATH}`:
+
+- `model`, `display_name`, `name_in_paper`, `params`, `model_paper`,
+  `benchmark`, `weight_type`, `overall_score`, `suite_scores`,
+  `task_scores`, `source_paper`, `source_table`, `curated_by`,
+  `date_added`, `notes`
+
+Set `curated_by = "refine.py"` and `date_added = "{date.today().isoformat()}"`.
+
+`results` MUST be sorted by `(benchmark, model)`. The file should be
+UTF-8 with a trailing newline.
+
+## Bias toward dropping
+
+When in doubt, DROP. A smaller leaderboard of canonical entries is much
+better than a large one with ablation junk. A reader wants "what are
+the main VLA models and how do they compare", not every table row.
+
+## Constraints
+
+- Do NOT touch `overall_score` — the python step computed it. Your
+  changes are limited to which rows survive, how they are named, and
+  what notes they carry.
+- You have Bash, Read, Write, Edit, Glob, Grep, WebFetch. Use them as
+  you see fit.
+- Report what you dropped and why when you are done.
+"""
+
+
+def refine(
+    model: str = "opus",
+    benchmark: str | None = None,
+    output: Path = LEADERBOARD_PATH,
+    timeout: int = 7200,
+) -> None:
+    # Stage 1: build candidates (deterministic)
+    print("Stage 1: building candidates from extractions...")
+    candidates, stats = build_candidates(benchmark_filter=benchmark)
+    CANDIDATES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CANDIDATES_PATH.write_text(json.dumps(candidates, indent=2, ensure_ascii=False) + "\n")
+    _print_stats(stats)
+    print(f"Wrote {CANDIDATES_PATH}")
+
+    if not candidates:
+        print("No candidates to refine. Exiting.")
+        return
+
+    # Stage 2: launch LLM agent for fuzzy decisions
+    system_prompt = _build_system_prompt()
+    scope = f"benchmark {benchmark}" if benchmark else "all benchmarks"
+    user_msg = (
+        f"Refine {len(candidates)} candidates for {scope}. "
+        f"Candidates are at {CANDIDATES_PATH}. Write the final leaderboard to {output}."
+    )
+
+    cmd = [
+        "claude",
+        "--print",
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
+        "--allowedTools",
+        "Bash,Read,Write,Edit,Glob,Grep,WebFetch",
+        "--permission-mode",
+        "bypassPermissions",
+        "--no-session-persistence",
+        user_msg,
+    ]
+
+    print(f"Stage 2: launching claude ({model}) for fuzzy decisions on {scope}...")
+    result = subprocess.run(cmd, capture_output=False, text=True, timeout=timeout)
+    if result.returncode != 0:
+        print(f"claude exited with code {result.returncode}")
+        raise SystemExit(result.returncode)
+
+    if output.exists():
+        data = json.loads(output.read_text())
+        n = len(data.get("results", []))
+        print(f"Done: {output} ({n} entries)")
+    else:
+        print(f"Warning: {output} was not created")
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+app = typer.Typer(help="Refine raw extractions into leaderboard.json.", add_completion=False)
+
+
+@app.command()
+def main(
+    output: Annotated[Path, typer.Option("-o", help="Output path.")] = LEADERBOARD_PATH,
+    benchmark: Annotated[Optional[str], typer.Option(help="Only refine this benchmark.")] = None,
+    model: Annotated[str, typer.Option(help="Claude model for the fuzzy stage.")] = "opus",
+    timeout: Annotated[int, typer.Option(help="LLM timeout in seconds.")] = 7200,
+) -> None:
+    """Refine extractions into leaderboard.json (python pre-step + LLM fuzzy stage)."""
+    refine(model=model, benchmark=benchmark, output=output, timeout=timeout)
+
+
+@app.command()
+def candidates(
+    benchmark: Annotated[Optional[str], typer.Option(help="Only build for this benchmark.")] = None,
+) -> None:
+    """Stage 1 only: build candidate entries and exit (no LLM call)."""
+    cs, stats = build_candidates(benchmark_filter=benchmark)
+    CANDIDATES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CANDIDATES_PATH.write_text(json.dumps(cs, indent=2, ensure_ascii=False) + "\n")
+    _print_stats(stats)
+    print(f"Wrote {CANDIDATES_PATH}")
+
+
+if __name__ == "__main__":
+    app()
