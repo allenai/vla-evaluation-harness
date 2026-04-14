@@ -43,8 +43,6 @@ EXTRACTION_LOGS_DIR = ROOT / ".cache" / "extraction_logs"
 EXTRACTIONS_JSON = DATA_DIR / "extractions.json"
 BENCHMARKS_DIR = ROOT / "benchmarks"
 BENCHMARKS_JSON_PATH = DATA_DIR / "benchmarks.json"
-LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
-COVERAGE_PATH = DATA_DIR / "coverage.json"
 SCAN_CACHE_PATH = ROOT / ".cache" / "scan_results.json"
 FETCH_FAILURES_PATH = CACHE_DIR / "fetch_failures.json"
 
@@ -795,56 +793,9 @@ def scan(
         json.dumps({"scanned_at": _now_iso(), "benchmarks": scan_results}, indent=2, ensure_ascii=False) + "\n"
     )
 
-    _update_coverage()
-
     print(f"\n{total_new} new papers across {len(scan_results)} benchmarks")
     print(f"Wrote {SCAN_CACHE_PATH}")
-    print(f"Wrote {COVERAGE_PATH}")
-
-
-def _update_coverage() -> None:
-    """Recompute coverage.json from scan_results.json + current extractions on disk.
-
-    Counts extracted papers per benchmark by intersecting each benchmark's
-    citing_ids with the set of locally extracted arxiv IDs.
-    """
-    if not BENCHMARKS_JSON_PATH.exists():
-        return
-    benchmarks = json.loads(BENCHMARKS_JSON_PATH.read_text())
-    extracted_stems = {f.stem for f in EXTRACTIONS_DIR.glob("*.json")} if EXTRACTIONS_DIR.exists() else set()
-
-    scan_data: dict = {}
-    if SCAN_CACHE_PATH.exists():
-        scan_data = json.loads(SCAN_CACHE_PATH.read_text()).get("benchmarks", {})
-
-    # Also pull totals from leaderboard.json if it exists (for the summary header)
-    total_results = 0
-    total_models = 0
-    if LEADERBOARD_PATH.exists():
-        lb = json.loads(LEADERBOARD_PATH.read_text())
-        results = lb.get("results", [])
-        total_results = len(results)
-        total_models = len({r.get("model") for r in results if r.get("model")})
-
-    coverage = {
-        "last_updated": _now_iso()[:10],
-        "total_papers_reviewed": len(extracted_stems),
-        "total_results": total_results,
-        "total_models": total_models,
-        "benchmarks": {},
-    }
-    for bm_key in sorted(benchmarks):
-        sr = scan_data.get(bm_key, {})
-        citing_ids = set(sr.get("all_citing_ids", []))
-        extracted_for_bm = len(citing_ids & extracted_stems) if citing_ids else 0
-        coverage["benchmarks"][bm_key] = {
-            "display_name": benchmarks[bm_key].get("display_name", bm_key),
-            "arxiv_id": sr.get("arxiv_id", ""),
-            "citing_papers": sr.get("citing_papers", 0),
-            "arxiv_citing_papers": sr.get("arxiv_citing_papers", 0),
-            "papers_reviewed": extracted_for_bm,
-        }
-    COVERAGE_PATH.write_text(json.dumps(coverage, indent=2, ensure_ascii=False) + "\n")
+    print("Run `update_coverage.py` to refresh coverage.json.")
 
 
 DEFAULT_BATCH_SIZE = 30
@@ -951,15 +902,7 @@ def run(
     if failures:
         print(f"{len(failures)} papers in fetch_failures.json")
 
-    _update_coverage()
-    print(f"Updated {COVERAGE_PATH}")
-
-
-@app.command()
-def coverage() -> None:
-    """Recompute data/coverage.json from current .cache/extractions/ state."""
-    _update_coverage()
-    print(f"Wrote {COVERAGE_PATH}")
+    print("Run `refine.py main` to build leaderboard.json, then `update_coverage.py` and `update_citations.py`.")
 
 
 @app.command()
