@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import functools
 import hashlib
-import itertools
 import json
 import os
 import re
@@ -49,7 +48,8 @@ COVERAGE_PATH = DATA_DIR / "coverage.json"
 SCAN_CACHE_PATH = ROOT / ".cache" / "scan_results.json"
 FETCH_FAILURES_PATH = CACHE_DIR / "fetch_failures.json"
 
-PAPER_BUDGET = 80_000
+DEFAULT_MODEL = "claude-opus-4-6[1m]"
+DEFAULT_TIMEOUT = 1200
 _ARXIV_RE = re.compile(r"arxiv\.org/abs/(\d+\.\d+)")
 
 # Lock for thread-safe fetch failure writes
@@ -236,11 +236,6 @@ def _record_failure(arxiv_id: str, reason: str) -> None:
         _save_fetch_failures(failures)
 
 
-def _load_paper_markdown(arxiv_id: str) -> str | None:
-    p = _paper_md_path(arxiv_id)
-    return p.read_text(encoding="utf-8") if p.exists() else None
-
-
 def _paper_hash(arxiv_id: str) -> str | None:
     meta = _paper_meta_path(arxiv_id)
     if not meta.exists():
@@ -390,7 +385,28 @@ EXTRACTION_SCHEMA: dict = {
 
 
 def _build_system_prompt(all_rules: str) -> str:
-    return f"""You are curating entries for a public VLA benchmark leaderboard.
+    return f"""You are the EXTRACT stage of a two-stage VLA leaderboard pipeline.
+
+## Pipeline role
+
+Be RECALL-FIRST. Surface every row that has any chance of being a leaderboard
+entry, with the evidence (verbatim quotes, protocol notes, attribution) the
+next stage needs to make the cut.
+
+A separate REFINE stage downstream handles precision — protocol gating
+(dropping rows you mark `matches_standard="no"`), score arithmetic from
+component suite/task scores, eligibility filtering, dedup across papers,
+canonical naming, and notes. Do NOT pre-filter for any of those concerns.
+When uncertain whether to extract a row, extract it.
+
+**Cited baselines carry the same weight as the paper's own results.** Baseline
+comparison tables and related-work score tables are often the ONLY recorded
+source for a given model on this benchmark — the original paper may not reach
+extraction for other reasons (no arxiv preprint, different citation graph,
+older than our scan). Never abbreviate or summarize a baseline table; every
+row in every comparison table is load-bearing.
+
+## What belongs on the leaderboard
 
 A leaderboard entry represents a distinct, publicly identifiable VLA model or
 method. Your job is to extract only rows that belong on such a leaderboard,
@@ -454,36 +470,36 @@ And `weight_type`: `shared` (same checkpoint across benchmarks) or
 
 def _call_claude_cli(
     system_prompt: str,
-    user_content: str,
+    user_prompt: str,
     json_schema: dict,
-    model: str = "sonnet",
-    timeout: int = 600,
+    paper_dir: Path,
+    model: str = DEFAULT_MODEL,
+    timeout: int = DEFAULT_TIMEOUT,
     log_path: Path | None = None,
-) -> dict:
-    """Call claude CLI with stream-json to capture thinking and text blocks.
+) -> tuple[dict, int]:
+    """Call claude CLI in tool mode (Read/Grep/Glob over paper_dir).
 
-    When log_path is given, writes a plaintext log of thinking/text blocks there.
+    The paper file is NOT inlined into the prompt. The model navigates it
+    via Read/Grep/Glob tools restricted to ``paper_dir``. Returns
+    ``(structured_output, n_tool_calls)``. Writes a plaintext log of
+    thinking / text / tool_use / tool_result blocks to ``log_path``.
     """
     cmd = [
         "claude",
         "--print",
-        "--model",
-        model,
-        "--system-prompt",
-        system_prompt,
-        "--json-schema",
-        json.dumps(json_schema),
-        "--output-format",
-        "stream-json",
+        "--model", model,
+        "--system-prompt", system_prompt,
+        "--json-schema", json.dumps(json_schema),
+        "--output-format", "stream-json",
         "--verbose",
-        "--disallowedTools",
-        "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch,Read,Grep,Glob",
-        "--permission-mode",
-        "default",
+        "--allowedTools", "Read,Grep,Glob",
+        "--disallowedTools", "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch",
+        "--add-dir", str(paper_dir),
+        "--permission-mode", "default",
         "--no-session-persistence",
     ]
     try:
-        result = subprocess.run(cmd, input=user_content, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, input=user_prompt, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError as e:
         raise LLMError("claude CLI not found on PATH") from e
     except subprocess.TimeoutExpired as e:
@@ -491,9 +507,9 @@ def _call_claude_cli(
     if result.returncode != 0:
         raise LLMError(f"exit {result.returncode}: {result.stderr[:500]}")
 
-    # Parse stream-json: one JSON event per line
     structured: dict | None = None
     log_blocks: list[str] = []
+    n_tool_calls = 0
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line:
@@ -504,7 +520,6 @@ def _call_claude_cli(
             continue
         if evt.get("is_error"):
             raise LLMError(f"error: {evt.get('subtype')}")
-        # Collect thinking and text blocks from assistant messages
         if evt.get("type") == "assistant":
             for block in evt.get("message", {}).get("content", []):
                 btype = block.get("type")
@@ -512,7 +527,16 @@ def _call_claude_cli(
                     log_blocks.append("### thinking\n" + block.get("thinking", ""))
                 elif btype == "text":
                     log_blocks.append("### text\n" + block.get("text", ""))
-        # Final result event carries structured_output
+                elif btype == "tool_use":
+                    n_tool_calls += 1
+                    name = block.get("name", "?")
+                    inp = block.get("input", {})
+                    log_blocks.append(f"### tool_use: {name}\n{json.dumps(inp, indent=2)}")
+        if evt.get("type") == "user":
+            for block in evt.get("message", {}).get("content", []) or []:
+                if isinstance(block, dict) and block.get("type") == "tool_result":
+                    snippet = str(block.get("content", ""))[:500]
+                    log_blocks.append(f"### tool_result\n{snippet}")
         if evt.get("type") == "result":
             structured = evt.get("structured_output")
 
@@ -522,58 +546,137 @@ def _call_claude_cli(
 
     if not isinstance(structured, dict):
         raise LLMError("no structured_output in stream")
-    return structured
+    return structured, n_tool_calls
 
 
 # ---------------------------------------------------------------------------
-# Core extraction (per-paper)
+# Batched extraction
 # ---------------------------------------------------------------------------
 
 
-def extract_one(arxiv_id: str, all_rules: str, model: str, *, timeout: int = 600, resume: bool = True) -> dict | None:
-    """Extract all benchmark results from one paper. Returns extraction dict or None on failure."""
-    if resume:
-        cached = _load_cached_extraction(arxiv_id)
-        if cached is not None:
-            return cached
+def _batched_schema() -> dict:
+    """Wrap the single-paper EXTRACTION_SCHEMA in a ``papers`` array."""
+    single = EXTRACTION_SCHEMA
+    return {
+        "type": "object",
+        "required": ["papers"],
+        "properties": {
+            "papers": {
+                "type": "array",
+                "description": "One entry per input paper. Match arxiv_id to the path supplied.",
+                "items": {
+                    "type": "object",
+                    "required": ["arxiv_id", "benchmarks", "confidence"],
+                    "properties": {
+                        "arxiv_id": {"type": "string"},
+                        "benchmarks": single["properties"]["benchmarks"],
+                        "confidence": single["properties"]["confidence"],
+                    },
+                },
+            }
+        },
+    }
 
-    # Auto-fetch if not cached, then load
-    paper_md = _load_paper_markdown(arxiv_id)
-    if paper_md is None:
-        if not _fetch_paper(arxiv_id):
-            _record_failure(arxiv_id, f"HTML not available, {_now_iso()}")
-            return None
-        paper_md = _load_paper_markdown(arxiv_id)
-        if paper_md is None:
-            return None
 
-    # Trim paper if over budget
-    if len(paper_md) > PAPER_BUDGET:
-        paper_md = paper_md[:PAPER_BUDGET] + f"\n\n[...truncated, original {len(paper_md)} chars...]"
+def extract_batch(
+    arxiv_ids: list[str],
+    all_rules: str,
+    model: str,
+    *,
+    timeout: int = DEFAULT_TIMEOUT,
+    resume: bool = True,
+) -> dict[str, dict | None]:
+    """Extract benchmark results from N papers in a SINGLE claude CLI call.
+
+    The model has Read/Grep/Glob over ``CACHE_DIR`` and navigates each
+    paper.md independently. Paper contents are NEVER inlined. Returns a
+    dict ``{arxiv_id -> extraction | None}``. None means fetch failed or
+    the model omitted the paper. Successfully-extracted rows (including
+    empty `benchmarks`) are saved to the per-paper cache.
+    """
+    results: dict[str, dict | None] = {}
+
+    todo: list[str] = []
+    for aid in arxiv_ids:
+        if resume:
+            cached = _load_cached_extraction(aid)
+            if cached is not None:
+                results[aid] = cached
+                continue
+        paper_path = CACHE_DIR / aid / "paper.md"
+        if not paper_path.exists():
+            if not _fetch_paper(aid):
+                _record_failure(aid, f"HTML not available, {_now_iso()}")
+                results[aid] = None
+                continue
+        todo.append(aid)
+
+    if not todo:
+        return results
+
+    paper_lines = []
+    for aid in todo:
+        paper_lines.append(f"- arxiv_id={aid}  path={CACHE_DIR / aid / 'paper.md'}")
 
     system_prompt = _build_system_prompt(all_rules)
-    user_prompt = f"Extract all benchmark results from this paper.\n\n<paper>\n{paper_md}\n</paper>"
+    user_prompt = (
+        "Extract benchmark results from EACH paper listed below.\n\n"
+        "Return ONE entry per paper in the `papers` array, keyed by arxiv_id.\n"
+        "Every arxiv_id below must appear in your output, even if its benchmarks "
+        "array is empty.\n\n"
+        "Use Read / Grep / Glob to navigate each paper.md independently. "
+        "Every quote you emit for a paper must come from that paper's file.\n\n"
+        "Papers:\n" + "\n".join(paper_lines)
+    )
+
+    batch_tag = "_".join(todo[:2]) + (f"+{len(todo) - 2}" if len(todo) > 2 else "")
+    log_path = EXTRACTION_LOGS_DIR / f"batch_{batch_tag}.log"
 
     try:
-        log_path = EXTRACTION_LOGS_DIR / f"{arxiv_id}.log"
-        llm_output = _call_claude_cli(
-            system_prompt, user_prompt, EXTRACTION_SCHEMA, model=model, timeout=timeout, log_path=log_path
+        llm_output, n_tool_calls = _call_claude_cli(
+            system_prompt,
+            user_prompt,
+            _batched_schema(),
+            CACHE_DIR.resolve(),
+            model=model,
+            timeout=timeout,
+            log_path=log_path,
         )
     except LLMError as e:
-        print(f"    LLM error for {arxiv_id}: {e}")
-        return None
+        print(f"    LLM error for batch ({len(todo)} papers): {e}")
+        for aid in todo:
+            results[aid] = None
+        return results
 
-    result = {
-        "arxiv_id": arxiv_id,
-        "extracted_at": _now_iso(),
-        "model_used": model,
-        "paper_hash": _paper_hash(arxiv_id),
-        "extraction_scope": sorted(_current_benchmark_keys()),
-        "benchmarks": llm_output.get("benchmarks", []),
-        "confidence": llm_output.get("confidence"),
-    }
-    _save_cached_extraction(arxiv_id, result)
-    return result
+    scope = sorted(_current_benchmark_keys())
+    by_id: dict[str, dict] = {}
+    for p in llm_output.get("papers", []):
+        aid = p.get("arxiv_id")
+        if aid:
+            by_id[aid] = p
+
+    now = _now_iso()
+    for aid in todo:
+        p = by_id.get(aid)
+        if p is None:
+            print(f"    WARN {aid} missing from batch output")
+            results[aid] = None
+            continue
+        record = {
+            "arxiv_id": aid,
+            "extracted_at": now,
+            "model_used": model,
+            "batch_size": len(todo),
+            "batch_tool_calls_total": n_tool_calls,
+            "paper_hash": _paper_hash(aid),
+            "extraction_scope": scope,
+            "benchmarks": p.get("benchmarks", []),
+            "confidence": p.get("confidence"),
+        }
+        _save_cached_extraction(aid, record)
+        results[aid] = record
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -734,31 +837,44 @@ def _update_coverage() -> None:
     COVERAGE_PATH.write_text(json.dumps(coverage, indent=2, ensure_ascii=False) + "\n")
 
 
+DEFAULT_BATCH_SIZE = 30
+
+
 @app.command()
 def run(
     arxiv_ids: Annotated[
         Optional[list[str]], typer.Argument(help="Arxiv IDs to extract. Omit to use --from-scan.")
     ] = None,
     from_scan: Annotated[bool, typer.Option("--from-scan", help="Extract all papers from scan_results.json.")] = False,
-    model: Annotated[str, typer.Option(help="Claude model alias.")] = "sonnet",
-    workers: Annotated[int, typer.Option(help="Parallel workers.")] = 1,
-    timeout: Annotated[int, typer.Option(help="Claude CLI timeout in seconds.")] = 600,
+    benchmark: Annotated[
+        Optional[str],
+        typer.Option("--benchmark", help="Restrict --from-scan to one benchmark's citing papers."),
+    ] = None,
+    model: Annotated[str, typer.Option(help="Claude model alias or full ID.")] = DEFAULT_MODEL,
+    batch_size: Annotated[int, typer.Option("--batch-size", help="Papers per claude call.")] = DEFAULT_BATCH_SIZE,
+    workers: Annotated[int, typer.Option(help="Parallel batches.")] = 1,
+    timeout: Annotated[int, typer.Option(help="Per-batch claude CLI timeout in seconds.")] = DEFAULT_TIMEOUT,
     resume: Annotated[bool, typer.Option(help="Skip papers with fresh cache.")] = True,
 ) -> None:
-    """Extract benchmark results from papers via LLM (one call per paper)."""
+    """Extract benchmark results from papers in batched claude CLI calls."""
     if from_scan:
         if not SCAN_CACHE_PATH.exists():
             print("scan_results.json not found — run scan first.")
             raise typer.Exit(1)
         scan_data = json.loads(SCAN_CACHE_PATH.read_text())
-        # Collect ALL unique citing papers across all benchmarks
+        bm_data_all = scan_data.get("benchmarks", {})
+        if benchmark:
+            if benchmark not in bm_data_all:
+                print(f"benchmark '{benchmark}' not in scan_results.json")
+                raise typer.Exit(1)
+            bm_data_all = {benchmark: bm_data_all[benchmark]}
         all_ids: set[str] = set()
-        for bm_data in scan_data.get("benchmarks", {}).values():
+        for bm_data in bm_data_all.values():
             all_ids.update(bm_data.get("all_citing_ids", []))
             all_ids.update(bm_data.get("new_papers", []))
         targets = sorted(all_ids)
     elif arxiv_ids:
-        targets = arxiv_ids
+        targets = list(arxiv_ids)
     else:
         print("Provide arxiv IDs or use --from-scan.")
         raise typer.Exit(2)
@@ -770,57 +886,54 @@ def run(
         if skipped:
             print(f"--resume: skipping {skipped} cached papers")
 
-    print(f"Extracting {len(targets)} papers (workers={workers}, model={model}, timeout={timeout}s)...")
+    if not targets:
+        print("Nothing to extract.")
+        return
+
+    batches = [targets[i : i + batch_size] for i in range(0, len(targets), batch_size)]
+    print(
+        f"Extracting {len(targets)} papers in {len(batches)} batches "
+        f"(batch_size={batch_size}, workers={workers}, model={model}, timeout={timeout}s)..."
+    )
     all_rules = _load_all_benchmark_rules()
 
-    def _do(arxiv_id: str) -> tuple[str, dict | None]:
-        return arxiv_id, extract_one(arxiv_id, all_rules, model, timeout=timeout, resume=False)
-
-    def _tally(aid: str, result: dict | None, counters: list[int]) -> None:
-        """Update counters [ok, empty, fail] and print progress."""
-        if result is None:
-            counters[2] += 1
-            print(f"  FAIL {aid}")
-        elif not result.get("benchmarks"):
-            counters[1] += 1
-        else:
-            n_bm = len(result["benchmarks"])
-            n_models = sum(len(b.get("models", [])) for b in result["benchmarks"])
-            counters[0] += 1
-            print(f"  OK   {aid} ({n_bm} benchmarks, {n_models} models)")
-        total = sum(counters)
-        if total % 20 == 0:
-            print(f"  --- {total}/{len(targets)} ---")
-
     counters = [0, 0, 0]  # [ok, empty, fail]
+    counters_lock = threading.Lock()
+
+    def _tally_batch(batch_results: dict[str, dict | None]) -> None:
+        with counters_lock:
+            for aid, result in batch_results.items():
+                if result is None:
+                    counters[2] += 1
+                    print(f"  FAIL {aid}")
+                elif not result.get("benchmarks"):
+                    counters[1] += 1
+                    print(f"  ---  {aid} (empty)")
+                else:
+                    n_bm = len(result["benchmarks"])
+                    n_models = sum(len(b.get("models", [])) for b in result["benchmarks"])
+                    counters[0] += 1
+                    print(f"  OK   {aid} ({n_bm} benchmarks, {n_models} models)")
+
+    def _do_batch(ids: list[str]) -> dict[str, dict | None]:
+        return extract_batch(ids, all_rules, model, timeout=timeout, resume=False)
 
     if workers <= 1:
-        for aid in targets:
-            aid, result = _do(aid)
-            _tally(aid, result, counters)
+        for i, batch in enumerate(batches, 1):
+            print(f"[batch {i}/{len(batches)}] {len(batch)} papers")
+            _tally_batch(_do_batch(batch))
     else:
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            # Submit in batches (2x workers) for graceful Ctrl+C
-            futs: dict = {}
-            target_iter = iter(targets)
-            for aid in itertools.islice(target_iter, workers * 2):
-                futs[executor.submit(_do, aid)] = aid
-            while futs:
-                for fut in as_completed(futs):
-                    aid = futs.pop(fut)
-                    try:
-                        _, result = fut.result()
-                    except Exception as exc:
-                        print(f"  CRASH {aid}: {exc}")
-                        counters[2] += 1
-                        result = None  # skip _tally, already counted
-                    else:
-                        _tally(aid, result, counters)
-                    # Refill from iterator
-                    next_aid = next(target_iter, None)
-                    if next_aid is not None:
-                        futs[executor.submit(_do, next_aid)] = next_aid
-                    break  # back to as_completed with updated futs
+            futs = {executor.submit(_do_batch, b): i for i, b in enumerate(batches, 1)}
+            for fut in as_completed(futs):
+                idx = futs[fut]
+                try:
+                    batch_results = fut.result()
+                except Exception as exc:
+                    print(f"  CRASH batch {idx}: {exc}")
+                    continue
+                print(f"[batch {idx}/{len(batches)} done]")
+                _tally_batch(batch_results)
 
     n_ok, n_empty, n_fail = counters
     print(f"\nDone: ok={n_ok} empty={n_empty} fail={n_fail} total={len(targets)}")

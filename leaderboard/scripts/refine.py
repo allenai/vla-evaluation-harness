@@ -240,13 +240,32 @@ def _load_benchmark_md(bm_key: str) -> str:
 
 
 def _build_system_prompt() -> str:
-    return f"""You are the fuzzy-decision stage of the VLA leaderboard pipeline.
+    return f"""You are the PRECISION stage of a two-stage VLA leaderboard pipeline.
+
+## Pipeline role
+
+The EXTRACT stage that produced these candidates was deliberately RECALL-FIRST:
+it surfaced every row it could find with a number on a registry benchmark,
+including cited baselines from related work, framework / architecture variants,
+and rows whose protocol it marked `partial` or `unknown`. Many of those rows
+should NOT end up on the public leaderboard.
+
+A deterministic Python pre-step has already applied the hard protocol gate:
+- `matches_standard == "no"` rows were dropped.
+- `partial` / `unknown` rows kept with `overall_score = null`.
+- `yes` rows have `overall_score` computed from component suite/task scores.
+
+Your job is the FUZZY precision pass: drop everything else that doesn't
+belong (junk labels, ablation variants, stale cited baselines), dedup
+across papers, normalize identity across benchmarks, and write substantive
+notes. Apply your filters aggressively. When in doubt, drop. A small,
+clean leaderboard is the goal.
 
 ## Context
 
-A deterministic Python step has already produced candidate entries in
-`{CANDIDATES_PATH}`. Each candidate is one (paper × benchmark × model)
-row from a raw extraction, with these fields already filled in:
+The candidate entries are in `{CANDIDATES_PATH}`. Each candidate is one
+(paper × benchmark × model) row from a raw extraction, with these fields
+already filled in:
 
 - `name_in_paper`: exact label from the paper's table
 - `params`, `benchmark`, `weight_type`
