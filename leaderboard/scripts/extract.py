@@ -481,12 +481,12 @@ def _call_claude_cli(
     timeout: int = DEFAULT_TIMEOUT,
     log_path: Path | None = None,
 ) -> tuple[dict, int]:
-    """Call claude CLI in tool mode (Read/Grep/Glob over paper_dir).
+    """Call claude CLI in tool mode over paper_dir.
 
     The paper file is NOT inlined into the prompt. The model navigates it
-    via Read/Grep/Glob tools restricted to ``paper_dir``. Returns
-    ``(structured_output, n_tool_calls)``. Writes a plaintext log of
-    thinking / text / tool_use / tool_result blocks to ``log_path``.
+    via tools restricted to ``paper_dir``. Returns
+    ``(structured_output, n_tool_calls)``. Writes raw stream-json stdout
+    to ``log_path``.
     """
     cmd = [
         "claude",
@@ -586,7 +586,7 @@ def extract_batch(
 ) -> dict[str, dict | None]:
     """Extract benchmark results from N papers in a SINGLE claude CLI call.
 
-    The model has Read/Grep/Glob over ``CACHE_DIR`` and navigates each
+    The model has tool access over ``CACHE_DIR`` and navigates each
     paper.md independently. Paper contents are NEVER inlined. Returns a
     dict ``{arxiv_id -> extraction | None}``. None means fetch failed or
     the model omitted the paper. Successfully-extracted rows (including
@@ -622,7 +622,7 @@ def extract_batch(
         "Return ONE entry per paper in the `papers` array, keyed by arxiv_id.\n"
         "Every arxiv_id below must appear in your output, even if its benchmarks "
         "array is empty.\n\n"
-        "Use Read / Grep / Glob to navigate each paper.md independently. "
+        "Use available tools to navigate each paper.md independently. "
         "Every quote you emit for a paper must come from that paper's file.\n\n"
         "Papers:\n" + "\n".join(paper_lines)
     )
