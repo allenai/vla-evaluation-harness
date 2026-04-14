@@ -2,12 +2,9 @@ name: Leaderboard Validate
 on:
   pull_request:
     paths:
-      - 'leaderboard/data/leaderboard.json'
-      - 'leaderboard/data/benchmarks.json'
-      - 'leaderboard/data/leaderboard.schema.json'
-      - 'leaderboard/data/benchmarks.schema.json'
-      - 'leaderboard/data/citations.json'
-      - 'leaderboard/scripts/validate.py'
+      - 'leaderboard/data/**.json'
+      - 'leaderboard/scripts/*.py'
+      - 'leaderboard/benchmarks/*.md'
 
 jobs:
   validate:
