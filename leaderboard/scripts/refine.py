@@ -44,6 +44,7 @@ BENCHMARKS_JSON_PATH = DATA_DIR / "benchmarks.json"
 LEADERBOARD_PATH = DATA_DIR / "leaderboard.json"
 SCHEMA_PATH = DATA_DIR / "leaderboard.schema.json"
 CANDIDATES_PATH = ROOT / ".cache" / "refine_candidates.json"
+REFINE_LOGS_DIR = ROOT / ".cache" / "refine_logs"
 
 # Mirrors validate.py's ARITHMETIC_RULES — the single source of truth for
 # how to aggregate component scores into overall_score.
@@ -407,14 +408,22 @@ def refine(
         model,
         "--system-prompt",
         system_prompt,
+        "--output-format",
+        "stream-json",
+        "--verbose",
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
         user_msg,
     ]
 
+    log_path = REFINE_LOGS_DIR / f"refine_{date.today().isoformat()}.log"
     print(f"Stage 2: launching claude ({model}) for fuzzy decisions on {scope}...")
-    result = subprocess.run(cmd, capture_output=False, text=True, timeout=timeout)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(result.stdout, encoding="utf-8")
+
     if result.returncode != 0:
         print(f"claude exited with code {result.returncode}")
         raise SystemExit(result.returncode)
