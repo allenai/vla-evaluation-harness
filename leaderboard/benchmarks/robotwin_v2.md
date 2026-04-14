@@ -2,14 +2,21 @@
 benchmark: robotwin_v2
 ---
 
-## Protocol
+**Standard**: RoboTwin v2 ([2506.18088](https://arxiv.org/abs/2506.18088), 2025) reported as separate Easy (clean scenes) and Hard (5-axis domain randomization) scores; `overall_score` is always `null` by design and the two numbers live in `suite_scores.easy` and `suite_scores.hard`. (v1 is a separate benchmark at `robotwin_v1`.)
 
-- **v1 and v2 are separate benchmarks**. v1 = `robotwin_v1` ([2409.02920](https://arxiv.org/abs/2409.02920), ECCV 2024), v2 = `robotwin_v2` ([2506.18088](https://arxiv.org/abs/2506.18088), 2025).
-- **v2 standard protocol**: `overall_score` = always `null`; use `suite_scores: {"easy": X, "hard": Y}`. Report both Easy (clean scenes) and Hard (5-axis domain randomization) when available.
-- **v1**: No standard task set — entries evaluate 4–17 tasks. Set `overall_score = null` unless the entry matches the original paper's exact task set. Always record task count in `notes`. Entries with different task counts are not comparable.
-- **v2**: Task counts vary (3–50). Record task count in `notes`.
-- Do not file CVPR 2025 Challenge results under standard v2 (different protocol).
-- **Two v2 training protocols exist** — scores across them are **not comparable**:
+## Scoring
+- `overall_score`: always `null`.
+- `suite_scores`: `easy` (clean) and `hard` (domain randomization). Report both when available; a single-difficulty entry stores only the reported key.
+- `task_scores`: optional per-task success rates when the paper tabulates them.
+
+## Checks
+- Is `overall_score` set to `null` with the numbers in `suite_scores.easy` / `suite_scores.hard`?
+- Is the `notes` field prefixed with `Protocol A` or `Protocol B` (see Methodology axes)? An unlabeled entry cannot be correctly placed.
+- Is this standard v2 and NOT a CVPR 2025 Challenge result? Challenge results follow a different protocol and must not be filed here.
+- Is the task count (3–50 varies) recorded in `notes`?
+
+## Methodology axes (record in `notes`, do not null)
+- Training protocol tag: every entry must be prefixed `Protocol A` or `Protocol B`. The two protocols are NOT comparable — scores from one cannot be ranked against the other.
 
   | | Protocol A (official) | Protocol B (Motus-style) |
   |---|---|---|
@@ -19,9 +26,4 @@ benchmark: robotwin_v2
   | Hard/Rand meaning | OOD generalization (never seen DR) | In-distribution (trained on DR) |
   | Typical Easy/Hard gap | 3–10× (e.g. 55% / 5%) | Near-zero (e.g. 93% / 92%) |
 
-  Always record which protocol in `notes` (prefix with `Protocol A` or `Protocol B`).
-
-## Risky Patterns
-
-- Is this Protocol A (single-task, 50 clean demos/task) or Protocol B (multi-task, 50 clean + 500 DR demos/task)? The two are not comparable — `notes` must prefix `Protocol A` or `Protocol B`.
-- Is `overall_score` set to `null` (always) with `suite_scores` holding `easy`/`hard`?
+- Task count: v2 papers evaluate anywhere from 3 to 50 tasks; record the exact count.

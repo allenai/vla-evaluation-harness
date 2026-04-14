@@ -458,11 +458,21 @@ And `weight_type`: `shared` (same checkpoint across benchmarks) or
 - Every extracted score MUST carry a verbatim `quote` from the paper.
 - If you cannot find a value, return null. Never guess or compute.
 - Use the exact benchmark key as listed (e.g. "libero", "calvin").
-- For each benchmark found, answer its risky patterns.
 - Be conservative. A paper whose entire contribution is a survey,
   reproduction study, or evaluation harness (not a new method) should
   usually return an empty `benchmarks` array — those rows are already
   on the leaderboard via their original papers.
+
+## Benchmark rule template
+
+Each benchmark block below opens with a bold `**Standard**: ...` line — the
+canonical protocol in one sentence. `Scoring` prescribes the JSON shape
+(`overall_score` computation, canonical `suite_scores` / `task_scores` keys).
+`Checks` are yes/no questions a row must pass; a failed check means the row
+has `protocol.matches_standard = "no"`. `Methodology axes` are variance
+dimensions to record in your extraction rationale / quotes — they are NOT
+protocol violations, so a row that merely differs along these axes still has
+`matches_standard = "yes"`.
 
 {all_rules}
 """

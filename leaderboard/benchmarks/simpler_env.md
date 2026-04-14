@@ -2,22 +2,19 @@
 benchmark: simpler_env
 ---
 
-## Protocol
+**Standard**: 3 independent evaluation dimensions — Google Robot Visual Matching, Google Robot Variant Aggregation, WidowX Visual Matching — reported separately; `overall_score` is always `null` by design because averaging across dimensions is forbidden.
 
-- **Standard protocol**: 3 independent evaluation dimensions — **never average across them**. `overall_score` = always `null`; use `suite_scores` only. Store the paper's reported aggregate (if any) in `task_scores.reported_avg` per the global rule (see Result Fields).
+## Scoring
+- `overall_score`: always `null`. Any paper-reported cross-dimension aggregate goes in `task_scores.reported_avg`.
+- `suite_scores`: canonical keys `google_robot_vm`, `google_robot_va`, `widowx_vm`. Each Google Robot key holds the **3-task average** (Pick Coke Can, Move Near, Open/Close Drawer) regardless of whether the paper reports 3 or 4 tasks — this keeps the ranking directly comparable across papers.
+- `task_scores`: all keys MUST end in `_vm` or `_va` to disambiguate protocol (e.g. `pick_coke_can_vm`, `move_near_va`). WidowX tasks always use `_vm`. A 4th Google Robot task (Place Apple in Drawer) goes in `task_scores.place_apple_in_drawer_vm` / `_va`, never in `suite_scores`.
 
-| Dimension | Robot | Protocol | Benchmark key |
-|-----------|-------|----------|---------------|
-| Google Robot VM | Google Robot | Visual Matching | `suite_scores.google_robot_vm` |
-| Google Robot VA | Google Robot | Variant Aggregation | `suite_scores.google_robot_va` |
-| WidowX VM | WidowX (Bridge) | Visual Matching | `suite_scores.widowx_vm` |
-- **Google Robot VM standardization**: `suite_scores.google_robot_vm` must always store the **3-task average** (Pick Coke Can, Move Near, Open/Close Drawer) for consistent ranking. Papers reporting 4 tasks (adding Place Apple in Drawer) should store the 4th task in `task_scores.place_apple_in_drawer_vm` and note the original 4-task average in `notes`. This ensures apples-to-apples comparison since 3-task is the dominant protocol (used by ~80% of papers).
-- **Google Robot VA standardization**: `suite_scores.google_robot_va` follows the same rule — always store the **3-task average** (Pick Coke Can, Move Near, Open/Close Drawer). Papers reporting 4 tasks store the 4th in `task_scores.place_apple_in_drawer_va`. This ensures VM and VA scores are directly comparable.
-- **task_scores protocol suffix**: All SimplerEnv `task_scores` keys **must** end with `_vm` or `_va` to indicate the evaluation protocol (e.g., `pick_coke_can_vm`, `move_near_va`). WidowX tasks always use `_vm`. `validate.py` enforces this. This prevents ambiguity since VM and VA evaluate the same tasks under different protocols with different scores.
-- Don't confuse real-robot scores (e.g. OpenVLA's 12-task real eval) with SimplerEnv simulation.
-
-## Risky Patterns
-
-- Are VM/VA/WidowX dimensions kept strictly separate? Averaging across them is forbidden.
-- Does `suite_scores.google_robot_vm` hold the 3-task average (Pick Coke Can, Move Near, Open/Close Drawer)?
+## Checks
+- Is `overall_score` set to `null`? (Always — no exceptions.)
+- Are VM, VA, and WidowX kept strictly in their own `suite_scores` keys with no cross-dimension math?
+- Does `suite_scores.google_robot_vm` (and `_va`) hold the 3-task average, with any 4th task stored under `task_scores` and the original 4-task aggregate noted in `notes`?
 - Do all `task_scores` keys end in `_vm` or `_va`?
+- Is this genuinely SimplerEnv simulation and not a real-robot eval that reuses similar task names?
+
+## Methodology axes (record in `notes`, do not null)
+- Original paper aggregate: if the paper itself reports a 4-task Google Robot mean or a cross-dimension number, record the value and what it covered so the stored 3-task number is traceable.

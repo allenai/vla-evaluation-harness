@@ -261,6 +261,17 @@ across papers, normalize identity across benchmarks, and write substantive
 notes. Apply your filters aggressively. When in doubt, drop. A small,
 clean leaderboard is the goal.
 
+## Benchmark rule template
+
+Each benchmark block (embedded elsewhere in this prompt or accessible via
+`Read` on `leaderboard/benchmarks/*.md`) opens with a bold `**Standard**: ...`
+line — the canonical protocol in one sentence. `Scoring` prescribes the
+JSON shape. `Checks` are yes/no questions a row must pass; a failed check
+means the row's `overall_score` must stay `null`. `Methodology axes` are
+variance dimensions you must record in `notes` — they are NOT protocol
+violations, so a row that merely differs along these axes keeps its
+`overall_score` populated.
+
 ## Context
 
 The candidate entries are in `{CANDIDATES_PATH}`. Each candidate is one
@@ -353,7 +364,9 @@ Each entry must match the schema at `{SCHEMA_PATH}`:
   `task_scores`, `reported_paper`, `reported_table`, `curated_by`,
   `date_added`, `notes`
 
-Set `curated_by = "refine.py"` and `date_added = "{date.today().isoformat()}"`.
+Set `curated_by` to your own model alias (e.g. `"opus 4.6"` — the model
+running this refine step; NOT the literal string `"refine.py"`) and
+`date_added = "{date.today().isoformat()}"`.
 
 `results` MUST be sorted by `(benchmark, model)`. The file should be
 UTF-8 with a trailing newline.

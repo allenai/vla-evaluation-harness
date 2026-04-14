@@ -2,13 +2,18 @@
 benchmark: calvin
 ---
 
-## Protocol
+**Standard**: CALVIN ABC→D split (train A/B/C, evaluate on D) over 1000 evaluation chains; `overall_score` = average number of completed subtasks in chain of 5 (range 0–5).
 
-- **Standard protocol**: ABC→D split (train on A/B/C, eval on D), 1000 eval chains. ABCD→D inflates scores — do not add.
-- Metric: avg completed subtasks in chain of 5 (0–5), not success rate.
-- Record deviations from 1000 chains in `notes`.
+## Scoring
+- `overall_score`: `avg_len` metric (0–5) over 1000 eval chains; `null` if the metric is not `avg_len` or the split is not ABC→D.
+- `suite_scores`: optional — some papers report per-chain-length success rates; store under keys like `chain_1`, `chain_2`, ..., `chain_5` when provided.
+- `task_scores`: not used — CALVIN's canonical metric is sequence-level, not task-level.
 
-## Risky Patterns
+## Checks
+- Is the training split `ABC→D`? `ABCD→D` and `D→D` inflate scores and must be `null`.
+- Is the reported metric `avg_len` (0–5)? Rows reporting only success rate percentages without `avg_len` → `null`.
+- Does the evaluation use 1000 chains? Any deviation must be recorded in `notes`.
 
-- Is the training split `ABC→D` (standard) or `ABCD→D` (inflated — REJECT)? `D→D` is also REJECT.
-- Is the evaluation over 1000 chains, and is the metric `avg_len` (0–5) rather than success rate?
+## Methodology axes (record in `notes`, do not null)
+- Chain count deviation: note if a paper evaluates on fewer/more than 1000 chains.
+- Training data source: CALVIN language-annotated vs full-play subset.

@@ -2,14 +2,17 @@
 benchmark: libero_plus
 ---
 
-## Protocol
+**Standard**: LIBERO-Plus robustness benchmark ([2510.13626](https://arxiv.org/abs/2510.13626)) — models trained on standard LIBERO, evaluated zero-shot across 7 perturbation dimensions (camera, robot, language, light, background, noise, layout); `overall_score` = arithmetic mean of all 7 dimensions.
 
-- Robustness benchmark ([2510.13626](https://arxiv.org/abs/2510.13626)) with **7 perturbation dimensions**: Camera, Robot, Language, Light, Background, Noise, Layout.
-- Models are trained on standard LIBERO and evaluated **zero-shot** under perturbations.
-- `overall_score` = arithmetic mean of **all 7** perturbation dimensions. Always include `suite_scores`. Entries with fewer than 7 dimensions must set `overall_score = null`.
-- `weight_type`: `"shared"` for zero-shot models (LIBERO-trained); `"finetuned"` for models trained on LIBERO-Plus data.
-- Some papers (e.g. JEPA-VLA) use reduced training data (1/10 LIBERO) — record in `notes`.
+## Scoring
+- `overall_score`: arithmetic mean of `suite_scores.camera`, `robot`, `language`, `light`, `background`, `noise`, `layout`; `null` if any of the 7 is missing.
+- `suite_scores`: canonical keys `camera`, `robot`, `language`, `light`, `background`, `noise`, `layout`.
+- `task_scores`: not used.
 
-## Risky Patterns
+## Checks
+- Are all 7 perturbation dimensions present? Missing any → `null`.
+- Is `weight_type` set correctly? `shared` for zero-shot models (LIBERO-trained), `finetuned` for models trained on LIBERO-Plus data.
+- Is this LIBERO-Plus and not LIBERO-Pro (which uses different perturbations)?
 
-- Are all 7 perturbation dimensions (`camera`, `robot`, `language`, `light`, `background`, `noise`, `layout`) present? If any missing → `overall_score` must be `null`.
+## Methodology axes (record in `notes`, do not null)
+- Reduced training data: some papers (e.g. JEPA-VLA) use 1/10 LIBERO. Record the training-data fraction when disclosed.

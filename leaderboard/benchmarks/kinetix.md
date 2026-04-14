@@ -2,12 +2,18 @@
 benchmark: kinetix
 ---
 
-## Protocol
+**Standard**: 12-task state-based eval protocol from the RTC paper ([2506.07339](https://arxiv.org/abs/2506.07339)), no vision/language input; `overall_score` = mean success rate across the 12 tasks.
 
-- **Not the Kinetix simulator** — it's the 12-task eval protocol from the RTC paper ([2506.07339](https://arxiv.org/abs/2506.07339)). State-based, no vision/language.
-- Scores depend on `(inference_delay d, execution_horizon e)` settings. Always record both in `notes`.
-- Entries at different `d` values are **not directly comparable** (e.g., d=0 scores ~11pp higher than d=4 for the same method). Prefer grouping by `d` when comparing.
+## Scoring
+- `overall_score`: arithmetic mean over the 12 tasks; `null` if fewer than 12 tasks or a different task set.
+- `suite_scores`: not used.
+- `task_scores`: per-task success rates keyed by task name.
 
-## Risky Patterns
+## Checks
+- Is this the 12-task RTC protocol (not the standalone Kinetix simulator with different tasks)?
+- Are `inference_delay d` and `execution_horizon e` recorded in `notes`? An unlabeled entry cannot be placed correctly.
+- Are all 12 tasks evaluated? Partial sets → `null`.
 
-- Are `inference_delay d` and `execution_horizon e` recorded in `notes`? Different `d` values are not directly comparable.
+## Methodology axes (record in `notes`, do not null)
+- `inference_delay d` (0, 2, 4, ...): scores at different `d` differ by ~11pp for the same method — direct cross-`d` comparison is misleading. Record the value; group by `d` when presenting.
+- `execution_horizon e`: also affects scores. Record the value.

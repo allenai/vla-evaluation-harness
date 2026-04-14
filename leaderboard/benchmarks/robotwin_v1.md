@@ -2,25 +2,17 @@
 benchmark: robotwin_v1
 ---
 
-## Protocol
+**Standard**: RoboTwin v1 ([2409.02920](https://arxiv.org/abs/2409.02920), ECCV 2024) with no fixed task set — entries evaluate 4–17 tasks from the original paper; `overall_score` = mean success rate across the evaluated tasks ONLY when the task set matches the original paper's exact set, otherwise `null`. (v1 and v2 are separate benchmarks — v2 lives at `robotwin_v2`.)
 
-- **v1 and v2 are separate benchmarks**. v1 = `robotwin_v1` ([2409.02920](https://arxiv.org/abs/2409.02920), ECCV 2024), v2 = `robotwin_v2` ([2506.18088](https://arxiv.org/abs/2506.18088), 2025).
-- **v2 standard protocol**: `overall_score` = always `null`; use `suite_scores: {"easy": X, "hard": Y}`. Report both Easy (clean scenes) and Hard (5-axis domain randomization) when available.
-- **v1**: No standard task set — entries evaluate 4–17 tasks. Set `overall_score = null` unless the entry matches the original paper's exact task set. Always record task count in `notes`. Entries with different task counts are not comparable.
-- **v2**: Task counts vary (3–50). Record task count in `notes`.
-- Do not file CVPR 2025 Challenge results under standard v2 (different protocol).
-- **Two v2 training protocols exist** — scores across them are **not comparable**:
+## Scoring
+- `overall_score`: arithmetic mean over the evaluated tasks; `null` unless the task set matches the original paper's exact set.
+- `suite_scores`: optional per-task-family groupings when provided.
+- `task_scores`: per-task success rates keyed by task name.
 
-  | | Protocol A (official) | Protocol B (Motus-style) |
-  |---|---|---|
-  | Source | [2506.18088](https://arxiv.org/abs/2506.18088) | [2512.13030](https://arxiv.org/abs/2512.13030) |
-  | Training | Single-task, 50 clean demos/task | Multi-task, 50 clean + 500 DR demos/task |
-  | Training data | 2,500 total | 27,500 total (11×) |
-  | Hard/Rand meaning | OOD generalization (never seen DR) | In-distribution (trained on DR) |
-  | Typical Easy/Hard gap | 3–10× (e.g. 55% / 5%) | Near-zero (e.g. 93% / 92%) |
+## Checks
+- Does the task count match the original RoboTwin v1 paper's exact set? If not → `overall_score = null`.
+- Is the task count recorded in `notes`?
+- Is this v1 (not v2)? v2 results must go to `robotwin_v2`.
 
-  Always record which protocol in `notes` (prefix with `Protocol A` or `Protocol B`).
-
-## Risky Patterns
-
-- Does the task count match the original paper's exact set? If not → `overall_score` must be `null`.
+## Methodology axes (record in `notes`, do not null)
+- Task count: varies across papers (4–17 tasks on v1). Entries with different counts are not comparable; record the exact count.

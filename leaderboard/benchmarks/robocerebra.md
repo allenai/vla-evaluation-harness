@@ -2,14 +2,18 @@
 benchmark: robocerebra
 ---
 
-## Protocol
+**Standard**: Embodied reasoning benchmark ([2506.06677](https://arxiv.org/abs/2506.06677)) with 6 evaluation dimensions (ideal, memory_execution, memory_exploration, mix, observation_mismatching, random_disturbance); `overall_score` = arithmetic mean of all 6 dimensions.
 
-- Embodied reasoning benchmark ([2506.06677](https://arxiv.org/abs/2506.06677)) with **6 evaluation dimensions**: ideal, memory_execution, memory_exploration, mix, observation_mismatching, random_disturbance.
-- `overall_score` = arithmetic mean of all 6 dimensions. Set `overall_score = null` if fewer than 6 dimensions are reported. Always include `suite_scores` when available.
-- **Architecture types**: Entries include end-to-end VLAs, hierarchical systems (VLM planner + controller), and oracle (GT-Plan) upper bounds. These are not directly comparable. Note the architecture type in `notes`.
-- Oracle entries (GT-Plan + VLA) represent non-deployable upper bounds. They should be clearly marked.
-- Typical scores: 5–20%. Small absolute differences may be meaningful. All current entries are from the original paper (600 rollouts, same protocol).
+## Scoring
+- `overall_score`: arithmetic mean of the 6 suite keys; `null` if fewer than 6 dimensions reported.
+- `suite_scores`: canonical keys `ideal`, `memory_execution`, `memory_exploration`, `mix`, `observation_mismatching`, `random_disturbance`.
+- `task_scores`: not used.
 
-## Risky Patterns
+## Checks
+- Are all 6 dimensions present? Missing any → `null`.
+- Is the architecture type recorded in `notes`? (end-to-end VLA / hierarchical / oracle)
+- For oracle entries (GT-Plan + VLA): is the upper-bound / non-deployable status clearly marked?
 
-- Are all 6 dimensions present? If not → `overall_score` must be `null`. Is the architecture type (end-to-end VLA, hierarchical, oracle) noted?
+## Methodology axes (record in `notes`, do not null)
+- Architecture type: end-to-end VLA, hierarchical (VLM planner + controller), or oracle (GT-Plan upper bound). These are not directly comparable — readers must group by architecture. Oracle entries are non-deployable upper bounds.
+- Typical score range is 5–20%, so small absolute differences can be meaningful. Current entries use 600 rollouts; record deviations.
