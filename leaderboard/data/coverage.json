@@ -1,7 +1,7 @@
 {
   "last_updated": "2026-04-13",
-  "total_models": 512,
-  "total_results": 661,
+  "total_models": 521,
+  "total_results": 670,
   "total_papers_reviewed": 1704,
   "benchmarks": {
     "calvin": {
@@ -73,7 +73,7 @@
       "arxiv_id": "1909.12271",
       "citing_papers": 833,
       "arxiv_citing_papers": 635,
-      "leaderboard_entries": 54,
+      "leaderboard_entries": 63,
       "papers_reviewed": 605
     },
     "roboarena": {

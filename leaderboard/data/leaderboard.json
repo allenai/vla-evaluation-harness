@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-06",
+  "last_updated": "2026-04-14",
   "results": [
     {
       "model": "3d_diffuser_actor",
@@ -7203,6 +7203,20 @@
       "notes": "18-task multi-view evaluation, 100 demos per task, ARP+ variant reported in GPA-RAM Table I"
     },
     {
+      "model": "audio-vla",
+      "display_name": "Audio-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2511.09958",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 55.1,
+      "source_paper": "https://arxiv.org/abs/2511.09958",
+      "source_table": "Table I",
+      "notes": "5-task subset, non-standard protocol with contact audio modality",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
       "model": "bridgevla",
       "display_name": "BridgeVLA",
       "params": null,
@@ -7300,6 +7314,34 @@
       "task_scores": {
         "reported_avg": 55.2
       }
+    },
+    {
+      "model": "cqn",
+      "display_name": "CQN",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2407.07787",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 77.5,
+      "source_paper": "https://arxiv.org/abs/2407.07787",
+      "source_table": "Table 1",
+      "notes": "20-task subset, RL-based (coarse-to-fine Q-network), 3-level discretization",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
+      "model": "d3p",
+      "display_name": "D3P",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2511.00555",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 76.3,
+      "source_paper": "https://arxiv.org/abs/2511.00555",
+      "source_table": "Table I",
+      "notes": "6-task subset (Open Drawer, Push Button, Stack Wine, Slide Block, Sweep to Dustpan, Turn Tap)",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
     },
     {
       "model": "d4r_align",
@@ -7530,6 +7572,20 @@
       "notes": "18-task evaluation, 100 demos per task, Table I"
     },
     {
+      "model": "lan-o3dp",
+      "display_name": "Lan-o3dp",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2407.00451",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 68.7,
+      "source_paper": "https://arxiv.org/abs/2407.00451",
+      "source_table": "Table I",
+      "notes": "21-task subset, object-centric 3D diffusion policy, 40 demos/task",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
       "model": "llarva",
       "display_name": "LLARVA",
       "params": "7B",
@@ -7556,6 +7612,62 @@
         "reach_and_drag": 52,
         "stack_blocks": 0
       }
+    },
+    {
+      "model": "match-policy",
+      "display_name": "MATCH POLICY",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2409.15517",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 53.4,
+      "source_paper": "https://arxiv.org/abs/2409.15517",
+      "source_table": "Table I",
+      "notes": "6-task subset (Phone-on-Base, Stack-Wine, etc.), 10 demo episodes, point cloud registration approach",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
+      "model": "mind",
+      "display_name": "MinD",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2506.18897",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 63.0,
+      "source_paper": "https://arxiv.org/abs/2506.18897",
+      "source_table": "Table 1",
+      "notes": "7-task subset, dual-system world model with video diffusion",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
+      "model": "mini-diffuser",
+      "display_name": "Mini-Diffuser",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2505.09430",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 77.6,
+      "source_paper": "https://arxiv.org/abs/2505.09430",
+      "source_table": "Table 2",
+      "notes": "18-task subset (PerAct protocol), 95.4% of 3D Diffuser Actor performance",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
+    },
+    {
+      "model": "mole-vla",
+      "display_name": "MoLe-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2503.20384",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 60.8,
+      "source_paper": "https://arxiv.org/abs/2503.20384",
+      "source_table": "Table 1",
+      "notes": "10-task subset (VLA efficiency method, dynamic layer-skipping)",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
     },
     {
       "model": "mtp",
@@ -7933,6 +8045,20 @@
         "stack_cups": 96.0,
         "turn_tap": 100.0
       }
+    },
+    {
+      "model": "tgm-vla",
+      "display_name": "TGM-VLA",
+      "params": null,
+      "model_paper": "https://arxiv.org/abs/2603.00615",
+      "benchmark": "rlbench",
+      "weight_type": "finetuned",
+      "overall_score": 90.5,
+      "source_paper": "https://arxiv.org/abs/2603.00615",
+      "source_table": "Table I",
+      "notes": "18-task subset (PerAct protocol), 25 variations/task, 100 demos/task",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04"
     },
     {
       "model": "tudp",
