@@ -520,7 +520,6 @@ def _call_claude_cli(
         raise LLMError(f"exit {result.returncode}: {result.stderr[:500]}")
 
     structured: dict | None = None
-    log_blocks: list[str] = []
     n_tool_calls = 0
     for line in result.stdout.splitlines():
         line = line.strip()
@@ -534,27 +533,14 @@ def _call_claude_cli(
             raise LLMError(f"error: {evt.get('subtype')}")
         if evt.get("type") == "assistant":
             for block in evt.get("message", {}).get("content", []):
-                btype = block.get("type")
-                if btype == "thinking":
-                    log_blocks.append("### thinking\n" + block.get("thinking", ""))
-                elif btype == "text":
-                    log_blocks.append("### text\n" + block.get("text", ""))
-                elif btype == "tool_use":
+                if block.get("type") == "tool_use":
                     n_tool_calls += 1
-                    name = block.get("name", "?")
-                    inp = block.get("input", {})
-                    log_blocks.append(f"### tool_use: {name}\n{json.dumps(inp, indent=2)}")
-        if evt.get("type") == "user":
-            for block in evt.get("message", {}).get("content", []) or []:
-                if isinstance(block, dict) and block.get("type") == "tool_result":
-                    snippet = str(block.get("content", ""))[:500]
-                    log_blocks.append(f"### tool_result\n{snippet}")
         if evt.get("type") == "result":
             structured = evt.get("structured_output")
 
-    if log_path is not None and log_blocks:
+    if log_path is not None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text("\n\n".join(log_blocks) + "\n", encoding="utf-8")
+        log_path.write_text(result.stdout, encoding="utf-8")
 
     if not isinstance(structured, dict):
         raise LLMError("no structured_output in stream")
