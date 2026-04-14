@@ -370,10 +370,6 @@ the main VLA models and how do they compare", not every table row.
 - Do NOT touch `overall_score` — the python step computed it. Your
   changes are limited to which rows survive, how they are named, and
   what notes they carry.
-- You have Bash, Read, Write, Edit, Glob, Grep, WebFetch, plus
-  `mcp__arxiv-mcp-server__get_abstract`, `mcp__semantic-scholar-mcp__get_paper`,
-  and `mcp__semantic-scholar-mcp__search_paper` for resolving paper
-  metadata and citation keys. Use them as you see fit.
 - Report what you dropped and why when you are done.
 """
 
@@ -411,11 +407,6 @@ def refine(
         model,
         "--system-prompt",
         system_prompt,
-        "--allowedTools",
-        "Bash,Read,Write,Edit,Glob,Grep,WebFetch,"
-        "mcp__arxiv-mcp-server__get_abstract,"
-        "mcp__semantic-scholar-mcp__search_paper,"
-        "mcp__semantic-scholar-mcp__get_paper",
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
