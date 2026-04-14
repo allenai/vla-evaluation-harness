@@ -9,7 +9,7 @@ Two subcommands::
     uv run extract.py scan [--benchmark libero]   # discover citing papers
     uv run extract.py run 2505.05800 [--workers 4] # extract from papers
 
-Pipeline: scan → run → build.py → validate.py → sync_external.py
+Pipeline: scan → run → refine.py → validate.py → sync_external.py
 """
 
 from __future__ import annotations
