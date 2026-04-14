@@ -587,8 +587,12 @@
 
       tbodyEl.appendChild(tr);
 
-      // Sub-scores row: show task_scores breakdown (skip suite_scores when already shown as columns)
-      const subScores = expandSuites ? r.task_scores : (r.suite_scores || r.task_scores);
+      // Sub-scores row: show task_scores breakdown (skip suite_scores when already shown as columns).
+      // Use the first non-empty source — an empty `suite_scores: {}` must not mask task_scores.
+      const hasKeys = o => o && Object.keys(o).length > 0;
+      const subScores = expandSuites
+        ? r.task_scores
+        : (hasKeys(r.suite_scores) ? r.suite_scores : r.task_scores);
       if (subScores && Object.keys(subScores).length > 0) {
         const subTr = document.createElement('tr');
         subTr.className = 'sub-scores-row';
