@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetch per-model-paper citation counts from Semantic Scholar.
 
-Reads all unique arxiv IDs from model_paper / source_paper fields in leaderboard.json,
+Reads all unique arxiv IDs from model_paper / reported_paper fields in leaderboard.json,
 fetches citation counts from the Semantic Scholar batch API, and writes them to citations.json.
 
 Usage:
@@ -96,10 +96,10 @@ def main():
     cached = load_cached()
     cached_papers = cached.get("papers", {})
 
-    # Collect all unique arxiv IDs from model_paper and source_paper
+    # Collect all unique arxiv IDs from model_paper and reported_paper
     arxiv_ids = set()
     for r in results_data["results"]:
-        for field in ("model_paper", "source_paper"):
+        for field in ("model_paper", "reported_paper"):
             aid = extract_arxiv_id(r.get(field))
             if aid:
                 arxiv_ids.add(aid)

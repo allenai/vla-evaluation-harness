@@ -28,6 +28,7 @@
   const dateFromEl = $('date-from');
   const dateToEl = $('date-to');
   const minCitationsEl = $('min-citations');
+  const firstPartyOnlyEl = $('first-party-only');
   const breakdownPanelEl = $('breakdown-panel');
   const coverageBarEl = $('coverage-bar');
 
@@ -56,6 +57,7 @@
     if (dateFromEl) dateFromEl.addEventListener('change', () => renderTable());
     if (dateToEl) dateToEl.addEventListener('change', () => renderTable());
     if (minCitationsEl) minCitationsEl.addEventListener('input', () => renderTable());
+    if (firstPartyOnlyEl) firstPartyOnlyEl.addEventListener('change', () => renderTable());
     if (breakdownPanelEl) breakdownPanelEl.addEventListener('click', e => {
       if (e.target.classList.contains('breakdown-close')) closeBreakdown();
     });
@@ -173,12 +175,12 @@
     return (yy >= 50 ? '19' : '20') + m[1] + '-' + mm; // "2024-02"
   }
 
-  /** Get the publication month for a model key (uses model_paper, falls back to source_paper). */
+  /** Get the publication month for a model key (uses model_paper, falls back to reported_paper). */
   function getModelPubMonth(mk) {
     const entries = pivotMap[mk];
     if (!entries) return null;
     for (const r of Object.values(entries)) {
-      const pm = extractPubMonth(r.model_paper) || extractPubMonth(r.source_paper);
+      const pm = extractPubMonth(r.model_paper) || extractPubMonth(r.reported_paper);
       if (pm) return pm;
     }
     return null;
@@ -202,15 +204,36 @@
     const entries = pivotMap[mk];
     if (!entries) return null;
     for (const r of Object.values(entries)) {
-      const aid = rawArxivId(r.model_paper) || rawArxivId(r.source_paper);
+      const aid = rawArxivId(r.model_paper) || rawArxivId(r.reported_paper);
       if (aid && citationData[aid] != null) return citationData[aid];
     }
     return null;
   }
 
+  /** A row is "third-party" when the paper that reported it differs from the
+   *  paper that introduced the model. The bibkey-style `__` separator in the
+   *  model field is a fallback signal for the same fact. */
+  function isThirdParty(r) {
+    if (r.reported_paper && r.model_paper && r.reported_paper !== r.model_paper) return true;
+    if (typeof r.model === 'string' && r.model.includes('__')) return true;
+    return false;
+  }
+
+  /** A model key is third-party when ALL its rows are third-party. */
+  function isModelThirdParty(mk) {
+    const entries = pivotMap[mk];
+    if (!entries) return false;
+    const rows = Object.values(entries);
+    if (rows.length === 0) return false;
+    return rows.every(isThirdParty);
+  }
+
   function isModelVisible(mk) {
     const q = searchQuery();
     if (q && !(getModelDisplay(mk)).toLowerCase().includes(q)) return false;
+
+    // Official-only toggle: hide model keys whose every row is third-party
+    if (firstPartyOnlyEl && firstPartyOnlyEl.checked && isModelThirdParty(mk)) return false;
 
     // Publication date filter
     const dateFrom = dateFromEl ? dateFromEl.value : ''; // "YYYY-MM" or ""
@@ -238,11 +261,14 @@
     const q = searchQuery();
     if (q && !(getModelDisplay(r.model)).toLowerCase().includes(q)) return false;
 
+    // Official-only toggle: hide rows whose reported_paper differs from model_paper
+    if (firstPartyOnlyEl && firstPartyOnlyEl.checked && isThirdParty(r)) return false;
+
     // Publication date filter (per-result paper)
     const dateFrom = dateFromEl ? dateFromEl.value : '';
     const dateTo = dateToEl ? dateToEl.value : '';
     if (dateFrom || dateTo) {
-      const pub = extractPubMonth(r.model_paper) || extractPubMonth(r.source_paper);
+      const pub = extractPubMonth(r.model_paper) || extractPubMonth(r.reported_paper);
       if (!pub) return false;
       if (dateFrom && pub < dateFrom) return false;
       if (dateTo && pub > dateTo) return false;
@@ -251,7 +277,7 @@
     // Citation count filter (skip entirely if citation data not loaded)
     const minCit = minCitationsEl ? parseInt(minCitationsEl.value, 10) : NaN;
     if (!isNaN(minCit) && minCit > 0 && hasCitationData()) {
-      const aid = rawArxivId(r.model_paper) || rawArxivId(r.source_paper);
+      const aid = rawArxivId(r.model_paper) || rawArxivId(r.reported_paper);
       const cit = aid ? (citationData[aid] ?? null) : null;
       if (cit === null || cit < minCit) return false;
     }
@@ -532,9 +558,9 @@
       // Source paper
       const ptd = document.createElement('td');
       ptd.className = 'paper-col';
-      if (r.source_paper) {
-        const a = el('a', extractArxivId(r.source_paper) || r.source_paper, 'source-link');
-        a.href = r.source_paper; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      if (r.reported_paper) {
+        const a = el('a', extractArxivId(r.reported_paper) || r.reported_paper, 'source-link');
+        a.href = r.reported_paper; a.target = '_blank'; a.rel = 'noopener noreferrer';
         ptd.appendChild(a);
       } else {
         ptd.textContent = '—';
@@ -542,7 +568,7 @@
       tr.appendChild(ptd);
 
       // Table
-      tr.appendChild(td(r.source_table || '—', 'table-col'));
+      tr.appendChild(td(r.reported_table || '—', 'table-col'));
 
       // Curator
       const ctd = document.createElement('td');
@@ -695,14 +721,14 @@
   function buildTooltip(result) {
     const div = document.createElement('div');
     div.className = 'tooltip-content';
-    if (result.source_paper) {
+    if (result.reported_paper) {
       const p = document.createElement('p');
-      const a = el('a', result.source_paper, '');
-      a.href = result.source_paper; a.target = '_blank';
+      const a = el('a', result.reported_paper, '');
+      a.href = result.reported_paper; a.target = '_blank';
       p.appendChild(document.createTextNode('Paper: ')); p.appendChild(a);
       div.appendChild(p);
     }
-    if (result.source_table) div.appendChild(el('p', 'Table: ' + result.source_table));
+    if (result.reported_table) div.appendChild(el('p', 'Table: ' + result.reported_table));
     div.appendChild(el('p', 'Curated by: ' + (result.curated_by || '?')));
     if (result.date_added) div.appendChild(el('p', 'Date: ' + result.date_added));
     if (result.notes) div.appendChild(el('p', 'Notes: ' + result.notes));

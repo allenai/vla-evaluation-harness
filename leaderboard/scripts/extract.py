@@ -346,7 +346,7 @@ EXTRACTION_SCHEMA: dict = {
                                                 },
                                             },
                                         },
-                                        "source_table": {"type": ["string", "null"]},
+                                        "reported_table": {"type": ["string", "null"]},
                                     },
                                 },
                                 "protocol": {

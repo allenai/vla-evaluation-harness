@@ -37,8 +37,8 @@ Each result is **self-contained** — model metadata is inlined:
   "benchmark": "libero",  "weight_type": "finetuned",
   "overall_score": 85.7,
   "suite_scores": { "libero_spatial": 84.0, "libero_object": 88.0 },
-  "source_paper": "https://arxiv.org/abs/2406.09246",
-  "source_table": "Table 1",
+  "reported_paper": "https://arxiv.org/abs/2406.09246",
+  "reported_table": "Table 1",
   "curated_by": "opus 4.6",  "date_added": "2026-03-02"
 }
 ```
@@ -50,11 +50,11 @@ Each result is **self-contained** — model metadata is inlined:
 | Field | Meaning | Null when |
 |-------|---------|-----------|
 | `model_paper` | Paper that **introduces the model** (architecture, training) | No arxiv paper (proprietary models) |
-| `source_paper` | Paper where this **specific score was reported** | Score from official leaderboard API |
+| `reported_paper` | Paper where this **specific score was reported** | Score from official leaderboard API |
 | `overall_score` | Aggregate score (controls ranking) | Non-standard protocol (→ `null`), or only per-suite scores available |
 | `params` | Parameter count (e.g. `"7B"`) | Unknown |
 
-- `model_paper` / `source_paper` must be **full URLs** (`https://arxiv.org/abs/...`), not bare IDs — bare IDs render as broken links.
+- `model_paper` / `reported_paper` must be **full URLs** (`https://arxiv.org/abs/...`), not bare IDs — bare IDs render as broken links.
 - `weight_type`: `"shared"` (same checkpoint across benchmarks) or `"finetuned"` (trained on this benchmark).
 - `curated_by`: AI-extracted → model name (`"opus 4.6"`); human-verified → GitHub handle (`"@user"`).
 - `notes`: Free-text for caveats (non-standard eval, different task subset, etc.).
@@ -63,19 +63,19 @@ Each result is **self-contained** — model metadata is inlined:
 
 ## Score Provenance
 
-When adding scores, correctly attribute **who ran the evaluation**:
+`model` keys use BibTeX citation key form. First-party entries use the method's own key (e.g. `kim24openvla`). Third-party measurements combine the method key with the measuring paper's key (e.g. `kim24openvla__black24xvla`) so every reproduction stays as its own row.
 
-| Scenario | `model_paper` | `source_paper` | `model` key |
-|----------|--------------|----------------|-------------|
-| Authors evaluate their own model | Model's paper | Same paper | Original key (e.g. `openvla`) |
-| Paper B re-trains/fine-tunes Model A from scratch | Model A's paper | Paper B | Separate key (e.g. `openvla_memoryvla`) |
-| Paper B downloads Model A's checkpoint and evaluates as-is | Model A's paper | Paper B | Original key; note eval setup differences in `notes` |
-| Paper B cites Paper A's score without re-running | Model A's paper | Paper A (original) | Original key |
+| Scenario | `model_paper` | `reported_paper` | `model` key | `display_name` |
+|----------|--------------|----------------|-------------|----------------|
+| Authors evaluate their own model | Model's paper | Same paper | `{method_bib}` (e.g. `kim24openvla`) | `OpenVLA` |
+| Paper B re-trains/fine-tunes Model A from scratch | Model A's paper | Paper B | `{method_bib}__{B_bib}` (e.g. `kim24openvla__black24xvla`) | `OpenVLA (from X-VLA)` |
+| Paper B downloads Model A's checkpoint and evaluates as-is | Model A's paper | Paper B | `{method_bib}__{B_bib}` (e.g. `kim24openvla__black24xvla`) | `OpenVLA (from X-VLA)` |
+| Paper B cites Paper A's score without re-running | Model A's paper | Paper A (original) | `{method_bib}` (collapses to first-party) | `OpenVLA` |
 
 **Rules**:
-- Third-party reproductions always get a **separate model key** with a descriptive suffix (e.g. `openvla_memoryvla` = "OpenVLA reproduced by MemoryVLA authors"). Add `notes` explaining it is a reproduction.
-- Baseline copies (citing without re-running) are acceptable only when the original score is not already in the leaderboard.
-- When in doubt, create a separate entry — two entries can be merged later, but conflated runs cannot be separated.
+- Distinct `reported_paper`s always produce **distinct rows**. Never collapse a third-party measurement into a first-party canonical row.
+- Citation-only rows (Paper B quoting Paper A without re-running) intentionally collapse to first-party because the measurement itself is the original — `reported_paper` should point at the original paper, not the citing one.
+- The leaderboard frontend hides third-party rows by default behind an "Official results only" toggle, so the leaderboard stays clean while preserving variance for readers who want it.
 - **Non-standard evaluation protocols** (different task subsets, custom metrics, modified benchmarks) must NOT be filed under the standard benchmark. Either create a separate benchmark or omit the entry.
 
 ## How to Add Results
@@ -245,4 +245,4 @@ Benchmarks with `official_leaderboard` in their registry entry require **API-syn
 
 ## Schema
 
-JSON Schema: `leaderboard/data/schema.json`. Key nullable types: `overall_score`, `source_paper`, `source_table`, `params`, `model_paper` — all `["string"|"number", "null"]`.
+JSON Schema: `leaderboard/data/schema.json`. Key nullable types: `overall_score`, `reported_paper`, `reported_table`, `params`, `model_paper` — all `["string"|"number", "null"]`.

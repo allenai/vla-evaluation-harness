@@ -25,8 +25,8 @@
             "type": "object",
             "additionalProperties": { "type": "number" }
           },
-          "source_paper": { "type": ["string", "null"], "format": "uri" },
-          "source_table": { "type": ["string", "null"] },
+          "reported_paper": { "type": ["string", "null"], "format": "uri" },
+          "reported_table": { "type": ["string", "null"] },
           "curated_by": { "type": "string" },
           "notes": { "type": "string" },
           "date_added": { "type": "string", "format": "date" },

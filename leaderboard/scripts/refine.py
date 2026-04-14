@@ -121,7 +121,7 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
       for `partial`/`unknown`; compute from components for `yes`.
     - Arithmetic: mean of required component keys per ARITHMETIC_RULES.
     - Forbidden overall enforcement (simpler_env, robotwin_v2).
-    - Schema field population (source_paper, source_table, etc).
+    - Schema field population (reported_paper, reported_table, etc).
 
     NOT applied here (left to the LLM step):
     - Eligibility filter (junk labels, ablation variants)
@@ -148,7 +148,7 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
         if not arxiv_id:
             continue
         stats["extractions_total"] += 1
-        source_paper = f"https://arxiv.org/abs/{arxiv_id}"
+        reported_paper = f"https://arxiv.org/abs/{arxiv_id}"
         ext_benchmarks = ext.get("benchmarks") or []
         if not ext_benchmarks:
             stats["papers_empty"] += 1
@@ -199,8 +199,8 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
                         "overall_score": overall,
                         "suite_scores": suite_scores,
                         "task_scores": task_scores,
-                        "source_paper": source_paper,
-                        "source_table": scores_raw.get("source_table"),
+                        "reported_paper": reported_paper,
+                        "reported_table": scores_raw.get("reported_table"),
                         "protocol_match": match,
                         "protocol_rationale": protocol.get("rationale", ""),
                         "is_score_original": m.get("is_score_original", "unknown"),
@@ -272,7 +272,7 @@ already filled in:
 - `overall_score`: either computed from components or null if the
   protocol does not match standard. Do NOT recompute it.
 - `suite_scores`, `task_scores`: component scores, already plain numbers
-- `source_paper`, `source_table`
+- `reported_paper`, `reported_table`
 - `protocol_match`: "yes" / "partial" / "unknown" (candidates with "no"
   were already dropped by the python step)
 - `protocol_rationale`: the LLM rationale from the extraction step —
@@ -294,15 +294,19 @@ already filled in:
    - An unnamed "row (b)" / "(c)" style label
    Unless that variant IS clearly the paper's main contribution.
 
-2. **Dedup within (canonical_model, benchmark)**: candidates for the same
-   model under different labels collapse to one entry per benchmark. When
-   sources disagree, prefer `is_score_original == "original"` > `"reproduction"`
-   > `"cited_baseline"` > `"unknown"`. Among equals, prefer the entry with
-   more score detail (more suite/task keys, non-null overall).
+2. **Dedup**: distinct `reported_paper`s produce distinct entries. Never
+   collapse a third-party measurement into a first-party canonical row.
+   Two rows with the same model on the same benchmark, but different
+   `reported_paper`, must remain separate. Within a single
+   `(model, benchmark, reported_paper)` triple, collapse duplicates and
+   prefer the row with more score detail (more suite/task keys, non-null
+   overall).
 
-3. **Cross-benchmark identity**: the same `model` key across benchmarks
-   must carry the same `display_name`, `params`, and `model_paper`. Pick
-   the most detailed / most canonical values.
+3. **Cross-benchmark identity**: a model's first-party entries across
+   different benchmarks must carry the same `display_name`, `params`, and
+   `model_paper`. Pick the most detailed / most canonical values. (This
+   rule applies inside the first-party set; third-party entries inherit
+   the same canonical values for the underlying method.)
 
 4. **Compose `notes`**: for each kept entry, write a substantive,
    human-readable note. Use the `protocol_rationale` field as the basis
@@ -316,9 +320,20 @@ already filled in:
    Bad: "partial protocol match"
    Bad: ""
 
-5. **Assign `model` key and `display_name`**: the `model` key is a clean
-   snake_case identifier (lowercase; π→pi, ₀→0; no spaces). The
-   `display_name` is what a human sees (can keep special characters).
+5. **Assign `model` key and `display_name`**: the `model` field must be a
+   BibTeX citation key that makes the entry's provenance self-explanatory.
+   For first-party entries (`reported_paper == model_paper`), use the
+   method's own citation key. For third-party measurements, the key must
+   encode both the method and the measuring paper.
+
+   `display_name` is human-readable. For third-party entries, the display
+   name must make the source obvious to a reader scanning the leaderboard.
+
+   Examples (illustrative, not prescriptive):
+     first-party  →  model: `kim24openvla`,
+                     display_name: "OpenVLA"
+     third-party  →  model: `kim24openvla__black24xvla`,
+                     display_name: "OpenVLA (from X-VLA)"
 
 ## Output
 
@@ -335,7 +350,7 @@ Each entry must match the schema at `{SCHEMA_PATH}`:
 
 - `model`, `display_name`, `name_in_paper`, `params`, `model_paper`,
   `benchmark`, `weight_type`, `overall_score`, `suite_scores`,
-  `task_scores`, `source_paper`, `source_table`, `curated_by`,
+  `task_scores`, `reported_paper`, `reported_table`, `curated_by`,
   `date_added`, `notes`
 
 Set `curated_by = "refine.py"` and `date_added = "{date.today().isoformat()}"`.
@@ -354,8 +369,10 @@ the main VLA models and how do they compare", not every table row.
 - Do NOT touch `overall_score` — the python step computed it. Your
   changes are limited to which rows survive, how they are named, and
   what notes they carry.
-- You have Bash, Read, Write, Edit, Glob, Grep, WebFetch. Use them as
-  you see fit.
+- You have Bash, Read, Write, Edit, Glob, Grep, WebFetch, plus
+  `mcp__arxiv-mcp-server__get_abstract`, `mcp__semantic-scholar-mcp__get_paper`,
+  and `mcp__semantic-scholar-mcp__search_paper` for resolving paper
+  metadata and citation keys. Use them as you see fit.
 - Report what you dropped and why when you are done.
 """
 
@@ -394,7 +411,10 @@ def refine(
         "--system-prompt",
         system_prompt,
         "--allowedTools",
-        "Bash,Read,Write,Edit,Glob,Grep,WebFetch",
+        "Bash,Read,Write,Edit,Glob,Grep,WebFetch,"
+        "mcp__arxiv-mcp-server__get_abstract,"
+        "mcp__semantic-scholar-mcp__search_paper,"
+        "mcp__semantic-scholar-mcp__get_paper",
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",

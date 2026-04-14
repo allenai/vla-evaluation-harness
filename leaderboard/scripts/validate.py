@@ -145,7 +145,11 @@ def validate_papers_reviewed(data: dict) -> list[str]:
 
 
 def validate_citations(data: dict) -> list[str]:
-    """Validate that citations.json exists, is non-empty, and covers all arxiv papers in results."""
+    """Validate that citations.json exists and covers every arxiv paper in results.
+
+    When the leaderboard has zero results (e.g. a fresh rebuild before any
+    refine has run), an empty citations file is acceptable.
+    """
     errors = []
     if not CITATIONS_PATH.exists():
         errors.append("citations.json not found — run update_citations.py --fetch")
@@ -154,13 +158,14 @@ def validate_citations(data: dict) -> list[str]:
     citations = json.loads(CITATIONS_PATH.read_text())
     papers = citations.get("papers", {})
     if not papers:
-        errors.append("citations.json has no entries — run update_citations.py --fetch")
+        if data.get("results"):
+            errors.append("citations.json has no entries — run update_citations.py --fetch")
         return errors
 
-    # Check coverage: every arxiv-based model_paper/source_paper should have a citation entry
+    # Check coverage: every arxiv-based model_paper/reported_paper should have a citation entry
     missing = []
     for r in data["results"]:
-        for field in ("model_paper", "source_paper"):
+        for field in ("model_paper", "reported_paper"):
             url = r.get(field)
             m = re.search(r"arxiv\.org/abs/(\d+\.\d+)", url or "")
             if m and m.group(1) not in papers:
