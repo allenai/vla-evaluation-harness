@@ -227,18 +227,6 @@ def _print_stats(stats: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _load_benchmark_md(bm_key: str) -> str:
-    path = BENCHMARKS_DIR / f"{bm_key}.md"
-    if not path.exists():
-        return ""
-    text = path.read_text(encoding="utf-8")
-    if text.startswith("---"):
-        end = text.find("---", 3)
-        if end != -1:
-            text = text[end + 3 :].strip()
-    return text
-
-
 def _build_system_prompt() -> str:
     return f"""You are the PRECISION stage of a two-stage VLA leaderboard pipeline.
 

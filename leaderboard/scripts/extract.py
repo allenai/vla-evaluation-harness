@@ -153,10 +153,6 @@ def _paper_meta_path(arxiv_id: str) -> Path:
     return CACHE_DIR / arxiv_id / "meta.json"
 
 
-def _is_paper_cached(arxiv_id: str) -> bool:
-    return _paper_md_path(arxiv_id).exists()
-
-
 def _fetch_url(url: str, timeout: int = 30) -> str | None:
     req = urllib.request.Request(
         url,
@@ -495,15 +491,23 @@ def _call_claude_cli(
     cmd = [
         "claude",
         "--print",
-        "--model", model,
-        "--system-prompt", system_prompt,
-        "--json-schema", json.dumps(json_schema),
-        "--output-format", "stream-json",
+        "--model",
+        model,
+        "--system-prompt",
+        system_prompt,
+        "--json-schema",
+        json.dumps(json_schema),
+        "--output-format",
+        "stream-json",
         "--verbose",
-        "--allowedTools", "Read,Grep,Glob",
-        "--disallowedTools", "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch",
-        "--add-dir", str(paper_dir),
-        "--permission-mode", "default",
+        "--allowedTools",
+        "Read,Grep,Glob",
+        "--disallowedTools",
+        "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch",
+        "--add-dir",
+        str(paper_dir),
+        "--permission-mode",
+        "default",
         "--no-session-persistence",
     ]
     try:
