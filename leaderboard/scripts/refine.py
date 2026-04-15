@@ -96,8 +96,9 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
     Applied here (deterministic):
     - Protocol gate: drop `matches_standard == "no"`; null out `overall_score`
       for `partial`/`unknown`; compute from components for `yes`.
-    - Arithmetic: mean of required component keys per ARITHMETIC_RULES.
-    - Forbidden overall enforcement (simpler_env, robotwin_v2).
+    - Arithmetic: mean of required component keys per the benchmark's
+      `aggregation` rule in benchmarks.json.
+    - Forbidden-overall enforcement for benchmarks with aggregation `"forbidden"`.
     - Schema field population (reported_paper, reported_table, etc).
 
     NOT applied here (left to the LLM step):
@@ -150,9 +151,10 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
                 # Arithmetic / protocol gate
                 if match == "yes":
                     overall = _compute_overall(benchmark, suite_scores, task_scores)
-                    # Fallback: if no aggregation rule exists, use the
-                    # LLM-extracted overall (not forbidden benchmarks).
-                    if overall is None and benchmark not in FORBIDDEN_OVERALL and benchmark not in ARITHMETIC_RULES:
+                    # Fallback: if the benchmark has no aggregation rule at
+                    # all, trust the LLM-extracted overall. Forbidden rules
+                    # and partial-data cases keep overall=None.
+                    if overall is None and _aggregation_rules().get(benchmark) is None:
                         raw_overall = scores_raw.get("overall_score")
                         if isinstance(raw_overall, (int, float)):
                             overall = raw_overall
