@@ -152,7 +152,7 @@
       "model": "clover",
       "display_name": "CLOVER",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2501.17685",
+      "model_paper": "https://arxiv.org/abs/2409.09016",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 3.53,
@@ -184,8 +184,8 @@
       "notes": "Table 4, CALVIN ABC->D split. DB-CogACT avg_len=4.06 (surpassing CogACT baseline of 3.25 by +0.81). Metric is avg_len (0-5 scale). abc_d=4.06"
     },
     {
-      "model": "db_cogact",
-      "display_name": "DB-CogACT",
+      "model": "db_cogact__xie25dexbotic",
+      "display_name": "DB-CogACT (from Dexbotic)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "calvin",
@@ -240,10 +240,10 @@
       "notes": "CALVIN ABC→D, Dynamic modeling for foresight integration"
     },
     {
-      "model": "dit_policy",
-      "display_name": "DiT Policy",
+      "model": "dit_policy__hou24dit",
+      "display_name": "DiT Policy (from DiT Policy paper)",
       "params": "~100M",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "model_paper": "https://arxiv.org/abs/2410.15959",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 3.61,
@@ -593,7 +593,7 @@
       "model": "pointmappolicy",
       "display_name": "PointMapPolicy",
       "params": "unknown",
-      "model_paper": "https://arxiv.org/abs/2501.10597",
+      "model_paper": "https://arxiv.org/abs/2510.20406",
       "benchmark": "calvin",
       "weight_type": "finetuned",
       "overall_score": 4.01,
@@ -796,7 +796,7 @@
       "model": "robovlm",
       "display_name": "RoboVLM",
       "params": "unknown",
-      "model_paper": "https://arxiv.org/abs/2410.07474",
+      "model_paper": "https://arxiv.org/abs/2412.14058",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 4.25,
@@ -859,7 +859,7 @@
       "model": "susie",
       "display_name": "SuSIE",
       "params": "~500M",
-      "model_paper": "https://arxiv.org/abs/2404.04012",
+      "model_paper": "https://arxiv.org/abs/2310.10639",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 2.69,
@@ -908,7 +908,7 @@
       "model": "univla",
       "display_name": "UniVLA",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2505.13111",
+      "model_paper": "https://arxiv.org/abs/2505.06111",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 3.8,
@@ -929,7 +929,7 @@
       "model": "up_vla",
       "display_name": "UP-VLA",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2503.02495",
+      "model_paper": "https://arxiv.org/abs/2501.18867",
       "benchmark": "calvin",
       "weight_type": "shared",
       "overall_score": 4.08,
@@ -1276,8 +1276,8 @@
       "notes": "d=0. REMAC + RTC test-time method."
     },
     {
-      "model": "rtc",
-      "display_name": "RTC",
+      "model": "rtc__sendai25a2c2",
+      "display_name": "RTC (from A2C2)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2506.07339",
       "benchmark": "kinetix",
@@ -1921,8 +1921,8 @@
       "notes": "Depth-aware VLA based on pi0 re-implementation with added depth expert. No pretraining on large-scale data."
     },
     {
-      "model": "diffusion_policy",
-      "display_name": "Diffusion Policy",
+      "model": "diffusion_policy__kim24openvla",
+      "display_name": "Diffusion Policy (from OpenVLA)",
       "params": "~80M",
       "model_paper": "https://arxiv.org/abs/2303.04137",
       "benchmark": "libero",
@@ -2001,8 +2001,8 @@
       "notes": "Discrete diffusion action decoding; avg of 4 suites"
     },
     {
-      "model": "dit_policy",
-      "display_name": "DiT Policy",
+      "model": "dit_policy__kim25openvlaoft",
+      "display_name": "DiT Policy (from OpenVLA-OFT)",
       "params": "~100M",
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "libero",
@@ -2278,8 +2278,8 @@
       "notes": "3B model. Suite scores from Table I of RD-VLA paper (2602.07845): Spatial=92.0, Object=97.2, Goal=90.2, Long=79.4, Avg=89.7."
     },
     {
-      "model": "flower",
-      "display_name": "FLOWER",
+      "model": "flower__2602_18224",
+      "display_name": "FLOWER (from arxiv:2602.18224)",
       "params": "1B",
       "model_paper": "https://arxiv.org/abs/2509.04996",
       "benchmark": "libero",
@@ -2298,8 +2298,8 @@
       "notes": "FLOWER baseline from SimVLA paper Table 2. 1B params."
     },
     {
-      "model": "flowvla",
-      "display_name": "FlowVLA",
+      "model": "flowvla__song25pdvla",
+      "display_name": "FlowVLA (from PD-VLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2508.18269",
       "benchmark": "libero",
@@ -2460,26 +2460,6 @@
       }
     },
     {
-      "model": "groot_n1",
-      "display_name": "GR00T N1",
-      "params": "2B",
-      "model_paper": "https://arxiv.org/abs/2503.14734",
-      "benchmark": "libero",
-      "weight_type": "shared",
-      "overall_score": 93.9,
-      "suite_scores": {
-        "libero_spatial": 94.4,
-        "libero_object": 97.6,
-        "libero_goal": 93.0,
-        "libero_10": 90.6
-      },
-      "reported_paper": "https://arxiv.org/abs/2602.01100",
-      "reported_table": "Table I (StreamVLA paper)",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "NVIDIA GR00T N1"
-    },
-    {
       "model": "groot_n1_5",
       "display_name": "GR00T-N1.5",
       "params": "unknown",
@@ -2498,6 +2478,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "GR00T N1.5 baseline (without HAMLET) on LIBERO benchmark. Avg of 4 suites."
+    },
+    {
+      "model": "groot_n1__2602_01100",
+      "display_name": "GR00T N1 (from arxiv:2602.01100)",
+      "params": "2B",
+      "model_paper": "https://arxiv.org/abs/2503.14734",
+      "benchmark": "libero",
+      "weight_type": "shared",
+      "overall_score": 93.9,
+      "suite_scores": {
+        "libero_spatial": 94.4,
+        "libero_object": 97.6,
+        "libero_goal": 93.0,
+        "libero_10": 90.6
+      },
+      "reported_paper": "https://arxiv.org/abs/2602.01100",
+      "reported_table": "Table I (StreamVLA paper)",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "NVIDIA GR00T N1"
     },
     {
       "model": "gvf_tape",
@@ -3157,8 +3157,8 @@
       "notes": "LoRA fine-tuning approach"
     },
     {
-      "model": "octo",
-      "display_name": "Octo",
+      "model": "octo__kim24openvla",
+      "display_name": "Octo (from OpenVLA)",
       "params": "93M",
       "model_paper": "https://arxiv.org/abs/2405.12213",
       "benchmark": "libero",
@@ -3257,8 +3257,8 @@
       "notes": "Pri4R framework applied to OpenVLA-OFT backbone."
     },
     {
-      "model": "openvla_pld",
-      "display_name": "OpenVLA w/ PLD",
+      "model": "openvla_pld__xiao25pld",
+      "display_name": "OpenVLA w/ PLD (from PLD)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero",
@@ -3316,26 +3316,6 @@
       "notes": "Parallel decoding + action chunking on LLaVA-VLA"
     },
     {
-      "model": "pi0",
-      "display_name": "π₀ (pi-zero)",
-      "params": "~3B",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 94.2,
-      "suite_scores": {
-        "libero_spatial": 96.8,
-        "libero_object": 98.8,
-        "libero_goal": 95.8,
-        "libero_10": 85.2
-      },
-      "reported_paper": "https://arxiv.org/abs/2502.19645",
-      "reported_table": "Table I",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "pi_0 fine-tuned on LIBERO, uses wrist camera + proprioception, reported in OpenVLA-OFT paper"
-    },
-    {
       "model": "pi05_pri4r",
       "display_name": "pi0.5 + Pri4R",
       "params": null,
@@ -3356,8 +3336,8 @@
       "notes": "Pri4R framework applied to pi0.5 backbone."
     },
     {
-      "model": "pi0_5",
-      "display_name": "π₀.5",
+      "model": "pi0_5__2601_16163",
+      "display_name": "π₀.5 (from arxiv:2601.16163)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero",
@@ -3376,8 +3356,28 @@
       "notes": "Physical Intelligence π₀ scaled variant"
     },
     {
-      "model": "pi0_fast",
-      "display_name": "pi0-FAST",
+      "model": "pi0__kim25openvlaoft",
+      "display_name": "π₀ (from OpenVLA-OFT)",
+      "params": "~3B",
+      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 94.2,
+      "suite_scores": {
+        "libero_spatial": 96.8,
+        "libero_object": 98.8,
+        "libero_goal": 95.8,
+        "libero_10": 85.2
+      },
+      "reported_paper": "https://arxiv.org/abs/2502.19645",
+      "reported_table": "Table I",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "pi_0 fine-tuned on LIBERO, uses wrist camera + proprioception, reported in OpenVLA-OFT paper"
+    },
+    {
+      "model": "pi0_fast__kim25openvlaoft",
+      "display_name": "pi0-FAST (from OpenVLA-OFT)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "libero",
@@ -3396,8 +3396,8 @@
       "notes": "pi0 with FAST tokenizer; weaker on long-horizon tasks"
     },
     {
-      "model": "pi0_pld",
-      "display_name": "pi0 w/ PLD",
+      "model": "pi0_pld__xiao25pld",
+      "display_name": "pi0 w/ PLD (from PLD)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "libero",
@@ -4089,8 +4089,8 @@
       }
     },
     {
-      "model": "uaor_openvla_oft",
-      "display_name": "OpenVLA-OFT + UAOR",
+      "model": "uaor_openvla_oft__2602_18020",
+      "display_name": "OpenVLA-OFT + UAOR (from arxiv:2602.18020)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero",
@@ -4109,8 +4109,8 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "uniact",
-      "display_name": "UniAct",
+      "model": "uniact__2602_18224",
+      "display_name": "UniAct (from arxiv:2602.18224)",
       "params": "0.5B",
       "model_paper": "https://arxiv.org/abs/2501.10105",
       "benchmark": "libero",
@@ -4576,8 +4576,8 @@
       "notes": "RL fine-tuning from world models; uses OpenVLA-OFT as base policy"
     },
     {
-      "model": "x_vla",
-      "display_name": "X-VLA",
+      "model": "x_vla__2602_18224",
+      "display_name": "X-VLA (from arxiv:2602.18224)",
       "params": "0.9B",
       "model_paper": "https://arxiv.org/abs/2510.10274",
       "benchmark": "libero",
@@ -4944,8 +4944,8 @@
       }
     },
     {
-      "model": "openvla",
-      "display_name": "OpenVLA",
+      "model": "openvla__fei25liberoplus",
+      "display_name": "OpenVLA (from LIBERO-Plus)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero_plus",
@@ -4966,8 +4966,8 @@
       }
     },
     {
-      "model": "openvla_oft",
-      "display_name": "OpenVLA-OFT",
+      "model": "openvla_oft__fei25liberoplus",
+      "display_name": "OpenVLA-OFT (from LIBERO-Plus)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "libero_plus",
@@ -4989,8 +4989,8 @@
       "notes": "Per-suite training (one policy per LIBERO suite)."
     },
     {
-      "model": "openvla_oft_m",
-      "display_name": "OpenVLA-OFT (mix-SFT)",
+      "model": "openvla_oft_m__fei25liberoplus",
+      "display_name": "OpenVLA-OFT (mix-SFT) (from LIBERO-Plus)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "libero_plus",
@@ -5035,30 +5035,8 @@
       "notes": "Post-trained on LIBERO-Plus data (mixed fine-tuning from OpenVLA-OFT_m)."
     },
     {
-      "model": "pi0",
-      "display_name": "π₀ (pi-zero)",
-      "params": "~3B",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
-      "benchmark": "libero_plus",
-      "weight_type": "shared",
-      "overall_score": 56.1,
-      "reported_paper": "https://arxiv.org/abs/2510.13626",
-      "reported_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-03",
-      "suite_scores": {
-        "camera": 13.8,
-        "robot": 6.0,
-        "language": 58.8,
-        "light": 85.0,
-        "background": 81.4,
-        "noise": 79.0,
-        "layout": 68.9
-      }
-    },
-    {
-      "model": "pi0_5",
-      "display_name": "π₀.5",
+      "model": "pi0_5__2601_11404",
+      "display_name": "π₀.5 (from arxiv:2601.11404)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero_plus",
@@ -5079,8 +5057,30 @@
       }
     },
     {
-      "model": "pi0_acot",
-      "display_name": "π₀ (ACoT repro.)",
+      "model": "pi0__fei25liberoplus",
+      "display_name": "π₀ (from LIBERO-Plus)",
+      "params": "~3B",
+      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "benchmark": "libero_plus",
+      "weight_type": "shared",
+      "overall_score": 56.1,
+      "reported_paper": "https://arxiv.org/abs/2510.13626",
+      "reported_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-03",
+      "suite_scores": {
+        "camera": 13.8,
+        "robot": 6.0,
+        "language": 58.8,
+        "light": 85.0,
+        "background": 81.4,
+        "noise": 79.0,
+        "layout": 68.9
+      }
+    },
+    {
+      "model": "pi0_acot__2601_11404",
+      "display_name": "π₀ (ACoT repro., arxiv:2601.11404)",
       "params": "~3B",
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "libero_plus",
@@ -5102,8 +5102,8 @@
       "notes": "π₀ reproduced by ACoT-VLA authors for fair comparison. Different from original paper score (53.6)."
     },
     {
-      "model": "pi0_fast",
-      "display_name": "pi0-FAST",
+      "model": "pi0_fast__fei25liberoplus",
+      "display_name": "pi0-FAST (from LIBERO-Plus)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "libero_plus",
@@ -5209,10 +5209,10 @@
       "notes": "Trained with augmented data (visual+robot perturbations). Applied to OpenVLA*."
     },
     {
-      "model": "univla",
-      "display_name": "UniVLA",
+      "model": "univla__fei25liberoplus",
+      "display_name": "UniVLA (from LIBERO-Plus)",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2505.13111",
+      "model_paper": "https://arxiv.org/abs/2505.06111",
       "benchmark": "libero_plus",
       "weight_type": "shared",
       "overall_score": 45.8,
@@ -5231,8 +5231,8 @@
       }
     },
     {
-      "model": "worldvla",
-      "display_name": "WorldVLA",
+      "model": "worldvla__fei25liberoplus",
+      "display_name": "WorldVLA (from LIBERO-Plus)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2506.21539",
       "benchmark": "libero_plus",
@@ -5370,8 +5370,8 @@
       "notes": "LIBERO-Pro per-suite x per-perturbation. Spatial suite missing Task perturbation (not reported in paper). No single overall score provided."
     },
     {
-      "model": "openvla",
-      "display_name": "OpenVLA",
+      "model": "openvla__zhou25liberopro",
+      "display_name": "OpenVLA (from LIBERO-Pro)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "libero_pro",
@@ -5410,48 +5410,8 @@
       }
     },
     {
-      "model": "pi0",
-      "display_name": "π₀ (pi-zero)",
-      "params": "~3B",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
-      "benchmark": "libero_pro",
-      "weight_type": "shared",
-      "overall_score": 54.6,
-      "reported_paper": "https://arxiv.org/abs/2510.03827",
-      "reported_table": "Table 1",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "Full 24-cell data from Tables 2-5. 20-core mean=54.6% (excl env). Near-complete failure on position and task perturbations.",
-      "suite_scores": {
-        "goal_ori": 92,
-        "goal_obj": 94,
-        "goal_pos": 0,
-        "goal_sem": 93,
-        "goal_task": 0,
-        "goal_env": 39,
-        "spatial_ori": 97,
-        "spatial_obj": 95,
-        "spatial_pos": 0,
-        "spatial_sem": 97,
-        "spatial_task": 0,
-        "spatial_env": 60,
-        "long_ori": 82,
-        "long_obj": 79,
-        "long_pos": 0,
-        "long_sem": 82,
-        "long_task": 0,
-        "long_env": 27,
-        "object_ori": 98,
-        "object_obj": 94,
-        "object_pos": 0,
-        "object_sem": 90,
-        "object_task": 0,
-        "object_env": 29
-      }
-    },
-    {
-      "model": "pi0_5",
-      "display_name": "π₀.5",
+      "model": "pi0_5__zhou25liberopro",
+      "display_name": "π₀.5 (from LIBERO-Pro)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero_pro",
@@ -5538,6 +5498,46 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "overall_score set to null (only 8 of 20 core cells; was 36.81). pi0.5 with Visual Language Supervision on LIBERO-Pro Position and Task perturbations. Average = 36.81%. Already in DB."
+    },
+    {
+      "model": "pi0__zhou25liberopro",
+      "display_name": "π₀ (from LIBERO-Pro)",
+      "params": "~3B",
+      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "benchmark": "libero_pro",
+      "weight_type": "shared",
+      "overall_score": 54.6,
+      "reported_paper": "https://arxiv.org/abs/2510.03827",
+      "reported_table": "Table 1",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "Full 24-cell data from Tables 2-5. 20-core mean=54.6% (excl env). Near-complete failure on position and task perturbations.",
+      "suite_scores": {
+        "goal_ori": 92,
+        "goal_obj": 94,
+        "goal_pos": 0,
+        "goal_sem": 93,
+        "goal_task": 0,
+        "goal_env": 39,
+        "spatial_ori": 97,
+        "spatial_obj": 95,
+        "spatial_pos": 0,
+        "spatial_sem": 97,
+        "spatial_task": 0,
+        "spatial_env": 60,
+        "long_ori": 82,
+        "long_obj": 79,
+        "long_pos": 0,
+        "long_sem": 82,
+        "long_task": 0,
+        "long_env": 27,
+        "object_ori": 98,
+        "object_obj": 94,
+        "object_pos": 0,
+        "object_sem": 90,
+        "object_task": 0,
+        "object_env": 29
+      }
     },
     {
       "model": "simvla",
@@ -5795,8 +5795,8 @@
       "notes": "CNN-AE (CNN Auto-Encoder) baseline from QGFS paper. 6 ManiSkill2 tasks. Values in % (paper reports 0-1 scale, multiplied by 100)."
     },
     {
-      "model": "cogact",
-      "display_name": "CogACT",
+      "model": "cogact__sun25geovla",
+      "display_name": "CogACT (from GeoVLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "maniskill2",
@@ -6414,8 +6414,8 @@
       "notes": "OpenVLA-OFT baseline from Dexbotic paper. 5 standard ManiSkill2 tasks. Only 21% avg."
     },
     {
-      "model": "openvla",
-      "display_name": "OpenVLA",
+      "model": "openvla__sun25geovla",
+      "display_name": "OpenVLA (from GeoVLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "maniskill2",
@@ -6757,8 +6757,8 @@
       }
     },
     {
-      "model": "cronus_vla",
-      "display_name": "CronusVLA",
+      "model": "cronus_vla__shi25memoryvla",
+      "display_name": "CronusVLA (from MemoryVLA)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2506.19816",
       "benchmark": "mikasa",
@@ -6936,8 +6936,8 @@
       "suite_scores": {}
     },
     {
-      "model": "openvla_oft",
-      "display_name": "OpenVLA-OFT",
+      "model": "openvla_oft__shi25memoryvla",
+      "display_name": "OpenVLA-OFT (from MemoryVLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "mikasa",
@@ -6958,8 +6958,8 @@
       }
     },
     {
-      "model": "pi0",
-      "display_name": "π₀ (pi-zero)",
+      "model": "pi0__shi25memoryvla",
+      "display_name": "π₀ (from MemoryVLA)",
       "params": "~3B",
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "mikasa",
@@ -7003,8 +7003,8 @@
       }
     },
     {
-      "model": "spatialvla",
-      "display_name": "SpatialVLA",
+      "model": "spatialvla__shi25memoryvla",
+      "display_name": "SpatialVLA (from MemoryVLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2501.15830",
       "benchmark": "mikasa",
@@ -7217,8 +7217,8 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "bridgevla",
-      "display_name": "BridgeVLA",
+      "model": "bridgevla__2601_08325",
+      "display_name": "BridgeVLA (from arxiv:2601.08325)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2506.07961",
       "benchmark": "rlbench",
@@ -7403,8 +7403,8 @@
       }
     },
     {
-      "model": "flare",
-      "display_name": "FLARE",
+      "model": "flare__2601_22647",
+      "display_name": "FLARE (from arxiv:2601.22647)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2505.15659",
       "benchmark": "rlbench",
@@ -8604,8 +8604,8 @@
       "notes": "GR00T N1-2B co-trained with DreamGen neural trajectories. 100 demos/task. Avg 39.94%."
     },
     {
-      "model": "dust_groot_n1",
-      "display_name": "DUST (GR00T-N1)",
+      "model": "dust_groot_n1__2601_16163",
+      "display_name": "DUST (GR00T-N1) (from arxiv:2601.16163)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2510.27607",
       "benchmark": "robocasa",
@@ -8702,8 +8702,8 @@
       "notes": "300 demos/task. Also confirmed in Cosmos Policy Table 2. Also: 62.6% at 100 demos, 47.8% at 30 demos (from HAMLET paper).; GR00T N1.5 base model without HAMLET or RS-CL enhancements."
     },
     {
-      "model": "groot_n1_robocasa",
-      "display_name": "GR-1 N=1 (RoboCasa)",
+      "model": "groot_n1_robocasa__jia25pointmap",
+      "display_name": "GR-1 N=1 (from PointMapPolicy)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2503.14734",
       "benchmark": "robocasa",
@@ -8730,8 +8730,8 @@
       "notes": "RoboCasa 24 tasks. GUIDES full framework with BC-Transformer, 900+100 epoch training."
     },
     {
-      "model": "gwm_robocasa",
-      "display_name": "GWM (RoboCasa Human-50 eval)",
+      "model": "gwm_robocasa__2512_16811",
+      "display_name": "GWM (from arxiv:2512.16811)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2406.02370",
       "benchmark": "robocasa",
@@ -8884,8 +8884,8 @@
       "notes": "Pri4R applied to pi0. Human-50 dataset (50 demos/task), 24 tasks, 50 trials per task. pi0 baseline: 38.8%."
     },
     {
-      "model": "pi0fast_pri4r",
-      "display_name": "pi0.5 + Pri4R",
+      "model": "pi0fast_pri4r__2603_01549",
+      "display_name": "pi0.5 + Pri4R (from arxiv:2603.01549)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "robocasa",
@@ -8901,7 +8901,7 @@
       "model": "pointmappolicy",
       "display_name": "PointMapPolicy",
       "params": "unknown",
-      "model_paper": "https://arxiv.org/abs/2501.10597",
+      "model_paper": "https://arxiv.org/abs/2510.20406",
       "benchmark": "robocasa",
       "weight_type": "shared",
       "overall_score": 49.1,
@@ -9349,8 +9349,8 @@
       }
     },
     {
-      "model": "openvla_libero100",
-      "display_name": "OpenVLA-Libero100",
+      "model": "openvla_libero100__2506_06677",
+      "display_name": "OpenVLA-Libero100 (from RoboCerebra)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "robocerebra",
@@ -10279,8 +10279,8 @@
       "model_paper": "https://arxiv.org/abs/2602.11236"
     },
     {
-      "model": "act",
-      "display_name": "ACT",
+      "model": "act__chen25robotwin2",
+      "display_name": "ACT (from RoboTwin 2.0)",
       "params": "~80M",
       "model_paper": "https://arxiv.org/abs/2304.13705",
       "benchmark": "robotwin_v2",
@@ -10383,8 +10383,8 @@
       }
     },
     {
-      "model": "diffusion_policy",
-      "display_name": "Diffusion Policy",
+      "model": "diffusion_policy__chen25robotwin2",
+      "display_name": "Diffusion Policy (from RoboTwin 2.0)",
       "params": "~80M",
       "model_paper": "https://arxiv.org/abs/2303.04137",
       "benchmark": "robotwin_v2",
@@ -10401,8 +10401,8 @@
       }
     },
     {
-      "model": "dp3",
-      "display_name": "DP3",
+      "model": "dp3__chen25robotwin2",
+      "display_name": "DP3 (from RoboTwin 2.0)",
       "params": "~50M",
       "model_paper": "https://arxiv.org/abs/2403.03954",
       "benchmark": "robotwin_v2",
@@ -10692,8 +10692,8 @@
       }
     },
     {
-      "model": "openvla_oft",
-      "display_name": "OpenVLA-OFT",
+      "model": "openvla_oft__2602_15882",
+      "display_name": "OpenVLA-OFT (from arxiv:2602.15882)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "robotwin_v2",
@@ -10727,8 +10727,25 @@
       }
     },
     {
-      "model": "pi0",
-      "display_name": "π₀ (pi-zero)",
+      "model": "pi0_5__2602_15882",
+      "display_name": "π₀.5 (from arxiv:2602.15882)",
+      "params": "3B",
+      "model_paper": "https://arxiv.org/abs/2504.16054",
+      "benchmark": "robotwin_v2",
+      "weight_type": "finetuned",
+      "overall_score": null,
+      "reported_paper": "https://arxiv.org/abs/2602.15882",
+      "reported_table": "Table 2",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "Protocol A (single-task). Reported as baseline in FUTURE-VLA paper. 7 RoboTwin 2.0 tasks. Per-task: Lift Pot 44%, Beat Hammer Block 72%, Place Phone Stand 42%, Move Can Pot 71%, Handover Mic 97%, Pick Dual Bottles 75%, Stack Bowls Two 74%. Avg 67.9%.",
+      "suite_scores": {
+        "easy": 67.9
+      }
+    },
+    {
+      "model": "pi0__chen25robotwin2",
+      "display_name": "π₀ (from RoboTwin 2.0)",
       "params": "~3B",
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "robotwin_v2",
@@ -10745,25 +10762,8 @@
       }
     },
     {
-      "model": "pi0_5",
-      "display_name": "π₀.5",
-      "params": "3B",
-      "model_paper": "https://arxiv.org/abs/2504.16054",
-      "benchmark": "robotwin_v2",
-      "weight_type": "finetuned",
-      "overall_score": null,
-      "reported_paper": "https://arxiv.org/abs/2602.15882",
-      "reported_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "Protocol A (single-task). Reported as baseline in FUTURE-VLA paper. 7 RoboTwin 2.0 tasks. Per-task: Lift Pot 44%, Beat Hammer Block 72%, Place Phone Stand 42%, Move Can Pot 71%, Handover Mic 97%, Pick Dual Bottles 75%, Stack Bowls Two 74%. Avg 67.9%.",
-      "suite_scores": {
-        "easy": 67.9
-      }
-    },
-    {
-      "model": "pi0_fast",
-      "display_name": "pi0-FAST",
+      "model": "pi0_fast__2602_15882",
+      "display_name": "pi0-FAST (from arxiv:2602.15882)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "robotwin_v2",
@@ -10797,8 +10797,8 @@
       }
     },
     {
-      "model": "rdt_1b",
-      "display_name": "RDT-1B",
+      "model": "rdt_1b__chen25robotwin2",
+      "display_name": "RDT-1B (from RoboTwin 2.0)",
       "params": "1B",
       "model_paper": "https://arxiv.org/abs/2410.20572",
       "benchmark": "robotwin_v2",
@@ -10967,8 +10967,8 @@
       }
     },
     {
-      "model": "x_vla_motus",
-      "display_name": "X-VLA (Motus repro.)",
+      "model": "x_vla_motus__bi25motus",
+      "display_name": "X-VLA (Motus repro.) (from Motus)",
       "params": "0.9B",
       "model_paper": "https://arxiv.org/abs/2510.10274",
       "benchmark": "robotwin_v2",
@@ -11031,8 +11031,8 @@
       "notes": "WidowX 4-task VM. Inference acceleration method (1-step diffusion + caching) applied to Pi-0 checkpoint. 100 episodes per task. Scores reported as probabilities (0-1), converted to %."
     },
     {
-      "model": "cogact",
-      "display_name": "CogACT",
+      "model": "cogact__chen25internvlam1",
+      "display_name": "CogACT (from InternVLA-M1)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "simpler_env",
@@ -11054,10 +11054,10 @@
       "notes": "WidowX VM 4-task. Scores reported by InternVLA-M1 paper (third-party evaluation of CogACT checkpoint)."
     },
     {
-      "model": "cogact_lac",
-      "display_name": "CogACT + LAC",
+      "model": "cogact_lac__2602_00686",
+      "display_name": "CogACT + LAC (from arxiv:2602.00686)",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2412.12953",
+      "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "simpler_env",
       "weight_type": "finetuned",
       "overall_score": null,
@@ -11082,8 +11082,8 @@
       }
     },
     {
-      "model": "cogact_vla_cache",
-      "display_name": "CogACT (VLA-Cache eval)",
+      "model": "cogact_vla_cache__xu25vlacache",
+      "display_name": "CogACT (VLA-Cache eval) (from VLA-Cache)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "simpler_env",
@@ -11320,8 +11320,8 @@
       "notes": "Google Robot Visual Matching, 4 tasks; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
-      "model": "dreamvla",
-      "display_name": "DreamVLA",
+      "model": "dreamvla__2512_22615",
+      "display_name": "DreamVLA (from arxiv:2512.22615)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2507.04447",
       "benchmark": "simpler_env",
@@ -11368,8 +11368,8 @@
       "notes": "Google Robot 3-task VM (Drawer 63.9, Pick Can 93.3, Move Near 60.9) and VA (Drawer 64.0, Pick Can 82.7, Move Near 75.3); WidowX 3-task (Spoon 50.0, Carrot 50.0, Stack 8.3 — no Eggplant). Paper overall avg 61.0 across all 9 scores."
     },
     {
-      "model": "embodied_r1",
-      "display_name": "Embodied-R1",
+      "model": "embodied_r1__zhong25flowvla",
+      "display_name": "Embodied-R1 (from FlowVLA)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2508.13998",
       "benchmark": "simpler_env",
@@ -11951,8 +11951,8 @@
       "notes": "Open-pi-zero variant. VM and VA both reported in SpatialVLA Table I.; Google Robot VM (70.1) and VA (71.9). Per-task breakdown not available."
     },
     {
-      "model": "pi05_rl_flow_noise",
-      "display_name": "pi0.5 + RL (Flow-Noise)",
+      "model": "pi05_rl_flow_noise__chen25pirl",
+      "display_name": "pi0.5 + RL (Flow-Noise) (from piRL)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2506.09696",
       "benchmark": "simpler_env",
@@ -11974,10 +11974,10 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "pi0_rl_flow_noise",
-      "display_name": "pi0 + RL (Flow-Noise)",
+      "model": "pi0_rl_flow_noise__chen25pirl",
+      "display_name": "pi0 + RL (Flow-Noise) (from piRL)",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2406.09246",
+      "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "simpler_env",
       "weight_type": "finetuned",
       "overall_score": null,
@@ -11997,10 +11997,10 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "pi0_robovip",
-      "display_name": "pi0 + RoboVIP",
+      "model": "pi0_robovip__2601_05241",
+      "display_name": "pi0 + RoboVIP (from arxiv:2601.05241)",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2406.20076",
+      "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "simpler_env",
       "weight_type": "finetuned",
       "overall_score": null,
@@ -12216,10 +12216,10 @@
       "notes": "Table 1 (RT-1 Dataset section). RoboTron-Mani overall success rate=60.0% on SimplerEnv RT-1 tasks. Baselines: RT-2-X=60.7%, HPT=35.0%, OpenVLA=24.8%, Octo-Base=16.9%. Detailed per-task breakdown in appendix Table 10. Only Google Robot VM average reported; no VA or WidowX scores. overall_score=null per schema rules."
     },
     {
-      "model": "robovlm",
-      "display_name": "RoboVLM",
+      "model": "robovlm__qu25spatialvla",
+      "display_name": "RoboVLM (from SpatialVLA)",
       "params": "unknown",
-      "model_paper": "https://arxiv.org/abs/2410.07474",
+      "model_paper": "https://arxiv.org/abs/2412.14058",
       "benchmark": "simpler_env",
       "weight_type": "shared",
       "overall_score": null,
@@ -12234,8 +12234,8 @@
       "notes": "Zero-shot evaluation. VM and VA both reported in SpatialVLA Table I.; Google Robot VM (56.3) and VA (46.3). Per-task breakdown not available."
     },
     {
-      "model": "rt1",
-      "display_name": "RT-1",
+      "model": "rt1__li24simpler",
+      "display_name": "RT-1 (from SIMPLER)",
       "params": "35M",
       "model_paper": "https://arxiv.org/abs/2212.06817",
       "benchmark": "simpler_env",
@@ -12257,8 +12257,8 @@
       "notes": "VM 3-task avg=67.6% (orig 4-task=52.3%). RT-1 Converged, Google Robot Visual Matching; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
-      "model": "rt1x",
-      "display_name": "RT-1-X",
+      "model": "rt1x__li24simpler",
+      "display_name": "RT-1-X (from SIMPLER)",
       "params": "35M",
       "model_paper": "https://arxiv.org/abs/2310.08864",
       "benchmark": "simpler_env",
@@ -12380,8 +12380,8 @@
       "notes": "All 3 SimplerEnv dimensions reported: VM, VA, WidowX.; Google Robot VM (68.8), VA (75.1), WidowX VM (34.4). Per-task breakdown not available."
     },
     {
-      "model": "spatialvla_eac",
-      "display_name": "SpatialVLA-EAC",
+      "model": "spatialvla_eac__sun25grace",
+      "display_name": "SpatialVLA-EAC (from GRACE)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2501.15830",
       "benchmark": "simpler_env",
@@ -12566,7 +12566,7 @@
       "model": "univla",
       "display_name": "UniVLA",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2505.13111",
+      "model_paper": "https://arxiv.org/abs/2505.06111",
       "benchmark": "simpler_env",
       "weight_type": "shared",
       "overall_score": null,
@@ -12709,8 +12709,8 @@
       "notes": "VLA-Cache on CogACT. VM 3-task avg=81.9% (orig 4-task=74.4%). VA uses non-standard task split (Open/Close as separate tasks); 4-task avg=62.3% retained — cannot recalculate standard 3-task. Source: Table 3."
     },
     {
-      "model": "vla_reasoner_octo_small",
-      "display_name": "Octo-Small + VLA-Reasoner",
+      "model": "vla_reasoner_octo_small__guo25vlareasoner",
+      "display_name": "Octo-Small + VLA-Reasoner (from VLA-Reasoner)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2405.06705",
       "benchmark": "simpler_env",
@@ -12732,10 +12732,10 @@
       "notes": "Octo-Small with VLA-Reasoner (MCTS inference-time reasoning). WidowX VM 4-task evaluation."
     },
     {
-      "model": "vla_reasoner_spatialvla",
-      "display_name": "SpatialVLA + VLA-Reasoner",
+      "model": "vla_reasoner_spatialvla__guo25vlareasoner",
+      "display_name": "SpatialVLA + VLA-Reasoner (from VLA-Reasoner)",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2501.09747",
+      "model_paper": "https://arxiv.org/abs/2501.15830",
       "benchmark": "simpler_env",
       "weight_type": "shared",
       "overall_score": null,
@@ -12994,8 +12994,8 @@
       "notes": "VLABench Track 1-4 Progress Score avg. IS/PS across 5 tracks (1-4, 6) from Table 3. overall_score = Track 1-4 PS avg per leaderboard standard."
     },
     {
-      "model": "groot_n1_xvla_vlabench",
-      "display_name": "GR00T-N1 (X-VLA paper)",
+      "model": "groot_n1_xvla_vlabench__2510_10274",
+      "display_name": "GR00T-N1 (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2503.14734",
       "benchmark": "vlabench",
@@ -13009,8 +13009,8 @@
       "notes": "VLABench Track 1-4 PS avg from X-VLA paper Table 3. Per-track breakdown not reported."
     },
     {
-      "model": "octo",
-      "display_name": "Octo",
+      "model": "octo__zhang24vlabench",
+      "display_name": "Octo (from VLABench)",
       "params": "93M",
       "model_paper": "https://arxiv.org/abs/2405.12213",
       "benchmark": "vlabench",
@@ -13035,8 +13035,8 @@
       "notes": "Seen avg 1.34%, fine-tuned on VLABench. Original VLABench paper evaluation (pre-track-system, IS metric). Not comparable with Track 1-4 PS results."
     },
     {
-      "model": "openvla",
-      "display_name": "OpenVLA",
+      "model": "openvla__zhang24vlabench",
+      "display_name": "OpenVLA (from VLABench)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2406.09246",
       "benchmark": "vlabench",
@@ -13117,8 +13117,8 @@
       "notes": "VLABench Track 1-4 Progress Score avg. IS/PS across 5 tracks (1-4, 6) from Table 3. overall_score = Track 1-4 PS avg per leaderboard standard."
     },
     {
-      "model": "pi0_fast_xvla_vlabench",
-      "display_name": "π₀-FAST (X-VLA paper)",
+      "model": "pi0_fast_xvla_vlabench__2510_10274",
+      "display_name": "π₀-FAST (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "vlabench",
@@ -13132,8 +13132,8 @@
       "notes": "VLABench Track 1-4 PS avg from X-VLA paper Table 3. Per-track breakdown not reported."
     },
     {
-      "model": "pi0_xvla_vlabench",
-      "display_name": "π₀ (X-VLA paper)",
+      "model": "pi0_xvla_vlabench__2510_10274",
+      "display_name": "π₀ (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2410.24164",
       "benchmark": "vlabench",
@@ -13147,8 +13147,8 @@
       "notes": "VLABench Track 1-4 PS avg from X-VLA paper Table 3. Per-track breakdown not reported."
     },
     {
-      "model": "rdt_1b",
-      "display_name": "RDT-1B",
+      "model": "rdt_1b__zhang24vlabench",
+      "display_name": "RDT-1B (from VLABench)",
       "params": "1B",
       "model_paper": "https://arxiv.org/abs/2410.20572",
       "benchmark": "vlabench",
