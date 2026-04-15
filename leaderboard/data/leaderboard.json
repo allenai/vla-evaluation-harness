@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-14",
+  "last_updated": "2026-04-15",
   "results": [
     {
       "model": "3d_diffuser_actor",
@@ -8187,12 +8187,16 @@
     {
       "model": "dreamzero_ra",
       "display_name": "DreamZero",
+      "name_in_paper": "dreaming_zebra",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1750,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=190, std=38.6, open-source."
@@ -8200,51 +8204,67 @@
     {
       "model": "pi0_5_ra",
       "display_name": "π₀.₅ (DROID)",
+      "name_in_paper": "pi05_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1622,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=647, std=26.9."
+      "notes": "RoboArena API sync. num_evals=656, std=26.8."
     },
     {
       "model": "pi0_fast_ra",
       "display_name": "π₀-FAST (DROID)",
+      "name_in_paper": "pi0_fast_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1592,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=834, std=25.6."
+      "notes": "RoboArena API sync. num_evals=843, std=25.5."
     },
     {
       "model": "pi0_ra",
       "display_name": "π₀ (DROID)",
+      "name_in_paper": "pi0_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1475,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=1106, std=24.8."
+      "notes": "RoboArena API sync. num_evals=1112, std=24.7."
     },
     {
       "model": "ra_dam",
       "display_name": "Dam",
+      "name_in_paper": "dam",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1509,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=60, std=58.9, open-source."
@@ -8252,12 +8272,16 @@
     {
       "model": "ra_floppy_bagel_195k_temp1p0",
       "display_name": "Floppy Bagel 195K Temp1P0",
+      "name_in_paper": "floppy_bagel_195k_temp1p0",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
-      "overall_score": 1588,
+      "overall_score": 1589,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=8, std=146.8, open-source, LOW_EVAL_COUNT."
@@ -8265,12 +8289,16 @@
     {
       "model": "ra_floppy_bagel_285k_temp1p0",
       "display_name": "Floppy Bagel 285K Temp1P0",
+      "name_in_paper": "floppy_bagel_285k_temp1p0",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1471,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=12, std=122.3, open-source, LOW_EVAL_COUNT."
@@ -8278,12 +8306,16 @@
     {
       "model": "ra_floppy_bagel_420k",
       "display_name": "Floppy Bagel 420K",
+      "name_in_paper": "floppy_bagel_420k",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1490,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=29, std=78.3, open-source."
@@ -8291,12 +8323,16 @@
     {
       "model": "ra_floppy_bagel_525k_temp1p0",
       "display_name": "Floppy Bagel 525K Temp1P0",
+      "name_in_paper": "floppy_bagel_525k_temp1p0",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1560,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=33, std=74.3, open-source."
@@ -8304,12 +8340,16 @@
     {
       "model": "ra_floppy_bagel_90k_temp1p0",
       "display_name": "Floppy Bagel 90K Temp1P0",
+      "name_in_paper": "floppy_bagel_90k_temp1p0",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1455,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=10, std=138.6, open-source, LOW_EVAL_COUNT."
@@ -8317,12 +8357,16 @@
     {
       "model": "ra_paligemma_binning_droid",
       "display_name": "Paligemma Binning Droid",
+      "name_in_paper": "paligemma_binning_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 801,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
       "notes": "RoboArena API sync. num_evals=629, std=46.2, open-source."
@@ -8330,54 +8374,70 @@
     {
       "model": "ra_paligemma_diffusion_droid",
       "display_name": "Paligemma Diffusion Droid",
+      "name_in_paper": "paligemma_diffusion_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
-      "overall_score": 1548,
+      "overall_score": 1549,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=853, std=25.6, open-source."
+      "notes": "RoboArena API sync. num_evals=866, std=25.5, open-source."
     },
     {
       "model": "ra_paligemma_fast_droid",
       "display_name": "Paligemma Fast Droid",
+      "name_in_paper": "paligemma_fast_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
-      "overall_score": 1532,
+      "overall_score": 1531,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=1047, std=24.9, open-source."
+      "notes": "RoboArena API sync. num_evals=1054, std=24.8, open-source."
     },
     {
       "model": "ra_paligemma_fast_specialist_droid",
       "display_name": "Paligemma Fast Specialist Droid",
+      "name_in_paper": "paligemma_fast_specialist_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
       "overall_score": 1546,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=1046, std=24.5, open-source."
+      "notes": "RoboArena API sync. num_evals=1052, std=24.5, open-source."
     },
     {
       "model": "ra_paligemma_vq_droid",
       "display_name": "Paligemma Vq Droid",
+      "name_in_paper": "paligemma_vq_droid",
       "params": null,
       "model_paper": null,
       "benchmark": "roboarena",
       "weight_type": "shared",
-      "overall_score": 1561,
+      "overall_score": 1562,
+      "suite_scores": {},
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "roboarena-api",
       "date_added": "2026-03-02",
-      "notes": "RoboArena API sync. num_evals=860, std=25.6, open-source."
+      "notes": "RoboArena API sync. num_evals=870, std=25.5, open-source."
     },
     {
       "model": "acg_groot_n1",
@@ -9549,6 +9609,7 @@
     {
       "model": "cogact",
       "display_name": "cogact",
+      "name_in_paper": "cogact",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9557,7 +9618,9 @@
       "suite_scores": {
         "progress_score": 21.8
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=hsk, type=individual."
@@ -9565,6 +9628,7 @@
     {
       "model": "openvla_oft_rc",
       "display_name": "openvla-oft",
+      "name_in_paper": "openvla-oft",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9573,7 +9637,9 @@
       "suite_scores": {
         "progress_score": 8.7
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=gkf, type=individual."
@@ -9581,6 +9647,7 @@
     {
       "model": "pi0_5_multi",
       "display_name": "pi05_generalist",
+      "name_in_paper": "pi05_generalist",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9589,7 +9656,9 @@
       "suite_scores": {
         "progress_score": 31.3
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=wyf, type=individual, multi-task."
@@ -9597,6 +9666,7 @@
     {
       "model": "pi0_5_task",
       "display_name": "pi0.5",
+      "name_in_paper": "pi0.5",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9605,7 +9675,9 @@
       "suite_scores": {
         "progress_score": 61.8
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=rc_baseline, type=baseline."
@@ -9613,6 +9685,7 @@
     {
       "model": "pi0_multi",
       "display_name": "pi0_generalist",
+      "name_in_paper": "pi0_generalist",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9621,7 +9694,9 @@
       "suite_scores": {
         "progress_score": 20.2
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=wyf, type=individual, multi-task."
@@ -9629,6 +9704,7 @@
     {
       "model": "pi0_task",
       "display_name": "pi0",
+      "name_in_paper": "pi0",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9637,7 +9713,9 @@
       "suite_scores": {
         "progress_score": 46.4
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=rc_baseline, type=baseline."
@@ -9645,6 +9723,7 @@
     {
       "model": "rc_dm0",
       "display_name": "DM0",
+      "name_in_paper": "DM0",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9653,7 +9732,9 @@
       "suite_scores": {
         "progress_score": 72.2
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Dexmal, type=organization."
@@ -9661,6 +9742,7 @@
     {
       "model": "rc_dm0_generalist",
       "display_name": "DM0_generalist",
+      "name_in_paper": "DM0_generalist",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9669,7 +9751,9 @@
       "suite_scores": {
         "progress_score": 49.1
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Dexmal, type=organization, multi-task."
@@ -9677,6 +9761,7 @@
     {
       "model": "rc_gigabrain_0_1",
       "display_name": "GigaBrain-0.1",
+      "name_in_paper": "GigaBrain-0.1",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9685,7 +9770,9 @@
       "suite_scores": {
         "progress_score": 68.3
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=lyf, type=organization."
@@ -9693,6 +9780,7 @@
     {
       "model": "rc_gr00t",
       "display_name": "GR00T",
+      "name_in_paper": "GR00T",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9701,7 +9789,9 @@
       "suite_scores": {
         "progress_score": 31.6
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-23",
       "notes": "RoboChallenge API sync. user=Sicheng Xie, type=individual."
@@ -9709,6 +9799,7 @@
     {
       "model": "rc_gr00t_multi",
       "display_name": "GR00T-MULTI",
+      "name_in_paper": "GR00T-MULTI",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9717,7 +9808,9 @@
       "suite_scores": {
         "progress_score": 28.4
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-30",
       "notes": "RoboChallenge API sync. user=Sicheng Xie, type=individual, multi-task."
@@ -9725,6 +9818,7 @@
     {
       "model": "rc_spirit_v1_5",
       "display_name": "Spirit-v1.5",
+      "name_in_paper": "Spirit-v1.5",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9733,7 +9827,9 @@
       "suite_scores": {
         "progress_score": 67.2
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Spirit AI, type=organization."
@@ -9741,6 +9837,7 @@
     {
       "model": "rc_vla_test_0119",
       "display_name": "VLA_test_0119",
+      "name_in_paper": "VLA_test_0119",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9749,7 +9846,9 @@
       "suite_scores": {
         "progress_score": 21.9
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Xiangyue Wu, type=individual, multi-task."
@@ -9757,6 +9856,7 @@
     {
       "model": "rc_vla_test_0204",
       "display_name": "VLA_test_0204",
+      "name_in_paper": "VLA_test_0204",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9765,7 +9865,9 @@
       "suite_scores": {
         "progress_score": 17.3
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Xiangyue Wu, type=individual, multi-task."
@@ -9773,6 +9875,7 @@
     {
       "model": "rc_wall_oss_v0_1",
       "display_name": "wall-oss-v0.1",
+      "name_in_paper": "wall-oss-v0.1",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9781,7 +9884,9 @@
       "suite_scores": {
         "progress_score": 55.3
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Pushi Zhang, type=organization."
@@ -9789,6 +9894,7 @@
     {
       "model": "rc_zr_0_generalist",
       "display_name": "ZR-0_generalist",
+      "name_in_paper": "ZR-0_generalist",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9797,7 +9903,9 @@
       "suite_scores": {
         "progress_score": 29.2
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-23",
       "notes": "RoboChallenge API sync. user=Haoyang Li, type=individual."
@@ -9805,6 +9913,7 @@
     {
       "model": "rdt_1b_rc",
       "display_name": "RDT-1B",
+      "name_in_paper": "RDT-1B",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9813,7 +9922,9 @@
       "suite_scores": {
         "progress_score": 28.8
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=zsz, type=individual."
@@ -9821,6 +9932,7 @@
     {
       "model": "x_vla_rc",
       "display_name": "X-VLA",
+      "name_in_paper": "X-VLA",
       "params": null,
       "model_paper": null,
       "benchmark": "robochallenge",
@@ -9829,7 +9941,9 @@
       "suite_scores": {
         "progress_score": 34.8
       },
+      "task_scores": {},
       "source_paper": null,
+      "source_table": null,
       "curated_by": "robochallenge-api",
       "date_added": "2026-03-02",
       "notes": "RoboChallenge API sync. user=Chongyang Xu, type=individual."

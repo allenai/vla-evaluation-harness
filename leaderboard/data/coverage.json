@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-04-13",
+  "last_updated": "2026-04-15",
   "total_models": 521,
   "total_results": 670,
   "total_papers_reviewed": 1704,
@@ -7,24 +7,24 @@
     "calvin": {
       "display_name": "CALVIN",
       "arxiv_id": "2112.03227",
-      "citing_papers": 499,
-      "arxiv_citing_papers": 423,
+      "citing_papers": 507,
+      "arxiv_citing_papers": 431,
       "leaderboard_entries": 59,
       "papers_reviewed": 391
     },
     "kinetix": {
       "display_name": "Kinetix",
       "arxiv_id": "2506.07339",
-      "citing_papers": 79,
-      "arxiv_citing_papers": 76,
+      "citing_papers": 81,
+      "arxiv_citing_papers": 78,
       "leaderboard_entries": 12,
       "papers_reviewed": 52
     },
     "libero": {
       "display_name": "LIBERO",
       "arxiv_id": "2306.03310",
-      "citing_papers": 708,
-      "arxiv_citing_papers": 661,
+      "citing_papers": 721,
+      "arxiv_citing_papers": 674,
       "leaderboard_entries": 166,
       "papers_reviewed": 551
     },
@@ -39,24 +39,24 @@
     "libero_plus": {
       "display_name": "LIBERO-Plus",
       "arxiv_id": "2510.13626",
-      "citing_papers": 52,
-      "arxiv_citing_papers": 51,
+      "citing_papers": 55,
+      "arxiv_citing_papers": 54,
       "leaderboard_entries": 24,
       "papers_reviewed": 30
     },
     "libero_pro": {
       "display_name": "LIBERO-Pro",
       "arxiv_id": "2510.03827",
-      "citing_papers": 30,
-      "arxiv_citing_papers": 29,
+      "citing_papers": 32,
+      "arxiv_citing_papers": 31,
       "leaderboard_entries": 12,
       "papers_reviewed": 16
     },
     "maniskill2": {
       "display_name": "ManiSkill2",
       "arxiv_id": "2302.04659",
-      "citing_papers": 314,
-      "arxiv_citing_papers": 276,
+      "citing_papers": 318,
+      "arxiv_citing_papers": 280,
       "leaderboard_entries": 54,
       "papers_reviewed": 260
     },
@@ -71,24 +71,24 @@
     "rlbench": {
       "display_name": "RLBench",
       "arxiv_id": "1909.12271",
-      "citing_papers": 833,
-      "arxiv_citing_papers": 635,
+      "citing_papers": 837,
+      "arxiv_citing_papers": 639,
       "leaderboard_entries": 63,
       "papers_reviewed": 605
     },
     "roboarena": {
       "display_name": "RoboArena",
       "arxiv_id": "2506.18123",
-      "citing_papers": 33,
-      "arxiv_citing_papers": 31,
+      "citing_papers": 34,
+      "arxiv_citing_papers": 32,
       "leaderboard_entries": 15,
       "papers_reviewed": 23
     },
     "robocasa": {
       "display_name": "RoboCasa",
       "arxiv_id": "2406.02523",
-      "citing_papers": 270,
-      "arxiv_citing_papers": 243,
+      "citing_papers": 275,
+      "arxiv_citing_papers": 248,
       "leaderboard_entries": 48,
       "papers_reviewed": 213
     },
@@ -103,40 +103,40 @@
     "robochallenge": {
       "display_name": "RoboChallenge",
       "arxiv_id": "2510.17950",
-      "citing_papers": 5,
-      "arxiv_citing_papers": 5,
+      "citing_papers": 6,
+      "arxiv_citing_papers": 6,
       "leaderboard_entries": 18,
       "papers_reviewed": 2
     },
     "robotwin_v1": {
       "display_name": "RoboTwin 1.0",
       "arxiv_id": "2409.02920",
-      "citing_papers": 76,
-      "arxiv_citing_papers": 69,
+      "citing_papers": 77,
+      "arxiv_citing_papers": 70,
       "leaderboard_entries": 22,
       "papers_reviewed": 66
     },
     "robotwin_v2": {
       "display_name": "RoboTwin 2.0",
       "arxiv_id": "2506.18088",
-      "citing_papers": 156,
-      "arxiv_citing_papers": 153,
+      "citing_papers": 159,
+      "arxiv_citing_papers": 156,
       "leaderboard_entries": 41,
       "papers_reviewed": 105
     },
     "simpler_env": {
       "display_name": "SimplerEnv",
       "arxiv_id": "2405.05941",
-      "citing_papers": 323,
-      "arxiv_citing_papers": 304,
+      "citing_papers": 329,
+      "arxiv_citing_papers": 310,
       "leaderboard_entries": 86,
       "papers_reviewed": 268
     },
     "vlabench": {
       "display_name": "VLABench",
       "arxiv_id": "2412.18194",
-      "citing_papers": 93,
-      "arxiv_citing_papers": 86,
+      "citing_papers": 94,
+      "arxiv_citing_papers": 87,
       "leaderboard_entries": 10,
       "papers_reviewed": 77
     }
