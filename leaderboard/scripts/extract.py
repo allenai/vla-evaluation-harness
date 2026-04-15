@@ -500,14 +500,10 @@ def _call_claude_cli(
         "--output-format",
         "stream-json",
         "--verbose",
-        "--allowedTools",
-        "Read,Grep,Glob",
-        "--disallowedTools",
-        "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch",
         "--add-dir",
         str(paper_dir),
         "--permission-mode",
-        "default",
+        "bypassPermissions",
         "--no-session-persistence",
     ]
     try:
