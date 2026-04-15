@@ -1,6 +1,8 @@
 # VLANeXt model server (DravenALG/VLANeXt)
 # Qwen3-VL-2B + SigLIP2 + flow-matching diffusion action head, 8-action chunks.
-# Auto-clones VLANeXt repo on first run (or set VLANEXT_ROOT to skip).
+# Auto-clones VLANeXt to ~/.cache/vla-eval/vlanext on first run because the
+# upstream repo isn't pip-installable (non-SPDX license string). Set
+# VLANEXT_ROOT to override with a local editable clone.
 # Checkpoints: https://huggingface.co/DravenALG/VLANeXt
 script: "src/vla_eval/model_servers/vlanext.py"
 args:

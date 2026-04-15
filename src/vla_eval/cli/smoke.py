@@ -113,6 +113,7 @@ SERVER_REGISTRY: dict[str, str] = {
     "starvla_oft":          "configs/model_servers/starvla/oft_simpler.yaml",
     "starvla_pi":           "configs/model_servers/starvla/pi_simpler.yaml",
     "starvla_fast":         "configs/model_servers/starvla/fast_simpler.yaml",
+    "vlanext":              "configs/model_servers/vlanext/libero_spatial.yaml",
 }
 # fmt: on
 
@@ -125,7 +126,7 @@ SERVER_REGISTRY: dict[str, str] = {
 def _extract_model_id(data: dict[str, Any]) -> str:
     """Extract model identifier from a server config, checking common key names."""
     args = data.get("args", {})
-    for key in ("model_path", "checkpoint", "pretrained_checkpoint", "checkpoint_dir"):
+    for key in ("model_path", "checkpoint", "pretrained_checkpoint", "checkpoint_dir", "checkpoint_path"):
         if key in args:
             return str(args[key])
     return "unknown"

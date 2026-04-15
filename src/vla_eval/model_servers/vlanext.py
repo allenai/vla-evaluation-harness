@@ -2,9 +2,9 @@
 # requires-python = "~=3.11"
 # dependencies = [
 #     "vla-eval",
-#     "vlanext",
 #     "torch>=2.2",
-#     "transformers>=4.40",
+#     "torchvision>=0.17",
+#     "transformers>=4.56,<5.0",  # transformers 5.x made get_rope_index's mm_token_type_ids positional
 #     "diffusers>=0.25",
 #     "pillow>=9.0",
 #     "numpy>=1.24",
@@ -14,14 +14,25 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# vlanext = { git = "https://github.com/DravenALG/VLANeXt.git", rev = "ff134c8" }
 #
 # [tool.uv]
 # exclude-newer = "2026-04-09T00:00:00Z"
 # ///
+"""VLANeXt model server.
+
+Upstream VLANeXt ships a non-SPDX license string in its pyproject.toml and
+cannot be installed as a wheel via pip/uv.  We shallow-clone the repo on
+first use — following the same pattern as ``mme_vla.py`` — so users don't
+have to configure anything.  Set ``VLANEXT_ROOT`` to point at an editable
+local clone if needed.
+"""
+
 from __future__ import annotations
 
 import logging
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +53,37 @@ from vla_eval.specs import (
 from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
+
+_VLANEXT_REPO = "https://github.com/DravenALG/VLANeXt.git"
+_VLANEXT_REV = "ff134c8"
+_VLANEXT_CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "vla-eval/vlanext")
+
+
+def _ensure_vlanext() -> None:
+    """Make ``src.models.VLANeXt`` importable by shallow-cloning on first use.
+
+    If ``VLANEXT_ROOT`` is set, it's used as-is and must already be a valid
+    clone — we never ``git clone`` into a user-specified directory.  Without
+    the env var, the repo is cloned lazily into ``_VLANEXT_CACHE``.
+    """
+    user_root = os.environ.get("VLANEXT_ROOT")
+    if user_root:
+        if not os.path.isdir(os.path.join(user_root, "src", "models")):
+            raise RuntimeError(
+                f"VLANEXT_ROOT={user_root} is not a valid VLANeXt clone "
+                f"(missing src/models). Unset it to auto-clone into {_VLANEXT_CACHE}."
+            )
+        root = user_root
+    else:
+        root = _VLANEXT_CACHE
+        if not os.path.isdir(os.path.join(root, "src", "models")):
+            logger.info("Cloning VLANeXt from %s @ %s …", _VLANEXT_REPO, _VLANEXT_REV)
+            # Full clone (GitHub rejects shallow-fetching arbitrary SHAs by
+            # default) followed by a pinned checkout.
+            subprocess.check_call(["git", "clone", _VLANEXT_REPO, root])
+            subprocess.check_call(["git", "-C", root, "checkout", _VLANEXT_REV])
+    if root not in sys.path:
+        sys.path.insert(0, root)
 
 
 # LIBERO suite-specific action denormalization bounds (first 6 dims, excluding gripper).
@@ -111,6 +153,10 @@ class VLANeXtModelServer(PredictModelServer):
         await super().on_episode_start(config, ctx)
         self._state_histories[ctx.session_id] = []
 
+    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
+        await super().on_episode_end(result, ctx)
+        self._state_histories.pop(ctx.session_id, None)
+
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
         """Capture proprioception from every observation (even buffered steps).
 
@@ -119,7 +165,8 @@ class VLANeXtModelServer(PredictModelServer):
         history — one state per env step — so we extract and accumulate here
         before delegating to the normal chunking logic.
         """
-        state = obs.get("states", None)
+        # LIBERO sends "states" (plural); other benchmarks / the smoke stub use "state".
+        state = obs.get("states", obs.get("state"))
         if state is not None:
             state_arr = np.asarray(state, dtype=np.float32)
             if len(state_arr) == 8:
@@ -175,16 +222,21 @@ class VLANeXtModelServer(PredictModelServer):
         )
         if not candidates:
             raise FileNotFoundError(f"No .pt files in {local_dir} (contents: {[p.name for p in local_dir.iterdir()]})")
-        # Prefer the checkpoint matching the suite name
+        # Require a checkpoint matching the suite name — otherwise we'd silently
+        # load the wrong weights, which also breaks the suite-specific
+        # action-denormalization bounds.
         for c in candidates:
             if suite in c.stem:
                 return str(c)
-        return str(candidates[-1])
+        raise FileNotFoundError(
+            f"No checkpoint matching suite {suite!r} in {local_dir}. Available: {[c.name for c in candidates]}"
+        )
 
     def _load_model(self) -> None:
         if self._model is not None:
             return
 
+        _ensure_vlanext()
         from src.models.VLANeXt import VLANeXt
 
         ckpt_path = self._resolve_checkpoint(self.checkpoint_path, self.suite)
@@ -335,7 +387,9 @@ class VLANeXtModelServer(PredictModelServer):
             return_tensors="pt",
         )
 
-        valid_keys = {"input_ids", "attention_mask", "pixel_values", "image_grid_thw", "mm_token_type_ids"}
+        # Processor may emit `mm_token_type_ids` with newer transformers, but
+        # upstream VLANeXt.predict_action() does not accept it — filter it out.
+        valid_keys = {"input_ids", "attention_mask", "pixel_values", "image_grid_thw"}
         inputs = {k: v.to(device) for k, v in inputs.items() if k in valid_keys}
         if "pixel_values" in inputs:
             inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
