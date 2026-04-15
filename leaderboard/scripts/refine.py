@@ -65,11 +65,14 @@ def _aggregation_rules() -> dict[str, dict | str]:
 
 
 def _compute_overall(benchmark: str, suite: dict, task: dict) -> float | None:
-    """Compute overall_score from component scores per aggregation rule."""
+    """Compute overall_score from component scores per aggregation rule.
+
+    Returns None for: missing rule, `"forbidden"` rule, or partial component
+    data. `isinstance(rule, dict)` handles all three non-computing cases in
+    one branch (None / str / dict union from `_aggregation_rules`).
+    """
     rule = _aggregation_rules().get(benchmark)
-    if rule is None:
-        return None
-    if rule == "forbidden":
+    if not isinstance(rule, dict):
         return None
     container = suite if rule["container"] == "suite_scores" else task
     values = [container[k] for k in rule["keys"] if k in container]
