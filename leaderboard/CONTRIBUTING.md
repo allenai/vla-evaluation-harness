@@ -24,7 +24,15 @@ deviations) live alongside the registry at `leaderboard/benchmarks/{key}.md`.
 
 Each benchmark declares its metric, range, and optionally `suites`/`tasks` in `benchmarks.json`. See `leaderboard/benchmarks/{key}.md` for the protocol and risky-pattern notes for each benchmark.
 
-Every benchmark has a `detail_notes` field displayed as a banner on the leaderboard frontend. When changing a benchmark's scoring rules or comparability notes, update `detail_notes` in `benchmarks.json` and the corresponding `benchmarks/{key}.md` to match.
+**`benchmarks.json` is a build artifact — never edit it directly.** Each benchmark's configuration (display_name, metric, suites, tasks, aggregation rule, detail_notes, etc.) lives in the YAML frontmatter of `leaderboard/benchmarks/{key}.md`. The markdown body of the same file holds the LLM-consumed protocol prose (Standard / Scoring / Checks / Methodology).
+
+After editing any frontmatter, rebuild `benchmarks.json`:
+
+```
+python leaderboard/scripts/build_benchmarks_json.py
+```
+
+CI runs `build_benchmarks_json.py --check` on every PR — if the committed `benchmarks.json` diverges from the md sources, the PR fails. The only field in `benchmarks.json` that is NOT sourced from md is `papers_reviewed`, which is owned by `update_coverage.py` and preserved across builds.
 
 ### Result Fields
 

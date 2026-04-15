@@ -1,5 +1,16 @@
 ---
 benchmark: roboarena
+display_name: RoboArena
+paper_url: https://arxiv.org/abs/2506.18123
+metric:
+  name: elo_rating
+  unit: Elo
+  range:
+  - 0
+  - 2000
+  higher_is_better: true
+official_leaderboard: https://robo-arena.github.io/
+detail_notes: "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of robot manipulation policies."
 ---
 
 **Standard**: Elo-based pairwise comparison benchmark with API-synced entries only; `overall_score` = Elo rating from pairwise matches (higher is better).

@@ -1,5 +1,21 @@
 ---
 benchmark: calvin
+display_name: CALVIN
+paper_url: https://arxiv.org/abs/2112.03227
+metric:
+  name: avg_len
+  unit: subtasks
+  range:
+  - 0
+  - 5
+  higher_is_better: true
+suites:
+- 1_task
+- 2_tasks
+- 3_tasks
+- 4_tasks
+- 5_tasks
+detail_notes: "ABC→D split only (train on A/B/C, eval on D). Metric: avg completed subtasks in a chain of 5 (0–5), not success rate. Standard: 1000 eval chains."
 ---
 
 **Standard**: CALVIN ABC→D split (train A/B/C, evaluate on D) over 1000 evaluation chains; `overall_score` = average number of completed subtasks in chain of 5 (range 0–5).

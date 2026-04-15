@@ -1,5 +1,29 @@
 ---
 benchmark: mikasa
+display_name: MIKASA-Robo
+paper_url: https://arxiv.org/abs/2502.10550
+metric:
+  name: success_rate
+  unit: '%'
+  range:
+  - 0
+  - 100
+  higher_is_better: true
+tasks:
+- InterceptMedium
+- RememberColor3
+- RememberColor5
+- RememberColor9
+- ShellGameTouch
+detail_notes: "Standard protocol: 5-task VLA evaluation (ShellGameTouch, InterceptMedium, RememberColor3/5/9) from the MIKASA paper, endorsed by MemoryVLA (ICLR 2026). <code>overall_score</code> = arithmetic mean of 5 tasks. Entries using non-standard task sets (e.g., ELMUR 4-task) have <code>overall_score</code> = null."
+aggregation:
+  container: task_scores
+  keys:
+  - ShellGameTouch
+  - InterceptMedium
+  - RememberColor3
+  - RememberColor5
+  - RememberColor9
 ---
 
 **Standard**: 5-task VLA evaluation ([2502.10550](https://arxiv.org/abs/2502.10550)) on ShellGameTouch, InterceptMedium, RememberColor3, RememberColor5, RememberColor9 at 100 episodes per task; `overall_score` = arithmetic mean of the 5 task success rates.

@@ -28,6 +28,7 @@ Usage::
 
 from __future__ import annotations
 
+import functools
 import json
 import subprocess
 from datetime import date
@@ -46,41 +47,16 @@ SCHEMA_PATH = DATA_DIR / "leaderboard.schema.json"
 CANDIDATES_PATH = ROOT / ".cache" / "refine_candidates.json"
 REFINE_LOGS_DIR = ROOT / ".cache" / "refine_logs"
 
-# Mirrors validate.py's ARITHMETIC_RULES — the single source of truth for
-# how to aggregate component scores into overall_score.
-ARITHMETIC_RULES: dict[str, dict] = {
-    "libero": {
-        "container": "suite_scores",
-        "required_keys": ["libero_spatial", "libero_object", "libero_goal", "libero_10"],
-    },
-    "libero_plus": {
-        "container": "suite_scores",
-        "required_keys": ["camera", "robot", "language", "light", "background", "noise", "layout"],
-    },
-    "libero_pro": {
-        "container": "suite_scores",
-        "required_keys": [
-            f"{suite}_{pert}"
-            for suite in ("goal", "spatial", "long", "object")
-            for pert in ("ori", "obj", "pos", "sem", "task")
-        ],
-    },
-    "libero_mem": {
-        "container": "task_scores",
-        "required_keys": [f"T{i}" for i in range(1, 11)],
-    },
-    "mikasa": {
-        "container": "task_scores",
-        "required_keys": ["ShellGameTouch", "InterceptMedium", "RememberColor3", "RememberColor5", "RememberColor9"],
-    },
-    "vlabench": {
-        "container": "suite_scores",
-        "required_keys": ["in_dist_PS", "cross_category_PS", "commonsense_PS", "semantic_instruction_PS"],
-    },
-}
+# Aggregation rules live in each benchmark's md frontmatter and are
+# compiled into benchmarks.json by build_benchmarks_json.py. refine.py
+# reads them from there — never hardcode a rule here.
 
-# Benchmarks whose overall_score must ALWAYS be null (per CONTRIBUTING.md).
-FORBIDDEN_OVERALL: set[str] = {"simpler_env", "robotwin_v2"}
+
+@functools.cache
+def _aggregation_rules() -> dict[str, dict | str]:
+    """Return {benchmark: "forbidden" | {container, keys}} from benchmarks.json."""
+    data = json.loads(BENCHMARKS_JSON_PATH.read_text())
+    return {k: v["aggregation"] for k, v in data.items() if "aggregation" in v}
 
 
 # ---------------------------------------------------------------------------
@@ -90,14 +66,14 @@ FORBIDDEN_OVERALL: set[str] = {"simpler_env", "robotwin_v2"}
 
 def _compute_overall(benchmark: str, suite: dict, task: dict) -> float | None:
     """Compute overall_score from component scores per aggregation rule."""
-    if benchmark in FORBIDDEN_OVERALL:
-        return None
-    rule = ARITHMETIC_RULES.get(benchmark)
+    rule = _aggregation_rules().get(benchmark)
     if rule is None:
         return None
+    if rule == "forbidden":
+        return None
     container = suite if rule["container"] == "suite_scores" else task
-    values = [container[k] for k in rule["required_keys"] if k in container]
-    if len(values) != len(rule["required_keys"]):
+    values = [container[k] for k in rule["keys"] if k in container]
+    if len(values) != len(rule["keys"]):
         return None
     return round(sum(values) / len(values), 1)
 

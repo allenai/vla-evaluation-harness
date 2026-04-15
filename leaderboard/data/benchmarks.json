@@ -415,6 +415,7 @@
   },
   "kinetix": {
     "display_name": "Kinetix",
+    "paper_url": "https://arxiv.org/abs/2506.07339",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -424,8 +425,6 @@
       ],
       "higher_is_better": true
     },
-    "paper_url": "https://arxiv.org/abs/2506.07339",
-    "_note": "Benchmark protocol (12 dynamic tasks) defined by the RTC paper (2506.07339), using the Kinetix simulator (2410.23208).",
     "suites": [
       "d0",
       "d1",
@@ -508,6 +507,18 @@
       "libero_10",
       "libero_90"
     ],
+    "aggregation": {
+      "container": "suite_scores",
+      "keys": [
+        "libero_spatial",
+        "libero_object",
+        "libero_goal",
+        "libero_10"
+      ]
+    },
+    "expand_suites": true,
+    "avg_position": 4,
+    "avg_label": "Avg (w/o 90)",
     "papers_reviewed": [
       "2302.12422",
       "2309.14320",
@@ -1061,13 +1072,11 @@
       "2603.02083",
       "2603.02115"
     ],
-    "expand_suites": true,
-    "avg_position": 4,
-    "avg_label": "Avg (w/o 90)",
     "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
   },
   "libero_mem": {
     "display_name": "LIBERO-Mem",
+    "paper_url": "https://arxiv.org/abs/2511.11478",
     "metric": {
       "name": "subgoal_completion_rate",
       "unit": "%",
@@ -1077,7 +1086,6 @@
       ],
       "higher_is_better": true
     },
-    "paper_url": "https://arxiv.org/abs/2511.11478",
     "tasks": [
       "T1",
       "T10",
@@ -1090,6 +1098,21 @@
       "T8",
       "T9"
     ],
+    "aggregation": {
+      "container": "task_scores",
+      "keys": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10"
+      ]
+    },
     "papers_reviewed": [
       "2509.06165",
       "2511.11478",
@@ -1119,6 +1142,18 @@
       "noise",
       "layout"
     ],
+    "aggregation": {
+      "container": "suite_scores",
+      "keys": [
+        "camera",
+        "robot",
+        "language",
+        "light",
+        "background",
+        "noise",
+        "layout"
+      ]
+    },
     "papers_reviewed": [
       "2509.05614",
       "2510.13626",
@@ -1155,6 +1190,7 @@
   },
   "libero_pro": {
     "display_name": "LIBERO-Pro",
+    "paper_url": "https://arxiv.org/abs/2510.03827",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -1164,7 +1200,6 @@
       ],
       "higher_is_better": true
     },
-    "paper_url": "https://arxiv.org/abs/2510.03827",
     "suites": [
       "goal_env",
       "goal_lang_aug",
@@ -1217,6 +1252,31 @@
       "task_perturbation",
       "task_spatial"
     ],
+    "aggregation": {
+      "container": "suite_scores",
+      "keys": [
+        "goal_ori",
+        "goal_obj",
+        "goal_pos",
+        "goal_sem",
+        "goal_task",
+        "spatial_ori",
+        "spatial_obj",
+        "spatial_pos",
+        "spatial_sem",
+        "spatial_task",
+        "long_ori",
+        "long_obj",
+        "long_pos",
+        "long_sem",
+        "long_task",
+        "object_ori",
+        "object_obj",
+        "object_pos",
+        "object_sem",
+        "object_task"
+      ]
+    },
     "papers_reviewed": [
       "2508.20072",
       "2510.03827",
@@ -1249,6 +1309,13 @@
       ],
       "higher_is_better": true
     },
+    "suites": [
+      "PickClutterYCB",
+      "PickCube",
+      "PickSingleEGAD",
+      "PickSingleYCB",
+      "StackCube"
+    ],
     "tasks": [
       "AssemblingKits",
       "CloseCabinetDoor",
@@ -1274,13 +1341,6 @@
       "TurnFaucetLeft",
       "TurnFaucetRight",
       "Write"
-    ],
-    "suites": [
-      "PickClutterYCB",
-      "PickCube",
-      "PickSingleEGAD",
-      "PickSingleYCB",
-      "StackCube"
     ],
     "papers_reviewed": [
       "2301.04195",
@@ -1548,6 +1608,7 @@
   },
   "mikasa": {
     "display_name": "MIKASA-Robo",
+    "paper_url": "https://arxiv.org/abs/2502.10550",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -1557,7 +1618,6 @@
       ],
       "higher_is_better": true
     },
-    "paper_url": "https://arxiv.org/abs/2502.10550",
     "tasks": [
       "InterceptMedium",
       "RememberColor3",
@@ -1565,6 +1625,16 @@
       "RememberColor9",
       "ShellGameTouch"
     ],
+    "aggregation": {
+      "container": "task_scores",
+      "keys": [
+        "ShellGameTouch",
+        "InterceptMedium",
+        "RememberColor3",
+        "RememberColor5",
+        "RememberColor9"
+      ]
+    },
     "papers_reviewed": [
       "2412.06531",
       "2502.10550",
@@ -2260,7 +2330,6 @@
   "roboarena": {
     "display_name": "RoboArena",
     "paper_url": "https://arxiv.org/abs/2506.18123",
-    "official_leaderboard": "https://robo-arena.github.io/",
     "metric": {
       "name": "elo_rating",
       "unit": "Elo",
@@ -2270,7 +2339,7 @@
       ],
       "higher_is_better": true
     },
-    "_note": "Elo-based pairwise arena ranking from distributed real-robot A/B evaluations across 7 institutions using DROID platform",
+    "official_leaderboard": "https://robo-arena.github.io/",
     "papers_reviewed": [
       "2506.22355",
       "2508.12211",
@@ -2529,6 +2598,7 @@
   },
   "robocerebra": {
     "display_name": "RoboCerebra",
+    "paper_url": "https://arxiv.org/abs/2506.06677",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -2538,7 +2608,6 @@
       ],
       "higher_is_better": true
     },
-    "paper_url": "https://arxiv.org/abs/2506.06677",
     "suites": [
       "ideal",
       "memory_execution",
@@ -2573,7 +2642,6 @@
   "robochallenge": {
     "display_name": "RoboChallenge",
     "paper_url": "https://arxiv.org/abs/2510.17950",
-    "official_leaderboard": "https://robochallenge.ai/leaderboard",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -2583,10 +2651,10 @@
       ],
       "higher_is_better": true
     },
-    "_note": "30 real-robot tasks across 4 platforms (UR5, Franka, ARX5, ALOHA). Progress score (0-100) also reported.",
     "suites": [
       "progress_score"
     ],
+    "official_leaderboard": "https://robochallenge.ai/leaderboard",
     "papers_reviewed": [
       "2601.18692",
       "2602.20715"
@@ -2605,7 +2673,6 @@
       ],
       "higher_is_better": true
     },
-    "detail_notes": "RoboTwin 1.0 (ECCV 2024). Task counts vary by paper (4–17). Scores across different task subsets are not directly comparable.",
     "tasks": [
       "block_hammer_beat",
       "block_hammer_beat_20demo",
@@ -2710,7 +2777,8 @@
       "2602.20566",
       "2602.21445",
       "2602.23814"
-    ]
+    ],
+    "detail_notes": "RoboTwin 1.0 (ECCV 2024). Task counts vary by paper (4–17). Scores across different task subsets are not directly comparable."
   },
   "robotwin_v2": {
     "display_name": "RoboTwin 2.0",
@@ -2728,7 +2796,6 @@
       "easy",
       "hard"
     ],
-    "detail_notes": "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist — scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos — Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task — Hard is in-distribution (near-zero gaps). Check entry notes for protocol.",
     "tasks": [
       "beat_block_hammer",
       "click_bell",
@@ -2743,6 +2810,7 @@
       "place_phone_stand",
       "shake_bottle"
     ],
+    "aggregation": "forbidden",
     "papers_reviewed": [
       "2411.01850",
       "2503.01439",
@@ -2849,7 +2917,8 @@
       "2602.22663",
       "2602.23408",
       "2603.01229"
-    ]
+    ],
+    "detail_notes": "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist — scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos — Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task — Hard is in-distribution (near-zero gaps). Check entry notes for protocol."
   },
   "simpler_env": {
     "display_name": "SimplerEnv",
@@ -2868,7 +2937,6 @@
       "google_robot_va",
       "widowx_vm"
     ],
-    "_note": "Three independent evaluation dimensions. Do NOT average across them.",
     "tasks": [
       "close_drawer_va",
       "move_near_va",
@@ -2887,6 +2955,7 @@
       "reported_avg",
       "stack_block_vm"
     ],
+    "aggregation": "forbidden",
     "papers_reviewed": [
       "2312.10807",
       "2404.19664",
@@ -3162,7 +3231,6 @@
   "vlabench": {
     "display_name": "VLABench",
     "paper_url": "https://arxiv.org/abs/2412.18194",
-    "detail_notes": "Standard: Track 1-4 Progress Score (PS) avg. Official 6-track system from OpenMOSS/VLABench: (1) in_distribution, (2) cross_category, (3) common_sense, (4) semantic_instruction, (5) cross_task [open], (6) unseen_texture. Metrics: IS (Intention Score) = approached correct object; PS (Progress Score) = task completion. overall_score = Track 1-4 PS avg. Entries from the original VLABench paper (2412.18194) use a pre-track IS-based protocol and have overall_score=null.",
     "metric": {
       "name": "success_rate",
       "unit": "%",
@@ -3210,6 +3278,15 @@
       "set_study_table",
       "texas_holdem"
     ],
+    "aggregation": {
+      "container": "suite_scores",
+      "keys": [
+        "in_dist_PS",
+        "cross_category_PS",
+        "commonsense_PS",
+        "semantic_instruction_PS"
+      ]
+    },
     "papers_reviewed": [
       "2412.18194",
       "2502.05907",
@@ -3288,6 +3365,7 @@
       "2602.19357",
       "2602.22579",
       "2602.24143"
-    ]
+    ],
+    "detail_notes": "Standard: Track 1-4 Progress Score (PS) avg. Official 6-track system from OpenMOSS/VLABench: (1) in_distribution, (2) cross_category, (3) common_sense, (4) semantic_instruction, (5) cross_task [open], (6) unseen_texture. Metrics: IS (Intention Score) = approached correct object; PS (Progress Score) = task completion. overall_score = Track 1-4 PS avg. Entries from the original VLABench paper (2412.18194) use a pre-track IS-based protocol and have overall_score=null."
   }
 }

@@ -1,5 +1,39 @@
 ---
 benchmark: libero_mem
+display_name: LIBERO-Mem
+paper_url: https://arxiv.org/abs/2511.11478
+metric:
+  name: subgoal_completion_rate
+  unit: '%'
+  range:
+  - 0
+  - 100
+  higher_is_better: true
+tasks:
+- T1
+- T10
+- T2
+- T3
+- T4
+- T5
+- T6
+- T7
+- T8
+- T9
+detail_notes: "LIBERO-Mem memory benchmark (<a href='https://arxiv.org/abs/2511.11478'>2511.11478</a>). 10 tasks (T1–T10). Metric: <strong>subgoal completion rate</strong> (not task success rate). 20 rollouts per task."
+aggregation:
+  container: task_scores
+  keys:
+  - T1
+  - T2
+  - T3
+  - T4
+  - T5
+  - T6
+  - T7
+  - T8
+  - T9
+  - T10
 ---
 
 **Standard**: LIBERO memory benchmark ([2511.11478](https://arxiv.org/abs/2511.11478)) — 10 tasks (T1–T10) across 4 memory types (OM: T1–T2, OS: T3–T5, OR: T6–T8, OO: T9–T10) with subgoal completion rate as the metric; `overall_score` = unweighted arithmetic mean of T1–T10.

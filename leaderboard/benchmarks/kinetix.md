@@ -1,5 +1,21 @@
 ---
 benchmark: kinetix
+display_name: Kinetix
+paper_url: https://arxiv.org/abs/2506.07339
+metric:
+  name: success_rate
+  unit: '%'
+  range:
+  - 0
+  - 100
+  higher_is_better: true
+suites:
+- d0
+- d1
+- d2
+- d3
+- d4
+detail_notes: "12-task eval protocol from the RTC paper (<a href='https://arxiv.org/abs/2506.07339'>2506.07339</a>). State-based, no vision/language. Scores depend on (inference_delay <em>d</em>, execution_horizon <em>e</em>). Entries at different <em>d</em> values are <strong>not directly comparable</strong> (~11pp gap between d=0 and d=4 for the same method)."
 ---
 
 **Standard**: 12-task state-based eval protocol from the RTC paper ([2506.07339](https://arxiv.org/abs/2506.07339)), no vision/language input; `overall_score` = mean success rate across the 12 tasks.

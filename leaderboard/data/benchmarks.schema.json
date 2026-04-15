@@ -5,12 +5,14 @@
   "additionalProperties": {
     "type": "object",
     "required": ["display_name", "metric"],
+    "additionalProperties": false,
     "properties": {
       "display_name": { "type": "string" },
       "paper_url": { "type": "string", "format": "uri" },
       "metric": {
         "type": "object",
         "required": ["name", "unit", "range", "higher_is_better"],
+        "additionalProperties": false,
         "properties": {
           "name": { "type": "string" },
           "unit": { "type": "string" },
@@ -28,9 +30,32 @@
       "avg_position": { "type": "integer", "minimum": 0 },
       "avg_label": { "type": "string" },
       "detail_notes": { "type": "string" },
-      "contributing_section": { "type": "string" },
       "suites": { "type": "array", "items": { "type": "string" } },
-      "tasks": { "type": "array", "items": { "type": "string" } }
+      "tasks": { "type": "array", "items": { "type": "string" } },
+      "aggregation": {
+        "description": "How refine.py computes overall_score. Omit for benchmarks that trust the LLM-extracted overall_score.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": ["forbidden"],
+            "description": "overall_score must always be null (e.g. simpler_env, robotwin_v2)"
+          },
+          {
+            "type": "object",
+            "required": ["container", "keys"],
+            "additionalProperties": false,
+            "properties": {
+              "container": { "enum": ["suite_scores", "task_scores"] },
+              "keys": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+            }
+          }
+        ]
+      },
+      "papers_reviewed": {
+        "description": "Derived by update_coverage.py — list of arxiv IDs reviewed for this benchmark.",
+        "type": "array",
+        "items": { "type": "string" }
+      }
     }
   }
 }

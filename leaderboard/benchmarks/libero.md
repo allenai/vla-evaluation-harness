@@ -1,5 +1,31 @@
 ---
 benchmark: libero
+display_name: LIBERO
+paper_url: https://arxiv.org/abs/2306.03310
+metric:
+  name: success_rate
+  unit: '%'
+  range:
+  - 0
+  - 100
+  higher_is_better: true
+suites:
+- libero_spatial
+- libero_object
+- libero_goal
+- libero_10
+- libero_90
+expand_suites: true
+avg_position: 4
+avg_label: Avg (w/o 90)
+detail_notes: "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
+aggregation:
+  container: suite_scores
+  keys:
+  - libero_spatial
+  - libero_object
+  - libero_goal
+  - libero_10
 ---
 
 **Standard**: LIBERO 4-suite average (`spatial`, `object`, `goal`, `10`) trained on the standard 50-demo budget; `overall_score` = arithmetic mean of the four suites.

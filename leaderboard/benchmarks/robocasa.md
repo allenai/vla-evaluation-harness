@@ -1,5 +1,15 @@
 ---
 benchmark: robocasa
+display_name: RoboCasa
+paper_url: https://arxiv.org/abs/2406.02523
+metric:
+  name: success_rate
+  unit: '%'
+  range:
+  - 0
+  - 100
+  higher_is_better: true
+detail_notes: "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>). <strong>Training data varies widely</strong> (50–300 demos/task). Check <em>notes</em> for <code>demos_per_task</code> and <code>task_count</code>. Scores from different training budgets are not directly comparable."
 ---
 
 **Standard**: 24 atomic tasks on a Mobile Franka robot in RoboCasa kitchen environments ([2406.02523](https://arxiv.org/abs/2406.02523)); `overall_score` = mean success rate across the 24 tasks.
