@@ -478,6 +478,27 @@
       "date_added": "2026-03-04"
     },
     {
+      "model": "ma25vita",
+      "display_name": "VITA",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2511.19859",
+      "benchmark": "calvin",
+      "weight_type": "shared",
+      "overall_score": 4.73,
+      "suite_scores": {
+        "1_task": 99.1,
+        "2_tasks": 94.9,
+        "3_tasks": 91.2,
+        "4_tasks": 87.8,
+        "5_tasks": 84.5
+      },
+      "reported_paper": "https://arxiv.org/abs/2511.19859",
+      "reported_table": "Table (main results)",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "Paper reports avg_len=4.73; suite_scores sum to 4.575 (0.155 diff — may be rounding or different eval run). CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
+    },
+    {
       "model": "mode",
       "display_name": "MoDE",
       "params": "~100M",
@@ -980,27 +1001,6 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "ABC→D split. Continuous OpenVLA-OFT variant, best VISTA result"
-    },
-    {
-      "model": "vita_vla",
-      "display_name": "VITA-VLA",
-      "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2511.19859",
-      "benchmark": "calvin",
-      "weight_type": "shared",
-      "overall_score": 4.73,
-      "suite_scores": {
-        "1_task": 99.1,
-        "2_tasks": 94.9,
-        "3_tasks": 91.2,
-        "4_tasks": 87.8,
-        "5_tasks": 84.5
-      },
-      "reported_paper": "https://arxiv.org/abs/2511.19859",
-      "reported_table": "Table (main results)",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "Paper reports avg_len=4.73; suite_scores sum to 4.575 (0.155 diff — may be rounding or different eval run). CALVIN ABC→D split, current SOTA; Note: suite sum/100=4.575 vs reported 4.73 (diff=0.155, keeping paper-reported value)"
     },
     {
       "model": "vlm4vla_qwen25vl_3b",
@@ -1592,17 +1592,17 @@
       "benchmark": "libero",
       "weight_type": "finetuned",
       "overall_score": 98.9,
-      "suite_scores": {
-        "libero_spatial": 99.0,
-        "libero_object": 99.0,
-        "libero_goal": 99.0,
-        "libero_10": 97.4
-      },
       "reported_paper": "https://arxiv.org/abs/2601.12993",
-      "reported_table": "Table 2",
+      "reported_table": "Table 4",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "BEING-H0.5 specialist model LIBERO results. Avg 98.9%, Long=97.4 explicitly stated. Other suites ~99% from text."
+      "notes": "BEING-H0.5 (specialist) row. Spatial 99.2, Object 99.6, Goal 99.4, Long 97.4, Avg 98.9. The paper also reports a generalist variant at 97.6 avg.",
+      "suite_scores": {
+        "libero_spatial": 99.2,
+        "libero_object": 99.6,
+        "libero_goal": 99.4,
+        "libero_10": 97.4
+      }
     },
     {
       "model": "clap_rf",
@@ -1968,17 +1968,17 @@
       "benchmark": "libero",
       "weight_type": "finetuned",
       "overall_score": 98.3,
-      "suite_scores": {
-        "libero_spatial": 98.8,
-        "libero_object": 98.2,
-        "libero_goal": 98.0,
-        "libero_10": 96.4
-      },
       "reported_paper": "https://arxiv.org/abs/2512.01715",
-      "reported_table": "Table 3",
+      "reported_table": "Table 1",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
-      "notes": "π0.5-DiG LIBERO results. Current benchmark is RoboCasa. Suite scores approximate from text."
+      "notes": "DiG-Flow paper, π0.5-DiG (Ours) row. Spatial 99.2, Object 99.0, Goal 98.6, Long 96.4, Avg 98.3. Paper also reports GR00T-N1-DiG variant at 95.3 avg.",
+      "suite_scores": {
+        "libero_spatial": 99.2,
+        "libero_object": 99.0,
+        "libero_goal": 98.6,
+        "libero_10": 96.4
+      }
     },
     {
       "model": "discrete_diffusion_vla",
@@ -2059,6 +2059,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "Dita with additional wrist camera input"
+    },
+    {
+      "model": "dong25vitavla",
+      "display_name": "VITA-VLA",
+      "params": "~500M",
+      "model_paper": "https://arxiv.org/abs/2510.09607",
+      "benchmark": "libero",
+      "weight_type": "finetuned",
+      "overall_score": 97.3,
+      "suite_scores": {
+        "libero_spatial": 98.0,
+        "libero_object": 99.8,
+        "libero_goal": 97.0,
+        "libero_10": 93.5
+      },
+      "reported_paper": "https://arxiv.org/abs/2510.09607",
+      "reported_table": "Table 2: LIBERO results of different VLA models",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-03",
+      "notes": "Paper currently listed under calvin (model key 'susie'). VITA-VLA (two-stage) also evaluates on LIBERO. Avg 97.3% (Spatial ~98.0, Object ~99.8, Goal ~97.x, Long 93.5). Table is partially garbled in PDF conversion; Long=93.5% is explicit in text. Also achieves CALVIN ABC-D task-1 success rate 92.5% (best among VLAs) but avg_len not explicitly stated in extracted text."
     },
     {
       "model": "dreamvla",
@@ -2281,7 +2301,7 @@
       "model": "flowvla",
       "display_name": "FlowVLA",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2503.02310",
+      "model_paper": "https://arxiv.org/abs/2508.18269",
       "benchmark": "libero",
       "weight_type": "shared",
       "overall_score": 88.1,
@@ -2295,7 +2315,7 @@
       "reported_table": "Table IV (PD-VLA paper)",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
-      "notes": "Flow matching VLA"
+      "notes": "FlowVLA score cited by PD-VLA paper (third-party measurement). FlowVLA itself: 2508.18269."
     },
     {
       "model": "fpc_vla",
@@ -2779,6 +2799,26 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "avg of 4 suites (Goal/Object/Spatial/Long)"
+    },
+    {
+      "model": "ma25vita",
+      "display_name": "VITA",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2511.19859",
+      "benchmark": "libero",
+      "weight_type": "shared",
+      "overall_score": 97.3,
+      "suite_scores": {
+        "libero_spatial": 97.9,
+        "libero_object": 99.8,
+        "libero_goal": 98.0,
+        "libero_10": 93.5
+      },
+      "reported_paper": "https://arxiv.org/abs/2511.19859",
+      "reported_table": "Table (main results)",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "avg of 4 suites"
     },
     {
       "model": "mantis_dvf",
@@ -4166,46 +4206,6 @@
       "curated_by": "opus 4.6",
       "date_added": "2026-03-03",
       "notes": "libero_spatial corrected 87.6->84.8 (was object score). VISTA LIBERO plan-execute 8-4 setting without RHC (Appendix Table 4). Main Table 2 with RHC not rendered. CALVIN avg_len=3.34."
-    },
-    {
-      "model": "vita_vla",
-      "display_name": "VITA-VLA",
-      "params": "~500M",
-      "model_paper": "https://arxiv.org/abs/2510.09607",
-      "benchmark": "libero",
-      "weight_type": "finetuned",
-      "overall_score": 97.3,
-      "suite_scores": {
-        "libero_spatial": 98.0,
-        "libero_object": 99.8,
-        "libero_goal": 97.0,
-        "libero_10": 93.5
-      },
-      "reported_paper": "https://arxiv.org/abs/2510.09607",
-      "reported_table": "Table 2: LIBERO results of different VLA models",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-03",
-      "notes": "Paper currently listed under calvin (model key 'susie'). VITA-VLA (two-stage) also evaluates on LIBERO. Avg 97.3% (Spatial ~98.0, Object ~99.8, Goal ~97.x, Long 93.5). Table is partially garbled in PDF conversion; Long=93.5% is explicit in text. Also achieves CALVIN ABC-D task-1 success rate 92.5% (best among VLAs) but avg_len not explicitly stated in extracted text."
-    },
-    {
-      "model": "vita_vla",
-      "display_name": "VITA-VLA",
-      "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2511.19859",
-      "benchmark": "libero",
-      "weight_type": "shared",
-      "overall_score": 97.3,
-      "suite_scores": {
-        "libero_spatial": 97.9,
-        "libero_object": 99.8,
-        "libero_goal": 98.0,
-        "libero_10": 93.5
-      },
-      "reported_paper": "https://arxiv.org/abs/2511.19859",
-      "reported_table": "Table (main results)",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "avg of 4 suites"
     },
     {
       "model": "vla2",
@@ -7406,7 +7406,7 @@
       "model": "flare",
       "display_name": "FLARE",
       "params": "unknown",
-      "model_paper": null,
+      "model_paper": "https://arxiv.org/abs/2505.15659",
       "benchmark": "rlbench",
       "weight_type": "shared",
       "overall_score": null,
@@ -8831,7 +8831,7 @@
       "model": "openvla_oft_pri4r",
       "display_name": "OpenVLA-OFT + Pri4R",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2406.09246",
+      "model_paper": "https://arxiv.org/abs/2603.01549",
       "benchmark": "robocasa",
       "weight_type": "finetuned",
       "overall_score": 46.3,
@@ -8873,7 +8873,7 @@
       "model": "pi0_pri4r",
       "display_name": "pi0 + Pri4R",
       "params": "3B",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "model_paper": "https://arxiv.org/abs/2603.01549",
       "benchmark": "robocasa",
       "weight_type": "finetuned",
       "overall_score": 42.2,
@@ -9550,7 +9550,7 @@
       "model": "cogact",
       "display_name": "cogact",
       "params": null,
-      "model_paper": null,
+      "model_paper": "https://arxiv.org/abs/2411.19650",
       "benchmark": "robochallenge",
       "weight_type": "shared",
       "overall_score": 11.7,
@@ -10611,7 +10611,7 @@
       "model": "mm_act",
       "display_name": "MM-ACT",
       "params": null,
-      "model_paper": null,
+      "model_paper": "https://arxiv.org/abs/2512.00975",
       "benchmark": "robotwin_v2",
       "weight_type": "shared",
       "overall_score": null,
@@ -11705,6 +11705,28 @@
       "notes": "VM 3-task avg=73.0% (orig 4-task=61.5%); VA 3-task avg=67.7% (orig 4-task=54.6%). WidowX 4-task avg=71.9%. Tables 1-2."
     },
     {
+      "model": "ma25vita",
+      "display_name": "VITA",
+      "params": "7B",
+      "model_paper": "https://arxiv.org/abs/2511.19859",
+      "benchmark": "simpler_env",
+      "weight_type": "shared",
+      "overall_score": null,
+      "suite_scores": {
+        "google_robot_vm": 57.4
+      },
+      "task_scores": {
+        "pick_coke_can_vm": 60.7,
+        "move_near_vm": 38.6,
+        "open_drawer_vm": 57.5
+      },
+      "reported_paper": "https://arxiv.org/abs/2511.19859",
+      "reported_table": "Table 3",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-02",
+      "notes": "Google Robot Visual Matching, 3 tasks; Visual Matching (VM) protocol. 3-task evaluation (standard is 4 tasks; scores may not be directly comparable to 4-task entries)."
+    },
+    {
       "model": "maniagent",
       "display_name": "ManiAgent",
       "params": null,
@@ -12608,28 +12630,6 @@
       },
       "reported_paper": "https://arxiv.org/abs/2507.23682",
       "reported_table": "Table 2",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-02",
-      "notes": "Google Robot Visual Matching, 3 tasks; Visual Matching (VM) protocol. 3-task evaluation (standard is 4 tasks; scores may not be directly comparable to 4-task entries)."
-    },
-    {
-      "model": "vita_vla",
-      "display_name": "VITA-VLA",
-      "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2511.19859",
-      "benchmark": "simpler_env",
-      "weight_type": "shared",
-      "overall_score": null,
-      "suite_scores": {
-        "google_robot_vm": 57.4
-      },
-      "task_scores": {
-        "pick_coke_can_vm": 60.7,
-        "move_near_vm": 38.6,
-        "open_drawer_vm": 57.5
-      },
-      "reported_paper": "https://arxiv.org/abs/2511.19859",
-      "reported_table": "Table 3",
       "curated_by": "opus 4.6",
       "date_added": "2026-03-02",
       "notes": "Google Robot Visual Matching, 3 tasks; Visual Matching (VM) protocol. 3-task evaluation (standard is 4 tasks; scores may not be directly comparable to 4-task entries)."

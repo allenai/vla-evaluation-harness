@@ -48,8 +48,8 @@ CANDIDATES_PATH = ROOT / ".cache" / "refine_candidates.json"
 REFINE_LOGS_DIR = ROOT / ".cache" / "refine_logs"
 
 # Aggregation rules live in each benchmark's md frontmatter and are
-# compiled into benchmarks.json by build_benchmarks_json.py. refine.py
-# reads them from there — never hardcode a rule here.
+# compiled into benchmarks.json. This function reads them from there —
+# never hardcode a rule here; edit the benchmark's .md frontmatter instead.
 
 
 @functools.cache

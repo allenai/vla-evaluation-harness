@@ -33,7 +33,7 @@
       "suites": { "type": "array", "items": { "type": "string" } },
       "tasks": { "type": "array", "items": { "type": "string" } },
       "aggregation": {
-        "description": "How refine.py computes overall_score. Omit for benchmarks that trust the LLM-extracted overall_score.",
+        "description": "Canonical rule for aggregating component scores (suite_scores or task_scores) into overall_score. Omit when overall_score is trusted as-is from the source (e.g. LLM-extracted or API-synced aggregates).",
         "oneOf": [
           {
             "type": "string",

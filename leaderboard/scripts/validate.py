@@ -180,6 +180,49 @@ def validate_citations(data: dict) -> list[str]:
     return errors
 
 
+def validate_aggregation_rules(data: dict) -> list[str]:
+    """Check each entry's overall_score against the benchmark's aggregation rule.
+
+    Two shapes of rule live in benchmarks.json (sourced from md frontmatter):
+
+    - ``"forbidden"`` — overall_score MUST be null (e.g. simpler_env, robotwin_v2).
+    - ``{"container": "suite_scores"|"task_scores", "keys": [...]}`` — if all
+      required keys are present on the entry, overall_score must match their
+      arithmetic mean within a small tolerance. Entries missing any key are
+      skipped (their overall_score may legitimately be null for non-standard
+      protocols).
+
+    Tolerance is 0.25: theoretical worst case for independent 1-decimal
+    rounding is about 0.10, and papers frequently round sub-scores and
+    overall at different steps, producing legitimate ±0.2 disagreements.
+    Anything beyond ±0.25 indicates a real data inconsistency.
+    """
+    errors = []
+    tolerance = 0.25
+    for i, r in enumerate(data["results"]):
+        rule = data["benchmarks"].get(r["benchmark"], {}).get("aggregation")
+        if rule is None:
+            continue
+        score = r.get("overall_score")
+        prefix = f"results[{i}] ({r['model']}/{r['benchmark']})"
+        if rule == "forbidden":
+            if score is not None:
+                errors.append(f"{prefix}: overall_score must be null (benchmark aggregation: forbidden)")
+            continue
+        container = r.get(rule["container"]) or {}
+        if not all(k in container for k in rule["keys"]):
+            continue
+        if score is None:
+            continue
+        mean = round(sum(container[k] for k in rule["keys"]) / len(rule["keys"]), 1)
+        if abs(score - mean) > tolerance:
+            errors.append(
+                f"{prefix}: overall_score {score} disagrees with mean of "
+                f"{rule['container']}{rule['keys']} = {mean} (diff {score - mean:+.2f}, tolerance ±{tolerance})"
+            )
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate leaderboard.json against schema and leaderboard rules.")
     parser.add_argument(
@@ -223,6 +266,7 @@ def main() -> int:
     # registry never leaks back into leaderboard.json.
     data["benchmarks"] = benchmarks
     errors += validate_score_ranges(data)
+    errors += validate_aggregation_rules(data)
     errors += validate_official_leaderboard_policy(data)
     errors += validate_papers_reviewed(data)
     errors += validate_citations(data)
