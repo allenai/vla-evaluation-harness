@@ -2278,8 +2278,8 @@
       "notes": "3B model. Suite scores from Table I of RD-VLA paper (2602.07845): Spatial=92.0, Object=97.2, Goal=90.2, Long=79.4, Avg=89.7."
     },
     {
-      "model": "flower__2602_18224",
-      "display_name": "FLOWER (from arxiv:2602.18224)",
+      "model": "flower__luo26simvla",
+      "display_name": "FLOWER (from SimVLA)",
       "params": "1B",
       "model_paper": "https://arxiv.org/abs/2509.04996",
       "benchmark": "libero",
@@ -2480,8 +2480,8 @@
       "notes": "GR00T N1.5 baseline (without HAMLET) on LIBERO benchmark. Avg of 4 suites."
     },
     {
-      "model": "groot_n1__2602_01100",
-      "display_name": "GR00T N1 (from arxiv:2602.01100)",
+      "model": "groot_n1__chen26streamvla",
+      "display_name": "GR00T N1 (from StreamVLA)",
       "params": "2B",
       "model_paper": "https://arxiv.org/abs/2503.14734",
       "benchmark": "libero",
@@ -3336,8 +3336,8 @@
       "notes": "Pri4R framework applied to pi0.5 backbone."
     },
     {
-      "model": "pi0_5__2601_16163",
-      "display_name": "π₀.5 (from arxiv:2601.16163)",
+      "model": "pi0_5__kim26cosmospolicy",
+      "display_name": "π₀.5 (from Cosmos Policy)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero",
@@ -4089,10 +4089,10 @@
       }
     },
     {
-      "model": "uaor_openvla_oft__2602_18020",
-      "display_name": "OpenVLA-OFT + UAOR (from arxiv:2602.18020)",
+      "model": "uaor_openvla_oft",
+      "display_name": "OpenVLA-OFT + UAOR",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2406.09246",
+      "model_paper": "https://arxiv.org/abs/2602.18020",
       "benchmark": "libero",
       "weight_type": "finetuned",
       "overall_score": 97.95,
@@ -4109,8 +4109,8 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "uniact__2602_18224",
-      "display_name": "UniAct (from arxiv:2602.18224)",
+      "model": "uniact__luo26simvla",
+      "display_name": "UniAct (from SimVLA)",
       "params": "0.5B",
       "model_paper": "https://arxiv.org/abs/2501.10105",
       "benchmark": "libero",
@@ -4576,8 +4576,8 @@
       "notes": "RL fine-tuning from world models; uses OpenVLA-OFT as base policy"
     },
     {
-      "model": "x_vla__2602_18224",
-      "display_name": "X-VLA (from arxiv:2602.18224)",
+      "model": "x_vla__luo26simvla",
+      "display_name": "X-VLA (from SimVLA)",
       "params": "0.9B",
       "model_paper": "https://arxiv.org/abs/2510.10274",
       "benchmark": "libero",
@@ -5035,8 +5035,8 @@
       "notes": "Post-trained on LIBERO-Plus data (mixed fine-tuning from OpenVLA-OFT_m)."
     },
     {
-      "model": "pi0_5__2601_11404",
-      "display_name": "π₀.5 (from arxiv:2601.11404)",
+      "model": "pi0_5__zhong26acotvla",
+      "display_name": "π₀.5 (from ACoT-VLA)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "libero_plus",
@@ -5079,10 +5079,10 @@
       }
     },
     {
-      "model": "pi0_acot__2601_11404",
-      "display_name": "π₀ (ACoT repro., arxiv:2601.11404)",
+      "model": "pi0_acot",
+      "display_name": "pi0 + ACoT",
       "params": "~3B",
-      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "model_paper": "https://arxiv.org/abs/2601.11404",
       "benchmark": "libero_plus",
       "weight_type": "shared",
       "overall_score": 68.8,
@@ -7217,8 +7217,8 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "bridgevla__2601_08325",
-      "display_name": "BridgeVLA (from arxiv:2601.08325)",
+      "model": "bridgevla__liu26activevla",
+      "display_name": "BridgeVLA (from ActiveVLA)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2506.07961",
       "benchmark": "rlbench",
@@ -7403,8 +7403,8 @@
       }
     },
     {
-      "model": "flare__2601_22647",
-      "display_name": "FLARE (from arxiv:2601.22647)",
+      "model": "flare__jang26tmow",
+      "display_name": "FLARE (from TMoW)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2505.15659",
       "benchmark": "rlbench",
@@ -8604,8 +8604,8 @@
       "notes": "GR00T N1-2B co-trained with DreamGen neural trajectories. 100 demos/task. Avg 39.94%."
     },
     {
-      "model": "dust_groot_n1__2601_16163",
-      "display_name": "DUST (GR00T-N1) (from arxiv:2601.16163)",
+      "model": "dust_groot_n1__kim26cosmospolicy",
+      "display_name": "DUST GR00T-N1 (from Cosmos Policy)",
       "params": "unknown",
       "model_paper": "https://arxiv.org/abs/2510.27607",
       "benchmark": "robocasa",
@@ -8730,8 +8730,8 @@
       "notes": "RoboCasa 24 tasks. GUIDES full framework with BC-Transformer, 900+100 epoch training."
     },
     {
-      "model": "gwm_robocasa__2512_16811",
-      "display_name": "GWM (from arxiv:2512.16811)",
+      "model": "gwm_robocasa__qian25geopredict",
+      "display_name": "GWM (from GeoPredict)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2406.02370",
       "benchmark": "robocasa",
@@ -8884,10 +8884,10 @@
       "notes": "Pri4R applied to pi0. Human-50 dataset (50 demos/task), 24 tasks, 50 trials per task. pi0 baseline: 38.8%."
     },
     {
-      "model": "pi0fast_pri4r__2603_01549",
-      "display_name": "pi0.5 + Pri4R (from arxiv:2603.01549)",
+      "model": "pi0fast_pri4r",
+      "display_name": "pi0.5 + Pri4R",
       "params": "3B",
-      "model_paper": "https://arxiv.org/abs/2501.09747",
+      "model_paper": "https://arxiv.org/abs/2603.01549",
       "benchmark": "robocasa",
       "weight_type": "finetuned",
       "overall_score": 57.0,
@@ -9349,7 +9349,7 @@
       }
     },
     {
-      "model": "openvla_libero100__2506_06677",
+      "model": "openvla_libero100__han25robocerebra",
       "display_name": "OpenVLA-Libero100 (from RoboCerebra)",
       "params": null,
       "model_paper": "https://arxiv.org/abs/2406.09246",
@@ -10692,8 +10692,8 @@
       }
     },
     {
-      "model": "openvla_oft__2602_15882",
-      "display_name": "OpenVLA-OFT (from arxiv:2602.15882)",
+      "model": "openvla_oft__fan26futurevla",
+      "display_name": "OpenVLA-OFT (from FUTURE-VLA)",
       "params": "7B",
       "model_paper": "https://arxiv.org/abs/2502.19645",
       "benchmark": "robotwin_v2",
@@ -10727,8 +10727,8 @@
       }
     },
     {
-      "model": "pi0_5__2602_15882",
-      "display_name": "π₀.5 (from arxiv:2602.15882)",
+      "model": "pi0_5__fan26futurevla",
+      "display_name": "π₀.5 (from FUTURE-VLA)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2504.16054",
       "benchmark": "robotwin_v2",
@@ -10762,8 +10762,8 @@
       }
     },
     {
-      "model": "pi0_fast__2602_15882",
-      "display_name": "pi0-FAST (from arxiv:2602.15882)",
+      "model": "pi0_fast__fan26futurevla",
+      "display_name": "pi0-FAST (from FUTURE-VLA)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
       "benchmark": "robotwin_v2",
@@ -11054,10 +11054,10 @@
       "notes": "WidowX VM 4-task. Scores reported by InternVLA-M1 paper (third-party evaluation of CogACT checkpoint)."
     },
     {
-      "model": "cogact_lac__2602_00686",
-      "display_name": "CogACT + LAC (from arxiv:2602.00686)",
+      "model": "cogact_lac",
+      "display_name": "CogACT + LAC",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2411.19650",
+      "model_paper": "https://arxiv.org/abs/2602.00686",
       "benchmark": "simpler_env",
       "weight_type": "finetuned",
       "overall_score": null,
@@ -11320,10 +11320,10 @@
       "notes": "Google Robot Visual Matching, 4 tasks; Visual Matching (VM) protocol. 4-task evaluation."
     },
     {
-      "model": "dreamvla__2512_22615",
-      "display_name": "DreamVLA (from arxiv:2512.22615)",
+      "model": "dreamvla",
+      "display_name": "Dream-VLA",
       "params": "7B",
-      "model_paper": "https://arxiv.org/abs/2507.04447",
+      "model_paper": "https://arxiv.org/abs/2512.22615",
       "benchmark": "simpler_env",
       "weight_type": "shared",
       "overall_score": null,
@@ -11997,10 +11997,10 @@
       "date_added": "2026-03-04"
     },
     {
-      "model": "pi0_robovip__2601_05241",
-      "display_name": "pi0 + RoboVIP (from arxiv:2601.05241)",
+      "model": "pi0_robovip",
+      "display_name": "pi0 + RoboVIP",
       "params": null,
-      "model_paper": "https://arxiv.org/abs/2410.24164",
+      "model_paper": "https://arxiv.org/abs/2601.05241",
       "benchmark": "simpler_env",
       "weight_type": "finetuned",
       "overall_score": null,
@@ -12994,7 +12994,7 @@
       "notes": "VLABench Track 1-4 Progress Score avg. IS/PS across 5 tracks (1-4, 6) from Table 3. overall_score = Track 1-4 PS avg per leaderboard standard."
     },
     {
-      "model": "groot_n1_xvla_vlabench__2510_10274",
+      "model": "groot_n1_xvla_vlabench__zheng25xvla",
       "display_name": "GR00T-N1 (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2503.14734",
@@ -13117,7 +13117,7 @@
       "notes": "VLABench Track 1-4 Progress Score avg. IS/PS across 5 tracks (1-4, 6) from Table 3. overall_score = Track 1-4 PS avg per leaderboard standard."
     },
     {
-      "model": "pi0_fast_xvla_vlabench__2510_10274",
+      "model": "pi0_fast_xvla_vlabench__zheng25xvla",
       "display_name": "π₀-FAST (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2501.09747",
@@ -13132,7 +13132,7 @@
       "notes": "VLABench Track 1-4 PS avg from X-VLA paper Table 3. Per-track breakdown not reported."
     },
     {
-      "model": "pi0_xvla_vlabench__2510_10274",
+      "model": "pi0_xvla_vlabench__zheng25xvla",
       "display_name": "π₀ (from X-VLA, VLABench)",
       "params": "3B",
       "model_paper": "https://arxiv.org/abs/2410.24164",
