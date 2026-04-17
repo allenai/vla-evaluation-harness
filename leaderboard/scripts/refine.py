@@ -352,6 +352,14 @@ the main VLA models and how do they compare", not every table row.
 - Do NOT touch `overall_score` — the python step computed it. Your
   changes are limited to which rows survive, how they are named, and
   what notes they carry.
+- Every output entry MUST include `name_in_paper` copied verbatim from
+  the candidate's `name_in_paper` field. This is the provenance audit
+  trail that lets a reviewer open `reported_paper`/`reported_table` and
+  find the exact row — never drop it, never synthesize it from
+  `display_name`, never blank it out.
+- Set `curated_by` to a schema-valid form: your model alias as
+  `"<family> <version>"` (e.g. `"opus 4.6"`, `"sonnet 4.6"`). Do NOT
+  emit variants like `"claude-sonnet-4-6"` — the schema rejects them.
 - Report what you dropped and why when you are done.
 """
 

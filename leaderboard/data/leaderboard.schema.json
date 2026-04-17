@@ -27,7 +27,11 @@
           },
           "reported_paper": { "type": ["string", "null"], "format": "uri" },
           "reported_table": { "type": ["string", "null"] },
-          "curated_by": { "type": "string" },
+          "curated_by": {
+            "type": "string",
+            "description": "Canonical forms: '<family> <version>' for AI extractions (e.g. 'opus 4.6', 'sonnet 4.6'), '@handle' for human curators, '<source>-api' for API-synced entries, or 'human' as a legacy fallback.",
+            "pattern": "^((opus|sonnet|haiku) \\d+\\.\\d+|@[\\w-]+|[a-z][a-z0-9_-]*-api|human)$"
+          },
           "notes": { "type": "string" },
           "date_added": { "type": "string", "format": "date" },
           "params": { "type": ["string", "null"] },

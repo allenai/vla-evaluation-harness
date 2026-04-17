@@ -8936,7 +8936,7 @@
       "reported_paper": "https://arxiv.org/abs/2412.07215",
       "reported_table": "Table 1 / Table 7",
       "notes": "Evaluated on 22/24 atomic tasks + 5 composite tasks (27 total); CoffeePressButton and CoffeeServeMug missing from reported per-task breakdown. 47.4% is reported overall avg.",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "date_added": "2026-03-04"
     },
     {
@@ -10274,7 +10274,7 @@
       "reported_table": "Table 2",
       "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=80.42%, randomized=81.16%.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2602.11236"
     },
@@ -10482,7 +10482,7 @@
       "reported_table": "Table 2",
       "notes": "Protocol A (50 demos/task, single-task). 13 tasks (non-standard subset). Easy=68.7%, Hard=25.6%.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2507.23523"
     },
@@ -10499,7 +10499,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol A (50 demos/task, single-task). 50 tasks.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2602.21157"
     },
@@ -10516,7 +10516,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Gemini Diffusion backbone.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2602.12062"
     },
@@ -10533,7 +10533,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. Flow matching with Qwen backbone.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2602.12062"
     },
@@ -10550,7 +10550,7 @@
       "reported_table": "Table 2",
       "notes": "Protocol A (50 demos/task, single-task). 49 tasks. pi0 finetuned with InternData-A1 dataset.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2511.16651"
     },
@@ -10567,7 +10567,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2601.02456"
     },
@@ -10654,7 +10654,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol B (50 clean + 500 DR demos/task, multi-task). 50 tasks. clean=88.66%, randomized=87.02%.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2512.13030"
     },
@@ -10670,7 +10670,7 @@
       "reported_table": "Figure 4",
       "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Easy only (no Hard evaluation). NF-P with gradient refinement.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2509.21073"
     },
@@ -10896,7 +10896,7 @@
       "reported_table": "Figure 6",
       "notes": "Protocol A (50 demos/task, single-task). 50 tasks. Approximate values from figure (RDT-1B: Easy=34.5%→+7.5% ≈42.0%; Hard: 13.7%−3.7% ≈10.0%).",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2511.05275"
     },
@@ -10913,7 +10913,7 @@
       "reported_table": "Table 1",
       "notes": "Protocol A (50 demos/task). 50 tasks.",
       "date_added": "2026-03-04",
-      "curated_by": "claude-sonnet-4-6",
+      "curated_by": "sonnet 4.6",
       "weight_type": "finetuned",
       "model_paper": "https://arxiv.org/abs/2507.12898"
     },
