@@ -262,11 +262,28 @@ already filled in:
 
 ## Your job (fuzzy decisions only)
 
-1. **Eligibility filter**: drop candidates whose `name_in_paper` indicates
-   junk. Specifically drop when `name_in_paper` is "Ours", "Our Method",
-   "Our Model", "Proposed", "This Work", "Baseline", contains "(Ours)" /
-   "(ours)", or is otherwise a placeholder with no public identity.
-   Also drop ablation / variant rows whose differentiator is ONLY:
+1. **Eligibility filter**: drop rows that cannot be attributed to an
+   identifiable method, even after consulting the paper's title,
+   abstract, caption, or surrounding prose.
+
+   Generic table labels — "Ours", "Our Method", "Our Model", "Proposed",
+   "This Work", "Baseline", "(Ours)" / "(ours)" — are the paper's own
+   table formatting, NOT drop triggers. They are RESOLVE signals:
+
+   - An "Ours"-like label marks the paper's main contribution. Recover
+     the method's real name from the paper itself (title, abstract,
+     method section) and fill `display_name` and the `model` citation
+     key accordingly. Keep `name_in_paper` verbatim as "Ours" — the
+     provenance fact that the paper labeled it this way is exactly what
+     that field is auditing.
+   - A "Baseline"-like label marks a comparison row. Use the paper's
+     caption, surrounding prose, or neighboring labeled rows to decide
+     which method is being measured, then resolve as above.
+
+   Only drop a generic-labeled row when even the paper genuinely fails
+   to identify the method (rare).
+
+   DO still drop ablation / variant rows whose differentiator is ONLY:
    - quantization (INT4, INT8, AWQ, PTQ, QAT, GPTQ, ...)
    - parameter-efficient tuning (LoRA, QLoRA, adapter, ...)
    - training-stage snapshots ("stage 1", "50% data", "w/o pretrain")
