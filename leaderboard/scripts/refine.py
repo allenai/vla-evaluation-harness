@@ -447,10 +447,8 @@ def _refine_one_benchmark(
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
-        # Restrict to Claude Code native tools only. Without this the
-        # refine stage has been observed pulling in external knowledge
-        # via Perplexity (or other MCP servers), which undermines the
-        # paper-grounded attribution discipline the pipeline depends on.
+        # Restrict to Claude Code native tools; block MCP servers and
+        # user skills that might delegate to outside knowledge sources.
         "--strict-mcp-config",
         "--disable-slash-commands",
         "--add-dir",

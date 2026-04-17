@@ -353,12 +353,16 @@ naming a source.
 
 ## Normalize scale
 
-Emit numeric values in the benchmark's declared `metric.range` (see
-each benchmark's frontmatter below). Most benchmarks are 0–100 (% success
-rate); CALVIN is 0–5 (avg completed subtasks); RoboArena is Elo. If a
-paper reports on a 0–1 scale but the benchmark range is 0–100, multiply
-by 100 before emitting. Evidence quotes remain verbatim paper text — do
-not rewrite the quote to show the converted number.
+Emit numeric values in the benchmark's declared `metric.range`. If the
+paper reports on a different scale (commonly 0–1 for a 0–100 benchmark),
+convert before emitting. Quotes stay verbatim from the paper.
+
+## Preserve non-standard tasks
+
+A benchmark's declared task list identifies the standard protocol, not
+the set of allowed keys. Tasks outside that list (non-standard protocols)
+stay in `task_scores` under the paper's verbatim names; the row's
+`protocol.matches_standard` becomes 'no' but the data is preserved.
 
 ## Exclude ablation variants
 
@@ -417,10 +421,8 @@ def _call_claude_cli(
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
-        # Restrict to Claude Code native tools (Read/Write/Edit/Bash/Grep/Glob/
-        # WebFetch/WebSearch). Custom MCP servers (Perplexity, arxiv-mcp, etc.)
-        # and user skills may delegate to outside knowledge sources and bypass
-        # the paper-grounded discipline the extract stage depends on.
+        # Restrict to Claude Code native tools; block MCP servers and
+        # user skills that might delegate to outside knowledge sources.
         "--strict-mcp-config",
         "--disable-slash-commands",
     ]

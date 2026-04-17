@@ -66,7 +66,7 @@
         "row_type": {
           "type": "string",
           "enum": ["first_party", "third_party"],
-          "description": "Attribution case set by build_candidates.\n\nfirst_party: citing paper IS model_paper and is_score_original='original'. Final entry: model = {citing_bib}, display_name = the method's canonical name, reported_paper = citing URL.\n\nthird_party: every other case. Pick reported_paper and the model key suffix from cited_paper's shape:\n  - cited_paper is an arxiv URL: reported_paper = cited_paper URL; model = {method_bib}__{cited_bib}; display_name = 'Method (from CitedPaper)'. The measuring paper gets credit.\n  - cited_paper is non-arxiv or null: reported_paper = citing URL; model = {method_bib}__{citing_bib}; display_name = 'Method (from CitingPaper)'. When cited_paper is a non-arxiv URL (github, tech report, blog), mention that URL in notes. Do not attribute a number to model_paper when the model's own paper does not contain it."
+          "description": "Attribution case set by build_candidates.\n\nfirst_party: citing paper IS model_paper AND is_score_original='original'. Emit model={method_bib}, display_name=method name, reported_paper=citing URL.\n\nthird_party: everything else. If cited_paper is an arxiv URL: reported_paper=cited_paper, model={method_bib}__{cited_bib}, display_name='Method (from CitedPaper)'. Otherwise: reported_paper=citing URL, model={method_bib}__{citing_bib}, display_name='Method (from CitingPaper)'; non-arxiv cited_paper goes in notes.\n\nModel bibkey: firstauthor+year+shortname, lowercase, no separators (e.g. 'kim2024openvla'). Match the format used elsewhere in leaderboard.json for the same method."
         }
       }
     }

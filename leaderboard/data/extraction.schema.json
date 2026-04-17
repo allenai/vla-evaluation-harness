@@ -99,7 +99,7 @@
         },
         "task_scores": {
           "type": "object",
-          "description": "Per-task scores (e.g. RoboCasa atomic tasks, MIKASA T1–T10). Same shape as suite_scores.",
+          "description": "Per-task scores keyed by task name. Keys match the benchmark's declared tasks for standard protocols; non-standard protocols may include additional keys — keep them under the paper's verbatim names. Same shape as suite_scores.",
           "additionalProperties": {
             "type": "object",
             "required": ["value", "quote"],
