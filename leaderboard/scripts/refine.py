@@ -172,6 +172,16 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
                     overall = None
                     if match == "no":
                         stats["rows_match_no_kept_null"] += 1
+                    # Non-standard-protocol preservation: per
+                    # leaderboard/CONTRIBUTING.md, an entry with a
+                    # reported aggregate but no component breakdown keeps
+                    # the paper's number in `task_scores.reported_avg`
+                    # (overall_score stays null so it does not rank).
+                    # Without this recovery the row would be dropped by
+                    # the empty-score check below.
+                    raw_overall = scores_raw.get("overall_score")
+                    if isinstance(raw_overall, (int, float)) and not task_scores and not suite_scores:
+                        task_scores = {"reported_avg": raw_overall}
 
                 # Skip entries with no score at all (schema requires >=1).
                 if overall is None and not suite_scores and not task_scores:
