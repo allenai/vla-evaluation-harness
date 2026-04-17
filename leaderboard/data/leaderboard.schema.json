@@ -1,42 +1,74 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "VLA Leaderboard Entries",
+  "description": "data/leaderboard.json. Written by refine.py, sync_external.py, and manual edits. Rendered by leaderboard/site/app.js. validate.py enforces this schema plus benchmark-aware rules (score range, aggregation, official-leaderboard policy, citation coverage).",
   "type": "object",
   "required": ["last_updated", "results"],
+  "additionalProperties": false,
   "properties": {
-    "last_updated": { "type": "string", "format": "date" },
+    "last_updated": {"type": "string", "format": "date", "description": "ISO date of the most recent data change. Bump when results changes."},
     "results": {
       "type": "array",
+      "description": "One entry per (model × benchmark × reported_paper). Sorted by (benchmark, model).",
       "items": {
         "type": "object",
         "required": ["model", "display_name", "benchmark", "weight_type", "curated_by", "date_added"],
         "additionalProperties": false,
         "properties": {
-          "model": { "type": "string" },
-          "display_name": { "type": "string" },
-          "name_in_paper": { "type": ["string", "null"], "description": "Exact model label from the source paper's results table." },
-          "benchmark": { "type": "string" },
-          "overall_score": { "type": ["number", "null"] },
+          "model": {
+            "type": "string",
+            "description": "BibTeX-style key. First-party: {method_bib} (e.g. 'kim24openvla'). Third-party: {method_bib}__{measuring_paper_bib}. The measuring paper is the one that ran or first reported the number."
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Site-rendered method name. First-party: 'OpenVLA'. Third-party: 'OpenVLA (from X-VLA)', where the parenthesized paper matches the measuring paper."
+          },
+          "name_in_paper": {
+            "type": ["string", "null"],
+            "description": "Method label verbatim from the source paper's results table. null for manual or API-synced entries with no paper label."
+          },
+          "benchmark": {"type": "string", "description": "Key in benchmarks.json."},
+          "overall_score": {
+            "type": ["number", "null"],
+            "description": "Aggregate that controls ranking. Set only when the entry uses the benchmark's standard protocol (all Checks pass). Otherwise null, with the paper's raw aggregate stored in task_scores.reported_avg."
+          },
           "suite_scores": {
             "type": "object",
-            "additionalProperties": { "type": "number" }
+            "description": "Sub-scores over declared suites. Keys match benchmarks.json when overall_score is non-null.",
+            "additionalProperties": {"type": "number"}
           },
           "task_scores": {
             "type": "object",
-            "additionalProperties": { "type": "number" }
+            "description": "Per-task scores. Key 'reported_avg' is reserved for a paper-reported aggregate that could not be ranked.",
+            "additionalProperties": {"type": "number"}
           },
-          "reported_paper": { "type": ["string", "null"], "format": "uri" },
-          "reported_table": { "type": ["string", "null"] },
+          "reported_paper": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "URL of the paper that measured this number. null for API-synced entries."
+          },
+          "reported_table": {"type": ["string", "null"]},
           "curated_by": {
             "type": "string",
-            "description": "Canonical forms: '<family> <version>' for AI extractions (e.g. 'opus 4.6', 'sonnet 4.6'), '@handle' for human curators, '<source>-api' for API-synced entries, or 'human' as a legacy fallback.",
+            "description": "AI: '<family> <version>' (e.g. 'opus 4.6'). Human: '@handle'. API sync: '<source>-api'. Legacy: 'human'.",
             "pattern": "^((opus|sonnet|haiku) \\d+\\.\\d+|@[\\w-]+|[a-z][a-z0-9_-]*-api|human)$"
           },
-          "notes": { "type": "string" },
-          "date_added": { "type": "string", "format": "date" },
-          "params": { "type": ["string", "null"] },
-          "model_paper": { "type": ["string", "null"], "format": "uri" },
-          "weight_type": { "type": "string", "enum": ["shared", "finetuned"] }
+          "notes": {
+            "type": "string",
+            "description": "Caveats (non-standard subset, training budget, architecture class, non-arxiv cite source)."
+          },
+          "date_added": {"type": "string", "format": "date"},
+          "params": {"type": ["string", "null"], "description": "e.g. '7B', '~50M'."},
+          "model_paper": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "URL of the paper that introduces the method. Distinct from reported_paper."
+          },
+          "weight_type": {
+            "type": "string",
+            "enum": ["shared", "finetuned"],
+            "description": "shared = same checkpoint across benchmarks. finetuned = trained on this benchmark's data."
+          }
         }
       }
     }

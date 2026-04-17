@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Refine-stage candidates",
+  "description": "Array of candidate rows produced by build_candidates(), consumed by the refine LLM. One element per (paper × benchmark × model row) surviving the deterministic gate.",
+  "type": "array",
+  "items": {"$ref": "#/$defs/Candidate"},
+  "$defs": {
+    "Candidate": {
+      "type": "object",
+      "required": [
+        "benchmark",
+        "name_in_paper",
+        "weight_type",
+        "overall_score",
+        "suite_scores",
+        "task_scores",
+        "reported_paper",
+        "protocol_match",
+        "protocol_rationale",
+        "is_score_original",
+        "model_paper",
+        "cited_paper",
+        "row_type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "benchmark": {"type": "string"},
+        "name_in_paper": {
+          "type": "string",
+          "description": "Copy verbatim to the final entry's name_in_paper."
+        },
+        "params": {"type": ["string", "null"]},
+        "weight_type": {"type": "string", "enum": ["shared", "finetuned"]},
+        "overall_score": {
+          "type": ["number", "null"],
+          "description": "Computed by build_candidates from the benchmark's aggregation rule. Pass through unchanged."
+        },
+        "suite_scores": {"type": "object", "additionalProperties": {"type": "number"}},
+        "task_scores": {
+          "type": "object",
+          "description": "May contain 'reported_avg' holding the paper's own aggregate when it could not be used as overall_score.",
+          "additionalProperties": {"type": "number"}
+        },
+        "reported_paper": {
+          "type": "string",
+          "format": "uri",
+          "description": "Set by build_candidates per row_type. Override only when a collapse_candidate fails cross-check (demote to third_party: set back to the citing paper's URL)."
+        },
+        "reported_table": {"type": ["string", "null"]},
+        "protocol_match": {"type": "string", "enum": ["yes", "no", "partial", "unknown"]},
+        "protocol_rationale": {
+          "type": "string",
+          "description": "Primary source for composing `notes`. Trim for length; do not embellish."
+        },
+        "is_score_original": {"type": "string", "enum": ["original", "cited_baseline", "reproduction", "unknown"]},
+        "model_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL from extract's resolution. Copy to the final entry. Override only when the same name_in_paper carries conflicting model_paper across candidates: pick the majority value and record the conflict in notes. Leave null as null."
+        },
+        "cited_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "Source URL for this specific score. Use to set the model key suffix and to mention non-arxiv sources in notes. Not stored on the final entry."
+        },
+        "row_type": {
+          "type": "string",
+          "enum": ["first_party", "third_party"],
+          "description": "Attribution case set by build_candidates.\n\nfirst_party: citing paper IS model_paper and is_score_original='original'. Final entry: model = {citing_bib}, display_name = the method's canonical name, reported_paper = citing URL.\n\nthird_party: every other case. Pick reported_paper and the model key suffix from cited_paper's shape:\n  - cited_paper is an arxiv URL: reported_paper = cited_paper URL; model = {method_bib}__{cited_bib}; display_name = 'Method (from CitedPaper)'. The measuring paper gets credit.\n  - cited_paper is non-arxiv or null: reported_paper = citing URL; model = {method_bib}__{citing_bib}; display_name = 'Method (from CitingPaper)'. When cited_paper is a non-arxiv URL (github, tech report, blog), mention that URL in notes. Do not attribute a number to model_paper when the model's own paper does not contain it."
+        }
+      }
+    }
+  }
+}

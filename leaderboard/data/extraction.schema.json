@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Per-paper extraction",
+  "description": "One paper's extraction. Stored as .cache/extractions/{arxiv_id}.json; data/extractions.json is a plain array of these. Each row in `benchmarks[].models[]` becomes one candidate for refine.",
+  "type": "object",
+  "required": ["arxiv_id", "extracted_at", "paper_hash", "extraction_scope", "benchmarks"],
+  "additionalProperties": false,
+  "properties": {
+    "arxiv_id": {"type": "string", "description": "arxiv id, matches the paper at .cache/papers/{arxiv_id}/paper.md."},
+    "extracted_at": {"type": "string", "format": "date-time"},
+    "model_used": {"type": "string"},
+    "paper_hash": {"type": "string", "description": "sha256: of paper.md when extracted. Invalidates this cache if paper.md changes."},
+    "extraction_scope": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true,
+      "description": "Benchmark keys considered at extract time. The paper counts as reviewed for every key here, including ones that produce no row."
+    },
+    "batch_size": {"type": "integer", "minimum": 1},
+    "batch_tool_calls_total": {"type": "integer", "minimum": 0},
+    "benchmarks": {
+      "type": "array",
+      "description": "One entry per benchmark this paper scores on. Empty array is valid.",
+      "items": {"$ref": "#/$defs/BenchmarkEntry"}
+    },
+    "benchmarks_absent": {
+      "type": "object",
+      "description": "Map {benchmark_key → one-line reason} for benchmarks the paper mentions but does not score (cited-only, unreadable, out-of-scope). Forces exhaustive per-benchmark review at extract time; no downstream consumer.",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "$defs": {
+    "BenchmarkEntry": {
+      "type": "object",
+      "required": ["benchmark", "models"],
+      "additionalProperties": false,
+      "properties": {
+        "benchmark": {"type": "string", "description": "Benchmark key from leaderboard/benchmarks/{key}.md frontmatter."},
+        "models": {"type": "array", "items": {"$ref": "#/$defs/ModelRow"}}
+      }
+    },
+    "ModelRow": {
+      "type": "object",
+      "description": "One row in a results table.",
+      "required": ["name_in_paper", "weight_type", "is_score_original", "model_paper", "cited_paper", "scores", "protocol"],
+      "additionalProperties": false,
+      "properties": {
+        "name_in_paper": {
+          "type": "string",
+          "description": "Method label from the paper's results table, verbatim. When the label is generic (Ours, Baseline, (b)), resolve to the method's canonical name from the paper's title/abstract/method section and emit that. Immutable after this stage."
+        },
+        "label_quote": {"type": ["string", "null"], "description": "Exact label characters from the paper. Evidence only."},
+        "params": {"type": ["string", "null"], "description": "e.g. '7B', '1.5B'. null when not stated."},
+        "params_quote": {"type": ["string", "null"]},
+        "weight_type": {
+          "type": "string",
+          "enum": ["shared", "finetuned", "unknown"],
+          "description": "shared = same checkpoint across benchmarks. finetuned = trained on this benchmark's data."
+        },
+        "weight_type_quote": {"type": ["string", "null"]},
+        "is_score_original": {
+          "type": "string",
+          "enum": ["original", "cited_baseline", "reproduction", "unknown"],
+          "description": "original: this paper ran the method AND introduces it. cited_baseline: number quoted from another source (populate cited_paper). reproduction: this paper re-ran a method it does not introduce. unknown: cannot tell."
+        },
+        "model_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL of the paper that introduces the method. Resolve from the paper's references. Any URL (arxiv, ACL, DOI, tech report). null only when the method has no public paper."
+        },
+        "cited_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL of the source this score is quoted from. Populate only when is_score_original='cited_baseline'. Any URL (arxiv, github, blog, tech report). null otherwise."
+        },
+        "scores": {"$ref": "#/$defs/Scores"},
+        "protocol": {"$ref": "#/$defs/Protocol"}
+      }
+    },
+    "Scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Shape of required keys is prescribed by leaderboard/benchmarks/{bm}.md's Scoring section.",
+      "properties": {
+        "overall_score": {"type": ["number", "null"], "description": "Paper's reported aggregate. null when absent or not locatable."},
+        "overall_score_quote": {"type": ["string", "null"]},
+        "suite_scores": {
+          "type": "object",
+          "description": "Sub-scores over benchmark-defined suites (e.g. LIBERO's 4 suites). Keys match the benchmark's declared suites.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["value", "quote"],
+            "additionalProperties": false,
+            "properties": {
+              "value": {"type": "number"},
+              "quote": {"type": "string", "description": "Exact characters from the paper."}
+            }
+          }
+        },
+        "task_scores": {
+          "type": "object",
+          "description": "Per-task scores (e.g. RoboCasa atomic tasks, MIKASA T1–T10). Same shape as suite_scores.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["value", "quote"],
+            "additionalProperties": false,
+            "properties": {"value": {"type": "number"}, "quote": {"type": "string"}}
+          }
+        },
+        "reported_table": {"type": ["string", "null"], "description": "e.g. 'Table 1', 'Fig. 4'."}
+      }
+    },
+    "Protocol": {
+      "type": "object",
+      "required": ["matches_standard", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "matches_standard": {
+          "type": "string",
+          "enum": ["yes", "no", "partial", "unknown"],
+          "description": "Whether the row's evaluation matches the benchmark's Standard in {bm}.md. If the rationale describes any Checks violation, use 'no' (not 'yes')."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why matches_standard has that value. Every factual claim (task count, demo count, split) must appear in evidence_quote."
+        },
+        "evidence_quote": {
+          "type": ["string", "null"],
+          "description": "Verbatim paper text backing the rationale. A rationale claim with no matching quote downgrades matches_standard one step toward 'unknown'."
+        }
+      }
+    }
+  }
+}
