@@ -1309,13 +1309,6 @@
       ],
       "higher_is_better": true
     },
-    "suites": [
-      "PickClutterYCB",
-      "PickCube",
-      "PickSingleEGAD",
-      "PickSingleYCB",
-      "StackCube"
-    ],
     "tasks": [
       "AssemblingKits",
       "CloseCabinetDoor",
@@ -1342,6 +1335,16 @@
       "TurnFaucetRight",
       "Write"
     ],
+    "aggregation": {
+      "container": "task_scores",
+      "keys": [
+        "PickCube",
+        "StackCube",
+        "PickSingleYCB",
+        "PickSingleEGAD",
+        "PickClutterYCB"
+      ]
+    },
     "papers_reviewed": [
       "2301.04195",
       "2302.04659",
