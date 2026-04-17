@@ -100,8 +100,13 @@ def build(preserve_papers_reviewed: bool = True) -> dict:
         bm_key = fm.pop("benchmark", None) or f.stem
         if bm_key in out:
             raise ValueError(f"{f}: duplicate benchmark key {bm_key!r}")
-        if preserve_papers_reviewed and bm_key in papers_by_key:
-            fm.setdefault("papers_reviewed", papers_by_key[bm_key])
+        if preserve_papers_reviewed:
+            # Always set the field so the output is idempotent even for
+            # benchmarks newly introduced by this build (otherwise a first
+            # build would omit the key and a second build — triggered
+            # e.g. by CI's --check pass — would add `"papers_reviewed": []`
+            # and register a spurious drift).
+            fm.setdefault("papers_reviewed", papers_by_key.get(bm_key, []))
         out[bm_key] = _ordered(fm)
 
     ordered = {k: out[k] for k in sorted(out)}
