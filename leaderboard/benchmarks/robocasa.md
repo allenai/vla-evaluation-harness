@@ -20,7 +20,7 @@ detail_notes: "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02
 - `task_scores`: per-task success rates keyed by the atomic task name when the paper tabulates them.
 
 ## Checks
-- Is the embodiment a Mobile Franka robot in a RoboCasa kitchen environment? Alternative embodiments or environments (GR1 Tabletop humanoid, other tabletop variants, non-kitchen scenes) are NOT this benchmark — `overall_score` must be `null`, and the row likely belongs to a different benchmark.
+- Is the embodiment a Mobile Franka robot in a RoboCasa kitchen environment? A Fourier GR1 humanoid tabletop evaluation is the separate `robocasa_gr1` benchmark — route the row there. Other alternative embodiments or environments (non-kitchen scenes, other tabletop variants) are NOT this benchmark either; set `overall_score = null` and route to the correct benchmark if one exists.
 - Does the entry evaluate the full 24 atomic tasks? Subsets (< 24), supersets (composite + atomic), or relabeled sets → `overall_score = null`.
 - Are `demos_per_task`, `trials_per_task`, and demo source recorded in `notes` when the paper states them?
 

@@ -2599,6 +2599,46 @@
     ],
     "detail_notes": "Standard: 24 atomic tasks (<a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>). <strong>Training data varies widely</strong> (50–300 demos/task). Check <em>notes</em> for <code>demos_per_task</code> and <code>task_count</code>. Scores from different training budgets are not directly comparable."
   },
+  "robocasa_gr1": {
+    "display_name": "RoboCasa-GR1",
+    "paper_url": "https://arxiv.org/abs/2503.14734",
+    "metric": {
+      "name": "success_rate",
+      "unit": "%",
+      "range": [
+        0,
+        100
+      ],
+      "higher_is_better": true
+    },
+    "tasks": [
+      "PnPCupToDrawerClose",
+      "PnPPotatoToMicrowaveClose",
+      "PnPMilkToMicrowaveClose",
+      "PnPBottleToCabinetClose",
+      "PnPWineToCabinetClose",
+      "PnPCanToDrawerClose",
+      "PosttrainPnPNovelFromCuttingboardToBasketSplitA",
+      "PosttrainPnPNovelFromCuttingboardToCardboardboxSplitA",
+      "PosttrainPnPNovelFromCuttingboardToPanSplitA",
+      "PosttrainPnPNovelFromCuttingboardToPotSplitA",
+      "PosttrainPnPNovelFromCuttingboardToTieredbasketSplitA",
+      "PosttrainPnPNovelFromPlacematToBasketSplitA",
+      "PosttrainPnPNovelFromPlacematToBowlSplitA",
+      "PosttrainPnPNovelFromPlacematToPlateSplitA",
+      "PosttrainPnPNovelFromPlacematToTieredshelfSplitA",
+      "PosttrainPnPNovelFromPlateToBowlSplitA",
+      "PosttrainPnPNovelFromPlateToCardboardboxSplitA",
+      "PosttrainPnPNovelFromPlateToPanSplitA",
+      "PosttrainPnPNovelFromPlateToPlateSplitA",
+      "PosttrainPnPNovelFromTrayToCardboardboxSplitA",
+      "PosttrainPnPNovelFromTrayToPlateSplitA",
+      "PosttrainPnPNovelFromTrayToPotSplitA",
+      "PosttrainPnPNovelFromTrayToTieredbasketSplitA",
+      "PosttrainPnPNovelFromTrayToTieredshelfSplitA"
+    ],
+    "detail_notes": "Standard: 24 pick-and-place tasks (6 standard + 18 post-training novel SplitA variants) on a <strong>Fourier GR1 humanoid</strong> tabletop setup, introduced in the <a href='https://arxiv.org/abs/2503.14734'>GR00T N1 paper</a>. Protocol is 100 trials per task, reporting the max over the last 5 checkpoints. Distinct benchmark from the original RoboCasa (Mobile Franka in kitchen) — do not conflate. Training demo budgets vary (30 / 100 / 300 demos per task in the paper's sweeps; 1000 per task in NVIDIA's released teleop dataset)."
+  },
   "robocerebra": {
     "display_name": "RoboCerebra",
     "paper_url": "https://arxiv.org/abs/2506.06677",
