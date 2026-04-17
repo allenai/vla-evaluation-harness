@@ -2637,6 +2637,7 @@
       "PosttrainPnPNovelFromTrayToTieredbasketSplitA",
       "PosttrainPnPNovelFromTrayToTieredshelfSplitA"
     ],
+    "papers_reviewed": [],
     "detail_notes": "Standard: 24 pick-and-place tasks (6 standard + 18 post-training novel SplitA variants) on a <strong>Fourier GR1 humanoid</strong> tabletop setup, introduced in the <a href='https://arxiv.org/abs/2503.14734'>GR00T N1 paper</a>. Protocol is 100 trials per task, reporting the max over the last 5 checkpoints. Distinct benchmark from the original RoboCasa (Mobile Franka in kitchen) — do not conflate. Training demo budgets vary (30 / 100 / 300 demos per task in the paper's sweeps; 1000 per task in NVIDIA's released teleop dataset)."
   },
   "robocerebra": {
