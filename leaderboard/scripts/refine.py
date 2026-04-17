@@ -262,11 +262,28 @@ already filled in:
 
 ## Your job (fuzzy decisions only)
 
-1. **Eligibility filter**: drop candidates whose `name_in_paper` indicates
-   junk. Specifically drop when `name_in_paper` is "Ours", "Our Method",
-   "Our Model", "Proposed", "This Work", "Baseline", contains "(Ours)" /
-   "(ours)", or is otherwise a placeholder with no public identity.
-   Also drop ablation / variant rows whose differentiator is ONLY:
+1. **Eligibility filter**: drop rows that cannot be attributed to an
+   identifiable method, even after consulting the paper's title,
+   abstract, caption, or surrounding prose.
+
+   Generic table labels — "Ours", "Our Method", "Our Model", "Proposed",
+   "This Work", "Baseline", "(Ours)" / "(ours)" — are the paper's own
+   table formatting, NOT drop triggers. They are RESOLVE signals:
+
+   - An "Ours"-like label marks the paper's main contribution. Recover
+     the method's real name from the paper itself (title, abstract,
+     method section) and fill `display_name` and the `model` citation
+     key accordingly. Keep `name_in_paper` verbatim as "Ours" — the
+     provenance fact that the paper labeled it this way is exactly what
+     that field is auditing.
+   - A "Baseline"-like label marks a comparison row. Use the paper's
+     caption, surrounding prose, or neighboring labeled rows to decide
+     which method is being measured, then resolve as above.
+
+   Only drop a generic-labeled row when even the paper genuinely fails
+   to identify the method (rare).
+
+   DO still drop ablation / variant rows whose differentiator is ONLY:
    - quantization (INT4, INT8, AWQ, PTQ, QAT, GPTQ, ...)
    - parameter-efficient tuning (LoRA, QLoRA, adapter, ...)
    - training-stage snapshots ("stage 1", "50% data", "w/o pretrain")
@@ -352,6 +369,14 @@ the main VLA models and how do they compare", not every table row.
 - Do NOT touch `overall_score` — the python step computed it. Your
   changes are limited to which rows survive, how they are named, and
   what notes they carry.
+- Every output entry MUST include `name_in_paper` copied verbatim from
+  the candidate's `name_in_paper` field. This is the provenance audit
+  trail that lets a reviewer open `reported_paper`/`reported_table` and
+  find the exact row — never drop it, never synthesize it from
+  `display_name`, never blank it out.
+- Set `curated_by` to a schema-valid form: your model alias as
+  `"<family> <version>"` (e.g. `"opus 4.6"`, `"sonnet 4.6"`). Do NOT
+  emit variants like `"claude-sonnet-4-6"` — the schema rejects them.
 - Report what you dropped and why when you are done.
 """
 
