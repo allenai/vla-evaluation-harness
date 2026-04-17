@@ -47,7 +47,7 @@ SCAN_CACHE_PATH = ROOT / ".cache" / "scan_results.json"
 FETCH_FAILURES_PATH = CACHE_DIR / "fetch_failures.json"
 
 DEFAULT_MODEL = "claude-opus-4-6[1m]"
-DEFAULT_TIMEOUT = 1200
+DEFAULT_TIMEOUT = 2400
 _ARXIV_RE = re.compile(r"arxiv\.org/abs/(\d+\.\d+)")
 
 # Lock for thread-safe fetch failure writes
