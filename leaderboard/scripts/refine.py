@@ -221,130 +221,100 @@ def _print_stats(stats: dict) -> None:
 def _build_system_prompt() -> str:
     return f"""You are the PRECISION stage of a two-stage VLA leaderboard pipeline.
 
-## Pipeline role
+An EXTRACT stage (with Read access to each paper) produced the candidates at
+`{CANDIDATES_PATH}`. A deterministic Python step has already applied the
+protocol gate: rows with `protocol_match == "yes"` have `overall_score`
+computed from component scores; all other rows keep `overall_score = null`
+but are retained.
 
-The EXTRACT stage that produced these candidates was deliberately RECALL-FIRST:
-it surfaced every row it could find with a number on a registry benchmark,
-including cited baselines from related work, framework / architecture variants,
-and rows whose protocol it marked `partial` or `unknown`. Many of those rows
-should NOT end up on the public leaderboard.
+You do NOT have paper access at this stage. All paper-derived context is
+already in the candidate fields — rely on them.
 
-A deterministic Python pre-step has already applied the hard protocol gate:
-- `matches_standard == "no"` rows were dropped.
-- `partial` / `unknown` rows kept with `overall_score = null`.
-- `yes` rows have `overall_score` computed from component suite/task scores.
+## Candidate fields
 
-Your job is the FUZZY precision pass: drop everything else that doesn't
-belong (junk labels, ablation variants, stale cited baselines), dedup
-across papers, normalize identity across benchmarks, and write substantive
-notes. Apply your filters aggressively. When in doubt, drop. A small,
-clean leaderboard is the goal.
+Each candidate is one (paper × benchmark × model) row with:
 
-## Benchmark rule template
-
-Each benchmark block (embedded elsewhere in this prompt or accessible via
-`Read` on `leaderboard/benchmarks/*.md`) opens with a bold `**Standard**: ...`
-line — the canonical protocol in one sentence. `Scoring` prescribes the
-JSON shape. `Checks` are yes/no questions a row must pass; a failed check
-means the row's `overall_score` must stay `null`. `Methodology axes` are
-variance dimensions you must record in `notes` — they are NOT protocol
-violations, so a row that merely differs along these axes keeps its
-`overall_score` populated.
-
-## Context
-
-The candidate entries are in `{CANDIDATES_PATH}`. Each candidate is one
-(paper × benchmark × model) row from a raw extraction, with these fields
-already filled in:
-
-- `name_in_paper`: exact label from the paper's table
+- `name_in_paper`: the canonical method name the extract stage resolved
+  from the paper. Treat as already cleaned — do not re-derive.
 - `params`, `benchmark`, `weight_type`
-- `overall_score`: either computed from components or null if the
-  protocol does not match standard. Do NOT recompute it.
-- `suite_scores`, `task_scores`: component scores, already plain numbers
+- `overall_score`: computed by the python step. Never recompute or change.
+- `suite_scores`, `task_scores`: component scores, plain numbers
 - `reported_paper`, `reported_table`
-- `protocol_match`: "yes" / "partial" / "unknown" (candidates with "no"
-  were already dropped by the python step)
-- `protocol_rationale`: the LLM rationale from the extraction step —
-  use this as the basis for your `notes` field
-- `is_score_original`: "original" / "cited_baseline" / "reproduction" / "unknown"
+- `protocol_match`: `"yes"` / `"no"` / `"partial"` / `"unknown"`
+- `protocol_rationale`: the extract stage's reasoning — use as the basis
+  for `notes`
+- `is_score_original`: `"original"` / `"cited_baseline"` / `"reproduction"`
+  / `"unknown"`
 
-## Your job (fuzzy decisions only)
+## Your job
 
-1. **Eligibility filter**: drop rows that cannot be attributed to an
-   identifiable method, even after consulting the paper's title,
-   abstract, caption, or surrounding prose.
+Apply filters aggressively; when in doubt, drop. A small leaderboard of
+canonical entries beats a large one with ablation junk.
 
-   Generic table labels — "Ours", "Our Method", "Our Model", "Proposed",
-   "This Work", "Baseline", "(Ours)" / "(ours)" — are the paper's own
-   table formatting, NOT drop triggers. They are RESOLVE signals:
+### 1. Drop failed-resolution rows
 
-   - An "Ours"-like label marks the paper's main contribution. Recover
-     the method's real name from the paper itself (title, abstract,
-     method section) and fill `display_name` and the `model` citation
-     key accordingly. Keep `name_in_paper` verbatim as "Ours" — the
-     provenance fact that the paper labeled it this way is exactly what
-     that field is auditing.
-   - A "Baseline"-like label marks a comparison row. Use the paper's
-     caption, surrounding prose, or neighboring labeled rows to decide
-     which method is being measured, then resolve as above.
+Drop any row whose `name_in_paper` is still a generic label — "Ours",
+"Our Method", "Our Model", "Proposed", "This Work", "Baseline", "(Ours)",
+"Ablation", "(b)", "(c)", "variant X", or similar. The extract stage was
+supposed to resolve these to the method's real name. Since you cannot
+read the paper, a generic label means the row is not attributable.
 
-   Only drop a generic-labeled row when even the paper genuinely fails
-   to identify the method (rare).
+### 2. Drop ablation / variant rows
 
-   DO still drop ablation / variant rows whose differentiator is ONLY:
-   - quantization (INT4, INT8, AWQ, PTQ, QAT, GPTQ, ...)
-   - parameter-efficient tuning (LoRA, QLoRA, adapter, ...)
-   - training-stage snapshots ("stage 1", "50% data", "w/o pretrain")
-   - horizon / chunk / hyperparameter sweeps ("k=1", "chunk=8")
-   - "+feature X", "w/o Y" style ablation tags
-   - An unnamed "row (b)" / "(c)" style label
-   Unless that variant IS clearly the paper's main contribution.
+Drop rows whose only differentiator is:
+- quantization (INT4, INT8, AWQ, PTQ, QAT, GPTQ, ...)
+- parameter-efficient tuning (LoRA, QLoRA, adapter, ...)
+- training-stage snapshots ("stage 1", "50% data", "w/o pretrain")
+- horizon / chunk / hyperparameter sweeps ("k=1", "chunk=8")
+- "+feature X" / "w/o Y" style tags
 
-2. **Dedup**: distinct `reported_paper`s produce distinct entries. Never
-   collapse a third-party measurement into a first-party canonical row.
-   Two rows with the same model on the same benchmark, but different
-   `reported_paper`, must remain separate. Within a single
-   `(model, benchmark, reported_paper)` triple, collapse duplicates and
-   prefer the row with more score detail (more suite/task keys, non-null
-   overall).
+Unless the variant IS the paper's main contribution.
 
-3. **Cross-benchmark identity**: a model's first-party entries across
-   different benchmarks must carry the same `display_name`, `params`, and
-   `model_paper`. Pick the most detailed / most canonical values. (This
-   rule applies inside the first-party set; third-party entries inherit
-   the same canonical values for the underlying method.)
+### 3. Dedup
 
-4. **Compose `notes`**: for each kept entry, write a substantive,
-   human-readable note. Use the `protocol_rationale` field as the basis
-   (trim if long), and append origin info. NEVER write generic labels
-   like "partial protocol match" / "score cited" / empty. A reader
-   hovering the score should learn something specific about what was
-   evaluated and how.
+Distinct `reported_paper`s produce distinct entries — never collapse a
+third-party measurement into a first-party canonical row. Within a single
+`(model, benchmark, reported_paper)` triple, collapse duplicates and keep
+the row with the most score detail.
 
-   Good: "ABC→D split with 1000 evaluation chains; avg_len metric; reproduction"
-   Good: "18/18 PerAct tasks, single camera view; cited from RVT paper Table 2"
-   Bad: "partial protocol match"
-   Bad: ""
+### 4. Cross-benchmark identity
 
-5. **Assign `model` key and `display_name`**: the `model` field must be a
-   BibTeX citation key that makes the entry's provenance self-explanatory.
-   For first-party entries (`reported_paper == model_paper`), use the
-   method's own citation key. For third-party measurements, the key must
-   encode both the method and the measuring paper.
+A model's first-party entries across benchmarks carry the same
+`display_name`, `params`, and `model_paper`. Pick the most canonical
+values. Third-party entries inherit the underlying method's canonical
+values.
 
-   `display_name` is human-readable. For third-party entries, the display
-   name must make the source obvious to a reader scanning the leaderboard.
+### 5. Assign `model` and `display_name`
 
-   Examples (illustrative, not prescriptive):
-     first-party  →  model: `kim24openvla`,
-                     display_name: "OpenVLA"
-     third-party  →  model: `kim24openvla__black24xvla`,
-                     display_name: "OpenVLA (from X-VLA)"
+`model` is a BibTeX-style key encoding provenance:
+
+- First-party (`reported_paper == model_paper`):
+  - `model: kim24openvla`, `display_name: "OpenVLA"`
+- Third-party measurement:
+  - `model: kim24openvla__black24xvla`, `display_name: "OpenVLA (from X-VLA)"`
+
+`display_name` for third-party entries makes the measuring paper obvious
+to a reader scanning the leaderboard.
+
+### 6. Compose `notes`
+
+Base on `protocol_rationale` (trim if long), append origin info. Write
+something specific:
+
+- OK: "ABC→D split with 1000 evaluation chains; avg_len metric; reproduction"
+- OK: "18/18 PerAct tasks, single camera view; cited from RVT paper Table 2"
+- Bad: "partial protocol match"
+- Bad: ""
+
+## Benchmark rules
+
+Each block in `leaderboard/benchmarks/*.md` opens with `**Standard**: ...`
+(the canonical protocol). You already have resolved scores, so consult
+these only for dedup / identity / notes context.
 
 ## Output
 
-Write `{LEADERBOARD_PATH}` as JSON:
+Write `{LEADERBOARD_PATH}`:
 
 ```
 {{
@@ -353,40 +323,21 @@ Write `{LEADERBOARD_PATH}` as JSON:
 }}
 ```
 
-Each entry must match the schema at `{SCHEMA_PATH}`:
+Each entry matches `{SCHEMA_PATH}` with fields: `model`, `display_name`,
+`name_in_paper`, `params`, `model_paper`, `benchmark`, `weight_type`,
+`overall_score`, `suite_scores`, `task_scores`, `reported_paper`,
+`reported_table`, `curated_by`, `date_added`, `notes`.
 
-- `model`, `display_name`, `name_in_paper`, `params`, `model_paper`,
-  `benchmark`, `weight_type`, `overall_score`, `suite_scores`,
-  `task_scores`, `reported_paper`, `reported_table`, `curated_by`,
-  `date_added`, `notes`
+- Copy `name_in_paper` verbatim from the candidate. Never blank it out,
+  never synthesize from `display_name`.
+- `curated_by` uses the form `"<family> <version>"` — e.g. `"opus 4.6"`,
+  `"sonnet 4.6"`. The schema rejects `"claude-sonnet-4-6"` and similar.
+- `date_added = "{date.today().isoformat()}"`.
+- `results` sorted by `(benchmark, model)`. UTF-8, trailing newline.
 
-Set `curated_by` to your own model alias (e.g. `"opus 4.6"` — the model
-running this refine step; NOT the literal string `"refine.py"`) and
-`date_added = "{date.today().isoformat()}"`.
+Never touch `overall_score` — the python step computed it.
 
-`results` MUST be sorted by `(benchmark, model)`. The file should be
-UTF-8 with a trailing newline.
-
-## Bias toward dropping
-
-When in doubt, DROP. A smaller leaderboard of canonical entries is much
-better than a large one with ablation junk. A reader wants "what are
-the main VLA models and how do they compare", not every table row.
-
-## Constraints
-
-- Do NOT touch `overall_score` — the python step computed it. Your
-  changes are limited to which rows survive, how they are named, and
-  what notes they carry.
-- Every output entry MUST include `name_in_paper` copied verbatim from
-  the candidate's `name_in_paper` field. This is the provenance audit
-  trail that lets a reviewer open `reported_paper`/`reported_table` and
-  find the exact row — never drop it, never synthesize it from
-  `display_name`, never blank it out.
-- Set `curated_by` to a schema-valid form: your model alias as
-  `"<family> <version>"` (e.g. `"opus 4.6"`, `"sonnet 4.6"`). Do NOT
-  emit variants like `"claude-sonnet-4-6"` — the schema rejects them.
-- Report what you dropped and why when you are done.
+Report what you dropped and why when you finish.
 """
 
 
