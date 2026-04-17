@@ -6379,18 +6379,18 @@
       "benchmark": "maniskill2",
       "weight_type": "finetuned",
       "overall_score": 53.2,
-      "suite_scores": {
+      "reported_paper": "https://arxiv.org/abs/2508.13103",
+      "reported_table": "Table I",
+      "notes": "Camera coordinate system (best variant). Also evaluated with robot coordinate: 45.2% overall (PickCube 71.0%, StackCube 62.0%, PickSingleYCB 30.0%, PickClutterYCB 15.0%, PickSingleEGAD 48.0%). Trained from scratch on ManiSkill2 dataset with Droid pretraining.",
+      "curated_by": "opus 4.6",
+      "date_added": "2026-03-04",
+      "task_scores": {
         "PickCube": 88.0,
         "StackCube": 65.0,
         "PickSingleYCB": 46.0,
         "PickClutterYCB": 19.0,
         "PickSingleEGAD": 48.0
-      },
-      "reported_paper": "https://arxiv.org/abs/2508.13103",
-      "reported_table": "Table I",
-      "notes": "Camera coordinate system (best variant). Also evaluated with robot coordinate: 45.2% overall (PickCube 71.0%, StackCube 62.0%, PickSingleYCB 30.0%, PickClutterYCB 15.0%, PickSingleEGAD 48.0%). Trained from scratch on ManiSkill2 dataset with Droid pretraining.",
-      "curated_by": "opus 4.6",
-      "date_added": "2026-03-04"
+      }
     },
     {
       "model": "oft_dexbotic_paper",
