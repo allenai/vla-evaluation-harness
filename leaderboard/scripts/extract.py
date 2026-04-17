@@ -374,6 +374,18 @@ EXTRACTION_SCHEMA: dict = {
             },
         },
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "benchmarks_absent": {
+            "type": "object",
+            "description": (
+                "Map {benchmark_key: rationale}. Populate for every benchmark in your scope that the "
+                "paper MENTIONS but you deliberately did not emit in `benchmarks[]` (e.g. non-standard "
+                "protocol, only cited from prior work, scores unreadable). Omitting a benchmark that "
+                "the paper does not mention at all is fine — do NOT list those here. This field exists "
+                "to catch the failure mode where you read a benchmark's result table during navigation "
+                "and then silently forget to emit it."
+            ),
+            "additionalProperties": {"type": "string"},
+        },
     },
 }
 
@@ -410,13 +422,26 @@ not every row in every table.
 
 A model is eligible ONLY if ALL of the following are true:
 
-1. **Public name**: it has a specific, canonical name a reader could Google.
-   Examples of ELIGIBLE names: "OpenVLA", "RT-2", "π₀", "Diffusion Policy",
+1. **Public name** (or recoverable from context): the row's method must
+   have a specific, canonical name a reader could Google. Examples of
+   ELIGIBLE names: "OpenVLA", "RT-2", "π₀", "Diffusion Policy",
    "3D Diffuser Actor", "CogACT".
-   NEVER extract rows labeled: "Ours", "Our Method", "Our Model", "Proposed",
-   "This Work", "Baseline", "Ablation", or anything that is only meaningful
-   inside the paper. If the only label is "Ours", find the method's actual
-   name from the title/abstract — and if there is none, SKIP the row.
+
+   Rows labeled "Ours", "Our Method", "Our Model", "Proposed", "This
+   Work", "(Ours)" ARE eligible — this is the paper's main contribution
+   and almost always has a real name in the title / abstract / method
+   section. Emit the row with `label` set verbatim to what the table
+   says ("Ours"); the downstream refine stage resolves the canonical
+   name from paper context. SKIP only when the paper genuinely offers no
+   public name for the method.
+
+   Rows labeled "Baseline" are comparison rows. Use the paper's caption,
+   surrounding prose, or neighboring labeled rows to identify which
+   baseline is measured, then emit under that baseline's real name
+   (again, `label` stays verbatim).
+
+   Rows labeled generically "Ablation" / "(b)" / "(c)" / "variant X"
+   where you cannot recover a canonical identity → SKIP.
 
 2. **Primary configuration**: it represents a distinct method, not a minor
    variant along one axis. SKIP rows that are ablations, hyperparameter
@@ -452,10 +477,40 @@ And `weight_type`: `shared` (same checkpoint across benchmarks) or
 - Every extracted score MUST carry a verbatim `quote` from the paper.
 - If you cannot find a value, return null. Never guess or compute.
 - Use the exact benchmark key as listed (e.g. "libero", "calvin").
-- Be conservative. A paper whose entire contribution is a survey,
-  reproduction study, or evaluation harness (not a new method) should
-  usually return an empty `benchmarks` array — those rows are already
-  on the leaderboard via their original papers.
+- A paper that is purely a survey / reproduction study / evaluation
+  harness with no new method of its own may emit an empty `benchmarks`
+  array — the original methods' rows already reach the leaderboard via
+  their own papers. But a paper that runs a new evaluation (including a
+  new eval of existing methods) DOES need its rows emitted here.
+
+## Coverage check (MANDATORY before StructuredOutput)
+
+Recall failure is the pipeline's single biggest risk, and it usually
+looks the same: you navigate into a paper, read a benchmark's result
+table, and then silently drop that benchmark when you emit the final
+structured output — "the paper's main contribution is X so I'll only
+emit X". That is a bug, not a judgment call. A paper that runs on
+CALVIN AND RoboCasa MUST emit entries for BOTH.
+
+Before calling StructuredOutput, for every benchmark key in your
+scope, run this check:
+
+1. Does the paper name this benchmark at all? (quick Grep of its key
+   name / display name / suite-or-task names listed in the per-benchmark
+   rules below is a good way to check.)
+2. If yes: does the paper report numeric scores for it?
+   - yes → emit an entry in `benchmarks[]`. Do not skip because the
+     benchmark is "not the paper's main contribution".
+   - no (mention only, e.g. cited as prior work, or scores unreadable)
+     → record it in `benchmarks_absent`: a mapping whose key is the
+     benchmark key (e.g. `"robocasa"`) and whose value is a one-line
+     rationale. This is how you acknowledge that you saw the benchmark
+     and intentionally chose not to extract it.
+3. If the paper never mentions the benchmark: omit from both fields.
+
+`benchmarks_absent` is an audit field, not a filter. Populating it
+forces you to make the skip decision explicit rather than letting the
+benchmark fall through silently.
 
 ## Benchmark rule template
 
@@ -565,6 +620,7 @@ def _batched_schema() -> dict:
                         "arxiv_id": {"type": "string"},
                         "benchmarks": single["properties"]["benchmarks"],
                         "confidence": single["properties"]["confidence"],
+                        "benchmarks_absent": single["properties"]["benchmarks_absent"],
                     },
                 },
             }
@@ -665,6 +721,7 @@ def extract_batch(
             "paper_hash": _paper_hash(aid),
             "extraction_scope": scope,
             "benchmarks": p.get("benchmarks", []),
+            "benchmarks_absent": p.get("benchmarks_absent") or {},
             "confidence": p.get("confidence"),
         }
         _save_cached_extraction(aid, record)

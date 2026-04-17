@@ -7,8 +7,8 @@
 Two-stage pipeline:
 
 1. `build_candidates()` — deterministic Python step. Applies the protocol
-   gate (drop `matches_standard = no`, null out `partial`), computes
-   `overall_score` arithmetically from components, and emits candidate
+   gate (`yes` → compute `overall_score` from components; `no`/`partial`/
+   `unknown` → keep row with `overall_score = null`) and emits candidate
    entries in a pre-schema shape.
 
 2. LLM agent (opus) — receives the candidate entries via a temp file and
@@ -97,8 +97,10 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
     """Read extractions and emit candidate entries.
 
     Applied here (deterministic):
-    - Protocol gate: drop `matches_standard == "no"`; null out `overall_score`
-      for `partial`/`unknown`; compute from components for `yes`.
+    - Protocol gate: `yes` computes `overall_score` from components;
+      everything else (`no`/`partial`/`unknown`) keeps `overall_score = null`
+      but the row is retained so non-standard subsets still surface on the
+      leaderboard as unranked entries (see leaderboard/CONTRIBUTING.md).
     - Arithmetic: mean of required component keys per the benchmark's
       `aggregation` rule in benchmarks.json.
     - Forbidden-overall enforcement for benchmarks with aggregation `"forbidden"`.
@@ -119,7 +121,7 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
         "papers_empty": 0,  # extraction file had benchmarks:[] — citing paper, no scores
         "papers_with_scores": 0,
         "rows_total": 0,
-        "rows_drop_protocol_no": 0,
+        "rows_match_no_kept_null": 0,  # protocol=no rows kept with overall_score=null
         "rows_drop_empty_after_conversion": 0,
         "rows_kept": 0,
     }
@@ -143,15 +145,20 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
                 stats["rows_total"] += 1
                 protocol = m.get("protocol") or {}
                 match = protocol.get("matches_standard", "unknown")
-                # Hard reject: LLM already judged this protocol non-matching
-                if match == "no":
-                    stats["rows_drop_protocol_no"] += 1
-                    continue
                 scores_raw = m.get("scores") or {}
                 suite_scores = _to_plain_scores(scores_raw.get("suite_scores"))
                 task_scores = _to_plain_scores(scores_raw.get("task_scores"))
 
-                # Arithmetic / protocol gate
+                # Arithmetic / protocol gate.
+                #
+                # Only `matches_standard == "yes"` rows get an aggregated
+                # `overall_score`. Everything else (including the hard "no"
+                # case) keeps `overall_score = null` but stays in the
+                # candidate pool so non-standard subsets still appear on
+                # the leaderboard as non-ranked entries — see
+                # leaderboard/CONTRIBUTING.md "non-standard entries must
+                # set overall_score to null and store the original
+                # aggregate in task_scores.reported_avg".
                 if match == "yes":
                     overall = _compute_overall(benchmark, suite_scores, task_scores)
                     # Fallback: if the benchmark has no aggregation rule at
@@ -163,6 +170,8 @@ def build_candidates(benchmark_filter: str | None = None) -> tuple[list[dict], d
                             overall = raw_overall
                 else:
                     overall = None
+                    if match == "no":
+                        stats["rows_match_no_kept_null"] += 1
 
                 # Skip entries with no score at all (schema requires >=1).
                 if overall is None and not suite_scores and not task_scores:
@@ -198,7 +207,7 @@ def _print_stats(stats: dict) -> None:
         f"  papers with scores:              {stats['papers_with_scores']}\n"
         f"  papers empty (cited, no scores): {stats['papers_empty']}\n"
         f"Model rows processed: {stats['rows_total']}\n"
-        f"  dropped (protocol 'no'):         {stats['rows_drop_protocol_no']}\n"
+        f"  match=no kept with null overall: {stats['rows_match_no_kept_null']}\n"
         f"  dropped (no score after conv):   {stats['rows_drop_empty_after_conversion']}\n"
         f"  kept as candidates:              {stats['rows_kept']}"
     )
