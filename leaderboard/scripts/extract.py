@@ -453,6 +453,12 @@ For each eligible model:
 - `scores`: follow the per-benchmark JSON shape in the rules below.
   Every numeric score carries a verbatim `quote` from the paper. If you
   cannot find a value, return `null` — never guess or compute.
+
+  When the paper tabulates per-task or per-suite numbers, emit each one
+  as a separate `task_scores` / `suite_scores` entry. A detailed results
+  table never collapses to `overall_score` only — the per-component
+  values are what make the row auditable and let downstream stages
+  recover a reported average when the protocol is non-standard.
 - `protocol.matches_standard`: `yes` / `no` / `partial` / `unknown`.
   Failing a benchmark's `Checks` → `no`. Differences along `Methodology
   axes` → `yes`.
