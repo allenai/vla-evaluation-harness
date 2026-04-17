@@ -450,15 +450,22 @@ For each eligible model:
   - `cited_baseline` — number quoted from another paper, not re-run
   - `reproduction` — paper explicitly marks it as their reproduction
   - `unknown` — genuinely cannot tell
-- `scores`: follow the per-benchmark JSON shape in the rules below.
-  Every numeric score carries a verbatim `quote` from the paper. If you
-  cannot find a value, return `null` — never guess or compute.
+- `scores`: the benchmark's numeric results. See the benchmark rules
+  below for the exact JSON shape; the general structure is:
+  - `overall_score`: the benchmark's canonical aggregate.
+  - `suite_scores`: sub-scores over groupings the benchmark itself
+    defines — e.g. LIBERO's 5 suites (`libero_spatial`/`libero_object`/
+    `libero_goal`/`libero_10`/`libero_90`), CALVIN's
+    `chain_1`..`chain_5`, SimplerEnv's `google_robot_vm`/`..._va`/
+    `widowx_vm`.
+  - `task_scores`: individual per-task success rates — e.g. RoboCasa
+    `PnPCounterToMicrowave`, ManiSkill2 `PickCube`.
 
-  When the paper tabulates per-task or per-suite numbers, emit each one
-  as a separate `task_scores` / `suite_scores` entry. A detailed results
-  table never collapses to `overall_score` only — the per-component
-  values are what make the row auditable and let downstream stages
-  recover a reported average when the protocol is non-standard.
+  Emit every tabulated per-suite / per-task number as its own entry.
+  Do not collapse a detailed results table to `overall_score` alone.
+
+  Every numeric score carries a verbatim `quote`. Values you cannot
+  locate in the paper are `null`.
 - `protocol.matches_standard`: `yes` / `no` / `partial` / `unknown`.
   Failing a benchmark's `Checks` → `no`. Differences along `Methodology
   axes` → `yes`.
@@ -486,6 +493,22 @@ one of them, not just the one framed as the paper's main contribution.
 
 Return `benchmarks: []` only for pure survey / theory papers with no
 evaluation table.
+
+## Review before StructuredOutput
+
+Before emitting the final output, check each row:
+
+- Every numeric value has an `*_quote` containing that value's exact
+  characters from the paper. If you cannot locate the text, set the
+  value to `null`.
+- Every claim in `protocol.rationale` (task count, demo count, split,
+  embodiment, etc.) has matching text in `evidence_quote`. A claim
+  without a supporting quote → downgrade `matches_standard` one step
+  toward `"unknown"`.
+- `matches_standard` is consistent with `protocol.rationale`. If the
+  rationale describes any benchmark `Checks` violation (subset of the
+  standard task set, alternative embodiment, non-standard split, etc.),
+  `matches_standard` cannot be `"yes"`.
 
 ## Benchmark rules
 
