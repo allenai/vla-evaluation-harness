@@ -290,36 +290,11 @@ def _extraction_schema() -> dict:
     return json.loads(EXTRACTION_SCHEMA_PATH.read_text())
 
 
-def _batched_schema() -> dict:
-    """Wrap the per-paper extraction schema in a ``papers`` array.
-
-    The LLM emits only the content fields (arxiv_id, benchmarks,
-    benchmarks_absent); the wrapper script fills in extracted_at,
-    paper_hash, extraction_scope, etc. after the call.
-    """
-    single = _extraction_schema()
-    llm_item = {
-        "type": "object",
-        "required": ["arxiv_id", "benchmarks"],
-        "additionalProperties": False,
-        "properties": {
-            "arxiv_id": single["properties"]["arxiv_id"],
-            "benchmarks": single["properties"]["benchmarks"],
-            "benchmarks_absent": single["properties"]["benchmarks_absent"],
-        },
-    }
-    return {
-        "type": "object",
-        "required": ["papers"],
-        "properties": {
-            "papers": {
-                "type": "array",
-                "description": "One entry per input paper; arxiv_id matches the path supplied.",
-                "items": llm_item,
-            }
-        },
-        "$defs": single["$defs"],
-    }
+# The claude CLI's `--json-schema` mode does not reliably populate
+# `structured_output` for schemas larger than a few fields (the LLM
+# falls back to emitting a JSON code block in assistant text, which the
+# CLI does not convert). Instead of relying on that path, we instruct
+# the LLM to Write a partial file per paper and post-process.
 
 
 def _build_system_prompt(all_rules: str) -> str:
@@ -376,6 +351,15 @@ bibliography. Non-arxiv sources (official github, tech reports, blogs)
 are valid URLs too. Leave null when the paper quotes a number without
 naming a source.
 
+## Normalize scale
+
+Emit numeric values in the benchmark's declared `metric.range` (see
+each benchmark's frontmatter below). Most benchmarks are 0–100 (% success
+rate); CALVIN is 0–5 (avg completed subtasks); RoboArena is Elo. If a
+paper reports on a 0–1 scale but the benchmark range is 0–100, multiply
+by 100 before emitting. Evidence quotes remain verbatim paper text — do
+not rewrite the quote to show the converted number.
+
 ## Exclude ablation variants
 
 Skip rows whose only differentiator is quantization (INT4, AWQ, GPTQ),
@@ -404,19 +388,21 @@ variance dimensions — differences along these still allow 'yes'.
 """
 
 
+EXTRACTIONS_RAW_DIR = ROOT / ".cache" / "extractions_raw"
+
+
 def _call_claude_cli(
     system_prompt: str,
     user_prompt: str,
-    json_schema: dict,
-    paper_dir: Path,
+    extra_add_dirs: list[Path],
     model: str = DEFAULT_MODEL,
     timeout: int = DEFAULT_TIMEOUT,
     log_path: Path | None = None,
-) -> tuple[dict, int]:
-    """Call claude CLI in tool mode over paper_dir.
+) -> int:
+    """Invoke the claude CLI. Returns n_tool_calls observed in the stream.
 
-    Returns ``(structured_output, n_tool_calls)``. Writes raw stream-json
-    stdout to ``log_path``. Raises LLMError on any failure.
+    Writes raw stream-json stdout to ``log_path``. Raises LLMError on
+    non-zero exit or no final result event.
     """
     cmd = [
         "claude",
@@ -425,17 +411,21 @@ def _call_claude_cli(
         model,
         "--system-prompt",
         system_prompt,
-        "--json-schema",
-        json.dumps(json_schema),
         "--output-format",
         "stream-json",
         "--verbose",
-        "--add-dir",
-        str(paper_dir),
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
+        # Restrict to Claude Code native tools (Read/Write/Edit/Bash/Grep/Glob/
+        # WebFetch/WebSearch). Custom MCP servers (Perplexity, arxiv-mcp, etc.)
+        # and user skills may delegate to outside knowledge sources and bypass
+        # the paper-grounded discipline the extract stage depends on.
+        "--strict-mcp-config",
+        "--disable-slash-commands",
     ]
+    for d in extra_add_dirs:
+        cmd += ["--add-dir", str(d.resolve())]
     try:
         result = subprocess.run(cmd, input=user_prompt, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError as e:
@@ -445,8 +435,8 @@ def _call_claude_cli(
     if result.returncode != 0:
         raise LLMError(f"exit {result.returncode}: {result.stderr[:500]}")
 
-    structured: dict | None = None
     n_tool_calls = 0
+    seen_result = False
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line:
@@ -462,33 +452,32 @@ def _call_claude_cli(
                 if block.get("type") == "tool_use":
                     n_tool_calls += 1
         if evt.get("type") == "result":
-            structured = evt.get("structured_output")
+            seen_result = True
 
     if log_path is not None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text(result.stdout, encoding="utf-8")
 
-    if not isinstance(structured, dict):
-        raise LLMError("no structured_output in stream")
-    return structured, n_tool_calls
+    if not seen_result:
+        raise LLMError("no result event in stream")
+    return n_tool_calls
 
 
 def _call_claude_cli_with_retry(
     system_prompt: str,
     user_prompt: str,
-    json_schema: dict,
-    paper_dir: Path,
+    extra_add_dirs: list[Path],
     model: str,
     timeout: int,
     log_path: Path | None,
     retries: int = 1,
-) -> tuple[dict, int]:
-    """Retry LLM call once on transient failure. Raises LLMError if all attempts fail."""
+) -> int:
+    """Retry once on transient failure."""
     last_err: LLMError | None = None
     for attempt in range(retries + 1):
         try:
             return _call_claude_cli(
-                system_prompt, user_prompt, json_schema, paper_dir, model=model, timeout=timeout, log_path=log_path
+                system_prompt, user_prompt, extra_add_dirs, model=model, timeout=timeout, log_path=log_path
             )
         except LLMError as e:
             last_err = e
@@ -499,14 +488,19 @@ def _call_claude_cli_with_retry(
 
 
 # ---------------------------------------------------------------------------
-# Batched extraction
+# Batched extraction (file-based: LLM writes per-paper partials)
 # ---------------------------------------------------------------------------
 
 
-def _assemble_record(aid: str, p: dict, model: str, batch_size: int, n_tool_calls: int) -> dict:
-    """Build the final per-paper extraction record from LLM output + metadata.
+def _partial_path(arxiv_id: str) -> Path:
+    return EXTRACTIONS_RAW_DIR / f"{arxiv_id}.partial.json"
 
-    Matches extraction.schema.json.
+
+def _assemble_record(aid: str, partial: dict, model: str, batch_size: int, n_tool_calls: int) -> dict:
+    """Build the full per-paper extraction record from the LLM's partial.
+
+    Matches extraction.schema.json. The partial carries arxiv_id,
+    benchmarks, and benchmarks_absent; the script fills the rest.
     """
     return {
         "arxiv_id": aid,
@@ -516,8 +510,8 @@ def _assemble_record(aid: str, p: dict, model: str, batch_size: int, n_tool_call
         "batch_tool_calls_total": n_tool_calls,
         "paper_hash": _paper_hash(aid),
         "extraction_scope": sorted(_current_benchmark_keys()),
-        "benchmarks": p.get("benchmarks", []),
-        "benchmarks_absent": p.get("benchmarks_absent") or {},
+        "benchmarks": partial.get("benchmarks", []),
+        "benchmarks_absent": partial.get("benchmarks_absent") or {},
     }
 
 
@@ -527,27 +521,46 @@ def _run_one_batch(
     model: str,
     timeout: int,
 ) -> dict[str, dict | None]:
-    """Run a single claude CLI call across ``todo`` papers. Per-paper results or None on LLM failure."""
-    paper_lines = [f"- arxiv_id={aid}  path={CACHE_DIR / aid / 'paper.md'}" for aid in todo]
+    """Run a single claude CLI call across ``todo`` papers.
+
+    The LLM reads each paper and writes per-paper extraction JSON to
+    ``{EXTRACTIONS_RAW_DIR}/{arxiv_id}.partial.json``. The script then
+    reads each partial, fills in metadata, and saves the final record
+    to ``.cache/extractions/{arxiv_id}.json``.
+    """
+    EXTRACTIONS_RAW_DIR.mkdir(parents=True, exist_ok=True)
+    # Clear any stale partials for this batch's ids so "file exists" =
+    # "this call produced it".
+    for aid in todo:
+        _partial_path(aid).unlink(missing_ok=True)
+
+    paper_lines = [
+        f"- arxiv_id={aid}  paper={CACHE_DIR / aid / 'paper.md'}  output={_partial_path(aid)}" for aid in todo
+    ]
     system_prompt = _build_system_prompt(all_rules)
     user_prompt = (
-        "Extract benchmark results from EACH paper listed below.\n\n"
-        "Return ONE entry per paper in the `papers` array, keyed by arxiv_id.\n"
-        "Every arxiv_id below must appear in your output, even if its benchmarks "
-        "array is empty.\n\n"
-        "Use available tools to navigate each paper.md independently. "
-        "Every quote you emit for a paper must come from that paper's file.\n\n"
+        "Extract benchmark results from each paper listed below.\n\n"
+        "For every paper, write a JSON file to the `output=` path shown, "
+        "containing EXACTLY these fields:\n"
+        "  - arxiv_id (string, matches the input)\n"
+        "  - benchmarks (array, per extraction.schema.json's $defs/BenchmarkEntry)\n"
+        "  - benchmarks_absent (object, or omit if none)\n\n"
+        "Do not include extracted_at, paper_hash, extraction_scope, "
+        "model_used, or batch_* — the script fills those.\n\n"
+        "Every arxiv_id below must produce a file, even if benchmarks is "
+        "[]. Every quote you write must come from that paper's `paper=` "
+        "file.\n\n"
+        f"Field semantics: {EXTRACTION_SCHEMA_PATH}\n\n"
         "Papers:\n" + "\n".join(paper_lines)
     )
     batch_tag = "_".join(todo[:2]) + (f"+{len(todo) - 2}" if len(todo) > 2 else "")
     log_path = EXTRACTION_LOGS_DIR / f"batch_{batch_tag}.log"
 
     try:
-        llm_output, n_tool_calls = _call_claude_cli_with_retry(
+        n_tool_calls = _call_claude_cli_with_retry(
             system_prompt,
             user_prompt,
-            _batched_schema(),
-            CACHE_DIR.resolve(),
+            extra_add_dirs=[CACHE_DIR, EXTRACTIONS_RAW_DIR],
             model=model,
             timeout=timeout,
             log_path=log_path,
@@ -557,16 +570,22 @@ def _run_one_batch(
         print(f"    LLM error for batch ({len(todo)} papers): {e}")
         return {aid: None for aid in todo}
 
-    by_id: dict[str, dict] = {p.get("arxiv_id"): p for p in llm_output.get("papers", []) if p.get("arxiv_id")}
     results: dict[str, dict | None] = {}
     for aid in todo:
-        p = by_id.get(aid)
-        if p is None:
-            print(f"    WARN {aid} missing from batch output")
+        partial_path = _partial_path(aid)
+        if not partial_path.exists():
+            print(f"    {aid}: no partial file written")
             results[aid] = None
             continue
-        record = _assemble_record(aid, p, model, len(todo), n_tool_calls)
+        try:
+            partial = json.loads(partial_path.read_text())
+        except json.JSONDecodeError as e:
+            print(f"    {aid}: invalid JSON in partial: {e}")
+            results[aid] = None
+            continue
+        record = _assemble_record(aid, partial, model, len(todo), n_tool_calls)
         _save_cached_extraction(aid, record)
+        partial_path.unlink()
         results[aid] = record
     return results
 

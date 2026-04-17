@@ -80,7 +80,7 @@
     "Scores": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Shape of required keys is prescribed by leaderboard/benchmarks/{bm}.md's Scoring section.",
+      "description": "Required keys follow leaderboard/benchmarks/{bm}.md's Scoring section. All numeric values are in the benchmark's declared metric.range (benchmarks.json). Convert from paper's original scale when needed (typically 0-1 → 0-100 for % benchmarks).",
       "properties": {
         "overall_score": {"type": ["number", "null"], "description": "Paper's reported aggregate. null when absent or not locatable."},
         "overall_score_quote": {"type": ["string", "null"]},

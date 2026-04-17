@@ -157,12 +157,7 @@ def _classify_row(
     cited_arxiv = _arxiv_id_of(cited_paper)
 
     # Case 2: cited baseline pointing at the method's own paper
-    if (
-        is_score_original == "cited_baseline"
-        and model_arxiv
-        and cited_arxiv
-        and cited_arxiv == model_arxiv
-    ):
+    if is_score_original == "cited_baseline" and model_arxiv and cited_arxiv and cited_arxiv == model_arxiv:
         # Cross-check: does the original paper's extraction contain this row?
         if (model_arxiv, benchmark, _norm_name(name_in_paper)) in row_index:
             return "drop", "", None
@@ -170,8 +165,9 @@ def _classify_row(
         # so downstream treats it as citing-paper measured.
         return "third_party", citing_url, None
 
-    # Case 3a/3b: third-party via arxiv cite
-    if is_score_original == "cited_baseline" and cited_arxiv:
+    # Case 3a/3b: third-party via arxiv cite. cited_arxiv being truthy
+    # means cited_paper parsed as an arxiv URL, so it is a str here.
+    if is_score_original == "cited_baseline" and cited_arxiv and cited_paper is not None:
         return "third_party", cited_paper, cited_paper
 
     # Case 3c / reproduction: citing paper measured it
@@ -411,15 +407,17 @@ def _refine_one_benchmark(
     output_path: Path,
     model: str,
     timeout: int,
-) -> list[dict]:
+) -> list[dict] | None:
     """Run the LLM refine step for a single benchmark's candidates.
 
-    Writes candidates to a temp file the LLM reads, invokes claude CLI,
-    returns the list of leaderboard entries (empty on failure).
+    Returns the list of leaderboard entries on success (possibly empty
+    if the LLM intentionally kept nothing). Returns None on LLM failure,
+    so the caller can distinguish "LLM said drop everything" from "LLM
+    crashed" and avoid wiping existing entries in the latter case.
     """
     bm_candidates = [c for c in candidates if c["benchmark"] == benchmark]
     if not bm_candidates:
-        return []
+        return None
 
     scratch_in = REFINE_LOGS_DIR / f"candidates_{benchmark}.json"
     scratch_out = REFINE_LOGS_DIR / f"out_{benchmark}.json"
@@ -449,32 +447,37 @@ def _refine_one_benchmark(
         "--permission-mode",
         "bypassPermissions",
         "--no-session-persistence",
+        # Restrict to Claude Code native tools only. Without this the
+        # refine stage has been observed pulling in external knowledge
+        # via Perplexity (or other MCP servers), which undermines the
+        # paper-grounded attribution discipline the pipeline depends on.
+        "--strict-mcp-config",
+        "--disable-slash-commands",
         "--add-dir",
         str(REFINE_LOGS_DIR.resolve()),
         "--add-dir",
         str(CANDIDATES_PATH.parent.resolve()),
-        user_msg,
     ]
 
     log_path = REFINE_LOGS_DIR / f"refine_{benchmark}_{date.today().isoformat()}.log"
     print(f"  [{benchmark}] {len(bm_candidates)} candidates → LLM ({model})...")
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(cmd, input=user_msg, capture_output=True, text=True, timeout=timeout)
     log_path.write_text(result.stdout, encoding="utf-8")
     if result.returncode != 0:
         print(f"  [{benchmark}] claude exit {result.returncode}: {result.stderr[:300]}")
-        return []
+        return None
 
     if not scratch_out.exists():
         print(f"  [{benchmark}] no output file written")
-        return []
+        return None
     try:
         entries = json.loads(scratch_out.read_text())
     except json.JSONDecodeError as e:
         print(f"  [{benchmark}] invalid JSON output: {e}")
-        return []
+        return None
     if not isinstance(entries, list):
         print(f"  [{benchmark}] output is not an array (got {type(entries).__name__})")
-        return []
+        return None
     print(f"  [{benchmark}] LLM produced {len(entries)} entries")
     return entries
 
@@ -518,16 +521,27 @@ def refine(
         print("No candidates to refine. Exiting.")
         return
 
-    # Group by benchmark and run LLM per-benchmark.
+    # Group by benchmark and run LLM per-benchmark. Only benchmarks
+    # whose LLM stage ran to completion are passed to the merge step;
+    # on LLM failure, the existing leaderboard entries for that
+    # benchmark are preserved rather than wiped to nothing.
     benchmarks = sorted({c["benchmark"] for c in candidates})
     print(f"\nStage 2: refining {len(benchmarks)} benchmark(s) with {model}...")
     all_entries: list[dict] = []
+    touched: list[str] = []
     for bm in benchmarks:
         entries = _refine_one_benchmark(bm, candidates, output, model=model, timeout=timeout)
+        if entries is None:
+            print(f"  [{bm}] LLM step did not produce output — preserving existing entries")
+            continue
+        touched.append(bm)
         all_entries.extend(entries)
 
-    _merge_leaderboard(all_entries, benchmarks, output)
-    print(f"\nDone: {output} now has {len(all_entries)} new entries across {len(benchmarks)} benchmark(s)")
+    _merge_leaderboard(all_entries, touched, output)
+    print(
+        f"\nDone: {output} refreshed {len(touched)} benchmark(s) "
+        f"({len(all_entries)} new entries); {len(benchmarks) - len(touched)} preserved"
+    )
 
 
 # ---------------------------------------------------------------------------

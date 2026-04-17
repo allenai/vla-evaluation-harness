@@ -180,6 +180,38 @@ def validate_citations(data: dict) -> list[str]:
     return errors
 
 
+def validate_scale_sanity(data: dict) -> list[str]:
+    """Catch probable scale leaks (e.g. paper 0-1 values copied verbatim to a 0-100 %-benchmark).
+
+    Flag when a row has ≥2 non-zero numeric scores across task_scores and
+    suite_scores, and ALL of them are ≤ 1.0, on a benchmark whose declared
+    metric.range upper bound is ≥ 10. A single sub-1.0 task score is valid
+    (hard task failure); multiple together almost always means the paper's
+    0-1 scale was not converted to %.
+    """
+    errors = []
+    for i, r in enumerate(data["results"]):
+        bm = data["benchmarks"].get(r["benchmark"], {})
+        rule_range = bm.get("metric", {}).get("range", [0, 100])
+        if rule_range[1] < 10:
+            # Benchmark itself runs on a small scale (e.g. CALVIN 0-5) — cannot use this heuristic
+            continue
+        values = []
+        for score_dict in (r.get("task_scores") or {}, r.get("suite_scores") or {}):
+            for k, v in score_dict.items():
+                if k == "reported_avg":
+                    continue
+                if isinstance(v, (int, float)) and v > 0:
+                    values.append(v)
+        if len(values) >= 2 and all(v <= 1.0 for v in values):
+            errors.append(
+                f"results[{i}] ({r['model']}/{r['benchmark']}): probable scale leak — "
+                f"all {len(values)} non-zero scores are ≤ 1.0 on a benchmark with range {rule_range}. "
+                f"The paper likely reports values on a 0-1 scale; multiply by 100 before emitting."
+            )
+    return errors
+
+
 def validate_aggregation_rules(data: dict) -> list[str]:
     """Check each entry's overall_score against the benchmark's aggregation rule.
 
@@ -266,6 +298,7 @@ def main() -> int:
     # registry never leaks back into leaderboard.json.
     data["benchmarks"] = benchmarks
     errors += validate_score_ranges(data)
+    errors += validate_scale_sanity(data)
     errors += validate_aggregation_rules(data)
     errors += validate_official_leaderboard_policy(data)
     errors += validate_papers_reviewed(data)
