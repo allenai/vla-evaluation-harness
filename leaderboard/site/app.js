@@ -429,11 +429,11 @@
     tbodyEl.appendChild(frag);
 
     requestAnimationFrame(applyHeatmapColors);
-    renderPagination(totalPages);
+    renderPagination(totalPages, lastFilteredModels.length);
   }
 
   // ─── Pagination controls ─────────────────────────────────────────────────
-  function renderPagination(totalPages) {
+  function renderPagination(totalPages, total) {
     let pager = $('pagination');
     if (totalPages <= 1) {
       if (pager) pager.style.display = 'none';
@@ -446,7 +446,6 @@
       tableEl.parentNode.insertBefore(pager, tableEl.nextSibling);
     }
     pager.style.display = '';
-    const total = lastFilteredModels.length;
     const s = currentPage * PAGE_SIZE + 1;
     const e = Math.min(s + PAGE_SIZE - 1, total);
     pager.innerHTML =
@@ -494,8 +493,6 @@
   function renderDetailView(bmKey) {
     if (!theadEl || !tbodyEl) return;
     tableEl.className = 'detail-mode';
-    const pager = $('pagination');
-    if (pager) pager.style.display = 'none';
     const bm = data.benchmarks[bmKey] || {};
     const metric = bm.metric || {};
     const expandSuites = shouldExpandSuites(bmKey);
@@ -519,7 +516,7 @@
       return col === '_avg' ? r.overall_score : (r.suite_scores || {})[col];
     }
 
-    const results = data.results
+    const allResults = data.results
       .filter(r => r.benchmark === bmKey && isResultVisible(r))
       .sort((a, b) => {
         if (expandSuites && detailSortSuite) {
@@ -528,12 +525,19 @@
         return (b.overall_score || 0) - (a.overall_score || 0);
       });
 
-    // Find best per column
+    // Paginate (best-per-column computed over ALL results below, so rankings stay global)
+    const totalPages = Math.max(1, Math.ceil(allResults.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    if (currentPage < 0) currentPage = 0;
+    const start = currentPage * PAGE_SIZE;
+    const results = allResults.slice(start, start + PAGE_SIZE);
+
+    // Find best per column (computed over all results, not just the page)
     const bestByCol = {};
     if (expandSuites) {
       for (const col of detailColumns) {
         let bestVal = null, bestModel = null;
-        for (const r of results) {
+        for (const r of allResults) {
           const v = colScore(r, col);
           if (v != null && (bestVal === null || v > bestVal)) { bestVal = v; bestModel = r.model; }
         }
@@ -557,7 +561,7 @@
           cell.classList.add('sorted');
           cell.appendChild(el('span', ' \u25BC', 'sort-arrow'));
         }
-        cell.addEventListener('click', ((c) => () => { detailSortSuite = c; renderTable(); })(col));
+        cell.addEventListener('click', ((c) => () => { detailSortSuite = c; currentPage = 0; renderTable(); })(col));
         htr.appendChild(cell);
       }
     } else {
@@ -576,7 +580,7 @@
 
     // Body — use DocumentFragment
     const frag = document.createDocumentFragment();
-    let rank = 0;
+    let rank = start;
     for (const r of results) {
       rank++;
       const tr = document.createElement('tr');
@@ -655,6 +659,8 @@
     }
     tbodyEl.innerHTML = '';
     tbodyEl.appendChild(frag);
+
+    renderPagination(totalPages, allResults.length);
   }
 
   // ─── Score resolver ────────────────────────────────────────────────────────
