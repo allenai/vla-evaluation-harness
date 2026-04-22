@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLA Model Leaderboard (beta)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <div class="header-row">
+        <h1>VLA Model Leaderboard <span class="badge-beta">beta</span></h1>
+        <a class="github-link" href="https://github.com/allenai/vla-evaluation-harness" target="_blank" rel="noopener">
+          <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <p>Unified evaluation results for Vision-Language-Action models across <span id="benchmark-count"></span> robot simulation benchmarks · <span class="updated-monthly">Updated monthly</span></p>
+    </div>
+    <div class="container">
+      <div class="banner banner-ai">
+        <div>🤖 This leaderboard is largely maintained by AI to keep pace with the growing number of VLA papers.</div>
+        <div>Errors are possible — community corrections keep it accurate. <a href="https://github.com/allenai/vla-evaluation-harness/issues">Report an issue →</a></div>
+      </div>
+      <div class="banner">
+        Evaluation protocols are not fully standardized across all benchmarks — scores may not always be directly comparable.
+        We welcome contributions: corrections, missing results, and protocol clarifications.
+        <a href="https://github.com/allenai/vla-evaluation-harness/blob/main/leaderboard/CONTRIBUTING.md">Contributing guide →</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="filters">
+      <select id="benchmark-filter">
+        <option value="all">All Benchmarks</option>
+      </select>
+      <input id="model-search" type="text" placeholder="Search models...">
+      <div class="filter-group">
+        <span class="filter-label">Published</span>
+        <input id="date-from" type="month" lang="en" title="From (inclusive)">
+        <span class="filter-sep">–</span>
+        <input id="date-to" type="month" lang="en" title="To (inclusive)">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Citations ≥</span>
+        <input id="min-citations" type="number" min="0" step="1" placeholder="0">
+      </div>
+      <label class="filter-toggle" title="Show only scores reported in each model's own paper. Hides third-party reproductions, which are often the only available data for older methods on newer benchmarks (e.g. Decision Transformer on MIKASA).">
+        <input id="first-party-only" type="checkbox">
+        <span>First-party results only</span>
+      </label>
+    </div>
+
+    <div id="stats" class="stats"></div>
+    <div id="coverage-bar" class="coverage-bar"></div>
+
+    <div id="breakdown-panel" class="breakdown-panel"></div>
+
+    <div id="official-notice" class="official-notice" style="display:none"></div>
+    <div id="benchmark-notes" class="benchmark-notes" style="display:none"></div>
+
+    <div class="table-wrapper">
+      <table id="leaderboard-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="loading">Loading leaderboard data...</div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      Data sourced from published papers · Powered by
+      <a href="https://github.com/allenai/vla-evaluation-harness">vla-evaluation-harness</a>
+    </div>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
