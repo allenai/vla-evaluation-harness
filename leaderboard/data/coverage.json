@@ -1,8 +1,8 @@
 {
-  "last_updated": "2026-04-20",
-  "total_models": 1863,
-  "total_results": 2091,
-  "total_papers_reviewed": 1754,
+  "last_updated": "2026-04-22",
+  "total_models": 1885,
+  "total_results": 2113,
+  "total_papers_reviewed": 1755,
   "benchmarks": {
     "calvin": {
       "display_name": "CALVIN",
@@ -107,6 +107,14 @@
       "arxiv_citing_papers": 7,
       "leaderboard_entries": 18,
       "papers_reviewed": 6
+    },
+    "robomme": {
+      "display_name": "RoboMME",
+      "arxiv_id": "2603.04639",
+      "citing_papers": 2,
+      "arxiv_citing_papers": 3,
+      "leaderboard_entries": 22,
+      "papers_reviewed": 3
     },
     "robotwin_v1": {
       "display_name": "RoboTwin 1.0",

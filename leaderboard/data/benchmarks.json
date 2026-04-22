@@ -504,6 +504,56 @@
     "official_leaderboard": "https://robochallenge.ai/leaderboard",
     "detail_notes": "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Scores synced from official leaderboard API. Manual paper extractions are not accepted."
   },
+  "robomme": {
+    "display_name": "RoboMME",
+    "paper_url": "https://arxiv.org/abs/2603.04639",
+    "metric": {
+      "name": "success_rate",
+      "unit": "%",
+      "range": [
+        0,
+        100
+      ],
+      "higher_is_better": true
+    },
+    "suites": [
+      "counting",
+      "permanence",
+      "reference",
+      "imitation"
+    ],
+    "tasks": [
+      "BinFill",
+      "PickXtimes",
+      "SwingXtimes",
+      "StopCube",
+      "VideoUnmask",
+      "VideoUnmaskSwap",
+      "ButtonUnmask",
+      "ButtonUnmaskSwap",
+      "PickHighlight",
+      "VideoRepick",
+      "VideoPlaceButton",
+      "VideoPlaceOrder",
+      "MoveCube",
+      "InsertPeg",
+      "PatternLock",
+      "RouteStick"
+    ],
+    "aggregation": {
+      "container": "suite_scores",
+      "keys": [
+        "counting",
+        "permanence",
+        "reference",
+        "imitation"
+      ]
+    },
+    "expand_suites": true,
+    "avg_position": 4,
+    "avg_label": "Avg",
+    "detail_notes": "RoboMME (<a href='https://arxiv.org/abs/2603.04639'>2603.04639</a>) — memory-augmented manipulation benchmark on a ManiSkill / 7-DOF Franka Panda tabletop. 16 tasks across 4 suites that target distinct memory demands: <strong>Counting</strong> (temporal), <strong>Permanence</strong> (spatial), <strong>Reference</strong> (object), <strong>Imitation</strong> (procedural). Standard protocol: 50 episodes/task (800 total), max 1,300 steps, multi-task single model, results averaged over the last 3 checkpoints × 3 seeds (9 runs). <code>overall_score</code> = unweighted mean of the 4 suite scores."
+  },
   "robotwin_v1": {
     "display_name": "RoboTwin 1.0",
     "paper_url": "https://arxiv.org/abs/2409.02920",
