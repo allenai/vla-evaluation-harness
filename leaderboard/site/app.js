@@ -678,15 +678,10 @@
     if (suite) {
       return (result.suite_scores || {})[suite] ?? null;
     }
-    if (result.overall_score != null) return result.overall_score;
-    const bm = data.benchmarks[bmKey] || {};
-    const suites = bm.suites || [];
-    const ss = result.suite_scores || {};
-    for (const s of suites) {
-      if (ss[s] != null) return ss[s];
-    }
-    const vals = Object.values(ss);
-    return vals.length > 0 ? vals[0] : null;
+    // Unexpanded overview column: show overall_score only. Falling back to
+    // a suite value here would mix scales in the same column (e.g. CALVIN's
+    // overall_score is 0–5 avg_len while suite_scores are 0–100 percent).
+    return result.overall_score ?? null;
   }
 
   // Does every result for this benchmark have null overall_score?
