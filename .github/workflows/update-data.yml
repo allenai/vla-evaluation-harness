@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # sync_external/scan/validate read leaderboard.json
+          # (LFS-tracked) — smudge the blob so they don't hit a pointer.
+          lfs: true
 
       - uses: actions/setup-python@v6
         with:
