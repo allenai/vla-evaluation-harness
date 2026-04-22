@@ -2,6 +2,17 @@
 
 > **Note on evaluation protocols:** Benchmark evaluation protocols are not fully standardized across the VLA community. Different papers may use the same benchmark name but differ in training regimes, task subsets, or evaluation conditions — making scores not always directly comparable. This leaderboard records all available results transparently and documents known protocol differences, but gaps remain. We actively welcome contributions: score corrections, missing results, protocol clarifications, and proposals for standardization.
 
+## Local Setup
+
+`leaderboard/data/{leaderboard,extractions,scan_results}.json` are stored in **Git LFS** (see `leaderboard/data/.gitattributes`). Without LFS smudging, scripts will read pointer files and fail. Once per machine:
+
+```
+git lfs install                 # install the LFS hooks
+git lfs pull                    # smudge any pointer files in the current checkout
+```
+
+CI workflows (`pages.yml`, `update-data.yml`, `leaderboard-validate.yml`) already pass `lfs: true` to `actions/checkout`.
+
 ## Data Structure
 
 Data is split into focused files under `leaderboard/data/`:
