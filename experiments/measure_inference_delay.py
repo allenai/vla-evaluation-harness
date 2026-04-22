@@ -34,7 +34,7 @@ async def measure(url: str, suite: str, num_requests: int, image_size: int = 256
                 "task_description": "pick up the red cup and place it on the plate",
             }
             t0 = time.monotonic()
-            action = await conn.act(obs)  # noqa: F841
+            await conn.act(obs)  # measuring the round-trip, action itself is unused here
             t1 = time.monotonic()
             latency_ms = (t1 - t0) * 1000
             latencies.append(latency_ms)

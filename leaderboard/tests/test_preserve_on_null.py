@@ -88,7 +88,7 @@ def test_all_preserve_fields_covered():
         "notes": "curator-added context",
         "weight_type": "finetuned",
     }
-    new_row = {"benchmark": "libero", "model": "foo"}
+    new_row: dict[str, object] = {"benchmark": "libero", "model": "foo"}
     for f in PRESERVE_ON_NULL_FIELDS:
         new_row[f] = None
     preserve_on_null([new_row], [old_row])

@@ -30,6 +30,7 @@ import time
 import uuid
 from functools import partial
 from http import HTTPStatus
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -328,10 +329,13 @@ def _parse_address(address: str, default_host: str = "0.0.0.0", default_port: in
 def _resolve_cli_type(
     annotation: type,
     default: object,
-) -> tuple[type | None, bool, bool]:
+) -> tuple[Callable[[str], Any] | None, bool, bool]:
     """Map a Python type annotation to an argparse type.
 
     Returns ``(type_fn, is_bool, skip)``.
+    - ``type_fn`` is a string-to-value callable (``int``, ``str``,
+      ``json.loads``, …). argparse accepts anything callable, so we
+      type it as ``Callable[[str], Any]`` rather than ``type``.
     - ``is_bool=True`` → use ``BooleanOptionalAction``.
     - ``skip=True``    → don't expose this parameter on the CLI.
     """
@@ -365,7 +369,7 @@ def _resolve_cli_type(
     if origin is list or annotation is list:
         import json
 
-        return (json.loads, False, False)  # type: ignore[return-value]
+        return (json.loads, False, False)
 
     return (None, False, True)  # unknown → skip
 
@@ -426,13 +430,17 @@ def run_server(server_cls: type[ModelServer]) -> None:
             if is_bool:
                 default = param.default if param.default is not _EMPTY else False
                 parser.add_argument(flag, action=argparse.BooleanOptionalAction, default=default)
+                continue
+            # _resolve_cli_type's contract: when is_bool=False and
+            # skip=False, type_fn is always a non-None string converter.
+            # The assert narrows the union for the checker and guards
+            # against a future branch being added that breaks the
+            # invariant.
+            assert type_fn is not None
+            if param.default is not _EMPTY:
+                parser.add_argument(flag, type=type_fn, default=param.default)
             else:
-                kwargs: dict[str, object] = {"type": type_fn}
-                if param.default is not _EMPTY:
-                    kwargs["default"] = param.default
-                else:
-                    kwargs["required"] = True
-                parser.add_argument(flag, **kwargs)  # type: ignore[arg-type]
+                parser.add_argument(flag, type=type_fn, required=True)
 
     args = parser.parse_args()
 
@@ -449,9 +457,10 @@ def run_server(server_cls: type[ModelServer]) -> None:
     ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
     server = server_cls(**ctor_kwargs)
 
-    if hasattr(server, "_load_model"):
+    load_model = getattr(server, "_load_model", None)
+    if callable(load_model):
         logger.info("Pre-loading model...")
-        server._load_model()  # type: ignore[attr-defined]
+        load_model()
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)

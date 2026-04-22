@@ -119,11 +119,18 @@ def _block_logging_hijack() -> Iterator[None]:
     import logging.config
 
     _real_dictConfig = logging.config.dictConfig
-    logging.config.dictConfig = lambda *_a, **_kw: None  # type: ignore[assignment]
+
+    def _noop_dictConfig(config: object) -> None:
+        return None
+
+    # setattr bypasses ty's narrow signature check on the module
+    # attribute — the noop has a compatible shape and the patch is
+    # scoped to this context manager.
+    setattr(logging.config, "dictConfig", _noop_dictConfig)
     try:
         yield
     finally:
-        logging.config.dictConfig = _real_dictConfig
+        setattr(logging.config, "dictConfig", _real_dictConfig)
 
 
 class StarVLAModelServer(PredictModelServer):
