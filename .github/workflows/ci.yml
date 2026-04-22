@@ -24,24 +24,31 @@ jobs:
       - run: ruff check
       - run: ruff format --check --diff
 
-  test-ubuntu:
+  test-vla-eval:
     runs-on: ubuntu-latest
-    name: Pytest on Ubuntu
+    name: Pytest (vla_eval)
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install Dependencies
-        # `--all-groups` so the `leaderboard` dep group (typer,
-        # beautifulsoup4, etc.) is installed — leaderboard tests
-        # import from scripts that carry uv-script-level deps not
-        # otherwise resolved.
-        run: uv sync --python 3.11 --all-extras --all-groups
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: Install vla_eval deps
+        run: uv sync --python 3.11 --all-extras --dev
         env:
           UV_TORCH_BACKEND: auto
-
       - name: Run pytest
-        run: uv run pytest
+        run: uv run pytest tests/
+
+  test-leaderboard:
+    runs-on: ubuntu-latest
+    name: Pytest (leaderboard)
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: Install leaderboard deps
+        # --no-install-project so we don't pull vla_eval's runtime
+        # (anyio, websockets, numpy, …) for tests that only touch
+        # leaderboard/scripts/*.py. --group leaderboard gets the
+        # uv-script-level deps (typer, bs4, markdownify); --dev gets
+        # pytest + jsonschema.
+        run: uv sync --python 3.11 --no-install-project --dev --group leaderboard
+      - name: Run pytest
+        run: uv run pytest leaderboard/tests/

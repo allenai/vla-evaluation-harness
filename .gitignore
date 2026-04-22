@@ -20,6 +20,11 @@ dist/
 venv/
 env/
 
+# uv lockfile — resolution is pinned via [tool.uv].exclude-newer in
+# pyproject.toml, so a fresh `uv sync` is reproducible without
+# tracking the generated lock state.
+uv.lock
+
 # IDE
 .idea/
 .vscode/
