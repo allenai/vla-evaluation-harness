@@ -25,7 +25,7 @@ jobs:
 
       - name: Build site
         run: |
-          python leaderboard/scripts/update_coverage.py
+          python leaderboard/scripts/scan.py --check
           python leaderboard/scripts/update_citations.py
           mkdir -p _site/leaderboard
           cp leaderboard/site/* _site/leaderboard/

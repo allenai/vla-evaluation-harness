@@ -33,7 +33,7 @@ Per-benchmark protocol (Standard / Scoring / Checks / Methodology) lives in `lea
 python leaderboard/scripts/build_benchmarks_json.py
 ```
 
-CI runs `build_benchmarks_json.py --check` on every PR — if the committed `benchmarks.json` diverges from the md sources, the PR fails. The only field not sourced from md is `papers_reviewed`, which is owned by `update_coverage.py` and preserved across builds.
+CI runs `build_benchmarks_json.py --check` on every PR — if the committed `benchmarks.json` diverges from the md sources, the PR fails. Per-benchmark coverage (reviewed-paper counts) is derived from extraction records by `scan.py`, not stored in `benchmarks.json`.
 
 ## How to Add Results
 
@@ -44,7 +44,7 @@ CI runs `build_benchmarks_json.py --check` on every PR — if the committed `ben
 3. **Validate**: `python leaderboard/scripts/validate.py`
    - Auto-fix sort order and formatting: `python leaderboard/scripts/validate.py --fix`
 
-4. **Update coverage** (optional): `python leaderboard/scripts/update_coverage.py [--fetch]`
+4. **Update coverage** (optional): `python leaderboard/scripts/scan.py [--check]`  (default refreshes pools via S2; `--check` re-derives coverage only)
 
 5. **Test locally**: `cd leaderboard/site && python -m http.server`
 
@@ -53,9 +53,9 @@ CI runs `build_benchmarks_json.py --check` on every PR — if the committed `ben
 Paper-sourced entries are produced by:
 
 ```
-extract.py scan             # discover citing papers per benchmark
-extract.py run --from-scan  # per-paper LLM extraction → .cache/extractions/
-refine.py main              # protocol gate + per-benchmark LLM refinement → leaderboard.json
+scan.py                      # S2 /citations → data/scan_results.json + data/coverage.json
+extract.py run --from-scan   # per-paper LLM extraction → .cache/extractions/
+refine.py main               # protocol gate + per-benchmark LLM refinement → leaderboard.json
 ```
 
 Field semantics live in the schema files above. `extract.py` and `refine.py` both load their respective schemas at runtime — the prompts reference the schema, not duplicate its field rules.

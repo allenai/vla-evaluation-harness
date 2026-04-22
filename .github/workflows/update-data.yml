@@ -41,7 +41,7 @@ jobs:
         env:
           SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
         run: |
-          python leaderboard/scripts/update_coverage.py --fetch
+          python leaderboard/scripts/scan.py
           python leaderboard/scripts/update_citations.py --fetch
 
       - name: Validate results

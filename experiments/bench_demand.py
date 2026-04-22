@@ -52,6 +52,11 @@ from vla_eval.types import Action, Observation
 class ResourceMonitor:
     """Background thread that samples system resources at 1-second intervals."""
 
+    # Previous (idle, total) tick counters for delta CPU-percent math.
+    # Class-scoped (not instance-scoped) so staticmethod ``_cpu_percent``
+    # can update it without binding to an instance.
+    _cpu_prev: tuple[int, int] | None = None
+
     def __init__(self) -> None:
         self._samples: list[dict[str, Any]] = []
         self._stop = False
@@ -104,12 +109,11 @@ class ResourceMonitor:
             vals = [int(x) for x in line.split()[1:]]
             # idle is index 3; total = sum of all
             idle, total = vals[3], sum(vals)
-            # Store for delta calculation
-            if not hasattr(ResourceMonitor._cpu_percent, "_prev"):
-                ResourceMonitor._cpu_percent._prev = (idle, total)  # type: ignore[attr-defined]
+            prev = ResourceMonitor._cpu_prev
+            ResourceMonitor._cpu_prev = (idle, total)
+            if prev is None:
                 return 0.0
-            prev_idle, prev_total = ResourceMonitor._cpu_percent._prev
-            ResourceMonitor._cpu_percent._prev = (idle, total)
+            prev_idle, prev_total = prev
             d_idle = idle - prev_idle
             d_total = total - prev_total
             return round(100.0 * (1.0 - d_idle / max(d_total, 1)), 1)
