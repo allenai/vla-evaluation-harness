@@ -8,8 +8,7 @@ Source of truth: each benchmark's `.md` file.
     Scoring / Checks / Methodology).
 
 `benchmarks.json` is a **build artifact** — never edit it by hand. This
-script merges all md frontmatters plus the `papers_reviewed` lists (owned
-by `update_coverage.py`) into the final JSON, validates against
+script merges all md frontmatters into the final JSON, validates against
 `benchmarks.schema.json`, and writes the output.
 
 Usage::
@@ -41,12 +40,12 @@ FIELD_ORDER = [
     "metric",
     "suites",
     "tasks",
+    "score_key_suffixes",
     "aggregation",
     "official_leaderboard",
     "expand_suites",
     "avg_position",
     "avg_label",
-    "papers_reviewed",
     "detail_notes",
 ]
 
@@ -68,17 +67,6 @@ def _parse_frontmatter(path: Path) -> dict:
     return data
 
 
-def load_existing_papers_reviewed() -> dict[str, list[str]]:
-    """Read the current benchmarks.json and return papers_reviewed per benchmark.
-
-    This field is owned by `update_coverage.py` and preserved across builds.
-    """
-    if not BENCHMARKS_JSON_PATH.exists():
-        return {}
-    data = json.loads(BENCHMARKS_JSON_PATH.read_text())
-    return {k: list(v.get("papers_reviewed", [])) for k, v in data.items()}
-
-
 def _ordered(entry: dict) -> dict:
     """Return entry with keys in FIELD_ORDER (unknown keys trail alphabetically)."""
     out = {k: entry[k] for k in FIELD_ORDER if k in entry}
@@ -88,9 +76,8 @@ def _ordered(entry: dict) -> dict:
     return out
 
 
-def build(preserve_papers_reviewed: bool = True) -> dict:
+def build() -> dict:
     """Assemble benchmarks.json from md sources. Raises on YAML/schema errors."""
-    papers_by_key = load_existing_papers_reviewed() if preserve_papers_reviewed else {}
     out: dict[str, dict] = {}
 
     for f in sorted(BENCHMARKS_DIR.glob("*.md")):
@@ -100,13 +87,6 @@ def build(preserve_papers_reviewed: bool = True) -> dict:
         bm_key = fm.pop("benchmark", None) or f.stem
         if bm_key in out:
             raise ValueError(f"{f}: duplicate benchmark key {bm_key!r}")
-        if preserve_papers_reviewed:
-            # Always set the field so the output is idempotent even for
-            # benchmarks newly introduced by this build (otherwise a first
-            # build would omit the key and a second build — triggered
-            # e.g. by CI's --check pass — would add `"papers_reviewed": []`
-            # and register a spurious drift).
-            fm.setdefault("papers_reviewed", papers_by_key.get(bm_key, []))
         out[bm_key] = _ordered(fm)
 
     ordered = {k: out[k] for k in sorted(out)}

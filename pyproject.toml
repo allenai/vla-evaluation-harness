@@ -25,6 +25,16 @@ dependencies = [
 
 [dependency-groups]
 dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
+# Runtime deps for leaderboard/scripts (refine, extract, sync_external…)
+# plus the jsonschema/pytest needed to import-and-test them. Separate
+# from `dev` so vla_eval's test env doesn't pull this in.
+leaderboard = [
+    "beautifulsoup4>=4.12",
+    "jsonschema>=4.0",
+    "markdownify>=0.14",
+    "pytest>=8.0",
+    "typer>=0.12",
+]
 
 [tool.hatch.version]
 source = "vcs"

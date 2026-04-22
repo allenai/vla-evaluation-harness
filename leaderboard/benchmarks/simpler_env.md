@@ -30,6 +30,7 @@ tasks:
 - put_spoon_on_towel_vm
 - reported_avg
 - stack_block_vm
+score_key_suffixes: [vm, va]
 detail_notes: "3 independent evaluation dimensions (Google Robot VM, Google Robot VA, WidowX VM). Scores should never be averaged across them. <strong>Google Robot VM</strong> and <strong>VA</strong> are both standardized to the <strong>3-task average</strong> (Pick Coke Can, Move Near, Open/Close Drawer) for consistent ranking. Papers reporting 4 tasks (adding Place Apple in Drawer) have the 4th task shown in sub-scores; original 4-task averages are recorded in Notes. All <code>task_scores</code> keys must end with <code>_vm</code> or <code>_va</code> to indicate the evaluation protocol."
 aggregation: forbidden
 ---

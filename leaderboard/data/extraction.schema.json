@@ -1,42 +1,54 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Per-paper extraction",
-  "description": "One paper's extraction. Stored as .cache/extractions/{arxiv_id}.json; data/extractions.json is a plain array of these. Each row in `benchmarks[].models[]` becomes one candidate for refine.",
+  "description": "One paper's extraction. Each scored entry in `benchmarks` contributes candidate rows to refine. A key's absence from `benchmarks` means this extraction makes no claim about that benchmark — not that the paper lacks it.",
   "type": "object",
-  "required": ["arxiv_id", "extracted_at", "paper_hash", "extraction_scope", "benchmarks"],
+  "required": ["arxiv_id", "benchmarks"],
   "additionalProperties": false,
   "properties": {
     "arxiv_id": {"type": "string", "description": "arxiv id, matches the paper at .cache/papers/{arxiv_id}/paper.md."},
-    "extracted_at": {"type": "string", "format": "date-time"},
-    "model_used": {"type": "string"},
-    "paper_hash": {"type": "string", "description": "sha256: of paper.md when extracted. Invalidates this cache if paper.md changes."},
-    "extraction_scope": {
-      "type": "array",
-      "items": {"type": "string"},
-      "uniqueItems": true,
-      "description": "Benchmark keys considered at extract time. The paper counts as reviewed for every key here, including ones that produce no row."
-    },
-    "batch_size": {"type": "integer", "minimum": 1},
-    "batch_tool_calls_total": {"type": "integer", "minimum": 0},
     "benchmarks": {
-      "type": "array",
-      "description": "One entry per benchmark this paper scores on. Empty array is valid.",
-      "items": {"$ref": "#/$defs/BenchmarkEntry"}
-    },
-    "benchmarks_absent": {
       "type": "object",
-      "description": "Map {benchmark_key → one-line reason} for benchmarks the paper mentions but does not score (cited-only, unreadable, out-of-scope). Forces exhaustive per-benchmark review at extract time; no downstream consumer.",
-      "additionalProperties": {"type": "string"}
+      "description": "Map {benchmark_key → Scored | Absent}. Keys are benchmark ids from leaderboard/benchmarks/{key}.md frontmatter. A key is present only when this extraction has something to say about it — either an extractable score (Scored) or an explicit no-extractable-score determination (Absent). Unmentioned keys are omitted.",
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/Scored"},
+          {"$ref": "#/$defs/Absent"}
+        ]
+      }
+    },
+    "paper_hash": {
+      "type": "string",
+      "description": "sha256: of paper.md. Injected at pack time; absent from the per-paper cache file."
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the extraction run. Injected at pack time; absent from the per-paper cache file."
+    },
+    "model_used": {
+      "type": "string",
+      "description": "Model id that produced this extraction. Injected at pack time; absent from the per-paper cache file."
     }
   },
   "$defs": {
-    "BenchmarkEntry": {
+    "Scored": {
       "type": "object",
-      "required": ["benchmark", "models"],
+      "required": ["status", "models"],
       "additionalProperties": false,
       "properties": {
-        "benchmark": {"type": "string", "description": "Benchmark key from leaderboard/benchmarks/{key}.md frontmatter."},
+        "status": {"const": "scored"},
         "models": {"type": "array", "items": {"$ref": "#/$defs/ModelRow"}}
+      }
+    },
+    "Absent": {
+      "type": "object",
+      "description": "Paper mentions this benchmark but no extractable score (cited-only, unreadable, out-of-scope, figure-only).",
+      "required": ["status", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"const": "absent"},
+        "reason": {"type": "string", "description": "One-line reason the score could not be extracted."}
       }
     },
     "ModelRow": {
@@ -87,27 +99,26 @@
         "suite_scores": {
           "type": "object",
           "description": "Sub-scores over benchmark-defined suites (e.g. LIBERO's 4 suites). Keys match the benchmark's declared suites.",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["value", "quote"],
-            "additionalProperties": false,
-            "properties": {
-              "value": {"type": "number"},
-              "quote": {"type": "string", "description": "Exact characters from the paper."}
-            }
-          }
+          "additionalProperties": {"$ref": "#/$defs/ScoreCell"}
         },
         "task_scores": {
           "type": "object",
           "description": "Per-task scores keyed by task name. Keys match the benchmark's declared tasks for standard protocols; non-standard protocols may include additional keys — keep them under the paper's verbatim names. Same shape as suite_scores.",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["value", "quote"],
-            "additionalProperties": false,
-            "properties": {"value": {"type": "number"}, "quote": {"type": "string"}}
-          }
+          "additionalProperties": {"$ref": "#/$defs/ScoreCell"}
         },
         "reported_table": {"type": ["string", "null"], "description": "e.g. 'Table 1', 'Fig. 4'."}
+      }
+    },
+    "ScoreCell": {
+      "type": "object",
+      "required": ["value", "quote"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {"type": "number"},
+        "quote": {
+          "type": ["string", "null"],
+          "description": "Exact characters from the paper. null is valid when the number was read from a figure/plot and no textual quote exists."
+        }
       }
     },
     "Protocol": {

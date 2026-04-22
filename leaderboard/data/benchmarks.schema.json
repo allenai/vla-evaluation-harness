@@ -32,6 +32,13 @@
       "detail_notes": { "type": "string" },
       "suites": { "type": "array", "items": { "type": "string" } },
       "tasks": { "type": "array", "items": { "type": "string" } },
+      "score_key_suffixes": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[a-z0-9]+$" },
+        "uniqueItems": true,
+        "minItems": 1,
+        "description": "Allowed protocol suffixes for suite_scores / task_scores keys. When present, every component-score key must end in `_<suffix>` for a listed suffix (e.g. simpler_env requires `_vm` or `_va`). Omitted for benchmarks with no suffix constraint."
+      },
       "aggregation": {
         "description": "Canonical rule for aggregating component scores (suite_scores or task_scores) into overall_score. Omit when overall_score is trusted as-is from the source (e.g. LLM-extracted or API-synced aggregates).",
         "oneOf": [
@@ -50,11 +57,6 @@
             }
           }
         ]
-      },
-      "papers_reviewed": {
-        "description": "Derived by update_coverage.py — list of arxiv IDs reviewed for this benchmark.",
-        "type": "array",
-        "items": { "type": "string" }
       }
     }
   }

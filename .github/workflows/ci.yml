@@ -35,8 +35,11 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install Dependencies
-        run: |
-          uv sync --python 3.11 --all-extras --dev
+        # `--all-groups` so the `leaderboard` dep group (typer,
+        # beautifulsoup4, etc.) is installed — leaderboard tests
+        # import from scripts that carry uv-script-level deps not
+        # otherwise resolved.
+        run: uv sync --python 3.11 --all-extras --all-groups
         env:
           UV_TORCH_BACKEND: auto
 

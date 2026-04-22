@@ -63,10 +63,22 @@
           "format": "uri",
           "description": "Source URL for this specific score. Use to set the model key suffix and to mention non-arxiv sources in notes. Not stored on the final entry."
         },
+        "model_paper_surname": {
+          "type": ["string", "null"],
+          "description": "Lowercase ASCII surname of the first author of `model_paper`, pre-fetched from the arxiv API. Use this to construct the method's part of the bibkey as `{surname}{year}{shortname}`. Null if `model_paper` is unset, non-arxiv, or unreachable."
+        },
+        "cited_paper_surname": {
+          "type": ["string", "null"],
+          "description": "Lowercase ASCII surname of the first author of `cited_paper`, pre-fetched from the arxiv API. Use this for the citing-paper part of third_party composite bibkeys when `cited_paper` is an arxiv URL."
+        },
+        "reported_paper_surname": {
+          "type": ["string", "null"],
+          "description": "Lowercase ASCII surname of the first author of `reported_paper`. Fallback source for the citing-paper part when `cited_paper` is null or non-arxiv."
+        },
         "row_type": {
           "type": "string",
           "enum": ["first_party", "third_party"],
-          "description": "Attribution case set by build_candidates.\n\nfirst_party: citing paper IS model_paper AND is_score_original='original'. Emit model={method_bib}, display_name=method name, reported_paper=citing URL.\n\nthird_party: everything else. If cited_paper is an arxiv URL: reported_paper=cited_paper, model={method_bib}__{cited_bib}, display_name='Method (from CitedPaper)'. Otherwise: reported_paper=citing URL, model={method_bib}__{citing_bib}, display_name='Method (from CitingPaper)'; non-arxiv cited_paper goes in notes.\n\nModel bibkey: firstauthor+year+shortname, lowercase, no separators (e.g. 'kim2024openvla'). Match the format used elsewhere in leaderboard.json for the same method."
+          "description": "Attribution case set by build_candidates.\n\nfirst_party: citing paper IS model_paper AND is_score_original='original'. Emit model={method_bib}, display_name=method name, reported_paper=citing URL.\n\nthird_party: everything else. If cited_paper is an arxiv URL: reported_paper=cited_paper, model={method_bib}__{cited_bib}, display_name='Method (from CitedPaper)'. Otherwise: reported_paper=citing URL, model={method_bib}__{citing_bib}, display_name='Method (from CitingPaper)'; non-arxiv cited_paper goes in notes.\n\nModel bibkey: `{firstauthor}{year}{shortname}`, lowercase, no separators. Year is 4 digits (e.g. `kim2024openvla`, not `kim24openvla`). Match the format used elsewhere in leaderboard.json for the same method."
         }
       }
     }

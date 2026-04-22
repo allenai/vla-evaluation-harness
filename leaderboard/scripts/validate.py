@@ -129,21 +129,6 @@ def validate_official_leaderboard_policy(data: dict) -> list[str]:
     return errors
 
 
-def validate_papers_reviewed(data: dict) -> list[str]:
-    """Validate papers_reviewed entries inside benchmarks registry."""
-    errors = []
-    for bm_key, bm in data["benchmarks"].items():
-        reviewed = bm.get("papers_reviewed", [])
-        seen = set()
-        for arxiv_id in reviewed:
-            if not ARXIV_ID_RE.match(arxiv_id):
-                errors.append(f"benchmarks.{bm_key}.papers_reviewed: '{arxiv_id}' is not a valid arxiv ID")
-            if arxiv_id in seen:
-                errors.append(f"benchmarks.{bm_key}.papers_reviewed: duplicate '{arxiv_id}'")
-            seen.add(arxiv_id)
-    return errors
-
-
 def validate_citations(data: dict) -> list[str]:
     """Validate that citations.json exists and covers every arxiv paper in results.
 
@@ -294,14 +279,13 @@ def main() -> int:
     errors += validate_sort_and_format(data, raw_text)
 
     # Inject benchmarks for validators that need the registry (score_ranges,
-    # official_policy, papers_reviewed). Done AFTER --fix so the benchmarks
-    # registry never leaks back into leaderboard.json.
+    # official_policy). Done AFTER --fix so the benchmarks registry never
+    # leaks back into leaderboard.json.
     data["benchmarks"] = benchmarks
     errors += validate_score_ranges(data)
     errors += validate_scale_sanity(data)
     errors += validate_aggregation_rules(data)
     errors += validate_official_leaderboard_policy(data)
-    errors += validate_papers_reviewed(data)
     errors += validate_citations(data)
 
     if errors:
@@ -314,6 +298,7 @@ def main() -> int:
     n_benchmarks = len(data["benchmarks"])
     n_results = len(data["results"])
     print(f"OK: {n_results} results across {n_models} models and {n_benchmarks} benchmarks")
+
     return 0
 
 

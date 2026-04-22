@@ -64,7 +64,14 @@
       .then(json => { if (json) { citationData = json.papers || {}; renderTable(); } })
       .catch(() => {});
 
-    function resetAndRender() { currentPage = 0; renderTable(); }
+    function resetAndRender() {
+      currentPage = 0;
+      // Filter-affecting controls also need the model list re-filtered,
+      // not just the page reset — the cached list keyed off sort state
+      // would otherwise still reflect the pre-filter state.
+      lastFilteredModels = [];
+      renderTable();
+    }
     if (benchmarkFilterEl) benchmarkFilterEl.addEventListener('change', onBenchmarkFilterChange);
     for (const [elem, evt] of [
       [modelSearchEl, 'input'], [dateFromEl, 'change'], [dateToEl, 'change'],
@@ -360,6 +367,9 @@
     const sortChanged = sortState.column !== lastSortCol || sortState.direction !== lastSortDir;
     const needsRecompute = sortChanged || lastFilteredModels.length === 0;
 
+    // Recompute best-per-column each render so it tracks filter toggles.
+    computeBestByColumn();
+
     if (needsRecompute) {
       // Header (only rebuild when sort state changes)
       const htr = document.createElement('tr');
@@ -411,7 +421,12 @@
         cell.className = 'score-cell';
         cell.dataset.colid = col.colId;
 
-        if (result) {
+        // Per-cell filter: even if the model row is visible (at least one
+        // first-party entry somewhere), a specific benchmark cell should be
+        // hidden when that benchmark's entry for this model is third-party.
+        const filteredOut = result && firstPartyOnlyEl && firstPartyOnlyEl.checked && isThirdParty(result);
+
+        if (result && !filteredOut) {
           if (bestByColumnCache[col.colId] === mk) cell.classList.add('best');
           const displayScore = getDisplayScore(result, col.bmKey, col.suite);
           cell.appendChild(el('span', formatScore(displayScore, metric.name), 'score-value'));
@@ -429,11 +444,11 @@
     tbodyEl.appendChild(frag);
 
     requestAnimationFrame(applyHeatmapColors);
-    renderPagination(totalPages, lastFilteredModels.length);
+    renderPagination(totalPages);
   }
 
   // ─── Pagination controls ─────────────────────────────────────────────────
-  function renderPagination(totalPages, total) {
+  function renderPagination(totalPages) {
     let pager = $('pagination');
     if (totalPages <= 1) {
       if (pager) pager.style.display = 'none';
@@ -446,6 +461,7 @@
       tableEl.parentNode.insertBefore(pager, tableEl.nextSibling);
     }
     pager.style.display = '';
+    const total = lastFilteredModels.length;
     const s = currentPage * PAGE_SIZE + 1;
     const e = Math.min(s + PAGE_SIZE - 1, total);
     pager.innerHTML =
@@ -493,6 +509,8 @@
   function renderDetailView(bmKey) {
     if (!theadEl || !tbodyEl) return;
     tableEl.className = 'detail-mode';
+    const pager = $('pagination');
+    if (pager) pager.style.display = 'none';
     const bm = data.benchmarks[bmKey] || {};
     const metric = bm.metric || {};
     const expandSuites = shouldExpandSuites(bmKey);
@@ -516,7 +534,7 @@
       return col === '_avg' ? r.overall_score : (r.suite_scores || {})[col];
     }
 
-    const allResults = data.results
+    const results = data.results
       .filter(r => r.benchmark === bmKey && isResultVisible(r))
       .sort((a, b) => {
         if (expandSuites && detailSortSuite) {
@@ -525,19 +543,12 @@
         return (b.overall_score || 0) - (a.overall_score || 0);
       });
 
-    // Paginate (best-per-column computed over ALL results below, so rankings stay global)
-    const totalPages = Math.max(1, Math.ceil(allResults.length / PAGE_SIZE));
-    if (currentPage >= totalPages) currentPage = totalPages - 1;
-    if (currentPage < 0) currentPage = 0;
-    const start = currentPage * PAGE_SIZE;
-    const results = allResults.slice(start, start + PAGE_SIZE);
-
-    // Find best per column (computed over all results, not just the page)
+    // Find best per column
     const bestByCol = {};
     if (expandSuites) {
       for (const col of detailColumns) {
         let bestVal = null, bestModel = null;
-        for (const r of allResults) {
+        for (const r of results) {
           const v = colScore(r, col);
           if (v != null && (bestVal === null || v > bestVal)) { bestVal = v; bestModel = r.model; }
         }
@@ -561,7 +572,7 @@
           cell.classList.add('sorted');
           cell.appendChild(el('span', ' \u25BC', 'sort-arrow'));
         }
-        cell.addEventListener('click', ((c) => () => { detailSortSuite = c; currentPage = 0; renderTable(); })(col));
+        cell.addEventListener('click', ((c) => () => { detailSortSuite = c; renderTable(); })(col));
         htr.appendChild(cell);
       }
     } else {
@@ -580,7 +591,7 @@
 
     // Body — use DocumentFragment
     const frag = document.createDocumentFragment();
-    let rank = start;
+    let rank = 0;
     for (const r of results) {
       rank++;
       const tr = document.createElement('tr');
@@ -659,8 +670,6 @@
     }
     tbodyEl.innerHTML = '';
     tbodyEl.appendChild(frag);
-
-    renderPagination(totalPages, allResults.length);
   }
 
   // ─── Score resolver ────────────────────────────────────────────────────────
@@ -745,6 +754,11 @@
   }
 
   function computeBestByColumn() {
+    // Best-per-column is filter-aware: when "First-party results only" is
+    // on, a best-cell highlight on a third-party entry would be hidden
+    // (rendered as '—') and no column would show a winner. Skip
+    // third-party rows here so the highlight matches the visible top.
+    const firstPartyOnly = firstPartyOnlyEl && firstPartyOnlyEl.checked;
     bestByColumnCache = {};
     for (const col of overviewColumns) {
       const higher = (data.benchmarks[col.bmKey] || {}).metric?.higher_is_better !== false;
@@ -752,6 +766,7 @@
       for (const mk of modelKeys) {
         const r = pivotMap[mk] && pivotMap[mk][col.bmKey];
         if (!r) continue;
+        if (firstPartyOnly && isThirdParty(r)) continue;
         const s = getDisplayScore(r, col.bmKey, col.suite);
         if (s === null) continue;
         if (bestS === null || (higher ? s > bestS : s < bestS)) { bestS = s; bestM = mk; }
@@ -832,7 +847,7 @@
     html += `<span class="coverage-summary">${coverageData.total_results} results from ${coverageData.total_models} models`;
     if (coverageData.total_papers_reviewed) html += ` \xB7 ${coverageData.total_papers_reviewed} papers reviewed`;
     html += '</span></div>';
-    html += '<div class="coverage-explanation">Denominator = arXiv-preprint papers citing the benchmark (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener noreferrer">Semantic Scholar</a>). Total citations in parentheses include non-arXiv publications that cannot be reviewed via the arxiv reading pipeline. Not every citing paper reports new evaluation numbers \u2014 this shows how much of the reviewable pool we have covered.</div>';
+    html += '<div class="coverage-explanation">Denominator = arXiv-preprint papers citing the benchmark (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener noreferrer">Semantic Scholar</a>) plus the benchmark paper itself. Total citations in parentheses include non-arXiv publications that cannot be reviewed via the arxiv reading pipeline. Not every citing paper reports new evaluation numbers \u2014 this shows how much of the reviewable pool we have covered.</div>';
     html += '<div class="coverage-grid">';
 
     for (const key of keys) {
@@ -841,15 +856,25 @@
       const citingArxiv = bm.arxiv_citing_papers || citingTotal;
       const reviewed = bm.papers_reviewed || 0;
       if (!citingArxiv) continue;
-      const pct = Math.min(100, Math.round((reviewed / Math.max(1, citingArxiv)) * 100));
+      // scan.py already folds the benchmark paper itself into
+      // ``arxiv_citing_papers`` (len of the unioned pool), so we use the
+      // reported counts directly here — no +1 needed.
+      const denomArxiv = citingArxiv;
+      const denomTotal = citingTotal || null;
+      const pct = Math.min(100, Math.round((reviewed / denomArxiv) * 100));
       const barColor = pct > 15 ? 'var(--accent)' : pct > 5 ? '#da9679' : '#e24a8d';
-      const showTotal = citingTotal && citingTotal !== citingArxiv;
+      // Hide the total-citations figure when it's ≤ the arXiv-reviewable
+      // count — after post-scan pool unions (e.g. robocasa after gr1
+      // merge), the S2-reported total can be smaller than the real
+      // reviewable pool, which would misleadingly read "631 total / 768
+      // arxiv".
+      const showTotal = denomTotal && denomTotal > denomArxiv;
       const numsText = showTotal
-        ? `${reviewed}/${citingArxiv} <span class="coverage-nums-sub">(${citingTotal} total)</span>`
-        : `${reviewed}/${citingArxiv}`;
+        ? `${reviewed}/${denomArxiv} <span class="coverage-nums-sub">(${denomTotal} total)</span>`
+        : `${reviewed}/${denomArxiv}`;
       const titleText = showTotal
-        ? `${reviewed} reviewed / ${citingArxiv} arXiv citing (${citingTotal} total incl. non-arXiv)`
-        : `${reviewed} reviewed / ${citingArxiv} citing papers`;
+        ? `${reviewed} reviewed / ${denomArxiv} arXiv papers (${denomTotal} total incl. non-arXiv; includes the benchmark paper)`
+        : `${reviewed} reviewed / ${denomArxiv} arXiv papers (includes the benchmark paper)`;
       html += `<div class="coverage-item" title="${titleText}">`;
       html += `<div class="coverage-label"><span>${escHtml(bm.display_name)}</span><span class="coverage-nums">${numsText}</span></div>`;
       html += `<div class="coverage-track"><div class="coverage-fill" style="width:${Math.max(2, pct)}%;background:${barColor}"></div></div>`;
