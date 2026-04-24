@@ -86,7 +86,7 @@ def _classify_data(data: dict[str, Any]) -> str:
 BENCHMARK_REGISTRY: dict[str, str] = {
     "libero":       "configs/libero_smoke_test.yaml",
     "libero_pro":   "configs/libero_pro_eval.yaml",
-    "libero_plus":  "configs/libero_plus_smoke_test.yaml",
+    "libero_plus":  "configs/libero_plus_spatial.yaml",
     "libero_mem":   "configs/libero_mem.yaml",
     "calvin":       "configs/calvin_eval.yaml",
     "maniskill2":   "configs/maniskill2_eval.yaml",
