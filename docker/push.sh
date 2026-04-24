@@ -30,7 +30,7 @@ if [[ "$TAG" == "latest" && "$FORCE" != true ]]; then
   UPDATE_LATEST=false  # already pushing as latest, no need to double-tag
 fi
 
-IMAGES=(base simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme)
+IMAGES=(base simpler libero libero_pro libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces)
 
 push_image() {
   local name="$1"

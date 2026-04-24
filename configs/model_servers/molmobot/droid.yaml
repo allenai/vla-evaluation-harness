@@ -1,0 +1,6 @@
+# MolmoBot (F=2) — Franka FR3 DROID configuration
+# Reported: 64.1% sim avg on MolmoSpaces-Bench, 79.2% real-world pick-and-place
+
+extends: _base.yaml
+args:
+  hf_repo: "allenai/MolmoBot-DROID"

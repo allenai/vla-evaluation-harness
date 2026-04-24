@@ -1,0 +1,13 @@
+# MolmoBot model server — Molmo2-4B + DiT flow-matching action head
+# Paper: https://arxiv.org/abs/2603.16861
+# Code:  https://github.com/allenai/MolmoBot
+# Weights: https://huggingface.co/collections/allenai/molmobot-models
+
+script: "src/vla_eval/model_servers/molmobot.py"
+args:
+  primary_image_key: "exo_camera_1"
+  wrist_image_key: "wrist_camera"
+  execute_horizon: 8            # Matches SynthVLAPolicyConfig.execute_horizon
+  states_mode: "cross_attn"     # Matches SynthVLAPolicyConfig.states_mode
+  max_joint_delta: 0.2          # Per-step safety clamp on arm joint deltas
+  port: 8000
