@@ -15,8 +15,8 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     mode: sync
     episodes_per_task: 1
+    max_tasks: 25
     params:
       suite: libero_spatial
       seed: 7
       num_steps_wait: 10
-      max_tasks: 25

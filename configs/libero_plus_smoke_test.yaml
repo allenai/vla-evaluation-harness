@@ -16,4 +16,3 @@ benchmarks:
       suite: libero_spatial
       seed: 7
       num_steps_wait: 10
-      max_tasks: 1

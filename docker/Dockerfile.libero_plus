@@ -44,9 +44,10 @@ RUN wget --progress=dot:giga \
         "https://huggingface.co/datasets/Sylvest/LIBERO-plus/resolve/main/assets.zip?download=true" \
         -O /tmp/assets.zip \
     && unzip -q /tmp/assets.zip -d /tmp/assets-extracted \
+    && rm /tmp/assets.zip \
     && mv "$(find /tmp/assets-extracted -type d -name assets -print -quit)" \
           /app/LIBERO-plus/libero/libero/assets \
-    && rm -rf /tmp/assets.zip /tmp/assets-extracted
+    && rm -rf /tmp/assets-extracted
 
 # ── Pre-create LIBERO config (suppress interactive prompt) ─────────
 RUN mkdir -p /root/.libero && printf '\

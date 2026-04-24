@@ -28,61 +28,45 @@ from vla_eval.benchmarks.libero.benchmark import LIBEROBenchmark
 from vla_eval.types import Task
 
 
+def _registry_name(task: Task) -> str | None:
+    """Return LIBERO's internal registry id (``task_obj.name``) for *task*.
+
+    LIBEROBenchmark stores the human-readable ``task.language`` under
+    ``task["name"]``; ``task_classification.json`` is keyed by the
+    registry id, so filters and metadata joins must use this.
+    """
+    return getattr(task.get("task_obj"), "name", None)
+
+
 class LIBEROPlusBenchmark(LIBEROBenchmark):
     """LIBERO-Plus robustness benchmark.
 
+    Accepts every keyword argument :class:`LIBEROBenchmark` accepts (forwarded
+    via ``**kwargs``) plus LIBERO-Plus-specific filters:
+
     Args:
-        suite: LIBERO-Plus suite name. One of ``libero_spatial``,
-            ``libero_object``, ``libero_goal``, ``libero_10``, ``libero_90``.
-            Suite names are identical to vanilla LIBERO — only the task
-            count differs (LIBERO-Plus registers thousands of perturbed
-            variants per suite).
         category: Optional filter on ``task_classification.json`` category
-            (e.g. ``"Background Textures"``, ``"Camera Views"``). When set,
-            only task variants tagged with this category are returned.
+            (e.g. ``"Background Textures"``, ``"Camera Viewpoints"``). When
+            set, only task variants tagged with this category are returned.
             ``libero_90`` has no classification metadata and accepts only
             ``category=None``.
         difficulty_level: Optional filter on ``difficulty_level`` (integer,
             typically 1-3). Combined with *category* via logical AND.
-        max_tasks: Optional hard cap on the number of task variants returned
-            after filtering. Useful for smoke tests and quick reproduction
-            runs — the full suite has ~2,400-2,600 variants.
-        seed: Random seed for environment initialisation.
-        num_steps_wait: Dummy action steps at episode start (default 10).
-        send_wrist_image: Include wrist camera image in observations.
-        send_state: Include proprioceptive state in observations.
-        absolute_action: Use absolute (world-frame) actions instead of delta.
+
+    Use the orchestrator's top-level ``max_tasks:`` config key to limit the
+    task count after filtering.
     """
 
     def __init__(
         self,
-        suite: str = "libero_spatial",
+        *,
         category: str | None = None,
         difficulty_level: int | None = None,
-        max_tasks: int | None = None,
-        seed: int = 7,
-        num_steps_wait: int = 10,
-        send_wrist_image: bool = False,
-        send_state: bool = False,
-        absolute_action: bool = False,
-        max_steps: int | None = None,
-        env_seed: int | None = None,
-        quat_no_antipodal: bool = False,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(
-            suite=suite,
-            seed=seed,
-            num_steps_wait=num_steps_wait,
-            send_wrist_image=send_wrist_image,
-            send_state=send_state,
-            absolute_action=absolute_action,
-            max_steps=max_steps,
-            env_seed=env_seed,
-            quat_no_antipodal=quat_no_antipodal,
-        )
+        super().__init__(**kwargs)
         self.category = category
         self.difficulty_level = difficulty_level
-        self.max_tasks = max_tasks
         self._classification: dict[str, dict[str, Any]] | None = None
 
     def _load_classification(self) -> dict[str, dict[str, Any]]:
@@ -96,69 +80,48 @@ class LIBEROPlusBenchmark(LIBEROBenchmark):
 
         benchmark_dir = Path(libero_benchmark.__file__).parent
         classification_path = benchmark_dir / "task_classification.json"
-        if not classification_path.exists():
+
+        try:
+            with open(classification_path) as f:
+                raw = json.load(f)
+        except FileNotFoundError:
             self._classification = {}
             return self._classification
 
-        with open(classification_path) as f:
-            raw = json.load(f)
-
-        index: dict[str, dict[str, Any]] = {}
-        suite_entries = raw.get(self.suite, [])
-        for entry in suite_entries:
-            name = entry.get("name")
-            if name:
-                index[name] = entry
-        self._classification = index
+        self._classification = {entry["name"]: entry for entry in raw.get(self.suite, []) if entry.get("name")}
         return self._classification
 
     def get_tasks(self) -> list[Task]:
         tasks = super().get_tasks()
+        classification = self._load_classification()
 
         needs_classification = self.category is not None or self.difficulty_level is not None
-        if needs_classification:
-            classification = self._load_classification()
-            if not classification:
-                raise RuntimeError(
-                    f"category/difficulty_level filter set but no classification "
-                    f"metadata found for suite {self.suite!r} "
-                    f"(task_classification.json covers libero_spatial/object/goal/10 only)."
-                )
+        if needs_classification and not classification:
+            raise RuntimeError(
+                f"category/difficulty_level filter set but no classification metadata found "
+                f"for suite {self.suite!r} (task_classification.json covers "
+                f"libero_spatial/object/goal/10 only)."
+            )
 
-            def _matches(task: Task) -> bool:
-                # task_classification.json is keyed by the LIBERO registry
-                # name (task_obj.name), not the human-readable language that
-                # LIBEROBenchmark.get_tasks() stores in task["name"].
-                registry_name = getattr(task.get("task_obj"), "name", None)
-                entry = classification.get(registry_name) if registry_name else None
+        filtered: list[Task] = []
+        for task in tasks:
+            entry = classification.get(_registry_name(task) or "")
+            if needs_classification:
                 if entry is None:
-                    return False
+                    continue
                 if self.category is not None and entry.get("category") != self.category:
-                    return False
+                    continue
                 if self.difficulty_level is not None and entry.get("difficulty_level") != self.difficulty_level:
-                    return False
-                return True
+                    continue
+            if entry is not None:
+                task["category"] = entry.get("category")
+                task["difficulty_level"] = entry.get("difficulty_level")
+            filtered.append(task)
 
-            tasks = [t for t in tasks if _matches(t)]
-
-        # Attach classification metadata to every task (useful for result
-        # breakdown) when available.
-        if self._classification:
-            for task in tasks:
-                registry_name = getattr(task.get("task_obj"), "name", None)
-                entry = self._classification.get(registry_name) if registry_name else None
-                if entry is not None:
-                    task["category"] = entry.get("category")
-                    task["difficulty_level"] = entry.get("difficulty_level")
-
-        if self.max_tasks is not None:
-            tasks = tasks[: self.max_tasks]
-
-        return tasks
+        return filtered
 
     def get_metadata(self) -> dict[str, Any]:
         meta = super().get_metadata()
         meta["category_filter"] = self.category
         meta["difficulty_filter"] = self.difficulty_level
-        meta["max_tasks"] = self.max_tasks
         return meta
