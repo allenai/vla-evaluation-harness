@@ -228,7 +228,7 @@ class MolmoSpacesBenchmark(StepBenchmark):
         if self.send_state:
             qpos = self._extract_qpos(raw_obs)
             if qpos is not None:
-                result["state"] = qpos
+                result["states"] = qpos
 
         return result
 
