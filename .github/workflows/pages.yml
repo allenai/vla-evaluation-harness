@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # leaderboard/data/{leaderboard,extractions,scan_results}.json
+          # live in LFS. scan.py reads leaderboard.json and the site
+          # serves it verbatim, so the blob must be smudged here.
+          lfs: true
 
       - uses: actions/setup-python@v6
         with:
@@ -25,11 +30,12 @@ jobs:
 
       - name: Build site
         run: |
-          python leaderboard/scripts/update_coverage.py
+          python leaderboard/scripts/scan.py --check
           python leaderboard/scripts/update_citations.py
           mkdir -p _site/leaderboard
           cp leaderboard/site/* _site/leaderboard/
-          cp leaderboard/data/results.json _site/leaderboard/
+          cp leaderboard/data/leaderboard.json _site/leaderboard/
+          cp leaderboard/data/benchmarks.json _site/leaderboard/
           cp leaderboard/data/coverage.json _site/leaderboard/
           cp leaderboard/data/citations.json _site/leaderboard/
 

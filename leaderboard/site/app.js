@@ -16,6 +16,18 @@
   let coverageData = null;
   let citationData = null; // arxiv_id → citation count
 
+  // ─── Caches (computed once in buildPivot, static until data reload) ────────
+  let suiteOnlyCache = {};   // bmKey → boolean
+  let modelDisplayCache = {}; // model key → display name
+  let bestByColumnCache = {}; // colId → model key (best score)
+
+  // ─── Pagination state ─────────────────────────────────────────────────────
+  const PAGE_SIZE = 50;
+  let currentPage = 0;
+  let lastFilteredModels = []; // cached for pagination
+  let lastSortCol = null;      // track whether sort/filter changed vs page-only
+  let lastSortDir = null;
+
   // ─── DOM refs ──────────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
   const loadingEl = $('loading');
@@ -28,15 +40,19 @@
   const dateFromEl = $('date-from');
   const dateToEl = $('date-to');
   const minCitationsEl = $('min-citations');
+  const firstPartyOnlyEl = $('first-party-only');
   const breakdownPanelEl = $('breakdown-panel');
   const coverageBarEl = $('coverage-bar');
 
   // ─── Bootstrap ─────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    fetch('./results.json')
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(json => { data = json; init(); })
-      .catch(err => { if (loadingEl) loadingEl.textContent = 'Failed to load: ' + err.message; });
+    Promise.all([
+      fetch('./leaderboard.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+      fetch('./benchmarks.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+    ]).then(([leaderboard, benchmarks]) => {
+      data = { ...leaderboard, benchmarks };
+      init();
+    }).catch(err => { if (loadingEl) loadingEl.textContent = 'Failed to load: ' + err.message; });
 
     fetch('./coverage.json')
       .then(r => r.ok ? r.json() : null)
@@ -48,14 +64,36 @@
       .then(json => { if (json) { citationData = json.papers || {}; renderTable(); } })
       .catch(() => {});
 
+    function resetAndRender() {
+      currentPage = 0;
+      // Filter-affecting controls also need the model list re-filtered,
+      // not just the page reset — the cached list keyed off sort state
+      // would otherwise still reflect the pre-filter state.
+      lastFilteredModels = [];
+      renderTable();
+    }
     if (benchmarkFilterEl) benchmarkFilterEl.addEventListener('change', onBenchmarkFilterChange);
-    if (modelSearchEl) modelSearchEl.addEventListener('input', () => renderTable());
-    if (dateFromEl) dateFromEl.addEventListener('change', () => renderTable());
-    if (dateToEl) dateToEl.addEventListener('change', () => renderTable());
-    if (minCitationsEl) minCitationsEl.addEventListener('input', () => renderTable());
+    for (const [elem, evt] of [
+      [modelSearchEl, 'input'], [dateFromEl, 'change'], [dateToEl, 'change'],
+      [minCitationsEl, 'input'], [firstPartyOnlyEl, 'change'],
+    ]) {
+      if (elem) elem.addEventListener(evt, resetAndRender);
+    }
     if (breakdownPanelEl) breakdownPanelEl.addEventListener('click', e => {
       if (e.target.classList.contains('breakdown-close')) closeBreakdown();
     });
+
+    // Tooltip: single delegated listener on tbody
+    if (tbodyEl) {
+      tbodyEl.addEventListener('mouseenter', e => {
+        const cell = e.target.closest('.score-cell[data-tip-curator]');
+        if (cell) showTooltip(cell);
+      }, true);
+      tbodyEl.addEventListener('mouseleave', e => {
+        const cell = e.target.closest('.score-cell[data-tip-curator]');
+        if (cell) hideTooltip();
+      }, true);
+    }
   });
 
   function init() {
@@ -89,7 +127,28 @@
       sortState.column = '_date';
       sortState.direction = 'desc';
     }
+
+    // Cache suite-only status per benchmark
+    suiteOnlyCache = {};
+    for (const bmKey of benchmarkKeys) {
+      const bm = data.benchmarks[bmKey] || {};
+      if (!bm.suites || bm.suites.length === 0) { suiteOnlyCache[bmKey] = false; continue; }
+      const bmResults = data.results.filter(r => r.benchmark === bmKey);
+      suiteOnlyCache[bmKey] = bmResults.length > 0 && bmResults.every(r => r.overall_score == null);
+    }
+
+    // Cache model display names
+    modelDisplayCache = {};
+    for (const mk of modelKeys) {
+      const r = Object.values(pivotMap[mk])[0];
+      modelDisplayCache[mk] = r ? (r.display_name || mk) : mk;
+    }
+
+    // Cache best-per-column (static for all models — only changes on data reload)
+    bestByColumnCache = {};
+
     buildOverviewColumns();
+    computeBestByColumn();
   }
 
   // ─── Overview columns (expand suite-only benchmarks) ─────────────────────
@@ -100,7 +159,7 @@
         const bm = data.benchmarks[bmKey] || {};
         const suites = bm.suites || [];
         const bmName = bm.display_name || bmKey;
-        const showAvg = !isSuiteOnlyBenchmark(bmKey);
+        const showAvg = !suiteOnlyCache[bmKey];
         const avgPos = showAvg ? (bm.avg_position ?? suites.length) : -1;
         for (let i = 0; i < suites.length; i++) {
           if (i === avgPos) {
@@ -150,33 +209,59 @@
   function onBenchmarkFilterChange() {
     const val = benchmarkFilterEl.value;
     selectedBenchmark = val || null;
-    detailSortSuite = null; // reset suite sort when switching benchmarks
+    detailSortSuite = null;
+    currentPage = 0;
     if (val) { sortState.column = val; sortState.direction = 'desc'; }
     else { sortState.column = '_date'; sortState.direction = 'desc'; }
     closeBreakdown();
     renderTable();
   }
 
-  // ─── Search & Filters ─────────────────────────────────────────────────────
-  function searchQuery() { return modelSearchEl ? modelSearchEl.value.trim().toLowerCase() : ''; }
+  // ─── Arxiv helpers (single parse, shared across all callers) ──────────────
+  function rawArxivId(url) {
+    if (!url) return null;
+    const m = url.match(/arxiv\.org\/abs\/(\d+\.\d+)/);
+    return m ? m[1] : null;
+  }
 
-  /** Extract YYYY-MM publication date from an arxiv URL (YYMM.NNNNN format). */
   function extractPubMonth(url) {
     if (!url) return null;
     const m = url.match(/arxiv\.org\/abs\/(\d{2})(\d{2})\.\d+/);
     if (!m) return null;
     const yy = parseInt(m[1], 10);
-    const mm = m[2];
-    return (yy >= 50 ? '19' : '20') + m[1] + '-' + mm; // "2024-02"
+    return (yy >= 50 ? '19' : '20') + m[1] + '-' + m[2];
   }
 
-  /** Get the publication month for a model key (uses model_paper, falls back to source_paper). */
+  /** Get pub month from a result, trying model_paper then reported_paper. */
+  function getResultPubMonth(r) {
+    return extractPubMonth(r.model_paper) || extractPubMonth(r.reported_paper);
+  }
+
+  /** Get arxiv ID from a result, trying model_paper then reported_paper. */
+  function getResultArxivId(r) {
+    return rawArxivId(r.model_paper) || rawArxivId(r.reported_paper);
+  }
+
+  // ─── Search & Filters ─────────────────────────────────────────────────────
+  function searchQuery() { return modelSearchEl ? modelSearchEl.value.trim().toLowerCase() : ''; }
+
   function getModelPubMonth(mk) {
     const entries = pivotMap[mk];
     if (!entries) return null;
     for (const r of Object.values(entries)) {
-      const pm = extractPubMonth(r.model_paper) || extractPubMonth(r.source_paper);
+      const pm = getResultPubMonth(r);
       if (pm) return pm;
+    }
+    return null;
+  }
+
+  function getModelCitations(mk) {
+    if (!citationData) return null;
+    const entries = pivotMap[mk];
+    if (!entries) return null;
+    for (const r of Object.values(entries)) {
+      const aid = getResultArxivId(r);
+      if (aid && citationData[aid] != null) return citationData[aid];
     }
     return null;
   }
@@ -186,74 +271,53 @@
     return citationData && Object.keys(citationData).length > 0;
   }
 
-  /** Extract raw arxiv ID (e.g. "2402.10885") without prefix, for citation lookups. */
-  function rawArxivId(url) {
-    if (!url) return null;
-    const m = url.match(/arxiv\.org\/abs\/(\d+\.\d+)/);
-    return m ? m[1] : null;
+  /** A row is "third-party" when the paper that reported it differs from the
+   *  paper that introduced the model. The bibkey-style `__` separator in the
+   *  model field is a fallback signal for the same fact. */
+  function isThirdParty(r) {
+    if (r.reported_paper && r.model_paper && r.reported_paper !== r.model_paper) return true;
+    if (typeof r.model === 'string' && r.model.includes('__')) return true;
+    return false;
   }
 
-  /** Get citation count for a model key. */
-  function getModelCitations(mk) {
-    if (!citationData) return null;
+  /** A model key is third-party when ALL its rows are third-party. */
+  function isModelThirdParty(mk) {
     const entries = pivotMap[mk];
-    if (!entries) return null;
-    for (const r of Object.values(entries)) {
-      const aid = rawArxivId(r.model_paper) || rawArxivId(r.source_paper);
-      if (aid && citationData[aid] != null) return citationData[aid];
+    if (!entries) return false;
+    const rows = Object.values(entries);
+    if (rows.length === 0) return false;
+    return rows.every(isThirdParty);
+  }
+
+  /** Shared filter logic: date range + citation threshold. */
+  function passesDateCitationFilter(pubMonth, arxivId) {
+    const dateFrom = dateFromEl ? dateFromEl.value : '';
+    const dateTo = dateToEl ? dateToEl.value : '';
+    if (dateFrom || dateTo) {
+      if (!pubMonth) return false;
+      if (dateFrom && pubMonth < dateFrom) return false;
+      if (dateTo && pubMonth > dateTo) return false;
     }
-    return null;
+    const minCit = minCitationsEl ? parseInt(minCitationsEl.value, 10) : NaN;
+    if (!isNaN(minCit) && minCit > 0 && hasCitationData()) {
+      const cit = arxivId ? (citationData[arxivId] ?? null) : null;
+      if (cit === null || cit < minCit) return false;
+    }
+    return true;
   }
 
   function isModelVisible(mk) {
     const q = searchQuery();
-    if (q && !(getModelDisplay(mk)).toLowerCase().includes(q)) return false;
-
-    // Publication date filter
-    const dateFrom = dateFromEl ? dateFromEl.value : ''; // "YYYY-MM" or ""
-    const dateTo = dateToEl ? dateToEl.value : '';
-    if (dateFrom || dateTo) {
-      const pub = getModelPubMonth(mk);
-      if (!pub) return false; // no pub date → hidden when date filter is active
-      if (dateFrom && pub < dateFrom) return false;
-      if (dateTo && pub > dateTo) return false;
-    }
-
-    // Citation count filter (skip entirely if citation data not loaded)
-    const minCit = minCitationsEl ? parseInt(minCitationsEl.value, 10) : NaN;
-    if (!isNaN(minCit) && minCit > 0 && hasCitationData()) {
-      const cit = getModelCitations(mk);
-      if (cit === null || cit < minCit) return false;
-    }
-
-    return true;
+    if (q && !getModelDisplay(mk).toLowerCase().includes(q)) return false;
+    if (firstPartyOnlyEl && firstPartyOnlyEl.checked && isModelThirdParty(mk)) return false;
+    return passesDateCitationFilter(getModelPubMonth(mk), getResultArxivId(Object.values(pivotMap[mk])[0]));
   }
 
-  /** Per-result visibility for detail view (checks the result's own paper). */
   function isResultVisible(r) {
-    // Text search
     const q = searchQuery();
-    if (q && !(getModelDisplay(r.model)).toLowerCase().includes(q)) return false;
-
-    // Publication date filter (per-result paper)
-    const dateFrom = dateFromEl ? dateFromEl.value : '';
-    const dateTo = dateToEl ? dateToEl.value : '';
-    if (dateFrom || dateTo) {
-      const pub = extractPubMonth(r.model_paper) || extractPubMonth(r.source_paper);
-      if (!pub) return false;
-      if (dateFrom && pub < dateFrom) return false;
-      if (dateTo && pub > dateTo) return false;
-    }
-
-    // Citation count filter (skip entirely if citation data not loaded)
-    const minCit = minCitationsEl ? parseInt(minCitationsEl.value, 10) : NaN;
-    if (!isNaN(minCit) && minCit > 0 && hasCitationData()) {
-      const aid = rawArxivId(r.model_paper) || rawArxivId(r.source_paper);
-      const cit = aid ? (citationData[aid] ?? null) : null;
-      if (cit === null || cit < minCit) return false;
-    }
-
-    return true;
+    if (q && !getModelDisplay(r.model).toLowerCase().includes(q)) return false;
+    if (firstPartyOnlyEl && firstPartyOnlyEl.checked && isThirdParty(r)) return false;
+    return passesDateCitationFilter(getResultPubMonth(r), getResultArxivId(r));
   }
 
   // ─── Stats ─────────────────────────────────────────────────────────────────
@@ -296,78 +360,121 @@
   // ═══════════════════════════════════════════════════════════════════════════
   function renderOverviewTable() {
     if (!theadEl || !tbodyEl) return;
+    hideTooltip();
     tableEl.className = 'overview-mode';
 
-    // Header
-    const htr = document.createElement('tr');
-    htr.appendChild(th('Model', 'model-col'));
-    htr.appendChild(th('Params', 'params-col'));
-    for (const col of overviewColumns) {
-      const cell = th('', 'benchmark-col');
-      cell.dataset.colid = col.colId;
-      cell.appendChild(el('span', col.label));
-      const arrow = el('span', '', 'sort-arrow');
-      updateArrow(arrow, col.colId);
-      cell.appendChild(arrow);
-      if (sortState.column === col.colId) cell.classList.add('sorted');
-      cell.addEventListener('click', () => { toggleSort(col.colId); renderTable(); });
-      htr.appendChild(cell);
+    // Detect whether sort/filter changed or this is a page-only change
+    const sortChanged = sortState.column !== lastSortCol || sortState.direction !== lastSortDir;
+    const needsRecompute = sortChanged || lastFilteredModels.length === 0;
+
+    // Recompute best-per-column each render so it tracks filter toggles.
+    computeBestByColumn();
+
+    if (needsRecompute) {
+      // Header (only rebuild when sort state changes)
+      const htr = document.createElement('tr');
+      htr.appendChild(th('Model', 'model-col'));
+      htr.appendChild(th('Params', 'params-col'));
+      for (const col of overviewColumns) {
+        const cell = th('', 'benchmark-col');
+        cell.dataset.colid = col.colId;
+        cell.appendChild(el('span', col.label));
+        const arrow = el('span', '', 'sort-arrow');
+        updateArrow(arrow, col.colId);
+        cell.appendChild(arrow);
+        if (sortState.column === col.colId) cell.classList.add('sorted');
+        cell.addEventListener('click', () => { toggleSort(col.colId); renderTable(); });
+        htr.appendChild(cell);
+      }
+      theadEl.innerHTML = ''; theadEl.appendChild(htr);
+
+      // Recompute filtered + sorted list
+      const sorted = getSortedModels(sortState.column);
+      lastFilteredModels = sorted.filter(mk => isModelVisible(mk));
+      lastSortCol = sortState.column;
+      lastSortDir = sortState.direction;
     }
-    theadEl.innerHTML = ''; theadEl.appendChild(htr);
 
-    // Body
-    const sorted = getSortedModels(sortState.column);
-    const best = computeBestByColumn();
-    tbodyEl.innerHTML = '';
+    // Paginate
+    const totalPages = Math.max(1, Math.ceil(lastFilteredModels.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    const start = currentPage * PAGE_SIZE;
+    const pageModels = lastFilteredModels.slice(start, start + PAGE_SIZE);
 
-    for (const mk of sorted) {
-      if (!isModelVisible(mk)) continue;
+    // Build rows in a DocumentFragment
+    const frag = document.createDocumentFragment();
+    for (const mk of pageModels) {
       const model = Object.values(pivotMap[mk] || {})[0] || {};
       const tr = document.createElement('tr');
+      tr.appendChild(buildModelCell(model.display_name || mk, model.model_paper));
 
-      // Model cell
-      const mtd = document.createElement('td');
-      mtd.className = 'model-col';
-      if (model.model_paper) {
-        const a = el('a', model.display_name || mk, 'model-name');
-        a.href = model.model_paper; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        mtd.appendChild(a);
-      } else {
-        mtd.appendChild(el('span', model.display_name || mk, 'model-name'));
-      }
-      tr.appendChild(mtd);
-
-      // Params cell
       const ptd = document.createElement('td');
       ptd.className = 'params-col';
       ptd.textContent = model.params || '—';
       tr.appendChild(ptd);
 
-      // Score cells
       for (const col of overviewColumns) {
         const result = pivotMap[mk] && pivotMap[mk][col.bmKey];
         const bm = data.benchmarks[col.bmKey] || {};
         const metric = bm.metric || {};
-        const td = document.createElement('td');
-        td.className = 'score-cell';
-        td.dataset.colid = col.colId;
+        const cell = document.createElement('td');
+        cell.className = 'score-cell';
+        cell.dataset.colid = col.colId;
 
-        if (result) {
-          if (best[col.colId] === mk) td.classList.add('best');
+        // Per-cell filter: even if the model row is visible (at least one
+        // first-party entry somewhere), a specific benchmark cell should be
+        // hidden when that benchmark's entry for this model is third-party.
+        const filteredOut = result && firstPartyOnlyEl && firstPartyOnlyEl.checked && isThirdParty(result);
+
+        if (result && !filteredOut) {
+          if (bestByColumnCache[col.colId] === mk) cell.classList.add('best');
           const displayScore = getDisplayScore(result, col.bmKey, col.suite);
-          td.appendChild(el('span', formatScore(displayScore, metric.name), 'score-value'));
-          if (displayScore != null) td.dataset.score = displayScore;
-          td.appendChild(buildTooltip(result));
+          cell.appendChild(el('span', formatScore(displayScore, metric.name), 'score-value'));
+          if (displayScore != null) cell.dataset.score = displayScore;
+          storeTooltipData(cell, result);
         } else {
-          td.classList.add('empty');
-          td.textContent = '—';
+          cell.classList.add('empty');
+          cell.textContent = '—';
         }
-        tr.appendChild(td);
+        tr.appendChild(cell);
       }
-      tbodyEl.appendChild(tr);
+      frag.appendChild(tr);
     }
+    tbodyEl.innerHTML = '';
+    tbodyEl.appendChild(frag);
 
-    applyHeatmapColors();
+    requestAnimationFrame(applyHeatmapColors);
+    renderPagination(totalPages);
+  }
+
+  // ─── Pagination controls ─────────────────────────────────────────────────
+  function renderPagination(totalPages) {
+    let pager = $('pagination');
+    if (totalPages <= 1) {
+      if (pager) pager.style.display = 'none';
+      return;
+    }
+    if (!pager) {
+      pager = document.createElement('div');
+      pager.id = 'pagination';
+      pager.className = 'pagination';
+      tableEl.parentNode.insertBefore(pager, tableEl.nextSibling);
+    }
+    pager.style.display = '';
+    const total = lastFilteredModels.length;
+    const s = currentPage * PAGE_SIZE + 1;
+    const e = Math.min(s + PAGE_SIZE - 1, total);
+    pager.innerHTML =
+      `<button class="page-btn" ${currentPage === 0 ? 'disabled' : ''} data-dir="prev">\u2190 Prev</button>` +
+      `<span class="page-info">${s}\u2013${e} of ${total}</span>` +
+      `<button class="page-btn" ${currentPage >= totalPages - 1 ? 'disabled' : ''} data-dir="next">Next \u2192</button>`;
+    pager.onclick = e => {
+      const btn = e.target.closest('[data-dir]');
+      if (!btn || btn.disabled) return;
+      currentPage += btn.dataset.dir === 'next' ? 1 : -1;
+      renderTable();
+      tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
   }
 
   function applyHeatmapColors() {
@@ -379,17 +486,19 @@
       colScores[colId].push({ cell, score: parseFloat(cell.dataset.score) });
     }
     for (const [colId, entries] of Object.entries(colScores)) {
-      const scores = entries.map(e => e.score);
-      const min = Math.min(...scores);
-      const max = Math.max(...scores);
+      let min = Infinity, max = -Infinity;
+      for (const { score } of entries) {
+        if (score < min) min = score;
+        if (score > max) max = score;
+      }
       if (min === max) continue;
       const { bmKey } = parseColId(colId);
+      const GREEN_HUE = 142;
       const higher = (data.benchmarks[bmKey] || {}).metric?.higher_is_better !== false;
       for (const { cell, score } of entries) {
         let norm = (score - min) / (max - min);
         if (!higher) norm = 1 - norm;
-        const h = Math.round(norm * 142); // 0 (red) → 142 (green)
-        cell.style.backgroundColor = `hsla(${h}, 70%, 35%, 0.3)`;
+        cell.style.backgroundColor = `hsla(${Math.round(norm * GREEN_HUE)}, 70%, 35%, 0.3)`;
       }
     }
   }
@@ -400,13 +509,15 @@
   function renderDetailView(bmKey) {
     if (!theadEl || !tbodyEl) return;
     tableEl.className = 'detail-mode';
+    const pager = $('pagination');
+    if (pager) pager.style.display = 'none';
     const bm = data.benchmarks[bmKey] || {};
     const metric = bm.metric || {};
     const expandSuites = shouldExpandSuites(bmKey);
     const suites = expandSuites ? (bm.suites || []) : [];
 
     // Build ordered column list: suites + _avg inserted at avg_position
-    const showAvg = expandSuites && !isSuiteOnlyBenchmark(bmKey);
+    const showAvg = expandSuites && !suiteOnlyCache[bmKey];
     const avgPos = showAvg ? (bm.avg_position ?? suites.length) : -1;
     const detailColumns = [];
     for (let i = 0; i < suites.length; i++) {
@@ -415,17 +526,14 @@
     }
     if (showAvg && avgPos >= suites.length) detailColumns.push('_avg');
 
-    // Initialize detail sort suite
     if (expandSuites && (!detailSortSuite || !detailColumns.includes(detailSortSuite))) {
       detailSortSuite = showAvg ? '_avg' : (detailColumns[0] || null);
     }
 
-    // Score accessor for a column key
     function colScore(r, col) {
       return col === '_avg' ? r.overall_score : (r.suite_scores || {})[col];
     }
 
-    // Collect and sort results (apply date/citation filters per result)
     const results = data.results
       .filter(r => r.benchmark === bmKey && isResultVisible(r))
       .sort((a, b) => {
@@ -462,7 +570,7 @@
         cell.appendChild(el('span', label));
         if (detailSortSuite === col) {
           cell.classList.add('sorted');
-          cell.appendChild(el('span', ' ▼', 'sort-arrow'));
+          cell.appendChild(el('span', ' \u25BC', 'sort-arrow'));
         }
         cell.addEventListener('click', ((c) => () => { detailSortSuite = c; renderTable(); })(col));
         htr.appendChild(cell);
@@ -481,31 +589,17 @@
 
     const colSpan = expandSuites ? 8 + detailColumns.length : 9;
 
-    // Body
-    tbodyEl.innerHTML = '';
+    // Body — use DocumentFragment
+    const frag = document.createDocumentFragment();
     let rank = 0;
     for (const r of results) {
       rank++;
       const tr = document.createElement('tr');
       if (rank === 1) tr.classList.add('best-row');
 
-      // Rank
       tr.appendChild(td(String(rank), 'rank-col'));
-
-      // Model
-      const mtd = document.createElement('td');
-      mtd.className = 'model-col';
-      if (r.model_paper) {
-        const a = el('a', r.display_name || r.model, 'model-name');
-        a.href = r.model_paper; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        mtd.appendChild(a);
-      } else {
-        mtd.appendChild(el('span', r.display_name || r.model, 'model-name'));
-      }
-      tr.appendChild(mtd);
-
-      // Params
-      tr.appendChild(td(r.params || '—', 'params-col'));
+      tr.appendChild(buildModelCell(r.display_name || r.model, r.model_paper));
+      tr.appendChild(td(r.params || '\u2014', 'params-col'));
 
       if (expandSuites) {
         for (const col of detailColumns) {
@@ -529,37 +623,35 @@
       // Source paper
       const ptd = document.createElement('td');
       ptd.className = 'paper-col';
-      if (r.source_paper) {
-        const a = el('a', extractArxivId(r.source_paper) || r.source_paper, 'source-link');
-        a.href = r.source_paper; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        ptd.appendChild(a);
+      if (r.reported_paper) {
+        ptd.appendChild(externalLink(r.reported_paper, extractArxivId(r.reported_paper) || r.reported_paper, 'source-link'));
       } else {
-        ptd.textContent = '—';
+        ptd.textContent = '\u2014';
       }
       tr.appendChild(ptd);
 
-      // Table
-      tr.appendChild(td(r.source_table || '—', 'table-col'));
+      tr.appendChild(td(r.reported_table || '\u2014', 'table-col'));
 
-      // Curator
       const ctd = document.createElement('td');
       ctd.className = 'curator-col';
       const isHuman = r.curated_by && r.curated_by.startsWith('@');
-      ctd.innerHTML = `${isHuman ? '👤' : '🤖'} ${escHtml(r.curated_by || '?')}`;
+      ctd.innerHTML = `${isHuman ? '\uD83D\uDC64' : '\uD83E\uDD16'} ${escHtml(r.curated_by || '?')}`;
       tr.appendChild(ctd);
 
-      // Date
-      tr.appendChild(td(r.date_added || '—', 'date-col'));
+      tr.appendChild(td(r.date_added || '\u2014', 'date-col'));
 
-      // Notes
-      const ntd = td(r.notes || '—', 'notes-col');
+      const ntd = td(r.notes || '\u2014', 'notes-col');
       ntd.title = r.notes || '';
       tr.appendChild(ntd);
 
-      tbodyEl.appendChild(tr);
+      frag.appendChild(tr);
 
-      // Sub-scores row: show task_scores breakdown (skip suite_scores when already shown as columns)
-      const subScores = expandSuites ? r.task_scores : (r.suite_scores || r.task_scores);
+      // Sub-scores row: show task_scores breakdown (skip suite_scores when already shown as columns).
+      // Use the first non-empty source — an empty `suite_scores: {}` must not mask task_scores.
+      const hasKeys = o => o && Object.keys(o).length > 0;
+      const subScores = expandSuites
+        ? r.task_scores
+        : (hasKeys(r.suite_scores) ? r.suite_scores : r.task_scores);
       if (subScores && Object.keys(subScores).length > 0) {
         const subTr = document.createElement('tr');
         subTr.className = 'sub-scores-row';
@@ -573,28 +665,23 @@
         html += '</div>';
         subTd.innerHTML = html;
         subTr.appendChild(subTd);
-        tbodyEl.appendChild(subTr);
+        frag.appendChild(subTr);
       }
     }
+    tbodyEl.innerHTML = '';
+    tbodyEl.appendChild(frag);
   }
 
-  // ─── Score resolver (handles suite-only benchmarks) ────────────────────────
-  // If suite is specified, returns that suite's score directly.
-  // Otherwise returns overall_score, or first available suite score as fallback.
+  // ─── Score resolver ────────────────────────────────────────────────────────
   function getDisplayScore(result, bmKey, suite) {
     if (suite === '_avg') return result.overall_score ?? null;
     if (suite) {
       return (result.suite_scores || {})[suite] ?? null;
     }
-    if (result.overall_score != null) return result.overall_score;
-    const bm = data.benchmarks[bmKey] || {};
-    const suites = bm.suites || [];
-    const ss = result.suite_scores || {};
-    for (const s of suites) {
-      if (ss[s] != null) return ss[s];
-    }
-    const vals = Object.values(ss);
-    return vals.length > 0 ? vals[0] : null;
+    // Unexpanded overview column: show overall_score only. Falling back to
+    // a suite value here would mix scales in the same column (e.g. CALVIN's
+    // overall_score is 0–5 avg_len while suite_scores are 0–100 percent).
+    return result.overall_score ?? null;
   }
 
   // Does every result for this benchmark have null overall_score?
@@ -604,15 +691,13 @@
       && (data.benchmarks[bmKey] || {}).suites && (data.benchmarks[bmKey] || {}).suites.length > 0;
   }
 
-  // Should this benchmark expand into per-suite columns?
   function shouldExpandSuites(bmKey) {
     const bm = data.benchmarks[bmKey] || {};
     if (!bm.suites || bm.suites.length === 0) return false;
     if (bm.expand_suites) return true;
-    return isSuiteOnlyBenchmark(bmKey);
+    return suiteOnlyCache[bmKey];
   }
 
-  // Short label for a suite, stripping redundant benchmark name prefix
   function shortSuiteLabel(suite, bmDisplayName) {
     let label = suite.replace(/_/g, ' ');
     if (bmDisplayName) {
@@ -626,6 +711,7 @@
   function toggleSort(col) {
     if (sortState.column === col) sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
     else { sortState.column = col; sortState.direction = 'desc'; }
+    currentPage = 0;
   }
 
   function getLatestDate(mk) {
@@ -636,7 +722,7 @@
         if (r.date_added && r.date_added > latest) latest = r.date_added;
       }
     }
-    return latest || '—';
+    return latest || '\u2014';
   }
 
   function getSortedModels(col) {
@@ -663,47 +749,78 @@
   }
 
   function computeBestByColumn() {
-    const best = {};
+    // Best-per-column is filter-aware: when "First-party results only" is
+    // on, a best-cell highlight on a third-party entry would be hidden
+    // (rendered as '—') and no column would show a winner. Skip
+    // third-party rows here so the highlight matches the visible top.
+    const firstPartyOnly = firstPartyOnlyEl && firstPartyOnlyEl.checked;
+    bestByColumnCache = {};
     for (const col of overviewColumns) {
       const higher = (data.benchmarks[col.bmKey] || {}).metric?.higher_is_better !== false;
       let bestM = null, bestS = null;
       for (const mk of modelKeys) {
         const r = pivotMap[mk] && pivotMap[mk][col.bmKey];
         if (!r) continue;
+        if (firstPartyOnly && isThirdParty(r)) continue;
         const s = getDisplayScore(r, col.bmKey, col.suite);
         if (s === null) continue;
         if (bestS === null || (higher ? s > bestS : s < bestS)) { bestS = s; bestM = mk; }
       }
-      if (bestM) best[col.colId] = bestM;
+      if (bestM) bestByColumnCache[col.colId] = bestM;
     }
-    return best;
   }
 
   function updateArrow(arrowEl, key) {
     if (sortState.column === key) {
-      arrowEl.textContent = sortState.direction === 'asc' ? ' ▲' : ' ▼';
+      arrowEl.textContent = sortState.direction === 'asc' ? ' \u25B2' : ' \u25BC';
       arrowEl.style.opacity = '1';
     } else {
-      arrowEl.textContent = ' ▼'; arrowEl.style.opacity = '0.3';
+      arrowEl.textContent = ' \u25BC'; arrowEl.style.opacity = '0.3';
     }
   }
 
-  // ─── Tooltip ───────────────────────────────────────────────────────────────
-  function buildTooltip(result) {
-    const div = document.createElement('div');
-    div.className = 'tooltip-content';
-    if (result.source_paper) {
-      const p = document.createElement('p');
-      const a = el('a', result.source_paper, '');
-      a.href = result.source_paper; a.target = '_blank';
-      p.appendChild(document.createTextNode('Paper: ')); p.appendChild(a);
-      div.appendChild(p);
-    }
-    if (result.source_table) div.appendChild(el('p', 'Table: ' + result.source_table));
-    div.appendChild(el('p', 'Curated by: ' + (result.curated_by || '?')));
-    if (result.date_added) div.appendChild(el('p', 'Date: ' + result.date_added));
-    if (result.notes) div.appendChild(el('p', 'Notes: ' + result.notes));
-    return div;
+  // ─── Shared tooltip (single DOM element, positioned on hover) ─────────────
+  let sharedTooltip = null;
+
+  function ensureSharedTooltip() {
+    if (sharedTooltip) return sharedTooltip;
+    sharedTooltip = document.createElement('div');
+    sharedTooltip.className = 'tooltip-content';
+    sharedTooltip.style.display = 'none';
+    document.body.appendChild(sharedTooltip);
+    return sharedTooltip;
+  }
+
+  function storeTooltipData(td, result) {
+    td.dataset.tipPaper = result.reported_paper || '';
+    td.dataset.tipTable = result.reported_table || '';
+    td.dataset.tipCurator = result.curated_by || '';
+    td.dataset.tipDate = result.date_added || '';
+    td.dataset.tipNotes = result.notes || '';
+  }
+
+  function showTooltip(td) {
+    const tip = ensureSharedTooltip();
+    let html = '';
+    function row(label, val) { html += `<span class="tip-label">${label}</span><span>${val}</span>`; }
+    if (td.dataset.tipPaper) row('Paper', `<a href="${escHtml(td.dataset.tipPaper)}" target="_blank" class="tip-link">${escHtml(td.dataset.tipPaper)}</a>`);
+    if (td.dataset.tipTable) row('Table', escHtml(td.dataset.tipTable));
+    row('Curated', escHtml(td.dataset.tipCurator || '?'));
+    if (td.dataset.tipDate) row('Date', escHtml(td.dataset.tipDate));
+    if (td.dataset.tipNotes) row('Notes', escHtml(td.dataset.tipNotes));
+    tip.innerHTML = html;
+    const rect = td.getBoundingClientRect();
+    tip.style.visibility = 'hidden';
+    tip.style.display = 'grid';
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    tip.style.left = Math.max(0, rect.right - tipW) + window.scrollX + 'px';
+    tip.style.top = (rect.top - tipH - 4) + window.scrollY + 'px';
+    tip.style.visibility = '';
+  }
+
+  function hideTooltip() {
+    if (sharedTooltip) sharedTooltip.style.display = 'none';
   }
 
   // ─── Breakdown panel ───────────────────────────────────────────────────────
@@ -715,25 +832,46 @@
   function renderCoverage() {
     if (!coverageBarEl || !coverageData) return;
     const bms = coverageData.benchmarks || {};
-    const keys = Object.keys(bms).sort((a, b) => (bms[b].citing_papers || 0) - (bms[a].citing_papers || 0));
+    const keys = Object.keys(bms).sort(
+      (a, b) => (bms[b].arxiv_citing_papers || bms[b].citing_papers || 0)
+              - (bms[a].arxiv_citing_papers || bms[a].citing_papers || 0)
+    );
 
     let html = '<div class="coverage-header">';
     html += '<span class="coverage-title">Paper Coverage by Benchmark</span>';
     html += `<span class="coverage-summary">${coverageData.total_results} results from ${coverageData.total_models} models`;
-    if (coverageData.total_papers_reviewed) html += ` · ${coverageData.total_papers_reviewed} papers reviewed`;
+    if (coverageData.total_papers_reviewed) html += ` \xB7 ${coverageData.total_papers_reviewed} papers reviewed`;
     html += '</span></div>';
-    html += '<div class="coverage-explanation">Denominator = papers citing the benchmark paper (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener">Semantic Scholar</a>). Not all citing papers report evaluation results — this shows how much of that citation pool we have covered.</div>';
+    html += '<div class="coverage-explanation">Denominator = arXiv-preprint papers citing the benchmark (via <a href="https://www.semanticscholar.org/" target="_blank" rel="noopener noreferrer">Semantic Scholar</a>) plus the benchmark paper itself. Total citations in parentheses include non-arXiv publications that cannot be reviewed via the arxiv reading pipeline. Not every citing paper reports new evaluation numbers \u2014 this shows how much of the reviewable pool we have covered.</div>';
     html += '<div class="coverage-grid">';
 
     for (const key of keys) {
       const bm = bms[key];
-      const citing = bm.citing_papers;
+      const citingTotal = bm.citing_papers;
+      const citingArxiv = bm.arxiv_citing_papers || citingTotal;
       const reviewed = bm.papers_reviewed || 0;
-      if (!citing) continue; // skip if no citation data
-      const pct = Math.min(100, Math.round((reviewed / Math.max(1, citing)) * 100));
+      if (!citingArxiv) continue;
+      // scan.py already folds the benchmark paper itself into
+      // ``arxiv_citing_papers`` (len of the unioned pool), so we use the
+      // reported counts directly here — no +1 needed.
+      const denomArxiv = citingArxiv;
+      const denomTotal = citingTotal || null;
+      const pct = Math.min(100, Math.round((reviewed / denomArxiv) * 100));
       const barColor = pct > 15 ? 'var(--accent)' : pct > 5 ? '#da9679' : '#e24a8d';
-      html += `<div class="coverage-item" title="${reviewed} papers reviewed / ${citing} citing papers">`;
-      html += `<div class="coverage-label"><span>${escHtml(bm.display_name)}</span><span class="coverage-nums">${reviewed}/${citing}</span></div>`;
+      // Hide the total-citations figure when it's ≤ the arXiv-reviewable
+      // count — after post-scan pool unions (e.g. robocasa after gr1
+      // merge), the S2-reported total can be smaller than the real
+      // reviewable pool, which would misleadingly read "631 total / 768
+      // arxiv".
+      const showTotal = denomTotal && denomTotal > denomArxiv;
+      const numsText = showTotal
+        ? `${reviewed}/${denomArxiv} <span class="coverage-nums-sub">(${denomTotal} total)</span>`
+        : `${reviewed}/${denomArxiv}`;
+      const titleText = showTotal
+        ? `${reviewed} reviewed / ${denomArxiv} arXiv papers (${denomTotal} total incl. non-arXiv; includes the benchmark paper)`
+        : `${reviewed} reviewed / ${denomArxiv} arXiv papers (includes the benchmark paper)`;
+      html += `<div class="coverage-item" title="${titleText}">`;
+      html += `<div class="coverage-label"><span>${escHtml(bm.display_name)}</span><span class="coverage-nums">${numsText}</span></div>`;
       html += `<div class="coverage-track"><div class="coverage-fill" style="width:${Math.max(2, pct)}%;background:${barColor}"></div></div>`;
       html += '</div>';
     }
@@ -743,7 +881,7 @@
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
   function formatScore(v, metricName) {
-    if (v === null || v === undefined) return '—';
+    if (v === null || v === undefined) return '\u2014';
     const n = parseFloat(v);
     if (isNaN(n)) return String(v);
     return metricName === 'avg_len' ? n.toFixed(3) : n.toFixed(1);
@@ -761,7 +899,7 @@
   }
 
   function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   // DOM helpers
@@ -773,4 +911,21 @@
   }
   function th(text, cls) { return el('th', text, cls); }
   function td(text, cls) { return el('td', text, cls); }
+
+  function externalLink(href, text, cls) {
+    const a = el('a', text, cls);
+    a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    return a;
+  }
+
+  function buildModelCell(displayName, paperUrl) {
+    const mtd = document.createElement('td');
+    mtd.className = 'model-col';
+    if (paperUrl) {
+      mtd.appendChild(externalLink(paperUrl, displayName, 'model-name'));
+    } else {
+      mtd.appendChild(el('span', displayName, 'model-name'));
+    }
+    return mtd;
+  }
 })();

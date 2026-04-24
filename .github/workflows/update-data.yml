@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # sync_external/scan/validate read leaderboard.json
+          # (LFS-tracked) — smudge the blob so they don't hit a pointer.
+          lfs: true
 
       - uses: actions/setup-python@v6
         with:
@@ -41,7 +45,7 @@ jobs:
         env:
           SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
         run: |
-          python leaderboard/scripts/update_coverage.py --fetch
+          python leaderboard/scripts/scan.py
           python leaderboard/scripts/update_citations.py --fetch
 
       - name: Validate results

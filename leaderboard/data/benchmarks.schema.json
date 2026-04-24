@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VLA Benchmark Registry",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["display_name", "metric"],
+    "additionalProperties": false,
+    "properties": {
+      "display_name": { "type": "string" },
+      "paper_url": { "type": "string", "format": "uri" },
+      "metric": {
+        "type": "object",
+        "required": ["name", "unit", "range", "higher_is_better"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "unit": { "type": "string" },
+          "range": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "higher_is_better": { "type": "boolean" }
+        }
+      },
+      "official_leaderboard": { "type": "string", "format": "uri" },
+      "expand_suites": { "type": "boolean" },
+      "avg_position": { "type": "integer", "minimum": 0 },
+      "avg_label": { "type": "string" },
+      "detail_notes": { "type": "string" },
+      "suites": { "type": "array", "items": { "type": "string" } },
+      "tasks": { "type": "array", "items": { "type": "string" } },
+      "score_key_suffixes": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[a-z0-9]+$" },
+        "uniqueItems": true,
+        "minItems": 1,
+        "description": "Allowed protocol suffixes for suite_scores / task_scores keys. When present, every component-score key must end in `_<suffix>` for a listed suffix (e.g. simpler_env requires `_vm` or `_va`). Omitted for benchmarks with no suffix constraint."
+      },
+      "aggregation": {
+        "description": "Canonical rule for aggregating component scores (suite_scores or task_scores) into overall_score. Omit when overall_score is trusted as-is from the source (e.g. LLM-extracted or API-synced aggregates).",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": ["forbidden"],
+            "description": "overall_score must always be null (e.g. simpler_env, robotwin_v2)"
+          },
+          {
+            "type": "object",
+            "required": ["container", "keys"],
+            "additionalProperties": false,
+            "properties": {
+              "container": { "enum": ["suite_scores", "task_scores"] },
+              "keys": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sync external leaderboard data from RoboChallenge and RoboArena APIs.
 
-Fetches live competition results and merges them into results.json.
+Fetches live competition results and merges them into leaderboard.json.
 Default is dry-run (prints changes). Use --apply to write.
 """
 
@@ -16,36 +16,47 @@ from datetime import date
 from pathlib import Path
 from typing import NamedTuple
 
-RESULTS_PATH = Path(__file__).parent.parent / "data" / "results.json"
+import jsonschema
+
+RESULTS_PATH = Path(__file__).parent.parent / "data" / "leaderboard.json"
+LEADERBOARD_SCHEMA_PATH = Path(__file__).parent.parent / "data" / "leaderboard.schema.json"
 
 ROBOCHALLENGE_API = "https://robochallenge.ai/api/leaderboard/leaderboard_all.json"
 ROBOARENA_API = "https://roboarena-api-domain-name.online/api/leaderboard"
 
-# (display_name, is_multi_task_model) → model_key
-ROBOCHALLENGE_MODEL_MAP = {
-    ("cogact", False): "cogact",
-    ("pi0.5", False): "pi0_5_task",
-    ("pi05_generalist", True): "pi0_5_multi",
-    ("pi0", False): "pi0_task",
-    ("pi0_generalist", True): "pi0_multi",
-    ("openvla-oft", False): "openvla_oft_rc",
-    ("X-VLA", False): "x_vla_rc",
-    ("RDT-1B", False): "rdt_1b_rc",
+# (display_name, is_multi_task_model) → (model_key, model_paper_url)
+# For methods with a known first-party paper, emit the canonical
+# compound bibkey ``{author}{year}{short}__robochallenge`` and the
+# paper URL. Submissions without a known paper (org checkpoints,
+# unpublished baselines) fall through to the ``rc_<snake>`` default
+# with ``model_paper: None``.
+ROBOCHALLENGE_MODELS: dict[tuple[str, bool], tuple[str, str]] = {
+    ("cogact", False): ("li2024cogact__robochallenge", "https://arxiv.org/abs/2411.19650"),
+    ("pi0", False): ("black2024pi0__robochallenge", "https://arxiv.org/abs/2410.24164"),
+    ("pi0_generalist", True): ("black2024pi0generalist__robochallenge", "https://arxiv.org/abs/2410.24164"),
+    ("pi0.5", False): ("intelligence2025pi05__robochallenge", "https://arxiv.org/abs/2504.16054"),
+    ("pi05_generalist", True): ("intelligence2025pi05generalist__robochallenge", "https://arxiv.org/abs/2504.16054"),
+    ("openvla-oft", False): ("kim2025openvlaoft__robochallenge", "https://arxiv.org/abs/2502.19645"),
+    ("X-VLA", False): ("zheng2025xvla__robochallenge", "https://arxiv.org/abs/2510.10274"),
+    ("RDT-1B", False): ("liu2024rdt__robochallenge", "https://arxiv.org/abs/2410.07864"),
+    ("GR00T", False): ("nvidia2025grootn1__robochallenge", "https://arxiv.org/abs/2503.14734"),
+    ("GR00T-MULTI", True): ("nvidia2025grootn1generalist__robochallenge", "https://arxiv.org/abs/2503.14734"),
 }
 
-# policy → model_key
-ROBOARENA_MODEL_MAP = {
-    "pi05_droid": "pi0_5_ra",
-    "pi0_fast_droid": "pi0_fast_ra",
-    "pi0_droid": "pi0_ra",
-    "dreaming_zebra": "dreamzero_ra",
-}
-
-ROBOARENA_DISPLAY_NAMES = {
-    "pi0_5_ra": "\u03c0\u2080.\u2085 (DROID)",
-    "pi0_fast_ra": "\u03c0\u2080-FAST (DROID)",
-    "pi0_ra": "\u03c0\u2080 (DROID)",
-    "dreamzero_ra": "DreamZero",
+# policy → (model_key, model_paper_url, display_name)
+ROBOARENA_MODELS: dict[str, tuple[str, str | None, str]] = {
+    "pi05_droid": (
+        "intelligence2025pi05__roboarena",
+        "https://arxiv.org/abs/2504.16054",
+        "\u03c0\u2080.\u2085 (DROID)",
+    ),
+    "pi0_fast_droid": (
+        "pertsch2025pi0fast__roboarena",
+        "https://arxiv.org/abs/2501.09747",
+        "\u03c0\u2080-FAST (DROID)",
+    ),
+    "pi0_droid": ("black2024pi0__roboarena", "https://arxiv.org/abs/2410.24164", "\u03c0\u2080 (DROID)"),
+    "dreaming_zebra": ("dreamzero_ra", None, "DreamZero"),  # no published paper
 }
 
 
@@ -80,7 +91,11 @@ def sync_robochallenge(data: dict) -> list[str]:
     for entry in entries:
         name = entry["display_name"]
         is_multi = entry["is_multi_task_model"]
-        model_key = ROBOCHALLENGE_MODEL_MAP.get((name, is_multi), f"rc_{snake_case(name)}")
+        mapped = ROBOCHALLENGE_MODELS.get((name, is_multi))
+        if mapped is not None:
+            model_key, model_paper = mapped
+        else:
+            model_key, model_paper = f"rc_{snake_case(name)}", None
 
         overall = round(entry["success_ratio"] * 100, 1)
         progress = round(entry["score"], 1)
@@ -98,13 +113,16 @@ def sync_robochallenge(data: dict) -> list[str]:
         result_entry = {
             "model": model_key,
             "display_name": name,
+            "name_in_paper": name,
             "params": None,
-            "model_paper": None,
+            "model_paper": model_paper,
             "benchmark": "robochallenge",
             "weight_type": "shared",
             "overall_score": overall,
             "suite_scores": {"progress_score": progress},
-            "source_paper": None,
+            "task_scores": {},
+            "reported_paper": None,
+            "reported_table": None,
             "curated_by": "robochallenge-api",
             "date_added": today,
             "notes": note,
@@ -123,9 +141,8 @@ def sync_robochallenge(data: dict) -> list[str]:
 
     # Remove stale API-synced entries no longer in the API response
     synced_models = {
-        ROBOCHALLENGE_MODEL_MAP.get(
-            (e["display_name"], e["is_multi_task_model"]), f"rc_{snake_case(e['display_name'])}"
-        )
+        (ROBOCHALLENGE_MODELS.get((e["display_name"], e["is_multi_task_model"])) or (None,))[0]
+        or f"rc_{snake_case(e['display_name'])}"
         for e in entries
     }
     stale = [
@@ -157,7 +174,13 @@ def sync_roboarena(data: dict) -> list[str]:
 
     for entry in board:
         policy = entry["policy"]
-        model_key = ROBOARENA_MODEL_MAP.get(policy, f"ra_{policy}")
+        mapped = ROBOARENA_MODELS.get(policy)
+        if mapped is not None:
+            model_key, model_paper, display = mapped
+        else:
+            model_key = f"ra_{policy}"
+            model_paper = None
+            display = policy.replace("_", " ").title()
 
         elo = round(entry["score"], 1)
         num_evals = entry["num_evals"]
@@ -170,7 +193,6 @@ def sync_roboarena(data: dict) -> list[str]:
             note_parts.append("LOW_EVAL_COUNT")
         note = f"RoboArena API sync. {', '.join(note_parts)}."
 
-        display = ROBOARENA_DISPLAY_NAMES.get(model_key, policy.replace("_", " ").title())
         is_new_model = model_key not in {r["model"] for r in results}
         if is_new_model:
             changes.append(f"  NEW model: {model_key} ({display})")
@@ -179,12 +201,16 @@ def sync_roboarena(data: dict) -> list[str]:
         result_entry = {
             "model": model_key,
             "display_name": display,
+            "name_in_paper": policy,
             "params": None,
-            "model_paper": None,
+            "model_paper": model_paper,
             "benchmark": "roboarena",
             "weight_type": "shared",
             "overall_score": elo,
-            "source_paper": None,
+            "suite_scores": {},
+            "task_scores": {},
+            "reported_paper": None,
+            "reported_table": None,
             "curated_by": "roboarena-api",
             "date_added": today,
             "notes": note,
@@ -202,7 +228,7 @@ def sync_roboarena(data: dict) -> list[str]:
             changes.append(f"  NEW: {model_key}/roboarena elo={elo}")
 
     # Remove stale API-synced entries no longer in the API response
-    synced_models = {ROBOARENA_MODEL_MAP.get(e["policy"], f"ra_{e['policy']}") for e in board}
+    synced_models = {(ROBOARENA_MODELS.get(e["policy"]) or (None,))[0] or f"ra_{e['policy']}" for e in board}
     stale = [
         i
         for i, r in enumerate(results)
@@ -251,7 +277,7 @@ def _set_github_output(synced: list[str], num_changes: int) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync external leaderboard APIs into results.json.")
+    parser = argparse.ArgumentParser(description="Sync external leaderboard APIs into leaderboard.json.")
     parser.add_argument("--apply", action="store_true", help="Write changes (default is dry-run)")
     parser.add_argument("--source", choices=SOURCES, help="Sync only one source")
     parser.add_argument("--list-sources", action="store_true", help="Print available sources as JSON and exit")
@@ -283,8 +309,10 @@ def main():
         print(c)
 
     if args.apply:
-        data["results"].sort(key=lambda r: (r["benchmark"], r["model"]))
         data["last_updated"] = date.today().isoformat()
+        data["results"].sort(key=lambda r: (r["benchmark"], r["model"]))
+        schema = json.loads(LEADERBOARD_SCHEMA_PATH.read_text())
+        jsonschema.validate(data, schema)
         RESULTS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         print(f"\nWritten to {RESULTS_PATH}")
         _set_github_output(synced, len(all_changes))

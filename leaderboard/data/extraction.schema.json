@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Per-paper extraction",
+  "description": "One paper's extraction. Each scored entry in `benchmarks` contributes candidate rows to refine. A key's absence from `benchmarks` means this extraction makes no claim about that benchmark — not that the paper lacks it.",
+  "type": "object",
+  "required": ["arxiv_id", "benchmarks"],
+  "additionalProperties": false,
+  "properties": {
+    "arxiv_id": {"type": "string", "description": "arxiv id, matches the paper at .cache/papers/{arxiv_id}/paper.md."},
+    "benchmarks": {
+      "type": "object",
+      "description": "Map {benchmark_key → Scored | Absent}. Keys are benchmark ids from leaderboard/benchmarks/{key}.md frontmatter. A key is present only when this extraction has something to say about it — either an extractable score (Scored) or an explicit no-extractable-score determination (Absent). Unmentioned keys are omitted.",
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/Scored"},
+          {"$ref": "#/$defs/Absent"}
+        ]
+      }
+    },
+    "paper_hash": {
+      "type": "string",
+      "description": "sha256: of paper.md. Injected at pack time; absent from the per-paper cache file."
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the extraction run. Injected at pack time; absent from the per-paper cache file."
+    },
+    "model_used": {
+      "type": "string",
+      "description": "Model id that produced this extraction. Injected at pack time; absent from the per-paper cache file."
+    }
+  },
+  "$defs": {
+    "Scored": {
+      "type": "object",
+      "required": ["status", "models"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"const": "scored"},
+        "models": {"type": "array", "items": {"$ref": "#/$defs/ModelRow"}}
+      }
+    },
+    "Absent": {
+      "type": "object",
+      "description": "Paper mentions this benchmark but no extractable score (cited-only, unreadable, out-of-scope, figure-only).",
+      "required": ["status", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"const": "absent"},
+        "reason": {"type": "string", "description": "One-line reason the score could not be extracted."}
+      }
+    },
+    "ModelRow": {
+      "type": "object",
+      "description": "One row in a results table.",
+      "required": ["name_in_paper", "weight_type", "is_score_original", "model_paper", "cited_paper", "scores", "protocol"],
+      "additionalProperties": false,
+      "properties": {
+        "name_in_paper": {
+          "type": "string",
+          "description": "Method label from the paper's results table, verbatim. When the label is generic (Ours, Baseline, (b)), resolve to the method's canonical name from the paper's title/abstract/method section and emit that. Immutable after this stage."
+        },
+        "label_quote": {"type": ["string", "null"], "description": "Exact label characters from the paper. Evidence only."},
+        "params": {"type": ["string", "null"], "description": "e.g. '7B', '1.5B'. null when not stated."},
+        "params_quote": {"type": ["string", "null"]},
+        "weight_type": {
+          "type": "string",
+          "enum": ["shared", "finetuned", "unknown"],
+          "description": "shared = same checkpoint across benchmarks. finetuned = trained on this benchmark's data."
+        },
+        "weight_type_quote": {"type": ["string", "null"]},
+        "is_score_original": {
+          "type": "string",
+          "enum": ["original", "cited_baseline", "reproduction", "unknown"],
+          "description": "original: this paper ran the method AND introduces it. cited_baseline: number quoted from another source (populate cited_paper). reproduction: this paper re-ran a method it does not introduce. unknown: cannot tell."
+        },
+        "model_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL of the paper that introduces the method. Resolve from the paper's references. Any URL (arxiv, ACL, DOI, tech report). null only when the method has no public paper."
+        },
+        "cited_paper": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL of the source this score is quoted from. Populate only when is_score_original='cited_baseline'. Any URL (arxiv, github, blog, tech report). null otherwise."
+        },
+        "scores": {"$ref": "#/$defs/Scores"},
+        "protocol": {"$ref": "#/$defs/Protocol"}
+      }
+    },
+    "Scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Required keys follow leaderboard/benchmarks/{bm}.md's Scoring section. All numeric values are in the benchmark's declared metric.range (benchmarks.json). Convert from paper's original scale when needed (typically 0-1 → 0-100 for % benchmarks).",
+      "properties": {
+        "overall_score": {"type": ["number", "null"], "description": "Paper's reported aggregate. null when absent or not locatable."},
+        "overall_score_quote": {"type": ["string", "null"]},
+        "suite_scores": {
+          "type": "object",
+          "description": "Sub-scores over benchmark-defined suites (e.g. LIBERO's 4 suites). Keys match the benchmark's declared suites.",
+          "additionalProperties": {"$ref": "#/$defs/ScoreCell"}
+        },
+        "task_scores": {
+          "type": "object",
+          "description": "Per-task scores keyed by task name. Keys match the benchmark's declared tasks for standard protocols; non-standard protocols may include additional keys — keep them under the paper's verbatim names. Same shape as suite_scores.",
+          "additionalProperties": {"$ref": "#/$defs/ScoreCell"}
+        },
+        "reported_table": {"type": ["string", "null"], "description": "e.g. 'Table 1', 'Fig. 4'."}
+      }
+    },
+    "ScoreCell": {
+      "type": "object",
+      "required": ["value", "quote"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {"type": "number"},
+        "quote": {
+          "type": ["string", "null"],
+          "description": "Exact characters from the paper. null is valid when the number was read from a figure/plot and no textual quote exists."
+        }
+      }
+    },
+    "Protocol": {
+      "type": "object",
+      "required": ["matches_standard", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "matches_standard": {
+          "type": "string",
+          "enum": ["yes", "no", "partial", "unknown"],
+          "description": "Whether the row's evaluation matches the benchmark's Standard in {bm}.md. If the rationale describes any Checks violation, use 'no' (not 'yes')."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why matches_standard has that value. Every factual claim (task count, demo count, split) must appear in evidence_quote."
+        },
+        "evidence_quote": {
+          "type": ["string", "null"],
+          "description": "Verbatim paper text backing the rationale. A rationale claim with no matching quote downgrades matches_standard one step toward 'unknown'."
+        }
+      }
+    }
+  }
+}

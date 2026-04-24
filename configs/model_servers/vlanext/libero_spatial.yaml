@@ -1,0 +1,6 @@
+# VLANeXt — LIBERO-Spatial
+# Checkpoint: DravenALG/VLANeXt (HuggingFace)
+extends: _base.yaml
+args:
+  checkpoint: DravenALG/VLANeXt
+  suite: libero_spatial

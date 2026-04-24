@@ -94,9 +94,11 @@ class OpenVLAModelServer(PredictModelServer):
         images_dict = obs.get("images", {})
         img_array = next(iter(images_dict.values())) if isinstance(images_dict, dict) else images_dict
         if isinstance(img_array, np.ndarray):
-            pil = PILImage.fromarray(img_array).convert("RGB")
-        else:
+            pil: PILImage.Image = PILImage.fromarray(img_array).convert("RGB")
+        elif isinstance(img_array, PILImage.Image):
             pil = img_array
+        else:
+            raise TypeError(f"expected ndarray or PIL Image, got {type(img_array).__name__}")
 
         if self.jpeg_roundtrip:
             buf = io.BytesIO()

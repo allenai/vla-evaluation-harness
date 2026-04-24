@@ -25,6 +25,15 @@ dependencies = [
 
 [dependency-groups]
 dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
+# Runtime deps for leaderboard/scripts (refine, extract, sync_external…).
+# Tooling (pytest, jsonschema) comes from `dev`, so CI can sync
+# `--dev --group leaderboard --no-install-project` to get a lean env
+# for leaderboard tests without pulling vla_eval's runtime.
+leaderboard = [
+    "beautifulsoup4>=4.12",
+    "markdownify>=0.14",
+    "typer>=0.12",
+]
 
 [tool.hatch.version]
 source = "vcs"
@@ -37,6 +46,17 @@ packages = ["src/vla_eval"]
 
 [project.scripts]
 vla-eval = "vla_eval.cli.main:main"
+
+[tool.pytest.ini_options]
+# Explicit so discovery doesn't creep into anywhere else a stray
+# test_*.py lands (e.g. .cache, experiments, site).
+testpaths = ["tests", "leaderboard/tests"]
+
+[tool.uv]
+# Pin resolution to a known-good date so `uv sync` from a fresh clone
+# won't pick up a newly-published (and potentially compromised) dep
+# version without explicit intent. Bump when intentionally upgrading.
+exclude-newer = "2026-04-22"
 
 [tool.ruff]
 line-length = 119
