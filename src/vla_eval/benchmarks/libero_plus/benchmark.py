@@ -126,7 +126,11 @@ class LIBEROPlusBenchmark(LIBEROBenchmark):
                 )
 
             def _matches(task: Task) -> bool:
-                entry = classification.get(task["name"])
+                # task_classification.json is keyed by the LIBERO registry
+                # name (task_obj.name), not the human-readable language that
+                # LIBEROBenchmark.get_tasks() stores in task["name"].
+                registry_name = getattr(task.get("task_obj"), "name", None)
+                entry = classification.get(registry_name) if registry_name else None
                 if entry is None:
                     return False
                 if self.category is not None and entry.get("category") != self.category:
@@ -141,7 +145,8 @@ class LIBEROPlusBenchmark(LIBEROBenchmark):
         # breakdown) when available.
         if self._classification:
             for task in tasks:
-                entry = self._classification.get(task["name"])
+                registry_name = getattr(task.get("task_obj"), "name", None)
+                entry = self._classification.get(registry_name) if registry_name else None
                 if entry is not None:
                     task["category"] = entry.get("category")
                     task["difficulty_level"] = entry.get("difficulty_level")
