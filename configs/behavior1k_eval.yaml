@@ -1,9 +1,11 @@
 # BEHAVIOR-1K (OmniGibson / Isaac Sim) — 50-task household-activity suite.
 #
-# Before running, edit the dataset volume below to point at your local
-# BEHAVIOR-1K data directory (the one populated by the three
-# ``download_*`` calls documented in docs/reproductions/behavior1k.md).
-# An NVIDIA GPU with Vulkan + EGL is required.
+# Run ``vla-eval data fetch -c configs/behavior1k_eval.yaml
+# --accept-license behavior-dataset-tos`` once before evaluating to
+# populate the dataset cache.  The default cache lives at
+# ``$VLA_EVAL_DATA_DIR/behavior1k`` (or ``~/.cache/vla-eval/behavior1k``
+# when the env var is unset); set ``VLA_EVAL_DATA_DIR`` to redirect to
+# a faster disk.  An NVIDIA GPU with Vulkan + EGL is required.
 server:
   url: "ws://localhost:8000"
 
@@ -20,11 +22,12 @@ docker:
     # GPU" error and a segfault deep in omni.kit.xr on first launch.
     - "VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json"
   volumes:
-    # OmniGibson reads gm.DATA_PATH=/app/BEHAVIOR-1K/datasets at import time.
-    # Replace the host side with the directory holding
-    # ``omnigibson-robot-assets/``, ``behavior-1k-assets/``, and
-    # ``2025-challenge-task-instances/``.
-    - "/data/og_data:/app/BEHAVIOR-1K/datasets:ro"
+    # OmniGibson reads ``gm.DATA_PATH=/app/BEHAVIOR-1K/datasets`` at
+    # import time.  The host path resolves via OmegaConf:
+    # ``${VLA_EVAL_DATA_DIR}/behavior1k`` if set, else
+    # ``${HOME}/.cache/vla-eval/behavior1k``.  This is the same layout
+    # ``vla-eval data fetch`` writes to.
+    - "${oc.env:VLA_EVAL_DATA_DIR,${oc.env:HOME}/.cache/vla-eval}/behavior1k:/app/BEHAVIOR-1K/datasets:ro"
 
 output_dir: "./results"
 

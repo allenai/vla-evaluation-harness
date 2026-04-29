@@ -908,6 +908,11 @@ examples:
     test_parser.add_argument("--verbose", "-v", action="store_true")
     test_parser.set_defaults(func=cmd_test)
 
+    # data subcommand (fetch external benchmark datasets)
+    from vla_eval.cli import cmd_data
+
+    cmd_data.register(sub)
+
     args = parser.parse_args()
     _setup_logging(getattr(args, "verbose", False))
     args.func(args)

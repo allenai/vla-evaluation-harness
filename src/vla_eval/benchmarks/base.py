@@ -33,6 +33,41 @@ class StepResult:
     info: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class DataRequirement:
+    """External-data requirement that can't be redistributed in the image.
+
+    Benchmarks whose dataset is licensed independently of the harness
+    (e.g. BEHAVIOR-1K's BEHAVIOR Dataset ToS) declare a
+    ``DataRequirement`` from their ``data_requirements()`` classmethod
+    so the CLI can drive a uniform fetch flow.
+
+    Fields:
+        license_id: Token a user passes to ``--accept-license`` to
+            opt in.  Should be lower-kebab-case and stable
+            (e.g. ``"behavior-dataset-tos"``).
+        license_url: Where to read the licence terms.
+        container_data_path: Path inside the docker image where the
+            data must be mounted.  Used as the mount target for both
+            ``vla-eval data fetch`` (read-write) and ``vla-eval run``
+            (read-only).
+        marker: Path relative to the *host* data directory that, once
+            present, signals the dataset is fetched.  Used for the
+            "already-fetched" short-circuit.  Pick something that the
+            download command produces last (a final asset directory,
+            for instance).
+        download_command: argv that the docker container will run, with
+            ``container_data_path`` mounted read-write, to populate
+            the dataset.
+    """
+
+    license_id: str
+    license_url: str
+    container_data_path: str
+    marker: str
+    download_command: tuple[str, ...]
+
+
 # ---------------------------------------------------------------------------
 # Async Benchmark ABC (parent)
 # ---------------------------------------------------------------------------
@@ -131,6 +166,19 @@ class Benchmark(ABC):
     def get_metadata(self) -> dict[str, Any]:
         """Return benchmark defaults and metadata. Optional override."""
         return {}
+
+    @classmethod
+    def data_requirements(cls) -> DataRequirement | None:
+        """Declare an external-data dependency that the harness can fetch.
+
+        Most benchmarks bundle their data inside the docker image and
+        return ``None`` (the default).  Benchmarks whose dataset is
+        licensed independently of the harness (e.g. BEHAVIOR-1K)
+        return a populated :class:`DataRequirement` so
+        ``vla-eval data fetch -c <config>`` can drive a uniform
+        download flow.
+        """
+        return None
 
     def cleanup(self) -> None:
         """Release benchmark resources (environments, renderers, etc.). Optional override."""

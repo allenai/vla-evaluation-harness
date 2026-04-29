@@ -17,26 +17,27 @@ def load_config(path: str) -> dict[str, Any]:
 
     Configs without ``extends`` are loaded identically to ``yaml.safe_load``.
     """
+    from omegaconf import OmegaConf
+
     with open(path) as f:
         raw = yaml.safe_load(f) or {}
 
     extends = raw.pop("extends", None)
-    if extends is None:
-        return raw
+    if extends is not None:
+        base_path = str(Path(path).resolve().parent / extends)
+        base = load_config(base_path)
+        merged = OmegaConf.merge(OmegaConf.create(base), OmegaConf.create(raw))
+    else:
+        merged = OmegaConf.create(raw)
 
-    from omegaconf import OmegaConf
-
-    base_path = str(Path(path).resolve().parent / extends)
-    base = load_config(base_path)
-    merged = OmegaConf.merge(OmegaConf.create(base), OmegaConf.create(raw))
-    # OmegaConf.to_container returns Union[dict, list, None, str]; a
-    # merge of two DictConfigs always yields a dict. Assert narrows
-    # the type for the checker and catches genuinely unexpected shape
-    # at runtime (not just when the caller indexes the result).
+    # ``resolve=True`` expands OmegaConf interpolations (``${oc.env:VAR}``,
+    # ``${oc.env:VAR,default}``) so configs can pick up host-side state
+    # like ``$VLA_EVAL_DATA_DIR`` without requiring a pre-pass.  This
+    # runs uniformly for both ``extends``-based and standalone configs.
     container = OmegaConf.to_container(merged, resolve=True)
     if not isinstance(container, dict):
         raise TypeError(f"expected dict from OmegaConf.to_container, got {type(container).__name__}")
-    # OmegaConf's return type is dict[Unknown, Unknown]; merging two
-    # DictConfigs gives us string keys in practice. Cast so the public
-    # signature's dict[str, Any] holds.
+    # OmegaConf's return type is dict[Unknown, Unknown]; YAML mappings
+    # are dict[str, Any] in practice. Cast so the public signature
+    # holds.
     return cast(dict[str, Any], container)

@@ -118,24 +118,15 @@ test set.
 #    (NVIDIA Omniverse EULA — https://docs.omniverse.nvidia.com/eula/).
 docker/build.sh behavior1k --accept-license behavior1k
 
-# 2. Download the dataset (~35 GiB).  Mount-target inside the image
-#    is /app/BEHAVIOR-1K/datasets — that's where gm.DATA_PATH points.
-mkdir -p /path/to/og_data
-docker run --rm --gpus all \
-  -e OMNI_KIT_ACCEPT_EULA=YES \
-  -v /path/to/og_data:/app/BEHAVIOR-1K/datasets \
-  --entrypoint conda \
-  ghcr.io/allenai/vla-evaluation-harness/behavior1k:latest \
-  run --no-capture-output -n behavior python -c "
-from omnigibson.utils.asset_utils import (
-    download_omnigibson_robot_assets,
-    download_behavior_1k_assets,
-    download_2025_challenge_task_instances,
-)
-download_omnigibson_robot_assets()
-download_behavior_1k_assets(accept_license=True)
-download_2025_challenge_task_instances()
-"
+# 2. Download the dataset (~35 GiB) into the harness cache.  This drives
+#    the official ``download_omnigibson_robot_assets`` /
+#    ``download_behavior_1k_assets`` / ``download_2025_challenge_task_instances``
+#    helpers inside the image and accepts the BEHAVIOR Dataset ToS.  The
+#    cache lives at ``$VLA_EVAL_DATA_DIR/behavior1k`` (defaults to
+#    ``~/.cache/vla-eval/behavior1k``) — set ``VLA_EVAL_DATA_DIR`` to
+#    redirect to a faster disk before running.
+uv run vla-eval data fetch -c configs/behavior1k_eval.yaml \
+    --accept-license behavior-dataset-tos
 
 # 3. Start the zero-action baseline server.
 uv run --script src/vla_eval/model_servers/behavior1k_baseline.py \
@@ -149,7 +140,10 @@ uv run vla-eval run -c configs/behavior1k_eval.yaml \
     --gpus 0 --yes
 ```
 
-Edit `configs/behavior1k_eval.yaml` `volumes` to point at your dataset path.
+The eval config picks up the cache directory automatically (the
+``volumes`` entry resolves
+``${VLA_EVAL_DATA_DIR}/behavior1k`` with a fallback to
+``${HOME}/.cache/vla-eval/behavior1k``); no per-host edits required.
 
 ## What Trained-VLA Reproduction Still Needs
 
