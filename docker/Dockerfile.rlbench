@@ -5,6 +5,23 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
+ARG ACCEPT_RLBENCH_LICENCE=
+RUN if [ "$ACCEPT_RLBENCH_LICENCE" != "YES" ]; then \
+        echo ""; \
+        echo "============================================================"; \
+        echo "Building rlbench requires accepting two licences:"; \
+        echo "  1. RLBench (Imperial College London) — academic / non-commercial"; \
+        echo "     https://github.com/stepjam/RLBench/blob/master/LICENSE"; \
+        echo "  2. CoppeliaSim Edu — educational entities, non-commercial"; \
+        echo "     https://manual.coppeliarobotics.com/en/licensing.htm"; \
+        echo ""; \
+        echo "Read the licences above, then re-run with:"; \
+        echo "  docker build --build-arg ACCEPT_RLBENCH_LICENCE=YES ..."; \
+        echo "  (or: docker/build.sh rlbench --accept-license rlbench)"; \
+        echo "============================================================"; \
+        exit 1; \
+    fi
+
 # ── Xvfb for headless CoppeliaSim ─────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         xvfb libfontconfig1 tini \

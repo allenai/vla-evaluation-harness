@@ -32,10 +32,28 @@ fi
 
 IMAGES=(base simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces)
 
+# Images excluded from registry pushes — build locally only.
+NO_REDIST=(rlbench)
+
+is_no_redist() {
+  local n="$1"
+  for g in "${NO_REDIST[@]}"; do
+    [[ "$g" == "$n" ]] && return 0
+  done
+  return 1
+}
+
 push_image() {
   local name="$1"
   local image_name="${name//_/-}"
   local versioned="${REGISTRY}/${image_name}:${TAG}"
+
+  if is_no_redist "$name"; then
+    echo "Refusing to push ${versioned}: image bundles proprietary-licensed"
+    echo "binaries that may not be redistributed to a public registry."
+    echo "(See docs/reproductions/${name}.md for the license rationale.)"
+    return 0
+  fi
 
   echo "Pushing: ${versioned}"
   if ! docker push "${versioned}"; then
