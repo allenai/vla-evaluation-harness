@@ -386,10 +386,11 @@ class RoboMMEBenchmark(StepBenchmark):
             self._current_subgoal = self._extract_subgoal(info_flat)
 
         if self._recorder is not None:
-            self._recorder.start(task)
+            task_name = task.get("name") or task.get("env_id", "unknown")
+            self._recorder.start({"task_name": task_name, "episode_idx": episode_idx})
             front_list = obs_batch.get("front_rgb_list", [])
             if front_list:
-                self._recorder.record(np.array(front_list[-1], copy=True))
+                self._recorder.record(front_list[-1])
 
         return obs_batch
 
@@ -411,9 +412,7 @@ class RoboMMEBenchmark(StepBenchmark):
         if self._recorder is not None and obs:
             front_list = obs.get("front_rgb_list", [])
             if front_list:
-                # Copy explicitly: ManiSkill may reuse the same buffer across steps,
-                # which would make every saved frame identical to the last one.
-                self._recorder.record(np.array(front_list[-1], copy=True))
+                self._recorder.record(front_list[-1])
 
         # Cast potential torch scalars
         terminated = bool(terminated)
@@ -485,7 +484,7 @@ class RoboMMEBenchmark(StepBenchmark):
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
         success = step_result.info.get("status") == "success"
         if self._recorder is not None:
-            self._recorder.save(success=success)
+            self._recorder.save(status="success" if success else "fail")
         return {"success": success}
 
     def get_metadata(self) -> dict[str, Any]:

@@ -1,144 +1,302 @@
 """Per-episode video recording helper, shared across benchmarks.
 
 Most benchmarks have a "save the agent's view of each episode as an mp4"
-need (debugging failures, demo browsing, public showcase, qualitative
+need (failure-case debugging, demo browsing, public showcase, qualitative
 analysis).  This module is a single home for that pattern so each
 benchmark doesn't reinvent it.
 
-Typical use from a benchmark:
+## Design
+
+* **Streaming**: frames are encoded to disk as they arrive
+  (``imageio.get_writer`` + ``append_data``) rather than buffered in RAM.
+  Memory is O(1) regardless of episode length; a 1300-step 256×256×3
+  episode that previously held ~250 MB now holds one frame at a time.
+  A side benefit is that a partially-written mp4 is left on disk if the
+  process is killed mid-episode — playable up to the last completed
+  frame, useful for debugging crashes.
+* **Atomic finalize**: frames stream into a tempfile in the same output
+  directory; ``save()`` resolves the final filename (which usually
+  depends on success/failure status) and ``os.replace``-s the tempfile
+  into place.  Concurrent jobs sharing a directory don't collide.
+* **Logging-style filename templating**: the filename is a ``str.format``
+  template (or callable) over a context dict that the caller passes at
+  ``start()`` time, plus a ``status`` key injected at ``save()`` time.
+  Default template ``"{task_name}_ep{episode_idx}_{status}.mp4"``;
+  benchmarks with richer identifiers can use any context they like, e.g.
+  ``"{suite}/{task}/{episode_idx:04d}_seed{seed}_{status}.mp4"``.
+* **Best-effort**: every encode-side failure logs a warning with the
+  context for debuggability and clears state — a corrupted video should
+  never bring down an otherwise good eval episode.
+
+## Caller pattern
 
     from vla_eval.benchmarks.recording import EpisodeVideoRecorder
-    from vla_eval.types import Task
 
-    class MyBenchmark(StepBenchmark):
-        def __init__(self, ..., save_episode_video: bool = False,
-                     video_dir: str | None = None) -> None:
-            ...
-            self._recorder = EpisodeVideoRecorder(
-                output_dir=video_dir or "/workspace/results/videos",
-                fps=20,
-            ) if save_episode_video else None
+    recorder = EpisodeVideoRecorder(
+        output_dir="/workspace/results/videos",
+        # filename can stay default, or e.g.
+        # filename="{suite}/{task}_ep{episode_idx}_{status}.mp4",
+        fps=20,
+    )
 
-        def reset(self, task: Task) -> Any:
-            ...
-            if self._recorder is not None:
-                self._recorder.start(task)
-                # Capture the initial frame so the video covers the whole episode.
-                self._recorder.record(initial_frame)
+    # In benchmark.reset(task):
+    recorder.start({"task_name": task["env_id"], "episode_idx": task["episode_idx"]})
+    recorder.record(initial_frame)
 
-        def step(self, action) -> StepResult:
-            ...
-            if self._recorder is not None:
-                # If the underlying buffer is reused (ManiSkill does), copy first.
-                self._recorder.record(np.array(frame, copy=True))
+    # In benchmark.step(action):
+    recorder.record(frame)  # caller may mutate `frame` after this returns
+                            # (imageio's writer copies into its own buffer)
 
-        def get_step_result(self, step_result) -> EpisodeResult:
-            success = ...
-            if self._recorder is not None:
-                self._recorder.save(success=success)
-            return {"success": success}
+    # In benchmark.get_step_result(step_result):
+    recorder.save(status="success" if success else "fail")
 
-        def cleanup(self) -> None:
-            ...
-            if self._recorder is not None:
-                self._recorder.discard()  # drop any in-flight frames
+    # In benchmark.cleanup():
+    recorder.discard()  # drops any in-flight writer + tempfile
 
-The recorder is best-effort: encode failures log a warning and clear the
-buffer rather than aborting the episode.  Frame buffering is in-memory
-(``imageio.mimsave``); a typical 1300-step episode at 256×256×3 uint8 is
-~250 MB.  If you need lower memory or non-blocking saves, switch to
-``imageio.get_writer`` streaming and async ``cleanup()`` join — both are
-straightforward upgrades that don't change the public API here.
+## Multi-camera
+
+The recorder is single-stream by design.  Benchmarks with multiple views
+(e.g. front + wrist) instantiate one recorder per view with different
+``filename`` templates (e.g. ``"{view}_ep{episode_idx}_{status}.mp4"``,
+substituting the view name into the context at ``start()``).  This keeps
+each recorder simple and lets callers mix-and-match resolutions, fps,
+and codecs per view.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+import tempfile
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
+from typing import Any, Union
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from vla_eval.types import Task
-
 logger = logging.getLogger(__name__)
+
+# Either a `str.format`-style template or a callable that takes the resolved
+# context (caller's start() context + injected ``status``) and returns a
+# filename relative to ``output_dir``.
+FilenameSpec = Union[str, Callable[[Mapping[str, Any]], str]]
 
 
 class EpisodeVideoRecorder:
-    """Buffers per-step frames and writes one mp4 per episode.
+    """Streaming per-episode video recorder.
 
-    Filename pattern: ``{task_name}_ep{episode_idx}_{success|fail}.mp4``.
-    ``task["episode_idx"]`` is required at ``start()`` time — without it
-    multi-episode runs of the same task collide on a single ``_ep0_`` filename
-    and silently overwrite.
+    Lifecycle: ``start()`` → ``record()`` × N → ``save()`` (or
+    ``discard()``).  ``start()`` may be called again to begin a new
+    episode; if a previous episode never reached ``save()``/``discard()``
+    (e.g. orchestrator crash) the in-flight writer is closed and its
+    tempfile cleaned up first.
+
+    Inactive (no episode in progress) is a valid state: ``record()`` /
+    ``save()`` / ``discard()`` are no-ops in that case so callers don't
+    need defensive ``if recorder.active`` checks.
     """
 
-    def __init__(self, output_dir: str, fps: int = 20) -> None:
-        self.output_dir = output_dir
+    def __init__(
+        self,
+        output_dir: str | os.PathLike[str],
+        filename: FilenameSpec = "{task_name}_ep{episode_idx}_{status}.mp4",
+        fps: int = 20,
+        required_context: Sequence[str] = ("episode_idx",),
+        writer_kwargs: Mapping[str, Any] | None = None,
+    ) -> None:
+        """
+        Args:
+            output_dir: Directory the final mp4 lands in.  Created if missing.
+                Filename templates may include subdirectories (e.g.
+                ``"{suite}/{task}_..."``); intermediate dirs are also created.
+            filename: ``str.format`` template or callable producing the
+                filename relative to ``output_dir``.  Resolved at ``save()``
+                time over ``{**start_context, "status": status}``.
+            fps: Output framerate.
+            required_context: Keys that must be present in the dict passed to
+                ``start()``.  ``ValueError`` is raised at ``start()`` if any
+                are missing.  Default ``("episode_idx",)`` because without an
+                episode index, multi-episode runs of the same task collide
+                on a single ``_ep0_`` filename.
+            writer_kwargs: Extra kwargs forwarded to ``imageio.get_writer``
+                (e.g. ``{"codec": "libx264", "quality": 8}``).
+        """
+        self.output_dir = Path(output_dir)
+        self._filename_spec = filename
         self.fps = fps
-        self._frames: list[np.ndarray] = []
-        self._task: Task | None = None
+        self._required_context = tuple(required_context)
+        self._writer_kwargs = dict(writer_kwargs or {})
 
-    def start(self, task: Task) -> None:
-        """Begin recording for ``task``. Drops any frames left from a prior
-        episode (e.g. orchestrator skipped ``get_step_result`` after a
-        crash) so we don't accumulate."""
-        if "episode_idx" not in task:
-            raise ValueError(
-                "EpisodeVideoRecorder.start(task) requires task['episode_idx'] "
-                "(otherwise per-episode mp4s collide on the same filename)"
+        # Lifecycle state — None whenever no episode is in progress.
+        self._writer: Any = None
+        self._tempfile: Path | None = None
+        self._context: dict[str, Any] | None = None
+        self._frames_written = 0
+
+    @property
+    def active(self) -> bool:
+        return self._writer is not None
+
+    def start(self, context: Mapping[str, Any]) -> None:
+        """Begin a new episode.
+
+        Validates required context keys, opens a streaming writer to a
+        tempfile in ``output_dir``.  If a previous episode is still in
+        flight (no ``save``/``discard`` called) it is discarded first.
+        On writer-open failure the recorder stays inactive and subsequent
+        ``record()``/``save()`` are no-ops; the failure is logged.
+        """
+        missing = [k for k in self._required_context if k not in context]
+        if missing:
+            raise ValueError(f"EpisodeVideoRecorder.start: missing required context keys: {missing}")
+
+        if self.active:
+            self.discard()
+
+        self._context = dict(context)
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            # Tempfile in the same directory so os.replace() at save time is
+            # atomic on the same filesystem.
+            # Tempfile keeps a real `.mp4` suffix so imageio's format
+            # auto-detection works; the `.recorder-` prefix marks it as ours.
+            fd, temp_path = tempfile.mkstemp(
+                prefix=".recorder-",
+                suffix=".mp4",
+                dir=str(self.output_dir),
             )
-        self._frames = []
-        self._task = task
+            os.close(fd)
+            self._tempfile = Path(temp_path)
+
+            import imageio
+
+            self._writer = imageio.get_writer(str(self._tempfile), fps=self.fps, **self._writer_kwargs)
+        except Exception as e:
+            logger.warning(
+                "Failed to open video writer for context=%r: %s",
+                self._context,
+                e,
+            )
+            self._cleanup_tempfile()
+            self._writer = None
+            self._context = None
 
     def record(self, frame: np.ndarray) -> None:
-        """Append a frame.
+        """Append a frame to the in-flight episode.
 
-        The caller is responsible for copying if the underlying buffer is
-        reused across steps (ManiSkill / SAPIEN reuse one image buffer per
-        camera; without ``np.array(frame, copy=True)`` every recorded
-        frame ends up identical to the last one).
+        ``imageio``'s writers copy the frame data synchronously, so the
+        caller is free to mutate the underlying buffer once this returns
+        — no defensive ``np.array(frame, copy=True)`` required.
+
+        No-op if no episode is in progress.  Per-frame encode failures
+        log a warning but don't disable the writer (could be transient).
         """
-        if self._task is None:
-            # start() not called — silently ignore so a benchmark that
-            # toggles recording mid-run doesn't crash.
+        if not self.active:
             return
-        self._frames.append(frame)
+        try:
+            self._writer.append_data(frame)
+            self._frames_written += 1
+        except Exception as e:
+            logger.warning(
+                "Failed to write frame to video for context=%r: %s",
+                self._context,
+                e,
+            )
 
-    def save(self, success: bool) -> str | None:
-        """Encode the buffered frames to mp4 and reset.
+    def save(self, status: str = "success") -> Path | None:
+        """Finalize the in-flight episode.
 
-        Returns the file path on success, ``None`` if there was nothing to
-        save or the encode failed.  Encode failures log a warning rather
-        than raise — a corrupted video should never fail an otherwise good
-        eval episode.
+        Closes the streaming writer, resolves the final filename from
+        ``{**context, "status": status}``, and atomically moves the
+        tempfile into place.  Returns the final ``Path`` on success,
+        ``None`` if the recorder was inactive or any finalize step
+        failed.  After this call the recorder is inactive again.
         """
-        if self._task is None or not self._frames:
-            self._frames = []
-            self._task = None
+        if not self.active:
+            return None
+
+        # Local copy + clear state up front so failure paths can't leak it.
+        writer, tempfile_path, context = self._writer, self._tempfile, self._context
+        frames_written = self._frames_written
+        self._writer = None
+        self._tempfile = None
+        self._context = None
+        self._frames_written = 0
+
+        try:
+            writer.close()
+        except Exception as e:
+            logger.warning(
+                "Failed to close video writer for context=%r: %s",
+                context,
+                e,
+            )
+            _safe_unlink(tempfile_path)
             return None
 
         try:
-            import imageio
-
-            os.makedirs(self.output_dir, exist_ok=True)
-            task_name = self._task.get("name", self._task.get("env_id", "unknown"))
-            status = "success" if success else "fail"
-            fname = f"{task_name}_ep{self._task['episode_idx']}_{status}.mp4"
-            path = os.path.join(self.output_dir, fname)
-            imageio.mimsave(path, self._frames, fps=self.fps)
-            logger.info("Saved episode video: %s (%d frames)", path, len(self._frames))
-            return path
+            full_context = {**(context or {}), "status": status}
+            relative_name = self._resolve_filename(full_context)
         except Exception as e:
-            logger.warning("Failed to save episode video: %s", e)
+            logger.warning(
+                "Failed to resolve filename for context=%r status=%r: %s",
+                context,
+                status,
+                e,
+            )
+            _safe_unlink(tempfile_path)
             return None
-        finally:
-            self._frames = []
-            self._task = None
+
+        final_path = self.output_dir / relative_name
+        try:
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(str(tempfile_path), str(final_path))
+        except Exception as e:
+            logger.warning(
+                "Failed to finalize video at %s for context=%r: %s",
+                final_path,
+                context,
+                e,
+            )
+            _safe_unlink(tempfile_path)
+            return None
+
+        logger.info("Saved episode video: %s (%d frames)", final_path, frames_written)
+        return final_path
 
     def discard(self) -> None:
-        """Drop the buffer without saving. Call from ``cleanup()`` paths to
-        avoid leaking frames if the orchestrator never calls ``save()``."""
-        self._frames = []
-        self._task = None
+        """Abandon the in-flight episode without producing an mp4.
+
+        Closes the writer (best-effort) and removes the tempfile.  Safe
+        to call when no episode is in progress (no-op).
+        """
+        writer = self._writer
+        tempfile_path = self._tempfile
+        self._writer = None
+        self._tempfile = None
+        self._context = None
+        self._frames_written = 0
+        if writer is not None:
+            try:
+                writer.close()
+            except Exception:
+                pass
+        _safe_unlink(tempfile_path)
+
+    def _resolve_filename(self, context: Mapping[str, Any]) -> str:
+        if callable(self._filename_spec):
+            return self._filename_spec(context)
+        return self._filename_spec.format(**context)
+
+    def _cleanup_tempfile(self) -> None:
+        _safe_unlink(self._tempfile)
+        self._tempfile = None
+
+
+def _safe_unlink(path: Path | None) -> None:
+    if path is None:
+        return
+    try:
+        path.unlink(missing_ok=True)
+    except Exception:
+        pass
