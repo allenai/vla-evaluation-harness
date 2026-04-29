@@ -17,6 +17,7 @@ from typing import Any, Literal
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.recording import EpisodeVideoRecorder
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -191,8 +192,16 @@ class RoboMMEBenchmark(StepBenchmark):
         self.send_video_history = send_video_history
         self.send_subgoal = send_subgoal
         self.subgoal_mode = subgoal_mode
-        self.save_episode_video = save_episode_video
-        self.video_dir = video_dir or "/workspace/results/videos"
+        self._recorder: EpisodeVideoRecorder | None = (
+            EpisodeVideoRecorder(
+                output_dir=video_dir or "/workspace/results/videos",
+                filename="{env_id}_ep{episode_idx}_{status}.mp4",
+                required_context=("env_id", "episode_idx"),
+                fps=20,
+            )
+            if save_episode_video
+            else None
+        )
 
         self._env: Any = None
         self._task: Task | None = None
@@ -200,7 +209,6 @@ class RoboMMEBenchmark(StepBenchmark):
         self._video_frames: list[np.ndarray] = []
         self._wrist_video_frames: list[np.ndarray] = []
         self._current_subgoal: str = ""
-        self._episode_frames: list[np.ndarray] = []
 
     def get_tasks(self) -> list[Task]:
         return [{"name": t, "env_id": t} for t in self.tasks]
@@ -340,7 +348,7 @@ class RoboMMEBenchmark(StepBenchmark):
 
             _backend_mod.parse_sim_and_render_backend = _patched_parse
 
-            import mani_skill.envs.sapien_env  # type: ignore
+            import mani_skill.envs.sapien_env
 
             mani_skill.envs.sapien_env.parse_sim_and_render_backend = _patched_parse
         except Exception as e:
@@ -360,12 +368,7 @@ class RoboMMEBenchmark(StepBenchmark):
             except Exception:
                 pass
 
-        # Drop any state left over from a previous episode that didn't reach
-        # get_step_result (orchestrator crash, mid-episode abort) so frames
-        # don't accumulate across resets.
-        self._episode_frames = []
-
-        if self.save_episode_video and "episode_idx" not in task:
+        if self._recorder is not None and "episode_idx" not in task:
             # Without a unique episode_idx, multi-episode runs would all
             # write to "<task>_ep0_<status>.mp4" and silently overwrite.
             raise ValueError(
@@ -397,10 +400,11 @@ class RoboMMEBenchmark(StepBenchmark):
         if self.send_subgoal:
             self._current_subgoal = self._extract_subgoal(info_flat)
 
-        if self.save_episode_video:
+        if self._recorder is not None:
+            self._recorder.start({"env_id": task["env_id"], "episode_idx": episode_idx})
             front_list = obs_batch.get("front_rgb_list", [])
             if front_list:
-                self._episode_frames.append(np.array(front_list[-1], copy=True))
+                self._recorder.record(front_list[-1])
 
         return obs_batch
 
@@ -419,12 +423,12 @@ class RoboMMEBenchmark(StepBenchmark):
         if self.send_subgoal:
             self._current_subgoal = self._extract_subgoal(info)
 
-        if self.save_episode_video and obs:
+        if self._recorder is not None and obs:
             front_list = obs.get("front_rgb_list", [])
             if front_list:
-                # Copy explicitly: ManiSkill may reuse the same buffer across steps,
-                # which would make every saved frame identical to the last one.
-                self._episode_frames.append(np.array(front_list[-1], copy=True))
+                # imageio's ffmpeg writer copies via tobytes() before piping,
+                # so passing the raw (potentially reused) ManiSkill buffer is fine.
+                self._recorder.record(front_list[-1])
 
         # Cast potential torch scalars
         terminated = bool(terminated)
@@ -433,21 +437,6 @@ class RoboMMEBenchmark(StepBenchmark):
         done = terminated or truncated or info.get("status") == "error"
 
         return StepResult(obs=obs, reward=reward, done=done, info=info)
-
-    def _save_episode_video(self, task: Task, success: bool) -> None:
-        try:
-            import imageio
-
-            os.makedirs(self.video_dir, exist_ok=True)
-            task_name = task.get("name", task.get("env_id", "unknown"))
-            status = "success" if success else "fail"
-            fname = f"{task_name}_ep{task['episode_idx']}_{status}.mp4"
-            path = os.path.join(self.video_dir, fname)
-            imageio.mimsave(path, self._episode_frames, fps=20)
-            logger.info("Saved episode video: %s (%d frames)", path, len(self._episode_frames))
-        except Exception as e:
-            logger.warning("Failed to save episode video: %s", e)
-        self._episode_frames = []
 
     def _extract_subgoal(self, info: dict[str, Any]) -> str:
         """Pick the configured subgoal text from the env's info dict.
@@ -510,8 +499,8 @@ class RoboMMEBenchmark(StepBenchmark):
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
         success = step_result.info.get("status") == "success"
-        if self.save_episode_video and self._episode_frames and self._task is not None:
-            self._save_episode_video(task=self._task, success=success)
+        if self._recorder is not None:
+            self._recorder.save(status="success" if success else "fail")
         return {"success": success}
 
     def get_metadata(self) -> dict[str, Any]:
@@ -540,7 +529,8 @@ class RoboMMEBenchmark(StepBenchmark):
             except Exception:
                 pass
             self._env = None
-        self._episode_frames = []
+        if self._recorder is not None:
+            self._recorder.discard()
         self._video_frames = []
         self._wrist_video_frames = []
         self._task = None

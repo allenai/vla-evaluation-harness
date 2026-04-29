@@ -12,6 +12,7 @@ license = {text = "Apache-2.0"}
 dependencies = [
     "anyio>=4.0.0",
     "filelock>=3.0",
+    "imageio[ffmpeg]",      # Streaming mp4 writer for benchmarks/recording.py
     "lazyregistry>=0.4.0",  # Python 3.8 support
     "msgpack>=1.0.0",
     "numpy>=1.24",
