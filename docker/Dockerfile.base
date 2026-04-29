@@ -28,11 +28,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Vulkan ICD for NVIDIA GPU ────────────────────────────────────────
+# Skip writes when the ICD file is already present — on hosts whose Docker
+# default-runtime is `nvidia`, nvidia-container-runtime bind-mounts these
+# JSONs read-only into every container (including the build container), so
+# an unconditional write would fail with "Read-only file system".
 RUN mkdir -p /usr/share/vulkan/icd.d /usr/share/glvnd/egl_vendor.d \
-    && printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libGLX_nvidia.so.0","api_version":"1.2.155"}}\n' \
-        > /usr/share/vulkan/icd.d/nvidia_icd.json \
-    && printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}\n' \
-        > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+    && { [ -s /usr/share/vulkan/icd.d/nvidia_icd.json ] \
+         || printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libGLX_nvidia.so.0","api_version":"1.2.155"}}\n' \
+            > /usr/share/vulkan/icd.d/nvidia_icd.json; } \
+    && { [ -s /usr/share/glvnd/egl_vendor.d/10_nvidia.json ] \
+         || printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}\n' \
+            > /usr/share/glvnd/egl_vendor.d/10_nvidia.json; }
 
 # ── Miniforge (lightweight conda, conda-forge defaults) ──────────────
 RUN wget -qO /tmp/miniforge.sh \
