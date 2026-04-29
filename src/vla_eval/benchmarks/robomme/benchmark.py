@@ -195,8 +195,8 @@ class RoboMMEBenchmark(StepBenchmark):
         self._recorder: EpisodeVideoRecorder | None = (
             EpisodeVideoRecorder(
                 output_dir=video_dir or "/workspace/results/videos",
-                filename="{env_id}_ep{episode_idx}_{status}.mp4",
-                required_context=("env_id", "episode_idx"),
+                # Zero-padded `episode_idx` so files alpha-sort numerically.
+                filename="{env_id}_ep{episode_idx:04d}_{status}.mp4",
                 fps=20,
             )
             if save_episode_video

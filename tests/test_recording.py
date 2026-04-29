@@ -1,9 +1,10 @@
 """Unit tests for ``vla_eval.benchmarks.recording.EpisodeVideoRecorder``.
 
 Exercises the full lifecycle (start → record → save / discard), filename
-templating (str + callable), required-context validation, error paths
-(writer-open failure, encode failure, missing context key at save), and
-state isolation between episodes.
+templating (str + callable), required-context auto-derivation,
+required-context validation, error paths (writer-open failure, encode
+failure, missing context key at save), state isolation between episodes,
+and collision detection at save time.
 
 Frames are 4×4 RGB ``uint8`` stubs — small enough that ``imageio``'s
 ffmpeg writer copes without external codec setup, but real enough that
@@ -21,7 +22,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from vla_eval.benchmarks.recording import EpisodeVideoRecorder
+from vla_eval.benchmarks.recording import EpisodeVideoRecorder, _fields_from_template
 
 
 def _frame() -> np.ndarray:
@@ -40,16 +41,14 @@ def _count_frames(path: Path) -> int:
 def _rec(tmp_path: Path, **overrides: Any) -> EpisodeVideoRecorder:
     """Construct a recorder with stable test-suite defaults.
 
-    The recorder itself has no defaults for ``filename`` /
-    ``required_context`` (every benchmark spells them out explicitly).
-    Tests don't need to repeat that boilerplate, so this helper picks
-    the same ``task_name``/``episode_idx`` template the original
-    test data assumed.
+    The recorder itself has no defaults for ``filename`` (every benchmark
+    spells it out).  Tests don't need to repeat that boilerplate, so
+    this helper picks a ``task_name`` + ``episode_idx`` template and lets
+    auto-derivation discover the required keys.
     """
     kwargs: dict[str, Any] = {
         "output_dir": tmp_path,
-        "filename": "{task_name}_ep{episode_idx}_{status}.mp4",
-        "required_context": ("task_name", "episode_idx"),
+        "filename": "{task_name}_ep{episode_idx:04d}_{status}.mp4",
     }
     kwargs.update(overrides)
     return EpisodeVideoRecorder(**kwargs)
@@ -68,7 +67,7 @@ def test_save_writes_mp4_with_correct_framecount(tmp_path: Path) -> None:
     final = rec.save(status="success")
 
     assert final is not None
-    assert final == tmp_path / "PickCube_ep0_success.mp4"
+    assert final == tmp_path / "PickCube_ep0000_success.mp4"
     assert final.exists()
     assert _count_frames(final) == 5
 
@@ -79,7 +78,7 @@ def test_save_uses_status_in_filename(tmp_path: Path) -> None:
     rec.record(_frame())
     final = rec.save(status="fail")
     assert final is not None
-    assert final == tmp_path / "T_ep7_fail.mp4"
+    assert final == tmp_path / "T_ep0007_fail.mp4"
     assert final.exists()
 
 
@@ -100,12 +99,12 @@ def test_consecutive_episodes_each_produce_their_own_file(tmp_path: Path) -> Non
         rec.record(_frame())
         final = rec.save(status="success")
         assert final is not None
-        assert final == tmp_path / f"T_ep{ep}_success.mp4"
+        assert final == tmp_path / f"T_ep{ep:04d}_success.mp4"
         assert final.exists()
     assert sorted(p.name for p in tmp_path.glob("T_ep*.mp4")) == [
-        "T_ep0_success.mp4",
-        "T_ep1_success.mp4",
-        "T_ep2_success.mp4",
+        "T_ep0000_success.mp4",
+        "T_ep0001_success.mp4",
+        "T_ep0002_success.mp4",
     ]
 
 
@@ -118,7 +117,6 @@ def test_filename_template_with_subdirectories(tmp_path: Path) -> None:
     rec = EpisodeVideoRecorder(
         output_dir=tmp_path,
         filename="{suite}/{task_name}_ep{episode_idx:04d}_{status}.mp4",
-        required_context=("suite", "task_name", "episode_idx"),
     )
     rec.start({"suite": "Counting", "task_name": "PickX", "episode_idx": 12})
     rec.record(_frame())
@@ -128,10 +126,15 @@ def test_filename_template_with_subdirectories(tmp_path: Path) -> None:
     assert final.exists()
 
 
-def test_filename_callable(tmp_path: Path) -> None:
+def test_filename_callable_requires_explicit_required_context(tmp_path: Path) -> None:
     def naming(ctx: Mapping[str, Any]) -> str:
         return f"{ctx['run_id']}-{ctx['episode_idx']}-{ctx['status']}.mp4"
 
+    # Callable + required_context=None → ValueError at construction.
+    with pytest.raises(ValueError, match="required_context must be specified when filename is a callable"):
+        EpisodeVideoRecorder(output_dir=tmp_path, filename=naming)
+
+    # Explicit required_context unblocks it.
     rec = EpisodeVideoRecorder(
         output_dir=tmp_path,
         filename=naming,
@@ -144,20 +147,51 @@ def test_filename_callable(tmp_path: Path) -> None:
 
 
 def test_save_with_template_key_not_in_required_context_is_handled(tmp_path: Path) -> None:
-    # required_context is the caller's contract for what must be present at
-    # start(); it's permitted to be a subset of the keys the template uses
-    # (e.g. an optional `seed`).  When a template key is genuinely missing
-    # at save() time, resolution should fail gracefully rather than raise.
+    # An explicit required_context is allowed to be a SUBSET of template keys —
+    # callers may want some keys to be optional (e.g. `seed`).  Auto-derivation
+    # would have included `seed`, but here the caller deliberately overrides
+    # to make `seed` optional, so start() doesn't enforce it.  When a template
+    # key is missing at save() time, resolution should fail gracefully rather
+    # than raise.
     rec = EpisodeVideoRecorder(
         output_dir=tmp_path,
         filename="{task_name}_{seed}_{status}.mp4",
-        required_context=("task_name",),
+        required_context=("task_name",),  # explicit subset
     )
     rec.start({"task_name": "T"})  # `seed` missing
     rec.record(_frame())
     final = rec.save(status="success")
     assert final is None
     assert list(tmp_path.glob(".recorder-*.mp4")) == []
+
+
+# ---------------------------------------------------------------------------
+# required_context auto-derivation
+# ---------------------------------------------------------------------------
+
+
+def test_required_context_auto_derived_from_template(tmp_path: Path) -> None:
+    rec = EpisodeVideoRecorder(
+        output_dir=tmp_path,
+        filename="{a}_{b:04d}_{status}.mp4",
+    )
+    # Auto-derivation strips `:format_spec` and excludes `status`.
+    assert rec._required_context == ("a", "b")  # type: ignore[attr-defined]
+    # And the validation actually applies:
+    with pytest.raises(ValueError, match="missing required context keys"):
+        rec.start({"a": "x"})  # `b` missing
+
+
+def test_fields_from_template_helper() -> None:
+    # Direct unit test of the helper since it's the engine for auto-derivation.
+    assert _fields_from_template("{a}_{b}_{status}.mp4") == ("a", "b")
+    assert _fields_from_template("{episode_idx:04d}_{status}.mp4") == ("episode_idx",)
+    assert _fields_from_template("{suite}/{task}_ep{i:04d}.mp4") == ("suite", "task", "i")
+    assert _fields_from_template("plain.mp4") == ()
+    # Duplicates collapsed, order preserved.
+    assert _fields_from_template("{a}_{b}_{a}_{status}.mp4") == ("a", "b")
+    # Attribute/indexing access — bare name only.
+    assert _fields_from_template("{ctx.task}_{arr[0]}.mp4") == ("ctx", "arr")
 
 
 # ---------------------------------------------------------------------------
@@ -194,11 +228,50 @@ def test_writer_open_failure_leaves_recorder_inactive(tmp_path: Path) -> None:
     with patch("imageio.get_writer", side_effect=RuntimeError("nope")):
         rec.start({"task_name": "T", "episode_idx": 0})
     assert rec.active is False
-    # No leftover tempfile.
+    # No leftover working file.
     assert list(tmp_path.glob(".recorder-*.mp4")) == []
     # Subsequent record/save are no-ops.
     rec.record(_frame())
     assert rec.save() is None
+
+
+# ---------------------------------------------------------------------------
+# Collision detection at save
+# ---------------------------------------------------------------------------
+
+
+def test_save_raises_on_collision_by_default(tmp_path: Path) -> None:
+    rec = _rec(tmp_path)
+    rec.start({"task_name": "T", "episode_idx": 0})
+    rec.record(_frame())
+    rec.save(status="success")  # writes T_ep0000_success.mp4
+
+    # Programmer error: same context, same status, second time around.
+    rec.start({"task_name": "T", "episode_idx": 0})
+    rec.record(_frame())
+    with pytest.raises(FileExistsError, match="already exists"):
+        rec.save(status="success")
+    # Original file is untouched, working file remains for manual recovery.
+    assert (tmp_path / "T_ep0000_success.mp4").exists()
+    assert len(list(tmp_path.glob(".recorder-*.mp4"))) == 1
+
+
+def test_save_overwrites_when_overwrite_true(tmp_path: Path) -> None:
+    rec = _rec(tmp_path, overwrite=True)
+    rec.start({"task_name": "T", "episode_idx": 0})
+    rec.record(_frame())
+    rec.record(_frame())
+    first = rec.save(status="success")
+    assert first is not None
+    assert _count_frames(first) == 2
+
+    rec.start({"task_name": "T", "episode_idx": 0})
+    for _ in range(5):
+        rec.record(_frame())
+    second = rec.save(status="success")
+    assert second is not None
+    assert second == first  # same final path
+    assert _count_frames(second) == 5  # but new content
 
 
 # ---------------------------------------------------------------------------
@@ -215,14 +288,14 @@ def test_start_again_without_save_discards_prior_episode(tmp_path: Path) -> None
     rec.record(_frame())
     final = rec.save(status="success")
     assert final is not None
-    assert final == tmp_path / "T_ep1_success.mp4"
-    # Only ep1 mp4 should exist; ep0's tempfile was cleaned up.
+    assert final == tmp_path / "T_ep0001_success.mp4"
+    # Only ep1 mp4 should exist; ep0's working file was cleaned up.
     mp4s = sorted(p.name for p in tmp_path.glob("*.mp4"))
-    assert mp4s == ["T_ep1_success.mp4"]
+    assert mp4s == ["T_ep0001_success.mp4"]
     assert list(tmp_path.glob(".recorder-*.mp4")) == []
 
 
-def test_discard_cleans_up_tempfile(tmp_path: Path) -> None:
+def test_discard_cleans_up_working_file(tmp_path: Path) -> None:
     rec = _rec(tmp_path)
     rec.start({"task_name": "T", "episode_idx": 0})
     rec.record(_frame())
