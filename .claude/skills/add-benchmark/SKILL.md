@@ -186,6 +186,12 @@ vla-eval test --validate                      # validate all config import strin
 vla-eval test -c configs/<name>_eval.yaml     # smoke-test (1 episode, EchoModelServer, no GPU needed — requires Docker + image)
 ```
 
+**Don't add `tests/test_<name>_benchmark.py` with mocked sim modules.**
+`tests/` is for harness mechanics, not per-sim integration.  Fake
+`omnigibson` / `sapien` / `mujoco` modules drift from upstream each
+release and miss the real bugs (import paths, action encoding,
+physics determinism).  Verify via the smoke test above.
+
 ## Reference implementations
 
 | Benchmark | File | Key patterns |

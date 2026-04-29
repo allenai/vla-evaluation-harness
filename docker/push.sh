@@ -30,10 +30,10 @@ if [[ "$TAG" == "latest" && "$FORCE" != true ]]; then
   UPDATE_LATEST=false  # already pushing as latest, no need to double-tag
 fi
 
-IMAGES=(base simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces)
+IMAGES=(base simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces behavior1k)
 
 # Images excluded from registry pushes — build locally only.
-NO_REDIST=(rlbench)
+NO_REDIST=(rlbench behavior1k)
 
 is_no_redist() {
   local n="$1"

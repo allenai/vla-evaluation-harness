@@ -1,0 +1,43 @@
+# BEHAVIOR-1K (OmniGibson / Isaac Sim) — 50-task household-activity suite.
+#
+# Before running, edit the dataset volume below to point at your local
+# BEHAVIOR-1K data directory (the one populated by the three
+# ``download_*`` calls documented in docs/reproductions/behavior1k.md).
+# An NVIDIA GPU with Vulkan + EGL is required.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/behavior1k:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+    - "OMNIGIBSON_HEADLESS=1"
+    - "OMNI_KIT_ACCEPT_EULA=YES"
+    # Pin Isaac Sim/Vulkan to a single NVIDIA ICD.  Without this both the
+    # base image's baked-in /usr/share/vulkan/icd.d/nvidia_icd.json and
+    # the nvidia-container-toolkit-injected /etc/vulkan/icd.d/nvidia_icd.json
+    # are visible at runtime; that triggers a "Multiple ICDs for the same
+    # GPU" error and a segfault deep in omni.kit.xr on first launch.
+    - "VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json"
+  volumes:
+    # OmniGibson reads gm.DATA_PATH=/app/BEHAVIOR-1K/datasets at import time.
+    # Replace the host side with the directory holding
+    # ``omnigibson-robot-assets/``, ``behavior-1k-assets/``, and
+    # ``2025-challenge-task-instances/``.
+    - "/data/og_data:/app/BEHAVIOR-1K/datasets:ro"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.behavior1k.benchmark:Behavior1KBenchmark"
+    subname: turning_on_radio
+    mode: sync
+    episodes_per_task: 1
+    params:
+      tasks:
+        - turning_on_radio
+      partial_scene_load: true
+      send_proprio: false
+      max_steps: 2000
+      task_instance_id: 1
+    action_dim: 23

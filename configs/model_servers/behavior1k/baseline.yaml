@@ -1,0 +1,7 @@
+# BEHAVIOR-1K — zero-action baseline (R1Pro 23-D).
+# Mirrors the default LocalPolicy(action_dim=23) baseline used by the
+# official OmniGibson eval script when no policy weights are provided.
+script: "src/vla_eval/model_servers/behavior1k_baseline.py"
+args:
+  action_dim: 23
+  port: 8000

@@ -52,7 +52,7 @@ SE = SimplerEnv. SE GR = Google Robot VM.
 
 ## Benchmarks with No Model Coverage Yet
 
-Integrated in vla-eval: RLBench, RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBERO-Pro.
+Integrated in vla-eval: RLBench, RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBERO-Pro, BEHAVIOR-1K ([details](behavior1k.md) — needs an R1Pro-compatible model server).
 
 ## Per-Codebase Details
 

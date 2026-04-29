@@ -1,0 +1,120 @@
+# BEHAVIOR-1K — OmniGibson on NVIDIA Isaac Sim (https://behavior.stanford.edu)
+#
+# Heavy image: pulls Isaac Sim wheels (~12 GB) and the BEHAVIOR-1K
+# source tree.  The dataset itself (~10 GB) is NOT baked in; mount it
+# at runtime under /app/BEHAVIOR-1K/datasets.
+#
+# Hardware requirements: NVIDIA GPU (RTX 2070+), 8 GB+ VRAM, Vulkan ICD.
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# Build-time license confirmation.  The user must explicitly opt in
+# the same way Stanford's setup.sh requires --accept-nvidia-eula.
+ARG ACCEPT_NVIDIA_EULA=
+RUN if [ "$ACCEPT_NVIDIA_EULA" != "YES" ]; then \
+        echo ""; \
+        echo "============================================================"; \
+        echo "Building BEHAVIOR-1K requires accepting two licenses:"; \
+        echo "  1. NVIDIA Isaac Sim EULA"; \
+        echo "     https://docs.omniverse.nvidia.com/eula/"; \
+        echo "  2. BEHAVIOR Dataset Terms of Service (at runtime, when"; \
+        echo "     you download/mount the encrypted scene+object bundle)"; \
+        echo ""; \
+        echo "Read the EULAs above, then re-run with:"; \
+        echo "  docker build --build-arg ACCEPT_NVIDIA_EULA=YES ..."; \
+        echo "  (or: docker/build.sh behavior1k --accept-nvidia-eula)"; \
+        echo "============================================================"; \
+        exit 1; \
+    fi
+
+ENV OMNIGIBSON_HEADLESS=1 \
+    OMNI_KIT_ACCEPT_EULA=YES \
+    ACCEPT_EULA=Y \
+    PRIVACY_CONSENT=Y
+
+# ── Conda environment (Python 3.10 — required by Isaac Sim 4.5.0) ──
+RUN conda create -n behavior python=3.10 -y && conda clean -afy
+SHELL ["conda", "run", "-n", "behavior", "/bin/bash", "-c"]
+
+# ── Pre-reqs the v3.7.2 setup.sh enforces before installing OmniGibson ─
+RUN uv pip install --no-cache-dir "numpy<2" "setuptools<=79"
+
+# ── PyTorch 2.6.0 + CUDA 12.4 (matches BEHAVIOR-1K v3.7.2 setup.sh) ─
+RUN uv pip install --no-cache-dir \
+        "torch==2.6.0" "torchvision==0.21.0" "torchaudio==2.6.0" \
+        --index-url https://download.pytorch.org/whl/cu124
+
+# ── Isaac Sim 4.5.0 from the NVIDIA pip index ───────────────────────
+# Full package list (26 wheels) mirrors v3.7.2 setup.sh `install_isaac_packages`.
+# Installing only the metapackage (isaacsim) leaves
+# `isaacsim.simulation_app` unimportable at runtime.
+RUN uv pip install --no-cache-dir \
+        "omniverse-kit==106.5.0.162521" \
+        "isaacsim-kernel==4.5.0.0" \
+        "isaacsim-app==4.5.0.0" \
+        "isaacsim-core==4.5.0.0" \
+        "isaacsim-gui==4.5.0.0" \
+        "isaacsim-utils==4.5.0.0" \
+        "isaacsim-storage==4.5.0.0" \
+        "isaacsim-asset==4.5.0.0" \
+        "isaacsim-sensor==4.5.0.0" \
+        "isaacsim-robot-motion==4.5.0.0" \
+        "isaacsim-robot==4.5.0.0" \
+        "isaacsim-benchmark==4.5.0.0" \
+        "isaacsim-code-editor==4.5.0.0" \
+        "isaacsim-ros1==4.5.0.0" \
+        "isaacsim-cortex==4.5.0.0" \
+        "isaacsim-example==4.5.0.0" \
+        "isaacsim-replicator==4.5.0.0" \
+        "isaacsim-rl==4.5.0.0" \
+        "isaacsim-robot-setup==4.5.0.0" \
+        "isaacsim-ros2==4.5.0.0" \
+        "isaacsim-template==4.5.0.0" \
+        "isaacsim-test==4.5.0.0" \
+        "isaacsim==4.5.0.0" \
+        "isaacsim-extscache-physics==4.5.0.0" \
+        "isaacsim-extscache-kit==4.5.0.0" \
+        "isaacsim-extscache-kit-sdk==4.5.0.0" \
+        --extra-index-url https://pypi.nvidia.com
+
+# Fix the bundled-websockets conflict the v3.7.2 setup.sh patches:
+# Isaac Sim's pip_prebundle/websockets shadows our model-server websockets.
+# The site-packages path is deterministic, so a plain `find` does the job
+# without booting isaacsim (which can't import in a non-GPU build context).
+RUN find /opt/conda/envs/behavior/lib/python3.10/site-packages/isaacsim/extscache \
+        -type d -name websockets -path "*/pip_prebundle/*" \
+        -exec rm -rf {} + 2>/dev/null || true
+
+# ── Clone BEHAVIOR-1K (OmniGibson + bddl3 + joylo/gello) ───────────
+# Use plain `pip install -e` (not `uv pip install -e`): BEHAVIOR-1K's
+# legacy setuptools layouts (bddl3, OmniGibson, joylo) are not PEP 660
+# compliant in a way uv accepts.
+ARG BEHAVIOR1K_REF=v3.7.2
+RUN git clone --depth 1 --branch ${BEHAVIOR1K_REF} \
+        https://github.com/StanfordVL/BEHAVIOR-1K.git /app/BEHAVIOR-1K
+RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./bddl3
+RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e "./OmniGibson[eval]"
+RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./joylo
+# Match setup.sh: cffi must be force-reinstalled to 1.17.1 (Isaac Sim
+# bundles a build that conflicts with the conda libffi otherwise).
+RUN pip install --no-cache-dir --force-reinstall cffi==1.17.1
+# OmniGibson + lerobot transitive deps drag numpy back up to 2.x even
+# though the early pre-req step pinned <2.  Isaac Sim's bundled OGN
+# nodes still call np.float_ (removed in numpy 2.0) and crash at scene
+# init.  Force-downgrade at the very end with --no-deps so we don't
+# disturb other resolved versions.
+RUN pip install --no-cache-dir --no-deps "numpy<2"
+RUN rm -rf /app/BEHAVIOR-1K/.git
+
+# ── Install evaluation harness ─────────────────────────────────────
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "behavior", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/behavior1k_eval.yaml"]

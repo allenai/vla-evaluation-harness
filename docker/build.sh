@@ -4,9 +4,10 @@
 #   docker/build.sh                                 # build all (gated images skipped without opt-in)
 #   docker/build.sh libero                          # build a single benchmark image
 #   docker/build.sh --tag 0.1.0                     # build all with a specific tag
-#   docker/build.sh rlbench --accept-license rlbench
+#   docker/build.sh behavior1k --accept-license behavior1k
 #                                                   # opt in to a gated image's licence
-#   docker/build.sh --accept-license rlbench        # build all + opt in to a gated image
+#   docker/build.sh --accept-license behavior1k --accept-license rlbench
+#                                                   # build all + opt in to multiple gated images
 set -euo pipefail
 
 TAG="latest"
@@ -24,13 +25,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces)
+BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces behavior1k)
 
 # Images whose Dockerfile gates the build behind an ``ARG ACCEPT_*=YES``
 # build-arg.  Map: image-name → "<arg-name> <licence-url>".  Adding a new
 # gated image means one line here — no CLI flag changes required.
 declare -A EULA_GATED=(
   [rlbench]="ACCEPT_RLBENCH_LICENCE https://github.com/stepjam/RLBench/blob/master/LICENSE"
+  [behavior1k]="ACCEPT_NVIDIA_EULA https://docs.omniverse.nvidia.com/eula/"
 )
 
 REGISTRY="ghcr.io/allenai/vla-evaluation-harness"

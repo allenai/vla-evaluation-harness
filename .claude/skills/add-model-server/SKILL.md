@@ -224,6 +224,13 @@ make test                                             # existing tests still pas
 vla-eval test -c configs/model_servers/<name>.yaml    # smoke-test (starts server, sends dummy obs, checks response — requires uv + GPU + model weights)
 ```
 
+**Don't add `tests/test_<name>_server.py` with mocked model libraries.**
+`tests/` is for harness mechanics, not per-model integration.  Fake
+`transformers` / `torch.nn` / custom inference libs drift from upstream
+each release and miss the real bugs (tokenizer versions,
+checkpoint-format drift, action denormalisation).  Verify via the
+smoke test above.
+
 ## Reference implementations
 
 | Model | File | Key patterns |
