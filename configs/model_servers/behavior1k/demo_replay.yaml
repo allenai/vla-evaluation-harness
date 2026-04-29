@@ -1,0 +1,13 @@
+# BEHAVIOR-1K — demo-replay model server (LeRobot v2.1 parquet).
+# Replays the recorded action stream from an annotated human-teleop
+# episode.  Used to verify that the env wiring (action space, success
+# detection, observation cameras) matches the released dataset before
+# touching real model weights.
+#
+# Replace ``demo_path`` with a path to a single-episode parquet file
+# from the BEHAVIOR Dataset's LeRobot v2.1 release, e.g.:
+#   /data/behavior_dataset/turning_on_radio/episode_001.parquet
+script: "src/vla_eval/model_servers/behavior1k_demo_replay.py"
+args:
+  demo_path: "/data/behavior_dataset/turning_on_radio/episode_001.parquet"
+  port: 8000
