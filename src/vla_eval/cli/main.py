@@ -34,7 +34,6 @@ def _setup_logging(verbose: bool = False) -> None:
 
 
 def _inside_docker() -> bool:
-    """Check if we are already running inside a Docker container."""
     return Path("/.dockerenv").exists()
 
 
@@ -86,11 +85,10 @@ def _exec_docker(docker: str, cmd: list[str], container_name: str) -> None:
 
 def _resolve_dev_src() -> Path:
     """Find the host ``src/`` directory for ``--dev`` bind-mount."""
-    # 1. CWD (running from repo root)
     cwd_src = Path.cwd() / "src"
     if (cwd_src / "vla_eval").is_dir():
         return cwd_src.resolve()
-    # 2. Editable install: __file__ lives under src/vla_eval/
+    # Editable install: ``vla_eval.__file__`` lives under ``src/vla_eval/``.
     import vla_eval
 
     pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
@@ -132,8 +130,7 @@ def _run_via_docker(
     results_dir = str(Path(config.get("output_dir", "./results")).resolve())
     Path(results_dir).mkdir(parents=True, exist_ok=True)
 
-    # Rewrite config for Docker: output_dir must point to the container-side mount,
-    # not the host absolute path which doesn't exist inside the container.
+    # output_dir must point to the container mount; the host absolute path doesn't exist inside.
     import tempfile
 
     docker_config = dict(config)
@@ -160,25 +157,22 @@ def _run_via_docker(
     ]
     # fmt: on
 
-    # Attach stdin (and optionally a TTY) so licence prompts inside the container can reach the host.
+    # Forward stdin/TTY for in-container licence prompts.
     cmd.extend(tty_docker_flags())
 
-    # Dev mode: mount host src/ into container (requires editable install in image)
+    # Dev mode: mount host src/ into container (requires editable install in image).
     if dev:
         src_dir = _resolve_dev_src()
         cmd.extend(["-v", f"{src_dir}:/workspace/src"])
         logger.info("Dev mode: mounting %s -> /workspace/src", src_dir)
 
-    # Extra volumes from config
+    # Extra volumes / env vars from config
     for vol in docker_cfg.volumes:
         cmd.extend(["-v", vol])
-
-    # Extra env vars
     for env_str in docker_cfg.env:
         cmd.extend(["-e", env_str])
 
-    # Forward licence acceptance into the container so benchmarks calling
-    # ``vla_eval.dirs.ensure_license`` can skip the stdin prompt.
+    # Forward licence acceptance into the container so ``ensure_license`` can skip the prompt.
     if accept_license:
         cmd.extend(["-e", f"VLA_EVAL_ACCEPTED_LICENSES={','.join(accept_license)}"])
 

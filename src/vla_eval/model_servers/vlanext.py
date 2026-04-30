@@ -60,9 +60,9 @@ _VLANEXT_REV = "ff134c8"
 def _ensure_vlanext() -> None:
     """Make ``src.models.VLANeXt`` importable by shallow-cloning on first use.
 
-    If ``VLANEXT_ROOT`` is set, it's used as-is and must already be a valid
-    clone — we never ``git clone`` into a user-specified directory.  Without
-    the env var, the repo is cloned lazily into ``assets_cache("vlanext")``.
+    If ``VLANEXT_ROOT`` is set, it's used as-is and must already be a valid clone — we never
+    ``git clone`` into a user-specified directory.  Without the env var, the repo is cloned lazily
+    into ``assets_cache("vlanext")``.
     """
     from vla_eval.dirs import assets_cache, ensure_git_clone
 
@@ -75,8 +75,8 @@ def _ensure_vlanext() -> None:
             )
         root = user_root
     else:
-        # Full clone (GitHub rejects shallow-fetching arbitrary SHAs by
-        # default); ensure_git_clone follows up with a pinned checkout.
+        # Full clone (GitHub rejects shallow-fetching arbitrary SHAs by default); ensure_git_clone
+        # follows up with a pinned checkout.
         root = str(ensure_git_clone(name="vlanext", repo=_VLANEXT_REPO, rev=_VLANEXT_REV, shallow=False))
     if root not in sys.path:
         sys.path.insert(0, root)
@@ -107,8 +107,8 @@ ACTION_BOUNDS: dict[str, tuple[list[float], list[float]]] = {
 class VLANeXtModelServer(PredictModelServer):
     """VLANeXt model server (DravenALG/VLANeXt).
 
-    Loads a VLANeXt checkpoint (Qwen3-VL-2B + SigLIP2 + diffusion action head)
-    and runs inference with flow-matching denoising.  Returns 8-action chunks.
+    Loads a VLANeXt checkpoint (Qwen3-VL-2B + SigLIP2 + diffusion action head) and runs inference
+    with flow-matching denoising.  Returns 8-action chunks.
     """
 
     def __init__(

@@ -50,9 +50,9 @@ from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
 
-# The RoboMME fork of OpenPI ships both ``openpi`` and ``mme_vla_suite``
-# under ``src/``, but hatchling only builds the ``openpi`` wheel.  We
-# shallow-clone the repo once at runtime so ``mme_vla_suite`` is importable.
+# The RoboMME fork of OpenPI ships both ``openpi`` and ``mme_vla_suite`` under ``src/``, but
+# hatchling only builds the ``openpi`` wheel.  Shallow-clone the repo at runtime so
+# ``mme_vla_suite`` is importable.
 _MME_VLA_REPO = "https://github.com/RoboMME/robomme_policy_learning.git"
 _MME_VLA_REV = "main"
 
@@ -80,21 +80,19 @@ def _ensure_mme_vla_suite() -> None:
 class MmeVlaModelServer(PredictModelServer):
     """MME-VLA suite model server for RoboMME evaluation.
 
-    Handles both the pi0.5 baseline (no memory) and all 14
-    memory-augmented variants from the MME-VLA paper.
+    Handles both the pi0.5 baseline (no memory) and all 14 memory-augmented variants from the
+    MME-VLA paper.
 
     Args:
-        config_name: MME-VLA config — ``"pi05_baseline"`` or
-            ``"mme_vla_suite"`` (memory variants).
-        checkpoint: HuggingFace model ID or local path.  For the
-            multi-variant repo, use ``Yinpei/mme_vla_suite/subdir``.
-        use_history: Enable memory lifecycle (reset + add_buffer).
-            Must be ``True`` for all memory-augmented variants.
+        config_name: MME-VLA config — ``"pi05_baseline"`` or ``"mme_vla_suite"`` (memory variants).
+        checkpoint: HuggingFace model ID or local path.  For the multi-variant repo, use
+            ``Yinpei/mme_vla_suite/subdir``.
+        use_history: Enable memory lifecycle (reset + add_buffer).  Must be ``True`` for all
+            memory-augmented variants.
         image_key: Key for the front camera in the OpenPI obs dict.
         wrist_image_key: Key for the wrist camera (``None`` to disable).
         state_key: Key for proprioceptive state (``None`` to disable).
-        state_dim: Truncate benchmark state to this dimension.
-            RoboMME sends 9D; models expect 8D.
+        state_dim: Truncate benchmark state to this dimension.  RoboMME sends 9D; models expect 8D.
         image_resolution: Resize images to this square resolution.
         chunk_size: Number of actions per inference call.
         action_ensemble: Ensemble strategy for overlapping chunks.

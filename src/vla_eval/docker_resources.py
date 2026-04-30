@@ -79,10 +79,10 @@ def gpu_docker_flag(spec: str | None) -> list[str]:
 
 
 def tty_docker_flags() -> list[str]:
-    """``-i``/``-t`` flags so the in-container process can read the host's terminal.
+    """``-i`` / ``-t`` flags so an in-container process can read the host's terminal.
 
     Both attached when stdin and stdout are TTYs; ``-i`` only when just stdin is; nothing otherwise.
-    Lets ``ensure_license``-style stdin prompts reach the user without breaking CI/sharded runs.
+    Lets ``ensure_license``-style stdin prompts reach the user without breaking CI / sharded runs.
     """
     import sys
 
@@ -128,14 +128,12 @@ def shard_docker_flags(
         shard_cpus = cpu_ids[start_idx : start_idx + per_shard]
         flags.extend(["--cpuset-cpus", _format_cpuset(shard_cpus)])
 
-    # OpenMP/MKL: force single-threaded to avoid cross-container contention.
-    # Some benchmark images (e.g. CALVIN) ship CPU-only PyTorch that runs
-    # per-step tensor ops (torchvision transforms, tensor creation).  Without
-    # this cap each container spawns one OpenMP thread per visible core,
-    # causing massive context-switch overhead when multiple shards share a
-    # host (e.g. 8 shards × 48 threads = 384 threads on 48 cores → no
-    # scaling).  Single-image transforms see no benefit from multi-threaded
-    # BLAS/OpenMP, so OMP_NUM_THREADS=1 is always safe here.
+    # OpenMP/MKL: force single-threaded to avoid cross-container contention.  Some benchmark images
+    # (e.g. CALVIN) ship CPU-only PyTorch that runs per-step tensor ops (torchvision transforms, tensor
+    # creation).  Without this cap each container spawns one OpenMP thread per visible core, causing
+    # massive context-switch overhead when multiple shards share a host (e.g. 8 shards × 48 threads =
+    # 384 threads on 48 cores → no scaling).  Single-image transforms see no benefit from
+    # multi-threaded BLAS/OpenMP, so OMP_NUM_THREADS=1 is always safe here.
     flags.extend(["-e", "OMP_NUM_THREADS=1", "-e", "MKL_NUM_THREADS=1"])
 
     return flags

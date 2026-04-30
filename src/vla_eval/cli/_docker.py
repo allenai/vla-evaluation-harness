@@ -1,4 +1,4 @@
-"""Docker subprocess helpers shared by ``cmd_run`` and ``cmd_data``."""
+"""Docker subprocess helpers."""
 
 from __future__ import annotations
 

@@ -1,9 +1,8 @@
 """BEHAVIOR-1K benchmark implementation.
 
-BEHAVIOR-1K is a long-horizon household-activity benchmark built on
-OmniGibson (NVIDIA Isaac Sim).  The 2025 BEHAVIOR Challenge defines a
-50-task evaluation suite (B10/B20/B30/B40/B50) using the R1Pro
-mobile-manipulation robot.
+BEHAVIOR-1K is a long-horizon household-activity benchmark built on OmniGibson (NVIDIA Isaac Sim).
+The 2025 BEHAVIOR Challenge defines a 50-task evaluation suite (B10/B20/B30/B40/B50) using the
+R1Pro mobile-manipulation robot.
 
 References:
     - https://behavior.stanford.edu
@@ -16,9 +15,8 @@ Key facts:
         base[0:3], torso[3:7], left_arm[7:14], left_gripper[14:15],
         right_arm[15:22], right_gripper[22:23].
     - Cameras: head 720x720, left_wrist 480x480, right_wrist 480x480.
-    - Success: ``info["done"]["success"]`` (binary); the challenge
-      separately reports a partial Q-score, but we only surface the
-      binary flag here — partial scoring lives in the official
+    - Success: ``info["done"]["success"]`` (binary); the challenge separately reports a partial
+      Q-score, but we only surface the binary flag here — partial scoring lives in the official
       ``score_utils.compute_final_q_score``.
     - Max steps default: 5000 (or 2× human demo length when known).
 """
@@ -126,54 +124,43 @@ class Behavior1KBenchmark(StepBenchmark):
     """BEHAVIOR-1K (OmniGibson) household-activity benchmark.
 
     Non-obvious behaviors:
-        - **Heavy lazy imports**: ``omnigibson`` and Isaac Sim are imported
-          inside ``_init_og()`` rather than at module top.  Importing
-          OmniGibson boots the Isaac Sim runtime and consumes several
-          gigabytes of VRAM, so we delay it until ``get_tasks()`` /
-          ``reset()`` actually need it.  This also keeps
-          ``vla-eval test --validate`` (a pure import-string check) fast.
-        - **Action format**: ``env.step()`` expects a ``torch.Tensor``,
-          not numpy.  We convert in ``step()``.
+        - **Heavy lazy imports**: ``omnigibson`` and Isaac Sim are imported inside ``_init_og()``
+          rather than at module top.  Importing OmniGibson boots the Isaac Sim runtime and consumes
+          several gigabytes of VRAM, so we delay until ``get_tasks()`` / ``reset()`` actually need
+          it.  Also keeps ``vla-eval test --validate`` (a pure import-string check) fast.
+        - **Action format**: ``env.step()`` expects a ``torch.Tensor``, not numpy.  Converted in
+          ``step()``.
         - **Observation flattening**: OmniGibson's nested observation
-          (``obs["robot_r1"]["sensors"]["zed"]["rgb"]``) is flattened with
-          a ``::`` delimiter via the official ``flatten_obs_dict`` helper.
-          We then look up cameras by their canonical sensor key.
-        - **Task description**: BehaviorTask does not expose a natural
-          language instruction; we use the snake-case task name with
-          underscores replaced by spaces, matching common VLA practice.
-        - **Single robot supported**: R1Pro only (the BEHAVIOR Challenge
-          2025 standard track).  A1 is reachable through OmniGibson but
-          not exercised here.
+          (``obs["robot_r1"]["sensors"]["zed"]["rgb"]``) is flattened with a ``::`` delimiter via
+          the official ``flatten_obs_dict`` helper.  We then look up cameras by their canonical
+          sensor key.
+        - **Task description**: BehaviorTask does not expose a natural language instruction; we use
+          the snake-case task name with underscores replaced by spaces, matching common VLA practice.
+        - **Single robot supported**: R1Pro only (the BEHAVIOR Challenge 2025 standard track).  A1
+          is reachable through OmniGibson but not exercised here.
 
     Args:
         tasks: Subset of B50 task names to evaluate.  ``None`` runs all 50.
-        partial_scene_load: Pass through to OmniGibson — load only rooms
-            relevant to the task to speed up scene construction.
-        max_steps: Per-episode step cap.  ``None`` keeps OmniGibson's
-            default (5000 in ``generate_basic_environment_config``).
-        send_proprio: Include the R1Pro proprio vector
-            (``robot_r1::proprio``, 256-D) in observations.
-        camera_names: Which cameras to forward to the model server.
-            Defaults to all three (``head``, ``left_wrist``, ``right_wrist``).
-        env_wrapper_target: Hydra ``_target_`` for the env wrapper.  By
-            default we use OmniGibson's ``EnvironmentWrapper`` no-op
-            wrapper; override to plug in challenge-specific behaviour.
-        task_instance_id: Per-instance TRO state(s) to load after
-            ``env.reset()``, mirroring the official
-            ``Evaluator.load_task_instance``.  Without this the env
-            starts from BehaviorTask's default instance (idx 0); with
-            it set, the cached
-            ``<scene>_task_<activity>_instances/<...>-tro_state.json``
-            is applied so the initial object placement matches the
-            recorded demos.  Required for demo-replay reproductions.
+        partial_scene_load: Pass through to OmniGibson — load only rooms relevant to the task to
+            speed up scene construction.
+        max_steps: Per-episode step cap.  ``None`` keeps OmniGibson's default (5000 in
+            ``generate_basic_environment_config``).
+        send_proprio: Include the R1Pro proprio vector (``robot_r1::proprio``, 256-D) in observations.
+        camera_names: Which cameras to forward to the model server.  Defaults to all three
+            (``head``, ``left_wrist``, ``right_wrist``).
+        env_wrapper_target: Hydra ``_target_`` for the env wrapper.  By default we use OmniGibson's
+            ``EnvironmentWrapper`` no-op wrapper; override to plug in challenge-specific behaviour.
+        task_instance_id: Per-instance TRO state(s) to load after ``env.reset()``, mirroring the
+            official ``Evaluator.load_task_instance``.  Without this the env starts from
+            BehaviorTask's default instance (idx 0); with it set, the cached
+            ``<scene>_task_<activity>_instances/<...>-tro_state.json`` is applied so the initial
+            object placement matches the recorded demos.  Required for demo-replay reproductions.
 
             Accepts:
-                - ``None`` — use BehaviorTask's default instance every
-                  episode (no TRO state load).
+                - ``None`` — use BehaviorTask's default instance every episode (no TRO state load).
                 - ``int`` — fix the same instance for every episode.
-                - ``list[int]`` — sweep instances; episode ``i`` uses
-                  ``ids[i % len(ids)]``.  Use this to reproduce the
-                  challenge protocol (50 tasks × 10 instances).
+                - ``list[int]`` — sweep instances; episode ``i`` uses ``ids[i % len(ids)]``.  Use
+                  this to reproduce the challenge protocol (50 tasks × 10 instances).
     """
 
     def __init__(
@@ -200,8 +187,7 @@ class Behavior1KBenchmark(StepBenchmark):
         if unknown_cams:
             raise ValueError(f"Unknown R1Pro cameras: {unknown_cams}. Valid: {list(R1PRO_CAMERAS)}")
         self._env_wrapper_target = env_wrapper_target
-        # Normalize int|list|None to list[int]|None so the reset() path
-        # can index by ``episode_idx`` uniformly.
+        # Normalize int|list|None to list[int]|None so reset() can index by ``episode_idx`` uniformly.
         if task_instance_id is None:
             self._task_instance_ids: list[int] | None = None
         elif isinstance(task_instance_id, int):
@@ -272,12 +258,10 @@ class Behavior1KBenchmark(StepBenchmark):
 
     def _make_env(self, task_name: str) -> Any:
         """Build a fresh OmniGibson env for *task_name*."""
-        # Isaac Sim's SimulationApp.__init__ calls signal.signal(SIGINT, ...)
-        # which raises ValueError when invoked from a non-main thread —
-        # but we *must* off-load env construction to a worker so the
-        # orchestrator's asyncio loop survives.  The handler installed
-        # at our main-thread import of omnigibson is already in place,
-        # so it's safe to no-op the additional registration here.
+        # Isaac Sim's SimulationApp.__init__ calls signal.signal(SIGINT, ...) which raises ValueError
+        # when invoked from a non-main thread — but we *must* off-load env construction to a worker
+        # so the orchestrator's asyncio loop survives.  The handler installed at our main-thread
+        # import of omnigibson is already in place, so it's safe to no-op the additional registration.
         import signal as _signal
         import threading
 
@@ -307,8 +291,7 @@ class Behavior1KBenchmark(StepBenchmark):
             generate_basic_environment_config,
         )
 
-        # The official eval disables a curated set of transition rules to
-        # match the data-collection setup.
+        # The official eval disables a curated set of transition rules to match the data-collection setup.
         for rule in DISABLED_TRANSITION_RULES:
             rule.ENABLED = False
 
@@ -355,13 +338,11 @@ class Behavior1KBenchmark(StepBenchmark):
             self._env = self._make_env(task_name)
             self._current_task_name = task_name
         obs, _ = self._env.reset()
-        # Optional per-instance TRO state load (matches official
-        # ``Evaluator.load_task_instance``).  When unset, BehaviorTask
-        # uses its default instance (idx 0) — the env still runs, but
-        # object placements may diverge from a particular demo.
-        # When a list is provided, sweep instances by ``episode_idx``
-        # so consecutive episodes hit different recorded states (the
-        # 50 task × 10 instance challenge protocol).
+        # Optional per-instance TRO state load (matches official ``Evaluator.load_task_instance``).
+        # When unset, BehaviorTask uses its default instance (idx 0) — the env still runs, but object
+        # placements may diverge from a particular demo.  When a list is provided, sweep instances by
+        # ``episode_idx`` so consecutive episodes hit different recorded states (the 50-task ×
+        # 10-instance challenge protocol).
         if self._task_instance_ids is not None:
             episode_idx = int(task.get("episode_idx", 0))
             instance_id = self._task_instance_ids[episode_idx % len(self._task_instance_ids)]
@@ -371,13 +352,12 @@ class Behavior1KBenchmark(StepBenchmark):
     def _load_task_instance(self, instance_id: int) -> Any:
         """Apply per-instance object/robot state JSON, then re-fetch obs.
 
-        Ports the v3.7.2 ``Evaluator.load_task_instance`` (public-test
-        branch).  Reads
+        Ports the v3.7.2 ``Evaluator.load_task_instance`` (public-test branch).  Reads
         ``<get_task_instance_path(scene)>/json/<scene>_task_<activity>_instances/<...>-tro_state.json``
         and pushes the recorded object/robot state into the running env.
 
-        Compatible only with the v3.7.2 OmniGibson API: uses
-        ``robot.model_name``, ``entity.is_system`` / ``entity.exists``.
+        Compatible only with the v3.7.2 OmniGibson API: uses ``robot.model_name``,
+        ``entity.is_system`` / ``entity.exists``.
         """
         import json
         import os
@@ -429,8 +409,8 @@ class Behavior1KBenchmark(StepBenchmark):
         env.scene.update_initial_file()
         env.scene.reset()
 
-        # Re-fetch the observation after the state load so the model
-        # server sees the post-load images / proprio.
+        # Re-fetch the observation after the state load so the model server sees the post-load
+        # images / proprio.
         obs, _ = env.get_obs()
         return obs
 
@@ -505,31 +485,24 @@ class Behavior1KBenchmark(StepBenchmark):
             except Exception:
                 logger.exception("BEHAVIOR-1K env close failed")
             self._env = None
-        # Intentionally NOT calling ``omnigibson.shutdown()`` here:
-        # Isaac Sim's shutdown path can hang for many minutes
-        # (waiting on hydra texture cleanup, render contexts, etc.)
-        # which prevents the orchestrator from writing the result JSON
-        # at the end of the run.  Process exit reclaims everything;
-        # leaving Isaac Sim alone is the lesser evil.
+        # Intentionally NOT calling ``omnigibson.shutdown()`` here: Isaac Sim's shutdown path can hang
+        # for many minutes (waiting on hydra texture cleanup, render contexts, etc.) which prevents
+        # the orchestrator from writing the result JSON at the end of the run.  Process exit reclaims
+        # everything; leaving Isaac Sim alone is the lesser evil.
 
-    # ------------------------------------------------------------------
-    # Async bridge override: run sync reset()/step() on a worker thread.
-    # Booting Isaac Sim from the orchestrator's main thread tears down
-    # the running asyncio event loop (SimulationApp installs its own),
-    # which makes the next `await conn.act(...)` raise NoEventLoopError.
-    # Off-loading to ``anyio.to_thread.run_sync`` keeps the orchestrator
-    # loop intact while Isaac Sim does its synchronous work.
-    # ------------------------------------------------------------------
+    # Async bridge override: run sync reset()/step() on a worker thread.  Booting Isaac Sim from the
+    # orchestrator's main thread tears down the running asyncio event loop (SimulationApp installs
+    # its own), which makes the next ``await conn.act(...)`` raise NoEventLoopError.  Off-loading
+    # to ``anyio.to_thread.run_sync`` keeps the orchestrator loop intact while Isaac Sim does its
+    # synchronous work.
 
     async def start_episode(self, task: Task) -> None:
         self._t0 = time.monotonic()
         self._task = task
-        # Run imports + signal-handler registration on the main thread
-        # (Python's signal module forbids setting handlers from a worker
-        # thread, and OmniGibson registers SIGINT during its top-level
-        # ``__init__.py``).  Only the env construction / reset itself is
-        # offloaded to the worker thread, which is what actually trashes
-        # the asyncio event loop.
+        # Run imports + signal-handler registration on the main thread (Python's signal module forbids
+        # setting handlers from a worker thread, and OmniGibson registers SIGINT during its top-level
+        # ``__init__.py``).  Only the env construction / reset itself is offloaded to the worker
+        # thread, which is what actually trashes the asyncio event loop.
         self._init_og()
         raw_obs = await _run_in_thread(self.reset, task)
         self._last_result = StepResult(obs=raw_obs, reward=0.0, done=False, info={})
