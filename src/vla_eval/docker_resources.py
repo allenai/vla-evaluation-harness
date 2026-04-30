@@ -78,6 +78,21 @@ def gpu_docker_flag(spec: str | None) -> list[str]:
     return ["--gpus", f"device={spec}"]
 
 
+def tty_docker_flags() -> list[str]:
+    """``-i``/``-t`` flags so the in-container process can read the host's terminal.
+
+    Both attached when stdin and stdout are TTYs; ``-i`` only when just stdin is; nothing otherwise.
+    Lets ``ensure_license``-style stdin prompts reach the user without breaking CI/sharded runs.
+    """
+    import sys
+
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        return ["-i", "-t"]
+    if sys.stdin.isatty():
+        return ["-i"]
+    return []
+
+
 def shard_docker_flags(
     shard_id: int,
     num_shards: int,

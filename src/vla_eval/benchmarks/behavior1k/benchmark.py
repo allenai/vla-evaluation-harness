@@ -247,9 +247,8 @@ class Behavior1KBenchmark(StepBenchmark):
     def _ensure_assets(self, data_path: Path) -> None:
         """Make sure BEHAVIOR-1K scene + task data is available at ``data_path``.
 
-        First call on a fresh host prompts for licence acceptance and
-        runs OmniGibson's three ``download_*`` helpers.  Idempotent: a
-        populated directory short-circuits via the marker check.
+        First call on a fresh host prompts for licence acceptance and runs OmniGibson's three
+        ``download_*`` helpers.  Idempotent: a populated directory short-circuits via the marker check.
         """
         marker = data_path / "2025-challenge-task-instances"
         if marker.exists():

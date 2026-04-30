@@ -70,3 +70,31 @@ def test_ensure_license_non_tty_no_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
     with pytest.raises(SystemExit):
         dirs.ensure_license("any", url="https://x", description="y")
+
+
+def test_ensure_git_clone_idempotent_when_dotgit_present(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``.git`` directory present -> short-circuits without invoking subprocess."""
+    monkeypatch.setenv("VLA_EVAL_ASSETS_CACHE", str(tmp_path))
+    target = tmp_path / "myrepo"
+    (target / ".git").mkdir(parents=True)
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(dirs.subprocess, "check_call", lambda argv: calls.append(argv))
+
+    result = dirs.ensure_git_clone("myrepo", "https://example.com/x.git", "abc")
+
+    assert result == target
+    assert calls == [], "ensure_git_clone should not shell out when .git is already present"
+
+
+def test_ensure_git_clone_shallow_argv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``shallow=True`` issues a single ``git clone --depth 1 --branch <rev>``."""
+    monkeypatch.setenv("VLA_EVAL_ASSETS_CACHE", str(tmp_path))
+    calls: list[list[str]] = []
+    monkeypatch.setattr(dirs.subprocess, "check_call", lambda argv: calls.append(argv))
+
+    dirs.ensure_git_clone("repo", "https://example.com/x.git", "main", shallow=True)
+
+    assert calls == [
+        ["git", "clone", "--depth", "1", "--branch", "main", "https://example.com/x.git", str(tmp_path / "repo")]
+    ]

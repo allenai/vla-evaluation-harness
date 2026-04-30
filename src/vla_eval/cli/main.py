@@ -148,7 +148,7 @@ def _run_via_docker(
 
     container_name = f"vla-eval-{os.getpid()}"
 
-    from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags
+    from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags, tty_docker_flags
 
     # fmt: off
     cmd: list[str] = [
@@ -160,14 +160,8 @@ def _run_via_docker(
     ]
     # fmt: on
 
-    # Attach stdin (and optionally a TTY) so license prompts inside the
-    # container can read from the user's terminal.  Pure non-interactive
-    # contexts (CI, sharded runs, ``nohup``) get neither flag, and the
-    # in-container ``ensure_license`` falls back to its env-var path.
-    if sys.stdin.isatty() and sys.stdout.isatty():
-        cmd.extend(["-i", "-t"])
-    elif sys.stdin.isatty():
-        cmd.append("-i")
+    # Attach stdin (and optionally a TTY) so licence prompts inside the container can reach the host.
+    cmd.extend(tty_docker_flags())
 
     # Dev mode: mount host src/ into container (requires editable install in image)
     if dev:
@@ -183,8 +177,8 @@ def _run_via_docker(
     for env_str in docker_cfg.env:
         cmd.extend(["-e", env_str])
 
-    # Forward licence acceptance into the container so benchmarks that
-    # call ``vla_eval.dirs.ensure_license`` can skip the stdin prompt.
+    # Forward licence acceptance into the container so benchmarks calling
+    # ``vla_eval.dirs.ensure_license`` can skip the stdin prompt.
     if accept_license:
         cmd.extend(["-e", f"VLA_EVAL_ACCEPTED_LICENSES={','.join(accept_license)}"])
 
