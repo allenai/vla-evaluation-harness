@@ -11,6 +11,7 @@ from pathlib import Path
 
 from vla_eval.benchmarks.base import Benchmark, DataRequirement
 from vla_eval.cli._console import stderr_console as _stderr_console
+from vla_eval.cli._docker import check_docker_daemon, image_exists_locally
 from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig
 from vla_eval.docker_resources import gpu_docker_flag
@@ -18,9 +19,20 @@ from vla_eval.registry import resolve_import_string
 
 
 def _resolve_benchmark_class(config: dict) -> type[Benchmark]:
+    """Resolve the first benchmark entry to its class.
+
+    Multi-benchmark configs are permitted but only the first entry's
+    ``data_requirements()`` is consulted; a warning is printed so the
+    user knows other entries weren't fetched.
+    """
     benchmarks = config.get("benchmarks") or []
     if not benchmarks:
         raise ValueError("config has no 'benchmarks' entries")
+    if len(benchmarks) > 1:
+        _stderr_console().print(
+            f"[yellow]warning: config has {len(benchmarks)} benchmarks; "
+            "only the first entry's data_requirements() will be fetched.[/yellow]"
+        )
     import_string = benchmarks[0].get("benchmark")
     if not import_string:
         raise ValueError("first benchmark entry is missing 'benchmark' import string")
@@ -92,8 +104,19 @@ def cmd_data_fetch(args: argparse.Namespace) -> None:
     if not docker_cfg.image:
         con.print("[red]ERROR: 'docker.image' must be set in the config to fetch data[/red]")
         sys.exit(1)
-    if shutil.which("docker") is None:
+    docker_bin = shutil.which("docker")
+    if docker_bin is None:
         con.print("[red]ERROR: 'docker' not found on PATH[/red]")
+        sys.exit(1)
+    check_docker_daemon(docker_bin)
+    if not image_exists_locally(docker_bin, docker_cfg.image):
+        # Don't try to pull — benchmarks with external data are typically
+        # NO_REDIST images that aren't published.  Point at the build path.
+        cache_key = requirement.cache_key
+        con.print(
+            f"[red]ERROR: image '{docker_cfg.image}' is not present locally.[/red]\n"
+            f"  Build it first: docker/build.sh {cache_key} --accept-license {cache_key}"
+        )
         sys.exit(1)
 
     argv = _build_docker_argv(docker_cfg, host_dir, requirement, extra_gpus=getattr(args, "gpus", None))

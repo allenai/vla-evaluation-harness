@@ -12,6 +12,10 @@ from typing import Any
 import yaml
 
 from vla_eval.cli._console import stderr_console as _stderr_console
+from vla_eval.cli._docker import (
+    check_docker_daemon as _check_docker_daemon,
+    ensure_image_local as _ensure_docker_image,
+)
 from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
@@ -78,54 +82,6 @@ def _exec_docker(docker: str, cmd: list[str], container_name: str) -> None:
     except KeyboardInterrupt:
         _stop_container()
         sys.exit(130)
-
-
-def _check_docker_daemon(docker: str) -> None:
-    """Verify Docker daemon is reachable."""
-    import subprocess
-
-    result = subprocess.run([docker, "info"], capture_output=True)
-    if result.returncode != 0:
-        _stderr_console().print(
-            "[red]ERROR: Docker daemon is not running.[/red]\n  Start it with: sudo systemctl start docker",
-        )
-        sys.exit(1)
-
-
-def _image_exists_locally(docker: str, image: str) -> bool:
-    """Check if a Docker image exists locally."""
-    import subprocess
-
-    result = subprocess.run([docker, "image", "inspect", image], capture_output=True)
-    return result.returncode == 0
-
-
-def _ensure_docker_image(docker: str, image: str, auto_yes: bool) -> None:
-    """Ensure Docker image is available, pulling with confirmation if needed."""
-    import subprocess
-
-    if _image_exists_locally(docker, image):
-        return
-
-    con = _stderr_console()
-    con.print(f"\n[yellow]⚠  Docker image '{image}' not found locally.[/yellow]")
-    con.print("   Benchmark images are typically large (tens of GB).")
-    con.print("   This may take a while and use significant disk space.\n")
-
-    if not auto_yes:
-        if not sys.stdin.isatty():
-            con.print("[red]ERROR: Cannot confirm in non-interactive mode. Use --yes to skip confirmation.[/red]")
-            sys.exit(1)
-        answer = input("Proceed with docker pull? [y/N] ")
-        if answer.strip().lower() not in ("y", "yes"):
-            con.print("Aborted.")
-            sys.exit(0)
-
-    con.print(f"Pulling {image} ...")
-    ret = subprocess.call([docker, "pull", image])
-    if ret != 0:
-        con.print(f"[red]ERROR: docker pull failed (exit code {ret}).[/red]")
-        sys.exit(1)
 
 
 def _resolve_dev_src() -> Path:

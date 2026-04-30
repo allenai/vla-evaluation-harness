@@ -110,7 +110,7 @@ test set.
 - **Max steps:** 5000 default (or 2× human demo length when configured;
   see `learning/eval.py` for the dataset-driven path).
 
-## How to Reproduce (zero-action baseline, 1 task, 100 steps)
+## How to Reproduce (zero-action baseline, 1 task, 2000 step cap)
 
 ```bash
 # 1. Build the image (heavy: ~17 min, 23.5 GB).

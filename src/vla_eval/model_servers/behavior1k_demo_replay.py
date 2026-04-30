@@ -121,9 +121,16 @@ class Behavior1KDemoReplayModelServer(PredictModelServer):
         await super().on_episode_end(result, ctx)
 
     def predict(self, obs: Observation, ctx: SessionContext | None = None) -> Action:
+        if ctx is None:
+            raise RuntimeError("Behavior1KDemoReplayModelServer.predict requires a SessionContext")
         actions = self._load()
-        key = (ctx.session_id, ctx.episode_id) if ctx is not None else ("", "")
-        idx = self._step_idx.get(key, 0)
+        key = (ctx.session_id, ctx.episode_id)
+        if key not in self._step_idx:
+            raise RuntimeError(
+                f"predict() called before on_episode_start for session={ctx.session_id} "
+                f"episode={ctx.episode_id}; the harness must send EPISODE_START first."
+            )
+        idx = self._step_idx[key]
         self._step_idx[key] = idx + 1
 
         if idx < len(actions):

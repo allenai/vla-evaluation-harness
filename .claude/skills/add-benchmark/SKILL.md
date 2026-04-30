@@ -121,6 +121,35 @@ class MyBenchmark(StepBenchmark):
 - **Image preprocessing**: Handle non-standard images (flipped, wrong resolution) in `make_obs()`.
 - **EGL headless rendering**: Add `os.environ.setdefault("PYOPENGL_PLATFORM", "egl")` at module top if the sim uses OpenGL.
 
+### Optional: external dataset declaration
+
+If the benchmark's dataset is licensed independently and shouldn't be baked into the docker image, override `data_requirements()` (classmethod) so the harness's uniform fetch path picks it up:
+
+```python
+from vla_eval.benchmarks.base import DataRequirement
+
+class MyBenchmark(StepBenchmark):
+    @classmethod
+    def data_requirements(cls) -> DataRequirement:
+        return DataRequirement(
+            license_id="my-dataset-tos",                # --accept-license <id>
+            license_url="https://example.com/license",
+            cache_key="my_bench",                       # host cache subdir name
+            container_data_path="/app/data",            # mount target inside the image
+            marker="dataset_ready_marker",              # file/dir whose presence skips refetch
+            download_command=("python", "-c", "<download script>"),
+        )
+```
+
+Users then run `vla-eval data fetch -c configs/<name>_eval.yaml --accept-license <license_id>` once. The fetcher mounts `${VLA_EVAL_DATA_DIR:-~/.cache/vla-eval}/<cache_key>` read-write at `container_data_path` and runs `download_command`. The eval config's `volumes:` entry should mount the same host path read-only via OmegaConf interpolation:
+
+```yaml
+volumes:
+  - "${oc.env:VLA_EVAL_DATA_DIR,${oc.env:HOME}/.cache/vla-eval}/<cache_key>:<container_data_path>:ro"
+```
+
+Reference: `Behavior1KBenchmark.data_requirements()` in `benchmarks/behavior1k/benchmark.py`.
+
 ## 3. Create config YAML
 
 Create `configs/<name>_eval.yaml`:
