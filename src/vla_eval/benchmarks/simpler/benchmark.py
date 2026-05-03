@@ -42,6 +42,9 @@ class SimplerEnvBenchmark(StepBenchmark):
         send_state: Include proprioceptive state (base_pose, tcp_pose,
             EE pose) in observations for models that need it.
         seed: Random seed for ``env.reset()``.
+        variant_kwargs: Extra kwargs forwarded to ``simpler_env.make()``.
+            Use for Variant Aggregation configs that need env-level
+            overrides (e.g. ``{"lr_switch": True}``).
     """
 
     def __init__(
@@ -54,6 +57,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         deterministic_episodes: bool = True,
         control_mode: str | None = None,
         gripper_mode: str = "binary",
+        variant_kwargs: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         assert success_mode in ("truncation", "early_stop", "accumulate"), (
@@ -68,6 +72,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.deterministic_episodes = deterministic_episodes
         self.control_mode = control_mode
         self.gripper_mode = gripper_mode
+        self.variant_kwargs = variant_kwargs or {}
 
         self._env: Any = None
         self._task_description: str = ""
@@ -109,6 +114,7 @@ class SimplerEnvBenchmark(StepBenchmark):
             make_kwargs["control_mode"] = self.control_mode
         if self.max_episode_steps is not None:
             make_kwargs["max_episode_steps"] = self.max_episode_steps
+        make_kwargs.update(self.variant_kwargs)
         self._env = simpler_env.make(self.task_name, **make_kwargs)
 
         # Reset — robot init is handled by prepackaged_config internally.
@@ -238,11 +244,14 @@ class SimplerEnvBenchmark(StepBenchmark):
         return {"success": step_result.done}
 
     def get_metadata(self) -> dict[str, Any]:
-        return {
+        meta: dict[str, Any] = {
             "task_name": self.task_name,
             "success_mode": self.success_mode,
             "max_steps": self.max_episode_steps,
         }
+        if self.variant_kwargs:
+            meta["variant_kwargs"] = self.variant_kwargs
+        return meta
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {

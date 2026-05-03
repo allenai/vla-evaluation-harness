@@ -1,0 +1,118 @@
+# SimplerEnv evaluation - Google Robot Variant Aggregation (VA) tasks.
+#
+# This config enumerates SimplerEnv's variant-level Google Robot VA tasks.
+# VA tests scene-variant generalization: different object orientations,
+# target placements, and drawer positions than the visual-matching configs.
+#
+# Leaderboard/reporting should aggregate these 12 entries into canonical
+# VA task scores:
+#   - pick_coke_can_va         (3 sub-variants: horizontal, vertical, standing)
+#   - move_near_va             (2 sub-variants: v0, v1)
+#   - open_close_drawer_va     (6 sub-variants: open/close x top/middle/bottom)
+#   - place_apple_in_drawer_va (1 entry, optional 4th sub-score only)
+#
+# The overall VA score is the 3-task average of pick_coke_can_va, move_near_va,
+# and open_close_drawer_va. place_apple_in_drawer_va is reported separately
+# as an optional sub-score when present.
+#
+# Task names come from simpler_env.ENVIRONMENT_MAP at the pinned commit.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+  volumes:
+    - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
+
+output_dir: "./results"
+
+benchmarks:
+  # -- Pick Coke Can variants (3 entries) --------------------------------
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: pick_horizontal_coke_can_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_pick_horizontal_coke_can"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: pick_vertical_coke_can_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_pick_vertical_coke_can"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: pick_standing_coke_can_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_pick_standing_coke_can"
+
+  # -- Move Near variants (2 entries) ------------------------------------
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_v0_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_move_near_v0"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_v1_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_move_near_v1"
+
+  # -- Open/Close Drawer variants (6 entries) ----------------------------
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: open_top_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_open_top_drawer"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: open_middle_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_open_middle_drawer"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: open_bottom_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_open_bottom_drawer"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: close_top_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_close_top_drawer"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: close_middle_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_close_middle_drawer"
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: close_bottom_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_close_bottom_drawer"
+
+  # -- Place Apple in Drawer (4th task, sub-score only, 1 entry) ---------
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: place_apple_in_closed_top_drawer_va
+    mode: sync
+    episodes_per_task: 24
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
