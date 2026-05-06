@@ -11,10 +11,10 @@ Cross-embodiment VLA with soft prompts. [GitHub](https://github.com/2toinf/X-VLA
 | CALVIN ABC→D | **4.30** | 4.43 | Reproduced |
 | SimplerEnv WidowX | **94.8%** | 95.8% | Reproduced |
 | SimplerEnv Google Robot VM | **100%** | 98.3% | Reproduced |
-| SimplerEnv Google Robot VA | **85.0%** | 84.0%\* | Reproduced |
+| SimplerEnv Google Robot VA | **80.8%** | 84.0%\* | Approximate (-3.2pp) |
 | RoboTwin | — | 70.0%/39.0% | Not yet evaluated |
 
-\* Self-reported best rollout. Move Near base variant only (60 eps).
+\* Self-reported best rollout.
 
 ### LIBERO
 
@@ -138,17 +138,28 @@ Pipeline audit: 9 discrepancies found and fixed:
 | **Benchmark config** | [`configs/simpler_google_robot_move_near_va.yaml`](../../configs/simpler_google_robot_move_near_va.yaml) |
 | **Docker image** | `simpler-xvla` (absolute EE controller required) |
 
-60 episodes (Move Near base variant). Same server/model config as VM.
+600 episodes (10 visual variants × 60 episodes). Same server/model config as VM.
 
-| Task | Reproduced (60eps) | Reported |
-|------|:------------------:|:--------:|
-| move_near (base) | 85.0% | 84.0%\* |
+| Variant | Reproduced (60eps) |
+|---------|:------------------:|
+| base | 90.0% |
+| no_distractor | 88.3% |
+| bg_1 | 93.3% |
+| bg_2 | 90.0% |
+| light_dark | 90.0% |
+| light_bright | 90.0% |
+| table_tex_1 | 91.7% |
+| table_tex_2 | 83.3% |
+| camera_1 | 25.0% |
+| camera_2 | 66.7% |
+| **Average** | **80.8%** |
 
-\* Self-reported, "taken from the best rollout" per X-VLA README.
+Reported: **84.0%**\* (-3.2pp). \* "taken from the best rollout" per X-VLA README.
 
-No additional discrepancies beyond the VM fixes above.  The VA path
-uses `gym.make()` directly with explicit `env_name`, `scene_name`,
-and `init_config` position grid (see benchmark.py VA support).
+`camera_1` (alt camera angle) is the clear outlier at 25%. All other
+variants are 66-93%.  No additional discrepancies beyond the VM fixes
+above.  The VA path uses `gym.make()` directly with explicit `env_name`,
+`scene_name`, and `init_config` position grid (see benchmark.py VA support).
 
 ### RoboTwin 2.0
 
