@@ -12,7 +12,7 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 | [moojink/openvla-oft](https://github.com/moojink/openvla-oft) | [OpenVLA-OFT](https://arxiv.org/abs/2502.19645) | ✅<br>**96.7%** / [97.1%](https://huggingface.co/moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10) | · | · | · | · |
 | [NVIDIA/Isaac-GR00T](https://github.com/NVIDIA/Isaac-GR00T) | [GR00T N1](https://arxiv.org/abs/2503.14734) | 🟡<br>**94.9%** / [97.0%¹](https://huggingface.co/0xAnkitSingh/GR00T-N1.6-LIBERO) | · | 🔧<br>**29.6%** / [57.1%](https://huggingface.co/nvidia/GR00T-N1.6-bridge) | 🟡<br>**59.7%** / [67.7%](https://huggingface.co/nvidia/GR00T-N1.6-fractal) | · |
 | [baaivision/UniVLA](https://github.com/baaivision/UniVLA) | [UniVLA](https://arxiv.org/abs/2506.19850) | ⬜<br>[95.5%](https://huggingface.co/Yuqi1997/UniVLA/tree/main/UNIVLA_LIBERO_VIDEO_BS192_8K) | ⬜<br>[4.63](https://huggingface.co/Yuqi1997/UniVLA/tree/main/UNIVLA_CALVIN_ABCD_VIDEO_BS192_8K) | ⬜<br>[69.8%](https://huggingface.co/Yuqi1997/UniVLA/tree/main/UNIVLA_SIMPLER_BRIDGE_VIDEO_BS128_20K) | · | · |
-| [2toinf/X-VLA](https://github.com/2toinf/X-VLA) | [X-VLA](https://arxiv.org/abs/2510.10274) | ✅<br>**97.4%** / [98.1%](https://huggingface.co/2toINF/X-VLA-Libero) | ✅<br>**4.30** / [4.43](https://huggingface.co/2toINF/X-VLA-Calvin-ABC_D) | ✅<br>**94.8%** / [95.8%](https://huggingface.co/2toINF/X-VLA-WidowX) | ⬜<br>[80.4%](https://huggingface.co/2toINF/X-VLA-WidowX) | ⬜<br>[75.7%](https://huggingface.co/2toINF/X-VLA-WidowX) |
+| [2toinf/X-VLA](https://github.com/2toinf/X-VLA) | [X-VLA](https://arxiv.org/abs/2510.10274) | ✅<br>**97.4%** / [98.1%](https://huggingface.co/2toINF/X-VLA-Libero) | ✅<br>**4.30** / [4.43](https://huggingface.co/2toINF/X-VLA-Calvin-ABC_D) | ✅<br>**94.8%** / [95.8%](https://huggingface.co/2toINF/X-VLA-WidowX) | ✅<br>**100%** / [98.3%](https://huggingface.co/2toINF/X-VLA-Google-Robot) | ✅<br>**85.0%** / [84.0%⁴](https://huggingface.co/2toINF/X-VLA-Google-Robot) |
 | [Dexmal/dexbotic](https://github.com/Dexmal/dexbotic) | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ✅<br>**94.7%** / [94.9%](https://huggingface.co/Dexmal/libero-db-cogact) | ✅<br>**4.02** / [4.06](https://huggingface.co/Dexmal/calvin-db-cogact) | 🟡<br>**63.5%** / [69.5%](https://huggingface.co/Dexmal/simpler-db-cogact) | · | · |
 | | [DB-π₀](https://arxiv.org/abs/2510.23511) | ⬜<br>[93.9%](https://huggingface.co/Dexmal/libero-db-pi0) | · | · | · | · |
 | | [DB-OFT](https://arxiv.org/abs/2510.23511) | · | ⬜<br>[3.54](https://huggingface.co/Dexmal/calvin-db-oft) | ⬜<br>[76.4%](https://huggingface.co/Dexmal/simpler-db-oft) | · | · |
@@ -27,7 +27,7 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 
 SE = SimplerEnv. SE GR = Google Robot VM.
 
-¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). † Checkpoint not publicly available on HuggingFace.
+¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). ⁴ Self-reported best rollout; move_near base variant only (60 eps). † Checkpoint not publicly available on HuggingFace.
 
 ## Other Benchmarks
 
