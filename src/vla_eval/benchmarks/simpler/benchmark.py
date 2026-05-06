@@ -66,7 +66,7 @@ class SimplerEnvBenchmark(StepBenchmark):
             ``robot_x/robot_y`` ([start, end, n] linspace),
             ``robot_rot_quat`` ([x, y, z, w] quaternion),
             ``obj_x/obj_y`` ([start, end, n] linspace, xy mode),
-            ``obj_episode_range`` ([start, end] inclusive, episode mode).
+            ``obj_episode_range`` ([start, end) end-exclusive, episode mode).
     """
 
     def __init__(
@@ -100,7 +100,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.env_name = env_name
         self.scene_name = scene_name
         self.env_build_kwargs = env_build_kwargs or {}
-        self.init_config = init_config
 
         self._env: Any = None
         self._task_description: str = ""
@@ -198,6 +197,8 @@ class SimplerEnvBenchmark(StepBenchmark):
             self._env, reset_kwargs = self._make_va_env(task)
         else:
             self._env, reset_kwargs = self._make_vm_env(task)
+        if self.seed is not None:
+            reset_kwargs["seed"] = self.seed
 
         obs, _ = self._env.reset(**reset_kwargs)
 
@@ -209,38 +210,33 @@ class SimplerEnvBenchmark(StepBenchmark):
 
         return obs
 
+    def _common_make_kwargs(self) -> dict[str, Any]:
+        """Build kwargs shared by both VA and VM env creation."""
+        kw: dict[str, Any] = {}
+        if self.control_mode is not None:
+            kw["control_mode"] = self.control_mode
+        if self.max_episode_steps is not None:
+            kw["max_episode_steps"] = self.max_episode_steps
+        return kw
+
     def _make_va_env(self, task: Task) -> tuple[Any, dict[str, Any]]:
         """VA path: ``gym.make()`` with explicit scene/lighting/kwargs."""
         import simpler_env  # noqa: F401 -- registers ManiSkill2 envs
         import gymnasium as gym
 
-        make_kwargs: dict[str, Any] = {"obs_mode": "rgbd", **self.env_build_kwargs}
+        make_kwargs = {"obs_mode": "rgbd", **self.env_build_kwargs, **self._common_make_kwargs()}
         if self.scene_name is not None:
             make_kwargs["scene_name"] = self.scene_name
-        if self.control_mode is not None:
-            make_kwargs["control_mode"] = self.control_mode
-        if self.max_episode_steps is not None:
-            make_kwargs["max_episode_steps"] = self.max_episode_steps
         env = gym.make(self.env_name, **make_kwargs)
 
-        if self._va_grid is not None:
-            reset_kwargs = self._build_va_reset_kwargs(task)
-        else:
-            reset_kwargs = {}
-        if self.seed is not None:
-            reset_kwargs["seed"] = self.seed
+        reset_kwargs = self._build_va_reset_kwargs(task) if self._va_grid is not None else {}
         return env, reset_kwargs
 
     def _make_vm_env(self, task: Task) -> tuple[Any, dict[str, Any]]:
         """VM path: ``simpler_env.make()`` with prepackaged config."""
         import simpler_env
 
-        make_kwargs: dict[str, Any] = {}
-        if self.control_mode is not None:
-            make_kwargs["control_mode"] = self.control_mode
-        if self.max_episode_steps is not None:
-            make_kwargs["max_episode_steps"] = self.max_episode_steps
-        env = simpler_env.make(self.task_name, **make_kwargs)
+        env = simpler_env.make(self.task_name, **self._common_make_kwargs())
 
         # deterministic_episodes=True: pass episode_id for reproducible
         # object placement (matches X-VLA, starVLA reference evals).
@@ -250,8 +246,6 @@ class SimplerEnvBenchmark(StepBenchmark):
         if self.deterministic_episodes:
             episode_idx = task.get("episode_idx", 0)
             reset_kwargs["options"] = {"obj_init_options": {"episode_id": episode_idx}}
-        if self.seed is not None:
-            reset_kwargs["seed"] = self.seed
         return env, reset_kwargs
 
     def step(self, action: Action) -> StepResult:
