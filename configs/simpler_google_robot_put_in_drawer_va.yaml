@@ -35,7 +35,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "frl_apartment_stage_simple"
-      max_episode_steps: 200
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -47,7 +46,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "modern_bedroom_no_roof"
-      max_episode_steps: 200
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -59,7 +57,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "modern_office_no_roof"
-      max_episode_steps: 200
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -71,7 +68,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "frl_apartment_stage_simple"
-      max_episode_steps: 200
       env_build_kwargs:
         shader_dir: "rt"
         model_ids: "apple"
@@ -89,7 +85,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "frl_apartment_stage_simple"
-      max_episode_steps: 200
       env_build_kwargs:
         shader_dir: "rt"
         model_ids: "apple"
@@ -107,7 +102,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "frl_apartment_stage_simple"
-      max_episode_steps: 200
       env_build_kwargs:
         shader_dir: "rt"
         model_ids: "apple"
@@ -125,7 +119,6 @@ benchmarks:
       task_name: "google_robot_place_apple_in_closed_top_drawer"
       env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
       scene_name: "frl_apartment_stage_simple"
-      max_episode_steps: 200
       env_build_kwargs:
         shader_dir: "rt"
         model_ids: "apple"

@@ -33,7 +33,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -45,7 +44,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         no_distractor: true
         robot: "google_robot_static"
@@ -61,7 +59,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -73,7 +70,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background_2"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -85,7 +81,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         slightly_darker_lighting: true
         robot: "google_robot_static"
@@ -101,7 +96,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         slightly_brighter_lighting: true
         robot: "google_robot_static"
@@ -117,7 +111,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet1_h870"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -129,7 +122,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearGoogleInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet2_h870"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -141,7 +133,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearAltGoogleCameraInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -153,7 +144,6 @@ benchmarks:
       task_name: "google_robot_move_near"
       env_name: "MoveNearAltGoogleCamera2InScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 

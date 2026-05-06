@@ -34,7 +34,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -46,7 +45,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet1_h870"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -58,7 +56,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet2_h870"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -70,7 +67,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -82,7 +78,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         lr_switch: true
         distractor_config: "more"
@@ -99,7 +94,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -111,7 +105,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background_2"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -123,7 +116,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         lr_switch: true
         slightly_darker_lighting: true
@@ -140,7 +132,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         lr_switch: true
         slightly_brighter_lighting: true
@@ -157,7 +148,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCameraInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -169,7 +159,6 @@ benchmarks:
       task_name: "google_robot_pick_horizontal_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCamera2InScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs: *build_kwargs
       init_config: *init_config
 
@@ -181,7 +170,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -197,7 +185,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet1_h870"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -213,7 +200,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet2_h870"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -229,7 +215,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -245,7 +230,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         distractor_config: "more"
@@ -262,7 +246,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -278,7 +261,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background_2"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -294,7 +276,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         slightly_darker_lighting: true
@@ -311,7 +292,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         slightly_brighter_lighting: true
@@ -328,7 +308,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCameraInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -344,7 +323,6 @@ benchmarks:
       task_name: "google_robot_pick_vertical_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCamera2InScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         laid_vertically: true
         robot: "google_robot_static"
@@ -360,7 +338,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -376,7 +353,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet1_h870"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -392,7 +368,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "Baked_sc1_staging_objaverse_cabinet2_h870"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -408,7 +383,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -424,7 +398,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanDistractorInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         distractor_config: "more"
@@ -441,7 +414,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -457,7 +429,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4_alt_background_2"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -473,7 +444,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         slightly_darker_lighting: true
@@ -490,7 +460,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         slightly_brighter_lighting: true
@@ -507,7 +476,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCameraInScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
@@ -523,7 +491,6 @@ benchmarks:
       task_name: "google_robot_pick_standing_coke_can"
       env_name: "GraspSingleOpenedCokeCanAltGoogleCamera2InScene-v0"
       scene_name: "google_pick_coke_can_1_v4"
-      max_episode_steps: 80
       env_build_kwargs:
         upright: true
         robot: "google_robot_static"
