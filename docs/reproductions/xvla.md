@@ -10,7 +10,11 @@ Cross-embodiment VLA with soft prompts. [GitHub](https://github.com/2toinf/X-VLA
 | LIBERO | **97.4%** | 98.1% | Reproduced |
 | CALVIN ABC→D | **4.30** | 4.43 | Reproduced |
 | SimplerEnv WidowX | **94.8%** | 95.8% | Reproduced |
+| SimplerEnv Google Robot VM | **100%** | 98.3% | Reproduced |
+| SimplerEnv Google Robot VA | **85.0%** | 84.0%\* | Reproduced |
 | RoboTwin | — | 70.0%/39.0% | Not yet evaluated |
+
+\* Self-reported best rollout. Move Near base variant only (60 eps).
 
 ### LIBERO
 
@@ -97,6 +101,55 @@ Pipeline audit: 7 discrepancies found and fixed:
 6. **Gripper threshold 0.5→0.7** (MEDIUM) — Bridge domain uses inverted comparison (`< 0.7 → close`). Fixed.
 7. **rot6d interleaved decode** (HIGH) — Fixed to match official `rotate6D_to_euler_xyz`.
 
+### SimplerEnv — Google Robot VM
+
+| | |
+|---|---|
+| **Checkpoint** | `2toINF/X-VLA-Google-Robot` (official) |
+| **Server config** | [`configs/model_servers/xvla/simpler_google_robot.yaml`](../../configs/model_servers/xvla/simpler_google_robot.yaml) |
+| **Benchmark config** | [`configs/simpler_google_robot_tasks.yaml`](../../configs/simpler_google_robot_tasks.yaml) |
+| **Docker image** | `simpler-xvla` (absolute EE controller required) |
+
+24 episodes. `chunk_size: 10`, `euler_offset: 0,0,0`, `max_episode_steps: 160`,
+`success_mode: early_stop`, `domain_id: 1`.
+
+| Task | Reproduced (24eps) | Reported |
+|------|:------------------:|:--------:|
+| pick_coke_can | 100% | 98.3% |
+| **Average** | **100%** | **98.3%** |
+
+Pipeline audit: 9 discrepancies found and fixed:
+1. **Wrong checkpoint** (BLOCKER) -- config used `X-VLA-WidowX`; Google Robot needs `X-VLA-Google-Robot`.
+2. **Missing base_pose controller** (BLOCKER) -- Google Robot agent lacked `use_delta=False` controller. Fixed: patched `Dockerfile.simpler_xvla`.
+3. **`use_target=True` in controller** (HIGH) -- upstream fork omits `use_target`; including it caused 80% instead of 100%. Fixed: removed.
+4. **Prepackaged defaults still delta_pose** (HIGH) -- upstream fork changes all prepackaged defaults to `base_pose`. Fixed: sed patch in Dockerfile.
+5. **Position accumulation missing** (BLOCKER) -- X-VLA outputs relative positions; planner needs absolute. Fixed: accumulation in `xvla.py` predict().
+6. **Action stride missing** (HIGH) -- official eval uses `[::2][:10]`. Fixed: stride in predict().
+7. **Euler rotation** (HIGH) -- controller expects euler XYZ, not axis-angle. Fixed: `euler_offset: 0,0,0` in config.
+8. **Gripper threshold 0.5 vs 0.25** (MEDIUM) -- official eval uses 0.25 for Google Robot. Fixed in simpler profile.
+9. **Zero proprio init** (MEDIUM) -- official eval passes `zeros(20)` on first step. Fixed for simpler profile.
+
+### SimplerEnv — Google Robot VA
+
+| | |
+|---|---|
+| **Checkpoint** | `2toINF/X-VLA-Google-Robot` (official) |
+| **Server config** | [`configs/model_servers/xvla/simpler_google_robot.yaml`](../../configs/model_servers/xvla/simpler_google_robot.yaml) |
+| **Benchmark config** | [`configs/simpler_google_robot_move_near_va.yaml`](../../configs/simpler_google_robot_move_near_va.yaml) |
+| **Docker image** | `simpler-xvla` (absolute EE controller required) |
+
+60 episodes (Move Near base variant). Same server/model config as VM.
+
+| Task | Reproduced (60eps) | Reported |
+|------|:------------------:|:--------:|
+| move_near (base) | 85.0% | 84.0%\* |
+
+\* Self-reported, "taken from the best rollout" per X-VLA README.
+
+No additional discrepancies beyond the VM fixes above.  The VA path
+uses `gym.make()` directly with explicit `env_name`, `scene_name`,
+and `init_config` position grid (see benchmark.py VA support).
+
 ### RoboTwin 2.0
 
 | | |
@@ -118,7 +171,7 @@ Key blockers:
 ## Configuration Notes
 
 - Shared weights — single model with domain-specific soft prompts (~0.04% params per embodiment).
-- `domain_id`: LIBERO=3, CALVIN=2, SimplerEnv Bridge=0, RoboTwin=6.
+- `domain_id`: LIBERO=3, CALVIN=2, SimplerEnv Bridge=0, Google Robot=1, RoboTwin=6.
 - `use_predicted_proprio=True` — feeds last predicted action[:10] as next proprio (closed-loop).
 - rot6d convention varies by benchmark: contiguous for LIBERO, interleaved for CALVIN/SimplerEnv.
 - PEFT/LoRA variants exist (`2toINF/X-VLA-libero-{suite}-peft`) at ~93% avg, lower than full-finetune 98.1%.

@@ -1,4 +1,4 @@
-# SimplerEnv Google Robot -- Variant Aggregation (VA) Reproduction
+# SimplerEnv Google Robot -- Variant Aggregation (VA) Reference
 
 VA evaluates generalization across visual domain shifts: different backgrounds,
 lighting, distractors, camera angles, table textures, and cabinet models.
@@ -42,72 +42,13 @@ for i in $(seq 0 7); do
 done
 ```
 
-## Results
+## Reproduction results
 
-### X-VLA (X-VLA-Google-Robot) -- VM + VA
+Per-model results live in each model's reproduction doc:
+- **X-VLA**: [xvla.md](xvla.md) -- VM 100%, VA 85.0% (move_near base)
+- **OpenVLA**: 50.0% VA avg across 10 variants (600 eps, -17.7pp vs reported)
 
-| | |
-|---|---|
-| **Checkpoint** | `2toINF/X-VLA-Google-Robot` (HuggingFace) |
-| **Server config** | [`configs/model_servers/xvla/simpler_google_robot.yaml`](../../configs/model_servers/xvla/simpler_google_robot.yaml) |
-| **Docker image** | `simpler-xvla` (absolute EE controller required) |
-
-**VM (pick_coke_can, 24 episodes):**
-
-| Task | Reproduced | Reported | Verdict |
-|------|:----------:|:--------:|:-------:|
-| pick_coke_can | **100%** | 98.3% | Reproduced |
-
-**VA (move_near base variant, 60 episodes):**
-
-| Task | Reproduced | Reported | Verdict |
-|------|:----------:|:--------:|:-------:|
-| move_near (base) | **85.0%** | 84.0% | Reproduced |
-
-Key integration fixes required for X-VLA Google Robot:
-- Correct checkpoint (`X-VLA-Google-Robot`, not `X-VLA-WidowX`)
-- Google Robot `base_pose` controller (no `use_target`) + prepackaged
-  defaults changed to `base_pose` in `Dockerfile.simpler_xvla`
-- Position accumulation + action stride (::2, cap 10) in xvla.py
-- Euler rotation via `euler_offset` config
-- Gripper threshold 0.25, zero proprio init, `max_episode_steps=160`
-
-### OpenVLA (openvla-7b) -- Move Near VA
-
-| | |
-|---|---|
-| **Checkpoint** | `openvla/openvla-7b` (HuggingFace) |
-| **Server config** | [`configs/model_servers/openvla/simpler_google_robot.yaml`](../../configs/model_servers/openvla/simpler_google_robot.yaml) |
-| **Docker image** | `simpler` (standard) |
-
-600 episodes (10 visual variants x 60 episodes each). `seed=0`, `success_mode=truncation`.
-
-| Visual variant | Reproduced |
-|----------------|:----------:|
-| base | 46.7% |
-| no_distractor | 56.7% |
-| bg_1 | 45.0% |
-| bg_2 | 43.3% |
-| light_dark | 61.7% |
-| light_bright | 48.3% |
-| table_tex_1 | 63.3% |
-| table_tex_2 | 61.7% |
-| camera_1 | 33.3% |
-| camera_2 | 40.0% |
-| **Average** | **50.0%** |
-
-Reported move_near VA for OpenVLA: **67.7%** (from CogACT paper comparison table).
-Delta: -17.7pp. Possible causes:
-- SimplerEnv version difference (pinned Docker image vs original evaluation)
-- Reported number is from a third-party comparison table, not OpenVLA's own paper
-
-### Remaining tasks
-
-Pick Coke Can, Open/Close Drawer, and Place in Drawer VA evaluations
-have not yet been run with full episodes across all variants.  The configs
-and infrastructure are ready; these require additional compute time.
-
-### Reference numbers (SimplerEnv paper, Table 2)
+## Reference numbers (SimplerEnv paper, Table 2)
 
 | Task | RT-1 (tf) VA | Octo-base VA |
 |------|:------------:|:------------:|
