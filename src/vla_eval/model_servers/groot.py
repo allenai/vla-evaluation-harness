@@ -121,7 +121,8 @@ class GR00TModelServer(PredictModelServer):
         import urllib.request
 
         base_url = (
-            "https://raw.githubusercontent.com/NVIDIA/Isaac-GR00T/main/gr00t/model/modules/nvidia/Eagle-Block2A-2B-v2/"
+            "https://raw.githubusercontent.com/NVIDIA/Isaac-GR00T/"
+            "e29d8fc50b0e4745120ae3fb72447986fe638aa6/gr00t/model/modules/nvidia/Eagle-Block2A-2B-v2/"
         )
         os.makedirs(eagle_dir, exist_ok=True)
         for fname in missing:

@@ -62,7 +62,7 @@ class OpenVLAModelServer(PredictModelServer):
         self._device = None
 
     def get_observation_params(self) -> dict[str, Any]:
-        return {"env_seed": 0}  # OpenVLA reference uses env.seed(0)
+        return {"seed": 0}
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}

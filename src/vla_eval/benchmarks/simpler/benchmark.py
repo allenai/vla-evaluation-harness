@@ -1,9 +1,18 @@
 """SimplerEnv benchmark implementation.
 
-Uses ``simpler_env.make(task_name)`` which internally calls
+Two evaluation protocols:
+
+**Visual Matching (VM)** -- the default.  Uses
+``simpler_env.make(task_name)`` which internally calls
 ``gym.make(env_name, obs_mode="rgbd", prepackaged_config=True)``.
 The prepackaged config sets the correct control mode, scene, robot,
 camera, RGB overlay, and robot init position for each task.
+
+**Variant Aggregation (VA)** -- activated when *env_name* is set.
+Calls ``gym.make(env_name, ...)`` directly with explicit scene,
+lighting, distractor, and camera overrides.  Robot/object init
+positions are controlled via *init_config* to reproduce the exact
+grids from the official SimplerEnv evaluation scripts.
 
 Success modes (set via model server ``get_observation_params()``):
     - ``truncation``: Run until ``max_episode_steps``.  Success =
@@ -17,6 +26,7 @@ Success modes (set via model server ``get_observation_params()``):
 
 from __future__ import annotations
 
+from itertools import product
 from typing import Any
 
 import numpy as np
@@ -24,6 +34,11 @@ import numpy as np
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, POSITION_DELTA, RAW, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
+
+
+def _linspace_from_range(spec: list[float]) -> np.ndarray:
+    """Convert ``[start, end, n]`` to ``np.linspace(start, end, int(n))``."""
+    return np.linspace(spec[0], spec[1], int(spec[2]))
 
 
 class SimplerEnvBenchmark(StepBenchmark):
@@ -36,12 +51,22 @@ class SimplerEnvBenchmark(StepBenchmark):
             ``None`` keeps the prepackaged default.  X-VLA uses 1200,
             GR00T uses 10000, starVLA/DB-CogACT use 120.
         success_mode: How to determine episode success:
-            ``"truncation"`` — success = terminated on the final step.
-            ``"early_stop"`` — stop on first terminated, count as success.
-            ``"accumulate"`` — run to end, success if ever terminated.
+            ``"truncation"`` -- success = terminated on the final step.
+            ``"early_stop"`` -- stop on first terminated, count as success.
+            ``"accumulate"`` -- run to end, success if ever terminated.
         send_state: Include proprioceptive state (base_pose, tcp_pose,
             EE pose) in observations for models that need it.
         seed: Random seed for ``env.reset()``.
+        env_name: Gymnasium env ID for VA evaluation.  When set, calls
+            ``gym.make()`` directly instead of ``simpler_env.make()``.
+        scene_name: Scene name passed to ``gym.make()`` (VA only).
+        env_build_kwargs: Extra kwargs forwarded to ``gym.make()``
+            (VA only).  Lighting, distractors, shader, etc.
+        init_config: Position grid config for VA evaluation.  Keys:
+            ``robot_x/robot_y`` ([start, end, n] linspace),
+            ``robot_rot_quat`` ([x, y, z, w] quaternion),
+            ``obj_x/obj_y`` ([start, end, n] linspace, xy mode),
+            ``obj_episode_range`` ([start, end] inclusive, episode mode).
     """
 
     def __init__(
@@ -54,6 +79,10 @@ class SimplerEnvBenchmark(StepBenchmark):
         deterministic_episodes: bool = True,
         control_mode: str | None = None,
         gripper_mode: str = "binary",
+        env_name: str | None = None,
+        scene_name: str | None = None,
+        env_build_kwargs: dict[str, Any] | None = None,
+        init_config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         assert success_mode in ("truncation", "early_stop", "accumulate"), (
@@ -68,6 +97,10 @@ class SimplerEnvBenchmark(StepBenchmark):
         self.deterministic_episodes = deterministic_episodes
         self.control_mode = control_mode
         self.gripper_mode = gripper_mode
+        self.env_name = env_name
+        self.scene_name = scene_name
+        self.env_build_kwargs = env_build_kwargs or {}
+        self.init_config = init_config
 
         self._env: Any = None
         self._task_description: str = ""
@@ -77,6 +110,65 @@ class SimplerEnvBenchmark(StepBenchmark):
         self._sticky_gripper_action: float = 0.0
         self._gripper_action_repeat: int = 0
         self._sticky_gripper_num_repeat: int = 15
+
+        # Precompute VA position grid
+        self._va_grid: list[tuple[np.ndarray, dict[str, Any]]] | None = None
+        if init_config is not None:
+            self._va_grid = self._build_position_grid(init_config)
+
+    @staticmethod
+    def _build_position_grid(cfg: dict[str, Any]) -> list[tuple[np.ndarray, dict[str, Any]]]:
+        """Build a flat list of ``(robot_xy, obj_options)`` from *init_config*.
+
+        Each entry maps to one episode.  The grid order matches the
+        nested-for-loop order in SimplerEnv's evaluation scripts:
+        outer = robot positions, inner = object positions / episode ids.
+        """
+        robot_xs = _linspace_from_range(cfg["robot_x"]) if "robot_x" in cfg else np.array([0.0])
+        robot_ys = _linspace_from_range(cfg["robot_y"]) if "robot_y" in cfg else np.array([0.0])
+        rot_quat = np.asarray(cfg.get("robot_rot_quat", [0, 0, 0, 1]), dtype=np.float64)
+
+        grid: list[tuple[np.ndarray, dict[str, Any]]] = []
+
+        if "obj_episode_range" in cfg:
+            ep_start, ep_end = int(cfg["obj_episode_range"][0]), int(cfg["obj_episode_range"][1])
+            for rx, ry in product(robot_xs, robot_ys):
+                robot_xy = np.array([rx, ry])
+                for ep_id in range(ep_start, ep_end):
+                    grid.append(
+                        (
+                            robot_xy,
+                            {"robot_rot_quat": rot_quat, "obj_init_options": {"episode_id": ep_id}},
+                        )
+                    )
+        else:
+            obj_xs = _linspace_from_range(cfg["obj_x"]) if "obj_x" in cfg else np.array([0.0])
+            obj_ys = _linspace_from_range(cfg["obj_y"]) if "obj_y" in cfg else np.array([0.0])
+            for rx, ry in product(robot_xs, robot_ys):
+                robot_xy = np.array([rx, ry])
+                for ox, oy in product(obj_xs, obj_ys):
+                    grid.append(
+                        (
+                            robot_xy,
+                            {"robot_rot_quat": rot_quat, "obj_init_options": {"init_xy": np.array([ox, oy])}},
+                        )
+                    )
+        return grid
+
+    def _build_va_reset_kwargs(self, task: Task) -> dict[str, Any]:
+        """Map ``task["episode_idx"]`` to a position in the precomputed grid."""
+        assert self._va_grid is not None
+        idx = task.get("episode_idx", 0) % len(self._va_grid)
+        robot_xy, extra = self._va_grid[idx]
+        return {
+            "options": {
+                "robot_init_options": {
+                    "init_xy": robot_xy,
+                    "init_rot_quat": extra["robot_rot_quat"],
+                },
+                "obj_init_options": extra["obj_init_options"],
+            },
+        }
 
     def cleanup(self) -> None:
         if self._env is not None:
@@ -94,9 +186,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         return [{"name": self.task_name, "task_name": self.task_name}]
 
     def reset(self, task: Task) -> Any:
-        import simpler_env
-
-        # Close previous env — new env per episode (matches reference)
+        # Close previous env -- new env per episode (matches reference)
         self._success_seen = False
         self._sticky_action_is_on = False
         self._sticky_gripper_action = 0.0
@@ -104,24 +194,11 @@ class SimplerEnvBenchmark(StepBenchmark):
         if self._env is not None:
             self._env.close()
 
-        make_kwargs: dict[str, Any] = {}
-        if self.control_mode is not None:
-            make_kwargs["control_mode"] = self.control_mode
-        if self.max_episode_steps is not None:
-            make_kwargs["max_episode_steps"] = self.max_episode_steps
-        self._env = simpler_env.make(self.task_name, **make_kwargs)
+        if self.env_name is not None:
+            self._env, reset_kwargs = self._make_va_env(task)
+        else:
+            self._env, reset_kwargs = self._make_vm_env(task)
 
-        # Reset — robot init is handled by prepackaged_config internally.
-        # deterministic_episodes=True: pass episode_id for reproducible object placement
-        #   (matches X-VLA, starVLA reference evals).
-        # deterministic_episodes=False: no obj_init_options, random placement each reset
-        #   (matches GR00T reference eval which uses vectorized envs with auto-reset).
-        reset_kwargs: dict[str, Any] = {}
-        if self.deterministic_episodes:
-            episode_idx = task.get("episode_idx", 0)
-            reset_kwargs["options"] = {"obj_init_options": {"episode_id": episode_idx}}
-        if self.seed is not None:
-            reset_kwargs["seed"] = self.seed
         obs, _ = self._env.reset(**reset_kwargs)
 
         # Task description from environment
@@ -131,6 +208,51 @@ class SimplerEnvBenchmark(StepBenchmark):
             self._task_description = self._env.get_wrapper_attr("get_language_instruction")()
 
         return obs
+
+    def _make_va_env(self, task: Task) -> tuple[Any, dict[str, Any]]:
+        """VA path: ``gym.make()`` with explicit scene/lighting/kwargs."""
+        import simpler_env  # noqa: F401 -- registers ManiSkill2 envs
+        import gymnasium as gym
+
+        make_kwargs: dict[str, Any] = {"obs_mode": "rgbd", **self.env_build_kwargs}
+        if self.scene_name is not None:
+            make_kwargs["scene_name"] = self.scene_name
+        if self.control_mode is not None:
+            make_kwargs["control_mode"] = self.control_mode
+        if self.max_episode_steps is not None:
+            make_kwargs["max_episode_steps"] = self.max_episode_steps
+        env = gym.make(self.env_name, **make_kwargs)
+
+        if self._va_grid is not None:
+            reset_kwargs = self._build_va_reset_kwargs(task)
+        else:
+            reset_kwargs = {}
+        if self.seed is not None:
+            reset_kwargs["seed"] = self.seed
+        return env, reset_kwargs
+
+    def _make_vm_env(self, task: Task) -> tuple[Any, dict[str, Any]]:
+        """VM path: ``simpler_env.make()`` with prepackaged config."""
+        import simpler_env
+
+        make_kwargs: dict[str, Any] = {}
+        if self.control_mode is not None:
+            make_kwargs["control_mode"] = self.control_mode
+        if self.max_episode_steps is not None:
+            make_kwargs["max_episode_steps"] = self.max_episode_steps
+        env = simpler_env.make(self.task_name, **make_kwargs)
+
+        # deterministic_episodes=True: pass episode_id for reproducible
+        # object placement (matches X-VLA, starVLA reference evals).
+        # deterministic_episodes=False: random placement each reset
+        # (matches GR00T with vectorized envs + auto-reset).
+        reset_kwargs: dict[str, Any] = {}
+        if self.deterministic_episodes:
+            episode_idx = task.get("episode_idx", 0)
+            reset_kwargs["options"] = {"obj_init_options": {"episode_id": episode_idx}}
+        if self.seed is not None:
+            reset_kwargs["seed"] = self.seed
+        return env, reset_kwargs
 
     def step(self, action: Action) -> StepResult:
         raw_action = action.get("actions", action.get("action"))
@@ -238,11 +360,18 @@ class SimplerEnvBenchmark(StepBenchmark):
         return {"success": step_result.done}
 
     def get_metadata(self) -> dict[str, Any]:
-        return {
+        meta: dict[str, Any] = {
             "task_name": self.task_name,
             "success_mode": self.success_mode,
             "max_steps": self.max_episode_steps,
         }
+        if self.env_name is not None:
+            meta["env_name"] = self.env_name
+            if self.scene_name is not None:
+                meta["scene_name"] = self.scene_name
+            if self.env_build_kwargs:
+                meta["env_build_kwargs"] = self.env_build_kwargs
+        return meta
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {
