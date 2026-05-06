@@ -128,7 +128,7 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         image_keys=("primary",),
         predicted_proprio_dims=10,
         use_predicted_proprio=True,
-        gripper_threshold=0.5,
+        gripper_threshold=0.25,
         gripper_close_above=True,
         output_action_dim=7,
     ),
@@ -175,7 +175,12 @@ def _get_profile(name: str) -> _XVLABenchmarkProfile:
 _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
     "libero": {"send_wrist_image": True, "send_state": True, "absolute_action": True},
     "calvin": {"send_wrist_image": True, "send_state": True, "absolute_action": True, "ep_len": 720},
-    "simpler": {"send_state": True},
+    "simpler": {
+        "send_state": True,
+        "success_mode": "early_stop",
+        "max_episode_steps": 160,
+        "control_mode": "arm_pd_ee_base_pose_align_interpolate_by_planner_gripper_pd_joint_target_delta_pos_interpolate_by_planner",
+    },
     "simpler_widowx": {
         "send_state": True,
         "max_episode_steps": 1200,
@@ -359,13 +364,16 @@ class XVLAModelServer(PredictModelServer):
         # Disabled when use_predicted_proprio=False (e.g. VLABench, which
         # always uses fresh env state in the official eval).
         self._last_raw_actions: dict[str, np.ndarray] = {}
+        self._current_xyz: dict[str, np.ndarray] = {}
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         self._last_raw_actions.pop(ctx.session_id, None)
+        self._current_xyz.pop(ctx.session_id, None)
         await super().on_episode_start(config, ctx)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
         self._last_raw_actions.pop(ctx.session_id, None)
+        self._current_xyz.pop(ctx.session_id, None)
         await super().on_episode_end(result, ctx)
 
     def _load_model(self) -> None:
@@ -481,10 +489,13 @@ class XVLAModelServer(PredictModelServer):
                 bp = np.asarray(base_pose, dtype=np.float64)
                 tp = np.asarray(tcp_pose, dtype=np.float64)
                 ee_pos = _compute_ee_pos_wrt_base(bp, tp)
-                # Match official X-VLA SimplerEnv: [pos3, 1,0,0,1,0,0,0, zeros10]
-                proprio_np = np.zeros(dim_proprio, dtype=np.float32)
-                proprio_np[:3] = ee_pos
-                proprio_np[3:10] = [1, 0, 0, 1, 0, 0, 0]  # identity rot6d + gripper
+                if self.benchmark_profile == "simpler":
+                    # Google Robot: zero proprio on first step (matches official eval)
+                    proprio_np = np.zeros(dim_proprio, dtype=np.float32)
+                else:
+                    proprio_np = np.zeros(dim_proprio, dtype=np.float32)
+                    proprio_np[:3] = ee_pos
+                    proprio_np[3:10] = [1, 0, 0, 1, 0, 0, 0]  # identity rot6d + gripper
                 proprio = torch.tensor(proprio_np, device=device).unsqueeze(0)
             else:
                 raw = _obs_state_array(obs)
@@ -544,6 +555,24 @@ class XVLAModelServer(PredictModelServer):
                     converted[i, 3:6] = euler + self._euler_offset
                 if single:
                     converted = converted[0]
+
+            # Google Robot: action stride + position accumulation.
+            # Matches official X-VLA eval: stride=2, max_chunk=10,
+            # positions accumulated to absolute for base_pose controller.
+            if self.benchmark_profile == "simpler":
+                converted = converted[::2][:10]
+                base_pose = obs.get("base_pose")
+                tcp_pose = obs.get("tcp_pose")
+                if ctx.session_id not in self._current_xyz and base_pose is not None and tcp_pose is not None:
+                    self._current_xyz[ctx.session_id] = _compute_ee_pos_wrt_base(
+                        np.asarray(base_pose, dtype=np.float64),
+                        np.asarray(tcp_pose, dtype=np.float64),
+                    )
+                cur = self._current_xyz.get(ctx.session_id)
+                if cur is not None:
+                    converted[:, :3] += cur
+                    self._current_xyz[ctx.session_id] = converted[-1, :3].copy()
+
             return {"actions": converted}
 
         return {"actions": raw_actions}

@@ -4,7 +4,8 @@
 # relative_position=True: positions are deltas accumulated from current EE
 extends: _base.yaml
 args:
-  model_path: "2toINF/X-VLA-WidowX"
+  model_path: "2toINF/X-VLA-Google-Robot"
   benchmark_profile: "simpler"
   domain_id: 1
-  chunk_size: 30
+  chunk_size: 10
+  euler_offset: "0,0,0"

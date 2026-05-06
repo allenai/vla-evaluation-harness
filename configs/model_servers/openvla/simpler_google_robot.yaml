@@ -1,0 +1,11 @@
+# OpenVLA — SimplerEnv Google Robot (zero-shot)
+# Weight: openvla/openvla-7b (HuggingFace)
+# unnorm_key: fractal20220817_data (RT-1/Google Robot dataset stats)
+# Published VA scores: pick 60.8%, move_near 67.7%, drawer 28.8%
+script: "src/vla_eval/model_servers/openvla.py"
+args:
+  model_path: openvla/openvla-7b
+  unnorm_key: fractal20220817_data
+  chunk_size: 1
+  max_batch_size: 1
+  port: 8000
