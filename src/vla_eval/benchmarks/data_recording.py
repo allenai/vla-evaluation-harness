@@ -31,10 +31,10 @@ from vla_eval.benchmarks.recording import EpisodeVideoRecorder
 class RecordingConfig:
     """Configuration for per-episode recording, passed via benchmark YAML ``params.recording``."""
 
-    dir: str = "/workspace/results/episodes"
-    video: bool = True
-    data: bool = True
-    fields: list[str] = field(default_factory=list)
+    output_dir: str = "/workspace/results/episodes"
+    record_video: bool = True
+    record_step: bool = True
+    step_fields: list[str] = field(default_factory=list)
 
 
 logger = logging.getLogger(__name__)
@@ -49,17 +49,17 @@ class EpisodeRecorder:
         self,
         output_dir: str | os.PathLike[str],
         *,
-        video: bool = True,
-        data: bool = True,
+        record_video: bool = True,
+        record_step: bool = True,
         filename_stem: str = "{env_id}_ep{episode_idx:04d}_{status}",
         fps: int = 20,
     ) -> None:
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         self._video: EpisodeVideoRecorder | None = (
-            EpisodeVideoRecorder(output_dir=out, filename=filename_stem + ".mp4", fps=fps) if video else None
+            EpisodeVideoRecorder(output_dir=out, filename=filename_stem + ".mp4", fps=fps) if record_video else None
         )
-        self._data_dir = out if data else None
+        self._data_dir = out if record_step else None
         self._data_filename = filename_stem + ".jsonl"
         self._data_fh: Any | None = None
         self._data_working: Path | None = None

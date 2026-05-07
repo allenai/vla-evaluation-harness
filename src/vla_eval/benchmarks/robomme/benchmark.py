@@ -188,13 +188,17 @@ class RoboMMEBenchmark(StepBenchmark):
         self.send_subgoal = send_subgoal
         self.subgoal_mode = subgoal_mode
         rec = RecordingConfig(**recording) if recording else None
-        if rec and rec.fields:
-            unknown = set(rec.fields) - self._ALL_RECORD_FIELDS
+        if rec and rec.step_fields:
+            unknown = set(rec.step_fields) - self._ALL_RECORD_FIELDS
             if unknown:
-                raise ValueError(f"Unknown record fields: {unknown}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
-        self._record_fields: set[str] = set(rec.fields) if rec and rec.fields else set(self._ALL_RECORD_FIELDS)
+                raise ValueError(f"Unknown step_fields: {unknown}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
+        self._record_fields: set[str] = (
+            set(rec.step_fields) if rec and rec.step_fields else set(self._ALL_RECORD_FIELDS)
+        )
         self._recorder: EpisodeRecorder | None = (
-            EpisodeRecorder(output_dir=rec.dir, video=rec.video, data=rec.data) if rec else None
+            EpisodeRecorder(output_dir=rec.output_dir, record_video=rec.record_video, record_step=rec.record_step)
+            if rec
+            else None
         )
         self._step_counter: int = 0
 
