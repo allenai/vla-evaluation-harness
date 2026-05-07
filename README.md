@@ -18,6 +18,11 @@
 
 **One framework to evaluate any VLA model on any robot simulation benchmark.**
 
+### Latest News
+
+- **[2026-05] v0.2.0 (upcoming)** -- SimplerEnv Variant Aggregation (VA) evaluation (#60), BEHAVIOR-1K benchmark (#57), LIBERO-Plus perturbation evaluation (#47), VLANeXt model server ([#34](https://github.com/allenai/vla-evaluation-harness/pull/34), [@hiteshK03](https://github.com/hiteshK03)), `vla-eval data fetch` CLI (#58), config directory restructuring with per-benchmark/model README docs (#61-#63), X-VLA Google Robot reproduction (VM 100%, VA 80.8%)
+- **[2026-04] [v0.1.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.1.0)** -- First stable release. 6 VLA models reproduced across LIBERO/CALVIN/SimplerEnv. DimSpec convention validation, batch parallel evaluation (47x throughput), RoboMME benchmark, [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) launch (1,885 models x 18 benchmarks)
+
 ### Why vla-evaluation-harness?
 
 | | |
