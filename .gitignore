@@ -48,3 +48,4 @@ src/vla_eval/_version.py
 
 # Leaderboard local cache (extract.py / refine.py working files)
 leaderboard/.cache/
+experiments/
