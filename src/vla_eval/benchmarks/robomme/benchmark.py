@@ -17,7 +17,7 @@ from typing import Any, Literal
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.benchmarks.recording import EpisodeVideoRecorder
+from vla_eval.benchmarks.data_recording import EpisodeRecorder
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -122,6 +122,8 @@ _DEFAULT_TASK_LIST = [
 
 
 class RoboMMEBenchmark(StepBenchmark):
+    _ALL_RECORD_FIELDS = frozenset({"gt_subgoal", "grounded_subgoal", "reward", "robot_state", "terminated"})
+
     """RoboMME (Memory-Augmented Manipulation Evaluation) benchmark.
 
     16 tasks across 4 cognitive suites (Counting, Permanence, Reference,
@@ -177,8 +179,10 @@ class RoboMMEBenchmark(StepBenchmark):
         send_video_history: bool = True,
         send_subgoal: bool = False,
         subgoal_mode: Literal["grounded", "simple"] = "grounded",
-        save_episode_video: bool = False,
-        video_dir: str | None = None,
+        record_dir: str | None = None,
+        record_video: bool = True,
+        record_data: bool = True,
+        record_fields: list[str] | None = None,
     ) -> None:
         super().__init__()
         if subgoal_mode not in ("grounded", "simple"):
@@ -192,16 +196,15 @@ class RoboMMEBenchmark(StepBenchmark):
         self.send_video_history = send_video_history
         self.send_subgoal = send_subgoal
         self.subgoal_mode = subgoal_mode
-        self._recorder: EpisodeVideoRecorder | None = (
-            EpisodeVideoRecorder(
-                output_dir=video_dir or "/workspace/results/videos",
-                # Zero-padded `episode_idx` so files alpha-sort numerically.
-                filename="{env_id}_ep{episode_idx:04d}_{status}.mp4",
-                fps=20,
-            )
-            if save_episode_video
-            else None
+        if record_fields is not None:
+            unknown = set(record_fields) - self._ALL_RECORD_FIELDS
+            if unknown:
+                raise ValueError(f"Unknown record_fields: {unknown}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
+        self._record_fields: set[str] = set(record_fields) if record_fields else set(self._ALL_RECORD_FIELDS)
+        self._recorder: EpisodeRecorder | None = (
+            EpisodeRecorder(output_dir=record_dir, video=record_video, data=record_data) if record_dir else None
         )
+        self._step_counter: int = 0
 
         self._env: Any = None
         self._task: Task | None = None
@@ -404,7 +407,8 @@ class RoboMMEBenchmark(StepBenchmark):
             self._recorder.start({"env_id": task["env_id"], "episode_idx": episode_idx})
             front_list = obs_batch.get("front_rgb_list", [])
             if front_list:
-                self._recorder.record(front_list[-1])
+                self._recorder.record_frame(front_list[-1])
+        self._step_counter = 0
 
         return obs_batch
 
@@ -426,15 +430,30 @@ class RoboMMEBenchmark(StepBenchmark):
         if self._recorder is not None and obs:
             front_list = obs.get("front_rgb_list", [])
             if front_list:
-                # imageio's ffmpeg writer copies via tobytes() before piping,
-                # so passing the raw (potentially reused) ManiSkill buffer is fine.
-                self._recorder.record(front_list[-1])
+                self._recorder.record_frame(front_list[-1])
 
-        # Cast potential torch scalars
         terminated = bool(terminated)
         truncated = bool(truncated)
         reward = float(reward)
         done = terminated or truncated or info.get("status") == "error"
+
+        if self._recorder is not None and self._recorder.active:
+            fields = self._record_fields
+            row: dict[str, Any] = {"step": self._step_counter}
+            if "gt_subgoal" in fields:
+                row["gt_subgoal"] = info.get("simple_subgoal_online", "")
+            if "grounded_subgoal" in fields:
+                row["grounded_subgoal"] = info.get("grounded_subgoal_online", "")
+            if "reward" in fields:
+                row["reward"] = reward
+            if "robot_state" in fields and obs:
+                state = obs.get("state_fq")
+                if state is not None:
+                    row["robot_state"] = state.tolist() if hasattr(state, "tolist") else list(state)
+            if "terminated" in fields:
+                row["terminated"] = terminated
+            self._recorder.record_data(row)
+        self._step_counter += 1
 
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
@@ -499,8 +518,9 @@ class RoboMMEBenchmark(StepBenchmark):
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
         success = step_result.info.get("status") == "success"
+        status = "success" if success else "fail"
         if self._recorder is not None:
-            self._recorder.save(status="success" if success else "fail")
+            self._recorder.save(status=status)
         return {"success": success}
 
     def get_metadata(self) -> dict[str, Any]:
