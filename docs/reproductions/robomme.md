@@ -31,7 +31,7 @@ Reported scores are averages over 9 runs (3 checkpoints × 3 seeds, 50 episodes/
 |---|---|
 | **Checkpoint** | [`Yinpei/pi05_baseline`](https://huggingface.co/Yinpei/pi05_baseline) |
 | **Server config** | [`configs/model_servers/mme_vla/pi05_baseline.yaml`](../../configs/model_servers/mme_vla/pi05_baseline.yaml) |
-| **Benchmark config** | [`configs/robomme_counting.yaml`](../../configs/robomme_counting.yaml) |
+| **Benchmark config** | [`configs/benchmarks/robomme/counting.yaml`](../../configs/benchmarks/robomme/counting.yaml) |
 | **Results** | [`results/robomme-pi05-baseline/`](../../results/robomme-pi05-baseline/) |
 
 Counting suite: 4 tasks × 50 episodes = 200 total. No memory — ignores conditioning video.
@@ -53,7 +53,7 @@ Difference (+2.8pp) is not statistically significant (z=0.94, p=0.348). Reproduc
 |---|---|
 | **Checkpoint** | [`Yinpei/mme_vla_suite/perceptual-framesamp-modul`](https://huggingface.co/Yinpei/mme_vla_suite) |
 | **Server config** | [`configs/model_servers/mme_vla/framesamp_modul.yaml`](../../configs/model_servers/mme_vla/framesamp_modul.yaml) |
-| **Benchmark config** | [`configs/robomme_eval.yaml`](../../configs/robomme_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/robomme/eval.yaml`](../../configs/benchmarks/robomme/eval.yaml) |
 | **Results** | `data/mme-vla-robomme/` (pending) |
 
 Uses conditioning video via `add_buffer` to populate perceptual memory before inference.

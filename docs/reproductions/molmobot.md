@@ -26,7 +26,7 @@ Paper numbers from [MolmoBot Table 6](https://arxiv.org/abs/2603.16861), MolmoBo
 |---|---|
 | **Model** | [`allenai/MolmoBot-DROID`](https://huggingface.co/allenai/MolmoBot-DROID) (Molmo2-4B + DiT, n_obs_steps=2) |
 | **Server config** | [`configs/model_servers/molmobot/droid.yaml`](../../configs/model_servers/molmobot/droid.yaml) |
-| **Benchmark config** | [`configs/molmospaces_pick_and_place.yaml`](../../configs/molmospaces_pick_and_place.yaml) |
+| **Benchmark config** | [`configs/benchmarks/molmospaces/pick_and_place.yaml`](../../configs/benchmarks/molmospaces/pick_and_place.yaml) |
 | **Benchmark source** | `procthor-objaverse/FrankaPickandPlaceHardBench/FrankaPickandPlaceHardBench_20260212_200ep_json_benchmark` |
 | **Eval config (molmo_spaces)** | `olmo.eval.configure_molmo_spaces:FrankaState8ClampAbsPosConfig` |
 | **Results** | [`data/molmobot-molmospaces/pick_and_place_procthor_objaverse.json`](data/molmobot-molmospaces/pick_and_place_procthor_objaverse.json) |

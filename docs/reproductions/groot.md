@@ -20,7 +20,7 @@ NVIDIA's generalist robot foundation model. [GitHub](https://github.com/NVIDIA/I
 |---|---|
 | **Checkpoint** | `0xAnkitSingh/GR00T-N1.6-LIBERO` (community) |
 | **Server config** | [`configs/model_servers/groot/libero.yaml`](../../configs/model_servers/groot/libero.yaml) |
-| **Benchmark config** | [`configs/libero_all.yaml`](../../configs/libero_all.yaml) |
+| **Benchmark config** | [`configs/benchmarks/libero/all.yaml`](../../configs/benchmarks/libero/all.yaml) |
 | **Results** | [`data/groot-libero/`](data/groot-libero/) |
 
 | Suite | Reproduced | Reported |
@@ -39,7 +39,7 @@ NVIDIA's generalist robot foundation model. [GitHub](https://github.com/NVIDIA/I
 |---|---|
 | **Checkpoint** | `nvidia/GR00T-N1.6-bridge` (official NVIDIA) |
 | **Server config** | [`configs/model_servers/groot/simpler_widowx.yaml`](../../configs/model_servers/groot/simpler_widowx.yaml) |
-| **Benchmark config** | [`configs/simpler_all_tasks_groot.yaml`](../../configs/simpler_all_tasks_groot.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm_groot.yaml`](../../configs/benchmarks/simpler/widowx_vm_groot.yaml) |
 | **Docker image** | `simpler-groot` (base simpler + eef_pos patch) |
 | **Results** | [`data/groot-simpler-widowx/`](data/groot-simpler-widowx/) (partial) |
 
@@ -67,7 +67,7 @@ State input verified identical to reference WidowXBridgeEnv (diff < 1e-15).
 |---|---|
 | **Checkpoint** | `nvidia/GR00T-N1.6-fractal` (official NVIDIA) |
 | **Server config** | [`configs/model_servers/groot/simpler_google_robot.yaml`](../../configs/model_servers/groot/simpler_google_robot.yaml) |
-| **Benchmark config** | [`configs/simpler_google_robot_tasks.yaml`](../../configs/simpler_google_robot_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/google_robot_vm.yaml`](../../configs/benchmarks/simpler/google_robot_vm.yaml) |
 | **Docker image** | `simpler-groot` (base simpler + eef_pos patch) |
 | **Results** | [`data/groot-simpler-google/`](data/groot-simpler-google/) |
 

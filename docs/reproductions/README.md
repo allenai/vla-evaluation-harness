@@ -31,20 +31,22 @@ SE = SimplerEnv. SE GR = Google Robot VM.
 
 ## Other Benchmarks
 
-| Codebase | Model | RoboTwin | RoboMME | ManiSkill2 | Kinetix | VLABench | MolmoSpaces-Bench |
-|----------|-------|:--------:|:-------:|:----------:|:-------:|:--------:|:-----------------:|
-| [2toinf/X-VLA](https://github.com/2toinf/X-VLA) | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜<br>[70/39%](https://huggingface.co/2toINF/X-VLA-WidowX) | · | · | · | ⬜<br>51.1% | · |
-| [Dexmal/dexbotic](https://github.com/Dexmal/dexbotic) | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ⬜<br>[58.5%](https://huggingface.co/Dexmal/robotwin-db-cogact) | · | ⬜<br>[58%](https://huggingface.co/Dexmal/maniskill2-db-cogact) | · | · | · |
-| | [DB-π₀](https://arxiv.org/abs/2510.23511) | · | · | ⬜<br>[65%](https://huggingface.co/Dexmal/maniskill2-db-pi0) | · | · | · |
-| | [DB-OFT](https://arxiv.org/abs/2510.23511) | · | · | ⬜<br>[63%](https://huggingface.co/Dexmal/maniskill2-db-oft) | · | · | · |
-| [starVLA/starVLA](https://github.com/starVLA/starVLA) | Qwen3-OFT | ⬜<br>[50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | · | · | · | · | · |
-| [Physical-Intelligence/rtc](https://github.com/Physical-Intelligence/real-time-chunking-kinetix) | [RTC](https://arxiv.org/abs/2506.07339) | · | · | · | ⬜ ckpt | · | · |
-| [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning) | [MME-VLA π₀.5](https://arxiv.org/abs/2603.04639) | · | ✅<br>**25.5%** / [22.7%](https://huggingface.co/Yinpei/pi05_baseline)¹ | · | · | · | · |
-| | [MME-VLA FrameSamp](https://arxiv.org/abs/2603.04639) | · | ⬜<br>[44.5%](https://huggingface.co/Yinpei/mme_vla_suite) | · | · | · | · |
-| [allenai/MolmoBot](https://github.com/allenai/MolmoBot) | [MolmoBot (F=2)](https://arxiv.org/abs/2603.16861) | · | · | · | · | · | ✅<br>**57.0%** / [57.7%](https://huggingface.co/allenai/MolmoBot-DROID)² |
+| Benchmark | Model | Reproduced | Reported | Details |
+|-----------|-------|:----------:|:--------:|---------|
+| RoboTwin | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜ | [70/39%](https://huggingface.co/2toINF/X-VLA-WidowX) | [xvla.md](xvla.md) |
+| RoboTwin | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ⬜ | [58.5%](https://huggingface.co/Dexmal/robotwin-db-cogact) | [dexbotic.md](dexbotic.md) |
+| RoboTwin | starVLA Qwen3-OFT | ⬜ | [50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | [starvla.md](starvla.md) |
+| RoboMME | [MME-VLA π₀.5](https://arxiv.org/abs/2603.04639) | ✅ **25.5%** | [22.7%](https://huggingface.co/Yinpei/pi05_baseline)¹ | [robomme.md](robomme.md) |
+| RoboMME | [MME-VLA FrameSamp](https://arxiv.org/abs/2603.04639) | ⬜ | [44.5%](https://huggingface.co/Yinpei/mme_vla_suite) | [robomme.md](robomme.md) |
+| ManiSkill2 | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ⬜ | [58%](https://huggingface.co/Dexmal/maniskill2-db-cogact) | [dexbotic.md](dexbotic.md) |
+| ManiSkill2 | [DB-π₀](https://arxiv.org/abs/2510.23511) | ⬜ | [65%](https://huggingface.co/Dexmal/maniskill2-db-pi0) | [dexbotic.md](dexbotic.md) |
+| ManiSkill2 | [DB-OFT](https://arxiv.org/abs/2510.23511) | ⬜ | [63%](https://huggingface.co/Dexmal/maniskill2-db-oft) | [dexbotic.md](dexbotic.md) |
+| Kinetix | [RTC](https://arxiv.org/abs/2506.07339) | ⬜ | ckpt | [rtc.md](rtc.md) |
+| VLABench | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜ | 51.1% | [xvla.md](xvla.md) |
+| MolmoSpaces-Bench | [MolmoBot (F=2)](https://arxiv.org/abs/2603.16861) | ✅ **57.0%** | [57.7%](https://huggingface.co/allenai/MolmoBot-DROID)² | [molmobot.md](molmobot.md) |
 
 ¹ Counting suite only (4/16 tasks). Full 4-suite evaluation pending.
-² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types (pick, open, close, door, navigation) and scene datasets (ithor, procthor-10k, holodeck) not yet reproduced.
+² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types not yet reproduced.
 
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 
@@ -66,6 +68,7 @@ Integrated in vla-eval: RLBench, RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBER
 - [Dexmal/dexbotic](https://github.com/Dexmal/dexbotic): [dexbotic.md](dexbotic.md)
 - [starVLA/starVLA](https://github.com/starVLA/starVLA): [starvla.md](starvla.md)
 - [RoboMME/robomme\_policy\_learning](https://github.com/RoboMME/robomme_policy_learning): [robomme.md](robomme.md)
+- [DravenALG/VLANeXt](https://github.com/DravenALG/VLANeXt): [PR #34](https://github.com/allenai/vla-evaluation-harness/pull/34)
 - [allenai/MolmoBot](https://github.com/allenai/MolmoBot): [molmobot.md](molmobot.md)
 
 ## Files

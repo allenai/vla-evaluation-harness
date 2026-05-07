@@ -15,7 +15,7 @@ Open-source VLA model. [GitHub](https://github.com/openvla/openvla) |
 |---|---|
 | **Checkpoints** | Per-suite fine-tuned (LoRA), see below |
 | **Server configs** | [`configs/model_servers/openvla/libero_*.yaml`](../../configs/model_servers/openvla/) |
-| **Benchmark configs** | [`configs/libero_spatial.yaml`](../../configs/libero_spatial.yaml), etc. |
+| **Benchmark configs** | [`configs/benchmarks/libero/spatial.yaml`](../../configs/benchmarks/libero/spatial.yaml), etc. |
 | **Results** | [`data/openvla-libero/`](data/openvla-libero/) |
 
 4 suites × 10 tasks × 50 episodes = 2000 episodes. Per-suite fine-tuned checkpoints (LoRA).

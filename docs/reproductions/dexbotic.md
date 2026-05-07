@@ -17,7 +17,7 @@ Paper: [arxiv 2510.23511](https://arxiv.org/abs/2510.23511) (DexboticVLM) / [arx
 |---|---|
 | **Checkpoint** | `Dexmal/libero-db-cogact` (official) |
 | **Server config** | [`configs/model_servers/db_cogact/libero.yaml`](../../configs/model_servers/db_cogact/libero.yaml) |
-| **Benchmark config** | [`configs/libero_all.yaml`](../../configs/libero_all.yaml) |
+| **Benchmark config** | [`configs/benchmarks/libero/all.yaml`](../../configs/benchmarks/libero/all.yaml) |
 | **Results** | [`data/dbcogact-libero/`](data/dbcogact-libero/) |
 
 4 suites × 10 tasks × 50 episodes = 2000 episodes. Seed=7.
@@ -38,7 +38,7 @@ Pipeline audit: All 18 verification items match. No discrepancies found.
 |---|---|
 | **Checkpoint** | `Dexmal/calvin-db-cogact` (official) |
 | **Server config** | [`configs/model_servers/db_cogact/calvin.yaml`](../../configs/model_servers/db_cogact/calvin.yaml) |
-| **Benchmark config** | [`configs/calvin_eval.yaml`](../../configs/calvin_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/calvin/eval.yaml`](../../configs/benchmarks/calvin/eval.yaml) |
 | **Results** | [`data/dbcogact-calvin/`](data/dbcogact-calvin/) |
 
 1000 sequences × 5 chained subtasks, max 360 steps/subtask.
@@ -60,7 +60,7 @@ Pipeline audit: All items match. No discrepancies.
 |---|---|
 | **Checkpoint** | `Dexmal/simpler-db-cogact` (official) |
 | **Server config** | [`configs/model_servers/db_cogact/simpler.yaml`](../../configs/model_servers/db_cogact/simpler.yaml) |
-| **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm.yaml`](../../configs/benchmarks/simpler/widowx_vm.yaml) |
 | **Results** | [`data/dexbotic/`](data/dexbotic/) |
 
 4 tasks × 24 episodes. `chunk_size=5` (matching reference `replan_step`).
@@ -81,7 +81,7 @@ Pipeline audit: All items match. No discrepancies.
 |---|---|
 | **Checkpoint** | `Dexmal/robotwin-db-cogact/{task}` (official, per-task) |
 | **Server config** | [`configs/model_servers/db_cogact/robotwin2.yaml`](../../configs/model_servers/db_cogact/robotwin2.yaml) |
-| **Benchmark config** | [`configs/robotwin_eval.yaml`](../../configs/robotwin_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/robotwin/eval.yaml`](../../configs/benchmarks/robotwin/eval.yaml) |
 | **Results** | — (not yet evaluated) |
 
 Status: Not yet evaluated. Pipeline verified — code-complete, config adjustments needed (test_num: 1→100, skip_expert_check: true→false).

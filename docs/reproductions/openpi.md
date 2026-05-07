@@ -17,7 +17,7 @@ Physical Intelligence's open-source VLA models. [GitHub](https://github.com/Phys
 |---|---|
 | **Checkpoint** | `s3://openpi-assets/checkpoints/pi05_libero` (official Pi0.5) |
 | **Server config** | [`configs/model_servers/pi0/libero.yaml`](../../configs/model_servers/pi0/libero.yaml) |
-| **Benchmark config** | [`configs/libero_all.yaml`](../../configs/libero_all.yaml) |
+| **Benchmark config** | [`configs/benchmarks/libero/all.yaml`](../../configs/benchmarks/libero/all.yaml) |
 | **Results** | [`data/pi05-libero/`](data/pi05-libero/) |
 
 4 suites × 10 tasks × 50 episodes. Pi0.5 fine-tuned (`pi05_libero`).

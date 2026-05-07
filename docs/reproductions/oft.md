@@ -15,7 +15,7 @@ OpenVLA with Optimized Fine-Tuning. [GitHub](https://github.com/moojink/openvla-
 |---|---|
 | **Checkpoint** | `moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10` (joint, all 4 suites) |
 | **Server configs** | [`configs/model_servers/oft/libero_joint_*.yaml`](../../configs/model_servers/oft/) |
-| **Benchmark configs** | [`configs/libero_spatial.yaml`](../../configs/libero_spatial.yaml), etc. |
+| **Benchmark configs** | [`configs/benchmarks/libero/spatial.yaml`](../../configs/benchmarks/libero/spatial.yaml), etc. |
 | **Results** | [`data/oft-libero-joint/`](data/oft-libero-joint/) |
 
 4 suites × 10 tasks × 50 episodes = 2000 episodes. Joint checkpoint (300k steps, all suites combined).

@@ -9,10 +9,10 @@
 
 | | |
 |:--|:--|
-| **Benchmarks** | [![LIBERO](https://img.shields.io/badge/LIBERO-✓-teal)](configs/libero_all.yaml) [![SimplerEnv](https://img.shields.io/badge/SimplerEnv-✓-teal)](configs/simpler_all_tasks.yaml) [![CALVIN](https://img.shields.io/badge/CALVIN-✓-teal)](configs/calvin_eval.yaml) [![ManiSkill2](https://img.shields.io/badge/ManiSkill2-◇-blue)](configs/maniskill2_eval.yaml) [![LIBERO-Pro](https://img.shields.io/badge/LIBERO--Pro-◇-blue)](configs/libero_pro_eval.yaml) [![LIBERO-Plus](https://img.shields.io/badge/LIBERO--Plus-✓-teal)](configs/libero_plus_spatial.yaml) [![RoboCasa](https://img.shields.io/badge/RoboCasa-◇-blue)](configs/robocasa_eval.yaml) [![VLABench](https://img.shields.io/badge/VLABench-◇-blue)](configs/vlabench_eval.yaml) [![MIKASA-Robo](https://img.shields.io/badge/MIKASA--Robo-◇-blue)](configs/mikasa_eval.yaml) [![RoboTwin](https://img.shields.io/badge/RoboTwin-◇-blue)](configs/robotwin_eval.yaml) [![RLBench](https://img.shields.io/badge/RLBench-◇-blue)](configs/rlbench_eval.yaml) [![RoboCerebra](https://img.shields.io/badge/RoboCerebra-◇-blue)](configs/robocerebra_eval.yaml) [![LIBERO-Mem](https://img.shields.io/badge/LIBERO--Mem-◇-blue)](configs/libero_mem.yaml) [![BEHAVIOR-1K](https://img.shields.io/badge/BEHAVIOR--1K-◇-blue)](configs/behavior1k_eval.yaml) [![Kinetix](https://img.shields.io/badge/Kinetix-◇-blue)](configs/kinetix_eval.yaml) [![RoboMME](https://img.shields.io/badge/RoboMME-✓-teal)](configs/robomme_eval.yaml) [![MolmoSpaces-Bench](https://img.shields.io/badge/MolmoSpaces--Bench-✓-teal)](configs/molmospaces_pick_and_place.yaml) ![FurnitureBench](https://img.shields.io/badge/FurnitureBench-·-lightgrey) |
-| **Models (official)** | [![OpenVLA](https://img.shields.io/badge/OpenVLA-✓-8B5CF6)](configs/model_servers/openvla.yaml) [![π₀](https://img.shields.io/badge/π₀-✓-8B5CF6)](configs/model_servers/pi0_libero.yaml) [![π₀-FAST](https://img.shields.io/badge/π₀--FAST-✓-8B5CF6)](configs/model_servers/pi0_libero.yaml) [![GR00T N1.6](https://img.shields.io/badge/GR00T_N1.6-✓-8B5CF6)](configs/model_servers/groot.yaml) [![OFT](https://img.shields.io/badge/OFT-✓-8B5CF6)](configs/model_servers/oft_libero.yaml) [![X-VLA](https://img.shields.io/badge/X--VLA-✓-8B5CF6)](configs/model_servers/xvla_libero.yaml) [![CogACT](https://img.shields.io/badge/CogACT-◇-blue)](configs/model_servers/cogact.yaml) [![RTC](https://img.shields.io/badge/RTC-◇-blue)](configs/model_servers/rtc_kinetix.yaml) [![VLANeXt](https://img.shields.io/badge/VLANeXt-✓-8B5CF6)](configs/model_servers/vlanext/libero_spatial.yaml) [![MolmoBot](https://img.shields.io/badge/MolmoBot-✓-8B5CF6)](configs/model_servers/molmobot/droid.yaml) ![MemVLA](https://img.shields.io/badge/MemVLA-·-lightgrey) |
-| **Models ([dexbotic](https://github.com/dexmal/dexbotic))** ![stars](https://img.shields.io/github/stars/dexmal/dexbotic?style=social) | [![DB-CogACT](https://img.shields.io/badge/DB--CogACT-✓-8B5CF6)](configs/model_servers/dexbotic_cogact_libero.yaml) |
-| **Models ([starVLA](https://github.com/starVLA/starVLA))** ![stars](https://img.shields.io/github/stars/starVLA/starVLA?style=social) | [![QwenGR00T](https://img.shields.io/badge/QwenGR00T-✓-8B5CF6)](configs/model_servers/starvla_groot_simpler.yaml) [![QwenOFT](https://img.shields.io/badge/QwenOFT-✓-8B5CF6)](configs/model_servers/starvla_oft_simpler.yaml) [![QwenPI](https://img.shields.io/badge/QwenPI-◇-blue)](configs/model_servers/starvla_pi_simpler.yaml) [![QwenFAST](https://img.shields.io/badge/QwenFAST-✓-8B5CF6)](configs/model_servers/starvla_fast_simpler.yaml) |
+| **Benchmarks** | [![LIBERO](https://img.shields.io/badge/LIBERO-✓-teal)](configs/benchmarks/libero/) [![SimplerEnv](https://img.shields.io/badge/SimplerEnv-✓-teal)](configs/benchmarks/simpler/) [![CALVIN](https://img.shields.io/badge/CALVIN-✓-teal)](configs/benchmarks/calvin/) [![ManiSkill2](https://img.shields.io/badge/ManiSkill2-◇-blue)](configs/benchmarks/maniskill2/) [![LIBERO-Pro](https://img.shields.io/badge/LIBERO--Pro-◇-blue)](configs/benchmarks/libero_pro/) [![LIBERO-Plus](https://img.shields.io/badge/LIBERO--Plus-✓-teal)](configs/benchmarks/libero_plus/) [![RoboCasa](https://img.shields.io/badge/RoboCasa-◇-blue)](configs/benchmarks/robocasa/) [![VLABench](https://img.shields.io/badge/VLABench-◇-blue)](configs/benchmarks/vlabench/) [![MIKASA-Robo](https://img.shields.io/badge/MIKASA--Robo-◇-blue)](configs/benchmarks/mikasa/) [![RoboTwin](https://img.shields.io/badge/RoboTwin-◇-blue)](configs/benchmarks/robotwin/) [![RLBench](https://img.shields.io/badge/RLBench-◇-blue)](configs/benchmarks/rlbench/) [![RoboCerebra](https://img.shields.io/badge/RoboCerebra-◇-blue)](configs/benchmarks/robocerebra/) [![LIBERO-Mem](https://img.shields.io/badge/LIBERO--Mem-◇-blue)](configs/benchmarks/libero_mem/) [![BEHAVIOR-1K](https://img.shields.io/badge/BEHAVIOR--1K-◇-blue)](configs/benchmarks/behavior1k/) [![Kinetix](https://img.shields.io/badge/Kinetix-◇-blue)](configs/benchmarks/kinetix/) [![RoboMME](https://img.shields.io/badge/RoboMME-✓-teal)](configs/benchmarks/robomme/) [![MolmoSpaces-Bench](https://img.shields.io/badge/MolmoSpaces--Bench-✓-teal)](configs/benchmarks/molmospaces/) ![FurnitureBench](https://img.shields.io/badge/FurnitureBench-·-lightgrey) |
+| **Models (official)** | [![OpenVLA](https://img.shields.io/badge/OpenVLA-✓-8B5CF6)](configs/model_servers/openvla/) [![π₀](https://img.shields.io/badge/π₀-✓-8B5CF6)](configs/model_servers/pi0/) [![π₀-FAST](https://img.shields.io/badge/π₀--FAST-✓-8B5CF6)](configs/model_servers/pi0/) [![GR00T N1.6](https://img.shields.io/badge/GR00T_N1.6-✓-8B5CF6)](configs/model_servers/groot/) [![OFT](https://img.shields.io/badge/OFT-✓-8B5CF6)](configs/model_servers/oft/) [![X-VLA](https://img.shields.io/badge/X--VLA-✓-8B5CF6)](configs/model_servers/xvla/) [![CogACT](https://img.shields.io/badge/CogACT-◇-blue)](configs/model_servers/cogact/) [![RTC](https://img.shields.io/badge/RTC-◇-blue)](configs/model_servers/rtc/) [![VLANeXt](https://img.shields.io/badge/VLANeXt-✓-8B5CF6)](configs/model_servers/vlanext/) [![MolmoBot](https://img.shields.io/badge/MolmoBot-✓-8B5CF6)](configs/model_servers/molmobot/) ![MemVLA](https://img.shields.io/badge/MemVLA-·-lightgrey) |
+| **Models ([dexbotic](https://github.com/dexmal/dexbotic))** ![stars](https://img.shields.io/github/stars/dexmal/dexbotic?style=social) | [![DB-CogACT](https://img.shields.io/badge/DB--CogACT-✓-8B5CF6)](configs/model_servers/db_cogact/) |
+| **Models ([starVLA](https://github.com/starVLA/starVLA))** ![stars](https://img.shields.io/github/stars/starVLA/starVLA?style=social) | [![QwenGR00T](https://img.shields.io/badge/QwenGR00T-✓-8B5CF6)](configs/model_servers/starvla/) [![QwenOFT](https://img.shields.io/badge/QwenOFT-✓-8B5CF6)](configs/model_servers/starvla/) [![QwenPI](https://img.shields.io/badge/QwenPI-◇-blue)](configs/model_servers/starvla/) [![QwenFAST](https://img.shields.io/badge/QwenFAST-✓-8B5CF6)](configs/model_servers/starvla/) |
 
 <sub>✓ [reproduced](docs/reproductions/)  |  ◇ integrated, awaiting first reproduction  |  · planned</sub>
 
@@ -66,10 +66,10 @@ Two terminals: one for the model server (GPU), one for the benchmark client.
 
 ```bash
 # Terminal 1 — model server (runs on host with GPU)
-vla-eval serve --config configs/model_servers/dexbotic_cogact_libero.yaml
+vla-eval serve --config configs/model_servers/db_cogact/libero.yaml
 
 # Terminal 2 — run evaluation (benchmark runs in Docker by default)
-vla-eval run --config configs/libero_smoke_test.yaml
+vla-eval run --config configs/benchmarks/libero/smoke_test.yaml
 ```
 
 Results are saved to `results/` as JSON. The benchmark runs inside Docker by default — pass `--no-docker` for local development.
@@ -79,7 +79,7 @@ Results are saved to `results/` as JSON. The benchmark runs inside Docker by def
 For full evaluation (10 tasks × 50 episodes):
 
 ```bash
-vla-eval run --config configs/libero_spatial.yaml
+vla-eval run --config configs/benchmarks/libero/spatial.yaml
 ```
 
 See [Reproduction Reports](docs/reproductions/) for verified scores and per-model details.
@@ -102,14 +102,14 @@ A full evaluation takes hours sequentially. Two layers of parallelism bring this
 
 ```bash
 # Option A: use the helper script (launches all shards + auto-merges)
-./scripts/run_sharded.sh -c configs/libero_spatial.yaml -n 50
+./scripts/run_sharded.sh -c configs/benchmarks/libero/spatial.yaml -n 50
 
 # Option B: manual launch
-vla-eval run -c configs/libero_spatial.yaml --shard-id 0 --num-shards 4 &
-vla-eval run -c configs/libero_spatial.yaml --shard-id 1 --num-shards 4 &
+vla-eval run -c configs/benchmarks/libero/spatial.yaml --shard-id 0 --num-shards 4 &
+vla-eval run -c configs/benchmarks/libero/spatial.yaml --shard-id 1 --num-shards 4 &
 # ... (each shard is a separate process)
 wait
-vla-eval merge -c configs/libero_spatial.yaml -o results/libero_spatial.json
+vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
 ```
 
 Each shard gets a deterministic slice via round-robin. Results merge with episode-level deduplication — if a shard fails, re-run only that shard.

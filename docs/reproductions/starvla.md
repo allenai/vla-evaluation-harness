@@ -20,7 +20,7 @@ No formal paper. Results from README + assets.
 |---|---|
 | **Checkpoint** | `StarVLA/Qwen3-VL-OFT-LIBERO-4in1` (official) |
 | **Server config** | [`configs/model_servers/starvla/libero_qwen3_oft.yaml`](../../configs/model_servers/starvla/libero_qwen3_oft.yaml) |
-| **Benchmark config** | [`configs/libero_spatial.yaml`](../../configs/libero_spatial.yaml) |
+| **Benchmark config** | [`configs/benchmarks/libero/spatial.yaml`](../../configs/benchmarks/libero/spatial.yaml) |
 | **Results** | [`data/starvla-libero/`](data/starvla-libero/) |
 
 10 tasks x 50 episodes. `unnorm_type: minmax`, `send_wrist_image: true`.
@@ -49,7 +49,7 @@ Within binomial 95% CI (±1.9pp).
 |---|---|
 | **Checkpoint** | `StarVLA/Qwen3VL-GR00T-Bridge-RT-1` (official) |
 | **Server config** | [`configs/model_servers/starvla/groot_qwen3_simpler.yaml`](../../configs/model_servers/starvla/groot_qwen3_simpler.yaml) |
-| **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm.yaml`](../../configs/benchmarks/simpler/widowx_vm.yaml) |
 | **Results** | [`data/starvla/`](data/starvla/) |
 
 4 tasks x 24 episodes. Adaptive ensemble (horizon=7, alpha=0.1). Euler-to-axisangle conversion.
@@ -68,7 +68,7 @@ Within binomial 95% CI (±1.9pp).
 |---|---|
 | **Checkpoint** | `StarVLA/Qwen-FAST-Bridge-RT-1` (official) |
 | **Server config** | [`configs/model_servers/starvla/fast_simpler.yaml`](../../configs/model_servers/starvla/fast_simpler.yaml) |
-| **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm.yaml`](../../configs/benchmarks/simpler/widowx_vm.yaml) |
 | **Results** | [`data/starvla-fast/`](data/starvla-fast/) |
 
 4 tasks x 24 episodes. Adaptive ensemble (horizon=7, alpha=0.1). Euler-to-axisangle conversion.

@@ -29,7 +29,7 @@ Thread pinning (`OMP_NUM_THREADS=1`) prevents cross-container contention — wit
 Override via CLI flags:
 
 ```bash
-vla-eval run -c configs/libero_spatial.yaml \
+vla-eval run -c configs/benchmarks/libero/spatial.yaml \
     --num-shards 16 \
     --gpus 0,1 \        # only use GPU 0 and 1 for rendering
     --cpus 0-31          # only use cores 0-31
@@ -49,7 +49,7 @@ docker:
 
 ```bash
 uv run python experiments/bench_demand.py \
-    --config configs/libero_spatial.yaml \
+    --config configs/benchmarks/libero/spatial.yaml \
     --chunk-size 12 \
     --shards 1,2,4,8
 ```
@@ -210,7 +210,7 @@ These are linear estimates (μ ≈ inf/s × C). Actual supply may differ — run
 
 ```bash
 uv run python experiments/bench_demand.py \
-    --config configs/libero_spatial.yaml \
+    --config configs/benchmarks/libero/spatial.yaml \
     --shards 1,8,16,24,32,50,64,80,100 \
     --episodes-per-shard 5 \
     --gpu 0
@@ -257,7 +257,7 @@ CALVIN uses PyBullet with GPU EGL rendering (like LIBERO). Physics is CPU but im
 
 ```bash
 uv run python experiments/bench_demand.py \
-    --config configs/calvin_eval.yaml \
+    --config configs/benchmarks/calvin/eval.yaml \
     --shards 1,4,8,16,24,32 \
     --episodes-per-shard 3 \
     --timeout 300
@@ -303,7 +303,7 @@ SimplerEnv uses SAPIEN/Vulkan GPU rendering on the benchmark host. Multiple shar
 
 ```bash
 uv run python experiments/bench_demand.py \
-    --config configs/simpler_all_tasks.yaml \
+    --config configs/benchmarks/simpler/widowx_vm.yaml \
     --shards 1,4,8,16,24,32 \
     --episodes-per-shard 5 \
     --gpu 0 \

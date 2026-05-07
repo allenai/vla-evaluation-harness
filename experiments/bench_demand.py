@@ -15,7 +15,7 @@ Prerequisites:
 
 Usage:
     uv run python experiments/bench_demand.py \
-        --config configs/libero_spatial.yaml \
+        --config configs/benchmarks/libero/spatial.yaml \
         --shards 1,8,16,24,32,48 \
         --episodes-per-shard 10
 """

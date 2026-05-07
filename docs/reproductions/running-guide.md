@@ -37,7 +37,7 @@ curl -s --max-time 2 "http://GPU-NODE:8001/config"
 # 4. Run sharded evaluation
 SHARDS=10  NODE=GPU-NODE  MODEL=xvla
 for i in $(seq 0 $((SHARDS-1))); do
-  uv run vla-eval run -c configs/libero_all.yaml \
+  uv run vla-eval run -c configs/benchmarks/libero/all.yaml \
     --server-url ws://${NODE}:8001 \
     --shard-id $i --num-shards $SHARDS --yes &
 done
@@ -125,10 +125,10 @@ Median CPU/GPU utilization during steady-state (startup transients excluded).
 
 | Benchmark | Rendering | Per-shard obs/s | Peak λ (obs/s) | Peak N | Bottleneck | 2 GPU effect | Rec. GPUs |
 |-----------|-----------|:---------------:|:--------------:|:------:|:----------:|:------------:|:---------:|
-| [LIBERO](../../configs/libero_spatial.yaml) | GPU EGL (MuJoCo) | ~7.3 | 415 | 50 | CPU (52%) | No change | 1 |
-| [CALVIN](../../configs/calvin_eval.yaml) | GPU EGL (PyBullet) | ~36.7 | 407 | 24 | CPU (93%) | No change | 1 |
-| [SimplerEnv](../../configs/simpler_all_tasks.yaml) | GPU (SAPIEN/Vulkan) | ~10.1 | 138 | 24 | GPU (43%) | Worse (overhead) | 1 |
-| [RoboTwin](../../configs/robotwin_eval.yaml) | GPU | TBD | 4.9 | 16 | GPU (100%) | 2× improvement | 2 |
+| [LIBERO](../../configs/benchmarks/libero/spatial.yaml) | GPU EGL (MuJoCo) | ~7.3 | 415 | 50 | CPU (52%) | No change | 1 |
+| [CALVIN](../../configs/benchmarks/calvin/eval.yaml) | GPU EGL (PyBullet) | ~36.7 | 407 | 24 | CPU (93%) | No change | 1 |
+| [SimplerEnv](../../configs/benchmarks/simpler/widowx_vm.yaml) | GPU (SAPIEN/Vulkan) | ~10.1 | 138 | 24 | GPU (43%) | Worse (overhead) | 1 |
+| [RoboTwin](../../configs/benchmarks/robotwin/eval.yaml) | GPU | TBD | 4.9 | 16 | GPU (100%) | 2× improvement | 2 |
 
 <details>
 <summary>LIBERO Spatial — λ(N) sweep</summary>

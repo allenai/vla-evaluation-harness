@@ -129,7 +129,7 @@ uv run --script src/vla_eval/model_servers/behavior1k_baseline.py \
 #    point — see vla_eval.dirs).  Subsequent runs reuse the cache.
 #    --gpus 0 pins the container to a single A100; multi-GPU triggers
 #    Isaac Sim's "Multiple ICDs" instability.
-uv run vla-eval run -c configs/behavior1k_eval.yaml \
+uv run vla-eval run -c configs/benchmarks/behavior1k/eval.yaml \
     --server-url ws://127.0.0.1:8765 \
     --output-dir results/behavior1k_baseline \
     --accept-license behavior-dataset-tos \
@@ -153,7 +153,7 @@ can't be answered.
 2. Drop `max_steps` from `params:` (or raise to 5000) so the BehaviorTask
    has enough time to be solved.
 3. Run all 50 tasks × 10 instances:
-   `vla-eval run -c configs/behavior1k_eval.yaml`.
+   `vla-eval run -c configs/benchmarks/behavior1k/eval.yaml`.
 4. Score the output JSONs through
    `omnigibson.learning.utils.score_utils.compute_final_q_score`.
 
@@ -161,7 +161,7 @@ can't be answered.
 
 | | |
 |---|---|
-| **Benchmark config** | [`configs/behavior1k_eval.yaml`](../../configs/behavior1k_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/behavior1k/eval.yaml`](../../configs/benchmarks/behavior1k/eval.yaml) |
 | **Server config (zero-action)** | [`configs/model_servers/behavior1k/baseline.yaml`](../../configs/model_servers/behavior1k/baseline.yaml) |
 | **Docker image** | `ghcr.io/allenai/vla-evaluation-harness/behavior1k:latest` (Dockerfile.behavior1k) |
 | **Results** | [`data/behavior1k_baseline_zero_action_turning_on_radio.json`](data/behavior1k_baseline_zero_action_turning_on_radio.json) |
@@ -193,7 +193,7 @@ can't be answered.
    `TASK_NAMES_TO_INDICES` has 50 tasks; `ROBOT_CAMERA_NAMES["R1Pro"]`
    matches the hardcoded `R1PRO_CAMERAS` in the benchmark byte-for-byte;
    `DISABLED_TRANSITION_RULES` has 3 rule classes.
-6. **End-to-end smoke** (`vla-eval test -c configs/behavior1k_eval.yaml`):
+6. **End-to-end smoke** (`vla-eval test -c configs/benchmarks/behavior1k/eval.yaml`):
    **passed** in 30.4 s.  EchoModelServer starts on a free port, the
    container connects, HELLO is exchanged.  Without the dataset mounted
    the benchmark cannot finish an episode (`og.Environment(configs=cfg)`

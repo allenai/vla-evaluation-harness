@@ -150,7 +150,7 @@ Key metrics:
 
 Override `output_dir` with `--output-dir`:
 ```bash
-vla-eval run -c configs/libero_spatial.yaml --output-dir results/my-experiment/
+vla-eval run -c configs/benchmarks/libero/spatial.yaml --output-dir results/my-experiment/
 ```
 Default is `./results/` (from config YAML). The CLI flag takes precedence over the config value.
 

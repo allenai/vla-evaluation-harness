@@ -22,7 +22,7 @@ Cross-embodiment VLA with soft prompts. [GitHub](https://github.com/2toinf/X-VLA
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-Libero` (official, shared weights) |
 | **Server config** | [`configs/model_servers/xvla/libero.yaml`](../../configs/model_servers/xvla/libero.yaml) |
-| **Benchmark config** | [`configs/libero_all.yaml`](../../configs/libero_all.yaml) |
+| **Benchmark config** | [`configs/benchmarks/libero/all.yaml`](../../configs/benchmarks/libero/all.yaml) |
 | **Results** | [`data/xvla-libero/`](data/xvla-libero/) |
 
 4 suites × 10 tasks × 50 episodes. Shared weights (single model, all suites).
@@ -47,7 +47,7 @@ Pipeline audit: All 18 items match. No discrepancies.
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-Calvin-ABC_D` (official) |
 | **Server config** | [`configs/model_servers/xvla/calvin.yaml`](../../configs/model_servers/xvla/calvin.yaml) |
-| **Benchmark config** | [`configs/calvin_eval.yaml`](../../configs/calvin_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/calvin/eval.yaml`](../../configs/benchmarks/calvin/eval.yaml) |
 | **Results** | [`data/xvla-calvin/`](data/xvla-calvin/) |
 
 1000 sequences × 5 chained subtasks.
@@ -79,7 +79,7 @@ See [common-pitfalls.md](common-pitfalls.md) for detailed patterns.
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-WidowX` (official) |
 | **Server config** | [`configs/model_servers/xvla/simpler_widowx.yaml`](../../configs/model_servers/xvla/simpler_widowx.yaml) |
-| **Benchmark config** | [`configs/simpler_all_tasks.yaml`](../../configs/simpler_all_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm.yaml`](../../configs/benchmarks/simpler/widowx_vm.yaml) |
 | **Results** | [`data/xvla-simpler/`](data/xvla-simpler/) |
 
 4 tasks × 24 episodes. Requires [patched ManiSkill2](https://github.com/255isWhite/SimplerEnv) for absolute EE control + sink camera alignment.
@@ -107,7 +107,7 @@ Pipeline audit: 7 discrepancies found and fixed:
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-Google-Robot` (official) |
 | **Server config** | [`configs/model_servers/xvla/simpler_google_robot.yaml`](../../configs/model_servers/xvla/simpler_google_robot.yaml) |
-| **Benchmark config** | [`configs/simpler_google_robot_tasks.yaml`](../../configs/simpler_google_robot_tasks.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/google_robot_vm.yaml`](../../configs/benchmarks/simpler/google_robot_vm.yaml) |
 | **Docker image** | `simpler-xvla` (absolute EE controller required) |
 
 24 episodes. `chunk_size: 10`, `euler_offset: 0,0,0`, `max_episode_steps: 160`,
@@ -135,7 +135,7 @@ Pipeline audit: 9 discrepancies found and fixed:
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-Google-Robot` (official) |
 | **Server config** | [`configs/model_servers/xvla/simpler_google_robot.yaml`](../../configs/model_servers/xvla/simpler_google_robot.yaml) |
-| **Benchmark config** | [`configs/simpler_google_robot_move_near_va.yaml`](../../configs/simpler_google_robot_move_near_va.yaml) |
+| **Benchmark config** | [`configs/benchmarks/simpler/google_robot_move_near_va.yaml`](../../configs/benchmarks/simpler/google_robot_move_near_va.yaml) |
 | **Docker image** | `simpler-xvla` (absolute EE controller required) |
 
 600 episodes (10 visual variants × 60 episodes). Same server/model config as VM.
@@ -167,7 +167,7 @@ above.  The VA path uses `gym.make()` directly with explicit `env_name`,
 |---|---|
 | **Checkpoint** | `2toINF/X-VLA-WidowX` (official, domain_id=6) |
 | **Server config** | [`configs/model_servers/xvla/robotwin.yaml`](../../configs/model_servers/xvla/robotwin.yaml) |
-| **Benchmark config** | [`configs/robotwin_eval.yaml`](../../configs/robotwin_eval.yaml) |
+| **Benchmark config** | [`configs/benchmarks/robotwin/eval.yaml`](../../configs/benchmarks/robotwin/eval.yaml) |
 | **Results** | — (not yet evaluated) |
 
 Status: Not yet evaluated (3 BLOCKERS remain).
