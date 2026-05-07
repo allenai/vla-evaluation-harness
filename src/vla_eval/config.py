@@ -48,7 +48,7 @@ class ServerConfig:
         timeout: Seconds to wait for each server response in ``Connection.act()``.
     """
 
-    url: str = "ws://localhost:8000/ws"
+    url: str = "ws://localhost:8000"
     timeout: float = 30.0
 
     @classmethod
