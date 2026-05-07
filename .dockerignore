@@ -10,3 +10,5 @@
 !docker/*.patch
 
 !docker/apply_eef_pos_patch.py
+!docker/xvla_sink_camera.py
+!docker/xvla_google_robot_patch.py

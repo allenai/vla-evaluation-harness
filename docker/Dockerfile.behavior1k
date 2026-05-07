@@ -34,7 +34,7 @@ ENV OMNIGIBSON_HEADLESS=1 \
     PRIVACY_CONSENT=Y
 
 # ── Conda environment (Python 3.10 — required by Isaac Sim 4.5.0) ──
-RUN conda create -n behavior python=3.10 -y && conda clean -afy
+RUN conda create -n behavior python=3.10 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "behavior", "/bin/bash", "-c"]
 
 # ── Pre-reqs the v3.7.2 setup.sh enforces before installing OmniGibson ─

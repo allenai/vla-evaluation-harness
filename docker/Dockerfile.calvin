@@ -21,8 +21,8 @@ RUN git clone --recurse-submodules --depth 1 \
 # CALVIN has legacy deps (pyhash needs use_2to3 / multicoretsne needs old cmake).
 # Pin setuptools <=57 and use pip (not uv) with --no-build-isolation to avoid
 # uv's build-isolation injecting newer setuptools.
-RUN pip install --no-cache-dir "setuptools==57.5.0" \
-    && conda install -n calvin cmake=3.18 -y && conda clean -afy
+RUN conda install -n calvin cmake=3.18 -y && conda clean -afy
+RUN pip install --no-cache-dir "setuptools==57.5.0" wheel \
 RUN cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
     && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
 

@@ -27,6 +27,9 @@ done
 
 BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces behavior1k)
 
+# Derived images that extend a benchmark image instead of base
+DERIVED_BENCHMARKS=(simpler_groot simpler_xvla)
+
 # Images whose Dockerfile gates the build behind an ``ARG ACCEPT_*=YES``
 # build-arg.  Map: image-name → "<arg-name> <licence-url>".  Adding a new
 # gated image means one line here — no CLI flag changes required.
@@ -51,6 +54,14 @@ is_license_accepted() {
   return 1
 }
 
+is_derived() {
+  local n="$1"
+  for d in "${DERIVED_BENCHMARKS[@]}"; do
+    [[ "$d" == "$n" ]] && return 0
+  done
+  return 1
+}
+
 build_image() {
   local name="$1"
   local image_name="${name//_/-}"
@@ -58,7 +69,10 @@ build_image() {
   local image_tag="${REGISTRY}/${image_name}:${TAG}"
   local build_args=()
 
-  if [[ "$name" != "base" ]]; then
+  if is_derived "$name"; then
+    # Derived images use the Dockerfile's default BASE_IMAGE (e.g. simpler:latest)
+    build_args=(--build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
+  elif [[ "$name" != "base" ]]; then
     build_args=(--build-arg "BASE_IMAGE=${BASE_IMAGE}" --build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
   fi
 
@@ -81,20 +95,27 @@ build_image() {
 if [[ -n "$TARGET" ]]; then
   if [[ "$TARGET" != "base" ]]; then
     found=false
+    is_derived=false
     for b in "${BENCHMARKS[@]}"; do
       [[ "$b" == "$TARGET" ]] && found=true && break
     done
+    for b in "${DERIVED_BENCHMARKS[@]}"; do
+      [[ "$b" == "$TARGET" ]] && found=true && is_derived=true && break
+    done
     if ! $found; then
-      echo "ERROR: Unknown image '${TARGET}'. Available: base ${BENCHMARKS[*]}"
+      echo "ERROR: Unknown image '${TARGET}'. Available: base ${BENCHMARKS[*]} ${DERIVED_BENCHMARKS[*]}"
       exit 1
     fi
-    # Build base first
+    # Build base first (and parent benchmark for derived images)
     build_image base
   fi
   build_image "$TARGET"
 else
   build_image base
   for b in "${BENCHMARKS[@]}"; do
+    build_image "$b"
+  done
+  for b in "${DERIVED_BENCHMARKS[@]}"; do
     build_image "$b"
   done
 fi

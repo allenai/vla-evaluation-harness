@@ -59,7 +59,8 @@ RUN git clone --depth 1 https://github.com/RoboTwin-Platform/RoboTwin.git /app/R
 # ── Install CuRobo (motion planner, built from source) ──────────────
 # No GPU visible during build → must specify arch explicitly.
 ENV TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0+PTX"
-RUN cd /app/RoboTwin/envs \
+RUN uv pip install --no-cache-dir wheel \
+    && cd /app/RoboTwin/envs \
     && git clone --depth 1 https://github.com/NVlabs/curobo.git \
     && cd curobo \
     && uv pip install --no-cache-dir --no-build-isolation . \

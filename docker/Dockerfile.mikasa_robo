@@ -21,7 +21,7 @@ RUN uv pip install --no-cache-dir --prerelease=allow mani_skill==3.0.0b15 gymnas
 # Clone and install MIKASA-Robo
 # MIKASA-Robo's setup.py imports pkg_resources, which was removed from
 # setuptools >=70 on conda-forge. Pin setuptools <70 to restore it.
-RUN uv pip install --no-cache-dir "setuptools<70" \
+RUN uv pip install --no-cache-dir "setuptools<70" wheel \
     && git clone --depth 1 https://github.com/CognitiveAISystems/MIKASA-Robo.git /opt/MIKASA-Robo \
     && cd /opt/MIKASA-Robo \
     && uv pip install --no-cache-dir --no-build-isolation . \
