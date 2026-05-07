@@ -17,7 +17,7 @@ from typing import Any, Literal
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.benchmarks.data_recording import EpisodeRecorder
+from vla_eval.benchmarks.data_recording import EpisodeRecorder, RecordingConfig
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -122,8 +122,6 @@ _DEFAULT_TASK_LIST = [
 
 
 class RoboMMEBenchmark(StepBenchmark):
-    _ALL_RECORD_FIELDS = frozenset({"gt_subgoal", "grounded_subgoal", "reward", "robot_state", "terminated"})
-
     """RoboMME (Memory-Augmented Manipulation Evaluation) benchmark.
 
     16 tasks across 4 cognitive suites (Counting, Permanence, Reference,
@@ -156,15 +154,11 @@ class RoboMMEBenchmark(StepBenchmark):
             ``info['simple_subgoal_online']`` (no coords).  Both come from
             ``DemonstrationWrapper`` in the upstream robomme env.  ``"grounded"``
             falls back to simple if grounded is empty.
-        save_episode_video: Encode an mp4 of the agentview frames per episode
-            and write it to ``video_dir`` on episode end.  Requires
-            ``task["episode_idx"]`` to be set on each ``reset(task)`` call so
-            per-episode files don't collide.
-        video_dir: Output directory for per-episode videos.  Ignored unless
-            ``save_episode_video=True``.  Defaults to
-            ``/workspace/results/videos`` so the file lands inside the bench
-            container's standard results bind-mount.
+        recording: A ``RecordingConfig`` dict (or ``None`` to disable).
+            Controls per-episode video + JSONL data recording.
     """
+
+    _ALL_RECORD_FIELDS = frozenset({"gt_subgoal", "grounded_subgoal", "reward", "robot_state", "terminated"})
 
     _rendering_configured: bool = False
 
@@ -179,10 +173,7 @@ class RoboMMEBenchmark(StepBenchmark):
         send_video_history: bool = True,
         send_subgoal: bool = False,
         subgoal_mode: Literal["grounded", "simple"] = "grounded",
-        record_dir: str | None = None,
-        record_video: bool = True,
-        record_data: bool = True,
-        record_fields: list[str] | None = None,
+        recording: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         if subgoal_mode not in ("grounded", "simple"):
@@ -196,13 +187,14 @@ class RoboMMEBenchmark(StepBenchmark):
         self.send_video_history = send_video_history
         self.send_subgoal = send_subgoal
         self.subgoal_mode = subgoal_mode
-        if record_fields is not None:
-            unknown = set(record_fields) - self._ALL_RECORD_FIELDS
+        rec = RecordingConfig(**recording) if recording else None
+        if rec and rec.fields:
+            unknown = set(rec.fields) - self._ALL_RECORD_FIELDS
             if unknown:
-                raise ValueError(f"Unknown record_fields: {unknown}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
-        self._record_fields: set[str] = set(record_fields) if record_fields else set(self._ALL_RECORD_FIELDS)
+                raise ValueError(f"Unknown record fields: {unknown}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
+        self._record_fields: set[str] = set(rec.fields) if rec and rec.fields else set(self._ALL_RECORD_FIELDS)
         self._recorder: EpisodeRecorder | None = (
-            EpisodeRecorder(output_dir=record_dir, video=record_video, data=record_data) if record_dir else None
+            EpisodeRecorder(output_dir=rec.dir, video=rec.video, data=rec.data) if rec else None
         )
         self._step_counter: int = 0
 

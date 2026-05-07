@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -25,9 +26,20 @@ import numpy as np
 
 from vla_eval.benchmarks.recording import EpisodeVideoRecorder
 
+
+@dataclass
+class RecordingConfig:
+    """Configuration for per-episode recording, passed via benchmark YAML ``params.recording``."""
+
+    dir: str = "/workspace/results/episodes"
+    video: bool = True
+    data: bool = True
+    fields: list[str] = field(default_factory=list)
+
+
 logger = logging.getLogger(__name__)
 
-__all__ = ["EpisodeRecorder"]
+__all__ = ["EpisodeRecorder", "RecordingConfig"]
 
 
 class EpisodeRecorder:
