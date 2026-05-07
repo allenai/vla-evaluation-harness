@@ -13,7 +13,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.molmospaces.benchmark:MolmoSpacesBenchmark"
-    mode: sync
     episodes_per_task: 1
     max_steps: 600
     params:

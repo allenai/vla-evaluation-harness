@@ -28,7 +28,6 @@ _shared_build_kwargs: &build_kwargs
 benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -39,7 +38,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -50,7 +48,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -61,7 +58,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -77,7 +73,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -93,7 +88,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -109,7 +103,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_top_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_top_drawer"
@@ -125,7 +118,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -136,7 +128,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -147,7 +138,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -158,7 +148,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -174,7 +163,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -190,7 +178,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -206,7 +193,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_middle_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_middle_drawer"
@@ -222,7 +208,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -233,7 +218,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -244,7 +228,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -255,7 +238,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -271,7 +253,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -287,7 +268,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -303,7 +283,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_open_bottom_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_open_bottom_drawer"
@@ -319,7 +298,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -330,7 +308,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -341,7 +318,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -352,7 +328,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -368,7 +343,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -384,7 +358,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -400,7 +373,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_top_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_top_drawer"
@@ -416,7 +388,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -427,7 +398,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -438,7 +408,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -449,7 +418,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -465,7 +433,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -481,7 +448,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -497,7 +463,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_middle_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_middle_drawer"
@@ -513,7 +478,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_base
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -524,7 +488,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_bg_bedroom
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -535,7 +498,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_bg_office
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -546,7 +508,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_light_bright
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -562,7 +523,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_light_dark
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -578,7 +538,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_cabinet_2
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"
@@ -594,7 +553,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: drawer_va_close_bottom_cabinet_3
-    mode: sync
     episodes_per_task: 9
     params:
       task_name: "google_robot_close_bottom_drawer"

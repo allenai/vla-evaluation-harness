@@ -14,7 +14,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
-    mode: sync
     episodes_per_task: 5
     params:
       robot: PandaOmron

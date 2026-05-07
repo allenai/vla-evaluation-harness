@@ -24,7 +24,6 @@ output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     subname: libero_plus_spatial
-    mode: sync
     episodes_per_task: 1
     params:
       suite: libero_spatial

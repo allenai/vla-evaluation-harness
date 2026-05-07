@@ -9,7 +9,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.kinetix.benchmark:KinetixBenchmark"
-    mode: sync
     episodes_per_task: 100
     params:
       seed: 0

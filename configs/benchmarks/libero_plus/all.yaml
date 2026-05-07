@@ -17,7 +17,6 @@ output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     subname: libero_plus_spatial
-    mode: sync
     episodes_per_task: 1
     params:
       suite: libero_spatial
@@ -26,7 +25,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     subname: libero_plus_object
-    mode: sync
     episodes_per_task: 1
     params:
       suite: libero_object
@@ -35,7 +33,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     subname: libero_plus_goal
-    mode: sync
     episodes_per_task: 1
     params:
       suite: libero_goal
@@ -44,7 +41,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
     subname: libero_plus_10
-    mode: sync
     episodes_per_task: 1
     params:
       suite: libero_10

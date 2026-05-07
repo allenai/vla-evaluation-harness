@@ -27,7 +27,6 @@ _shared_build_kwargs: &build_kwargs
 benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_base
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -38,7 +37,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_no_distractor
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -53,7 +51,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_bg_1
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -64,7 +61,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_bg_2
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -75,7 +71,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_light_dark
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -90,7 +85,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_light_bright
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -105,7 +99,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_table_tex_1
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -116,7 +109,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_table_tex_2
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -127,7 +119,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_camera_1
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"
@@ -138,7 +129,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: move_near_va_camera_2
-    mode: sync
     episodes_per_task: 60
     params:
       task_name: "google_robot_move_near"

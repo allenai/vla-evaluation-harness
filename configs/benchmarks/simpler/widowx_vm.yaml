@@ -21,7 +21,6 @@ benchmarks:
   # Task 1: Stack Green Cube on Yellow Cube
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: stack_green_cube
-    mode: sync
     episodes_per_task: 24
     params:
       task_name: "widowx_stack_cube"
@@ -29,7 +28,6 @@ benchmarks:
   # Task 2: Put Carrot on Plate
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_carrot_on_plate
-    mode: sync
     episodes_per_task: 24
     params:
       task_name: "widowx_carrot_on_plate"
@@ -37,7 +35,6 @@ benchmarks:
   # Task 3: Put Spoon on Table Cloth
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_spoon_on_tablecloth
-    mode: sync
     episodes_per_task: 24
     params:
       task_name: "widowx_spoon_on_towel"
@@ -45,7 +42,6 @@ benchmarks:
   # Task 4: Put Eggplant in Basket
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: put_eggplant_in_basket
-    mode: sync
     episodes_per_task: 24
     params:
       task_name: "widowx_put_eggplant_in_basket"

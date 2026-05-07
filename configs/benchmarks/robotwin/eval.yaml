@@ -9,7 +9,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robotwin.benchmark:RoboTwinBenchmark"
-    mode: sync
     episodes_per_task: 1
     params:
       task_name: grab_roller

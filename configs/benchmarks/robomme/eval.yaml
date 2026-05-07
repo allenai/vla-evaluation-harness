@@ -15,7 +15,6 @@ output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark"
     subname: counting
-    mode: sync
     episodes_per_task: 50
     params:
       tasks: [BinFill, PickXtimes, SwingXtimes, StopCube]
@@ -24,7 +23,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark"
     subname: permanence
-    mode: sync
     episodes_per_task: 50
     params:
       tasks: [VideoUnmask, VideoUnmaskSwap, ButtonUnmask, ButtonUnmaskSwap]
@@ -33,7 +31,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark"
     subname: reference
-    mode: sync
     episodes_per_task: 50
     params:
       tasks: [PickHighlight, VideoRepick, VideoPlaceButton, VideoPlaceOrder]
@@ -42,7 +39,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark"
     subname: imitation
-    mode: sync
     episodes_per_task: 50
     params:
       tasks: [MoveCube, InsertPeg, PatternLock, RouteStick]

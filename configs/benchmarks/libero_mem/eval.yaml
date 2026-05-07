@@ -9,7 +9,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero_mem.benchmark:LIBEROMemBenchmark"
-    mode: sync
     episodes_per_task: 50
     params:
       suite: libero_mem

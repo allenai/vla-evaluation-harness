@@ -15,7 +15,6 @@ output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark"
     subname: reference
-    mode: sync
     episodes_per_task: 50
     params:
       tasks: [PickHighlight, VideoRepick, VideoPlaceButton, VideoPlaceOrder]

@@ -32,7 +32,6 @@ output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.behavior1k.benchmark:Behavior1KBenchmark"
     subname: turning_on_radio
-    mode: sync
     episodes_per_task: 1
     params:
       tasks:

@@ -28,7 +28,6 @@ _shared_build_kwargs: &build_kwargs
 benchmarks:
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_base
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -39,7 +38,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_table_tex_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -50,7 +48,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_table_tex_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -61,7 +58,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_distractor_default
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -72,7 +68,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_distractor_more
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -88,7 +83,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_bg_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -99,7 +93,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_bg_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -110,7 +103,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_light_dark
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -126,7 +118,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_light_bright
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -142,7 +133,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_camera_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -153,7 +143,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_horizontal_camera_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_horizontal_coke_can"
@@ -164,7 +153,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_base
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -179,7 +167,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_table_tex_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -194,7 +181,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_table_tex_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -209,7 +195,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_distractor_default
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -224,7 +209,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_distractor_more
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -240,7 +224,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_bg_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -255,7 +238,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_bg_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -270,7 +252,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_light_dark
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -286,7 +267,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_light_bright
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -302,7 +282,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_camera_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -317,7 +296,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_vertical_camera_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_vertical_coke_can"
@@ -332,7 +310,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_base
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -347,7 +324,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_table_tex_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -362,7 +338,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_table_tex_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -377,7 +352,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_distractor_default
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -392,7 +366,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_distractor_more
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -408,7 +381,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_bg_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -423,7 +395,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_bg_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -438,7 +409,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_light_dark
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -454,7 +424,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_light_bright
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -470,7 +439,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_camera_1
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"
@@ -485,7 +453,6 @@ benchmarks:
 
   - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
     subname: pick_coke_can_va_standing_camera_2
-    mode: sync
     episodes_per_task: 25
     params:
       task_name: "google_robot_pick_standing_coke_can"

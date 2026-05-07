@@ -8,7 +8,6 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.mikasa.benchmark:MIKASABenchmark"
-    mode: sync
     episodes_per_task: 3
     params:
       tasks:
