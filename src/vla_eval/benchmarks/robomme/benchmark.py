@@ -367,14 +367,6 @@ class RoboMMEBenchmark(StepBenchmark):
             except Exception:
                 pass
 
-        if self._recorder is not None and "episode_idx" not in task:
-            # Without a unique episode_idx, multi-episode runs would all
-            # write to "<task>_ep0_<status>.mp4" and silently overwrite.
-            raise ValueError(
-                "recording requires task['episode_idx'] to be set "
-                "(otherwise per-episode files collide on the same filename)"
-            )
-
         episode_idx = task.get("episode_idx", 0)
         self._task = task
         builder = BenchmarkEnvBuilder(

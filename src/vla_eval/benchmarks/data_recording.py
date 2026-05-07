@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import string
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -65,12 +66,22 @@ class EpisodeRecorder:
         self._data_fh: Any | None = None
         self._data_working: Path | None = None
         self._context: dict[str, Any] = {}
+        self._required_context = tuple(
+            bare
+            for _, field_name, _, _ in string.Formatter().parse(filename_stem)
+            if field_name
+            for bare in [field_name.split(".")[0].split("[")[0]]
+            if bare and bare != "status"
+        )
 
     @property
     def active(self) -> bool:
         return (self._video is not None and self._video.active) or self._data_fh is not None
 
     def start(self, context: Mapping[str, Any]) -> None:
+        missing = [k for k in self._required_context if k not in context]
+        if missing:
+            raise ValueError(f"EpisodeRecorder.start: missing required context keys: {missing}")
         self._context = dict(context)
         if self._video is not None:
             self._video.start(context)
