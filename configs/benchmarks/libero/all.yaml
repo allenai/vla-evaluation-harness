@@ -1,5 +1,5 @@
 # All standard LIBERO suites (4 suites, 50 episodes per task)
-# For libero_90, use configs/libero_90.yaml separately.
+# For libero_90, use configs/benchmarks/libero/long.yaml separately.
 server:
   url: "ws://localhost:8000"
 

@@ -1,10 +1,5 @@
-# BEHAVIOR-1K (OmniGibson / Isaac Sim) — 50-task household-activity suite.
-#
-# First run prompts on stdin to accept the BEHAVIOR Dataset ToS and then downloads ~35 GiB of OmniGibson
-# scene + task data into the asset cache (``$VLA_EVAL_ASSETS_CACHE`` if set, else ``$VLA_EVAL_HOME/assets``,
-# else ``$XDG_CACHE_HOME/vla-eval/assets``, else ``~/.cache/vla-eval/assets``).  Pass
-# ``--accept-license behavior-dataset-tos`` to skip the prompt in non-interactive contexts (CI, sharded
-# runs).  An NVIDIA GPU with Vulkan + EGL is required.
+# BEHAVIOR-1K evaluation (50 tasks, OmniGibson / Isaac Sim)
+# Requires ~35 GiB asset download on first run. Pass --accept-license behavior-dataset-tos for non-interactive use.
 server:
   url: "ws://localhost:8000"
 

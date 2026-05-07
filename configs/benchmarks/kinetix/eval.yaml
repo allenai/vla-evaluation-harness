@@ -1,4 +1,4 @@
-# Kinetix evaluation — sync mode (12 RTC tasks × 100 episodes)
+# Kinetix evaluation (40 tasks × 100 episodes)
 server:
   url: "ws://localhost:8000"
 

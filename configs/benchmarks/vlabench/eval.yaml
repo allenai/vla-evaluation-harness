@@ -1,3 +1,4 @@
+# VLABench evaluation (100 tasks × 20 episodes)
 server:
   url: "ws://localhost:8000"
 

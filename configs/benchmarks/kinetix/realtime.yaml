@@ -1,4 +1,4 @@
-# Kinetix evaluation — sim2live mode (12 RTC tasks × 100 episodes)
+# Kinetix evaluation — real-time mode (40 tasks × 100 episodes)
 server:
   url: "ws://localhost:8000"
 

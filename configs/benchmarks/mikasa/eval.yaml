@@ -1,3 +1,4 @@
+# MIKASA-Robo evaluation (12 tasks × 50 episodes)
 server:
   url: "ws://localhost:8000"
 

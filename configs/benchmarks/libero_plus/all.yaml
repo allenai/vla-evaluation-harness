@@ -1,7 +1,7 @@
 # All 4 classified LIBERO-Plus suites (1 episode per variant).
 #
 # libero_90 has no task_classification.json entries and is skipped —
-# use configs/libero_plus_spatial.yaml as a template if you need to run
+# use configs/benchmarks/libero_plus/spatial.yaml as a template if you need to run
 # a single suite standalone.
 #
 # Total episode count ≈ 2,402 + 2,518 + 2,591 + 2,519 = 10,030 variants,

@@ -1,3 +1,4 @@
+# RLBench evaluation (18 tasks × 25 episodes)
 server:
   url: "ws://localhost:8000"
 
