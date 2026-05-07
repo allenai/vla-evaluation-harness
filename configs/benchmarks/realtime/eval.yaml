@@ -1,0 +1,56 @@
+# Real-time evaluation — wall-clock pacing, 4 LIBERO suites
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    mode: realtime
+    name: "libero_spatial_rt"
+    episodes_per_task: 50
+    hz: 10.0
+    hold_policy: repeat_last
+    params:
+      suite: libero_spatial
+      seed: 7
+      num_steps_wait: 10
+
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    mode: realtime
+    name: "libero_object_rt"
+    episodes_per_task: 50
+    hz: 10.0
+    hold_policy: repeat_last
+    params:
+      suite: libero_object
+      seed: 7
+      num_steps_wait: 10
+
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    mode: realtime
+    name: "libero_goal_rt"
+    episodes_per_task: 50
+    hz: 10.0
+    hold_policy: repeat_last
+    params:
+      suite: libero_goal
+      seed: 7
+      num_steps_wait: 10
+
+  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
+    mode: realtime
+    name: "libero_10_rt"
+    episodes_per_task: 50
+    hz: 10.0
+    hold_policy: repeat_last
+    params:
+      suite: libero_10
+      seed: 7
+      num_steps_wait: 10
+
+
+

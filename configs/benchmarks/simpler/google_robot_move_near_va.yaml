@@ -1,0 +1,149 @@
+# SimplerEnv evaluation -- Google Robot Variant Aggregation (VA).
+#
+# Variant matrix derived from the SimplerEnv evaluation scripts at:
+#   https://github.com/simpler-env/SimplerEnv/tree/main/scripts
+
+server:
+  url: ws://localhost:8000
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+  env:
+  - NVIDIA_DRIVER_CAPABILITIES=all
+  volumes:
+  - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro
+output_dir: ./results
+
+_shared_init_config: &init_config
+  robot_x: [0.35, 0.35, 1]
+  robot_y: [0.21, 0.21, 1]
+  robot_rot_quat: [0.0, 0.0, -0.04498, 0.99899]
+  obj_episode_range: [0, 60]
+
+_shared_build_kwargs: &build_kwargs
+  robot: google_robot_static
+  sim_freq: 513
+  control_freq: 3
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_base
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_no_distractor
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs:
+        no_distractor: true
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_bg_1
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4_alt_background"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_bg_2
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4_alt_background_2"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_light_dark
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs:
+        slightly_darker_lighting: true
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_light_bright
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs:
+        slightly_brighter_lighting: true
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_table_tex_1
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "Baked_sc1_staging_objaverse_cabinet1_h870"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_table_tex_2
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearGoogleInScene-v0"
+      scene_name: "Baked_sc1_staging_objaverse_cabinet2_h870"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_camera_1
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearAltGoogleCameraInScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: move_near_va_camera_2
+    mode: sync
+    episodes_per_task: 60
+    params:
+      task_name: "google_robot_move_near"
+      env_name: "MoveNearAltGoogleCamera2InScene-v0"
+      scene_name: "google_pick_coke_can_1_v4"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+

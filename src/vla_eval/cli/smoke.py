@@ -81,44 +81,56 @@ def _classify_data(data: dict[str, Any]) -> str:
 # Smoke test registry — (name, config path) pairs
 # ---------------------------------------------------------------------------
 
-# Each benchmark has exactly one designated smoke test config.
-# fmt: off
-BENCHMARK_REGISTRY: dict[str, str] = {
-    "libero":       "configs/libero_smoke_test.yaml",
-    "libero_pro":   "configs/libero_pro_eval.yaml",
-    "libero_plus":  "configs/libero_plus_spatial.yaml",
-    "libero_mem":   "configs/libero_mem.yaml",
-    "calvin":       "configs/calvin_eval.yaml",
-    "maniskill2":   "configs/maniskill2_eval.yaml",
-    "simpler":      "configs/simpler_all_tasks.yaml",
-    "robocasa":     "configs/robocasa_eval.yaml",
-    "vlabench":     "configs/vlabench_eval.yaml",
-    "mikasa":       "configs/mikasa_eval.yaml",
-    "robotwin":     "configs/robotwin_eval.yaml",
-    "rlbench":      "configs/rlbench_eval.yaml",
-    "robocerebra":  "configs/robocerebra_eval.yaml",
-    "kinetix":      "configs/kinetix_eval.yaml",
-    "molmospaces":  "configs/molmospaces_pick_and_place.yaml",
-}
+
+def _discover_benchmark_registry() -> dict[str, str]:
+    """Auto-discover benchmark smoke configs from README.md frontmatter.
+
+    Each ``configs/benchmarks/<name>/README.md`` may contain YAML frontmatter
+    with a ``smoke_config`` key naming the YAML file to use for smoke testing.
+    Defaults to ``eval.yaml``; ``null`` means skip (no smoke test).
+    """
+    registry: dict[str, str] = {}
+    benchmarks_dir = CONFIGS_DIR / "benchmarks"
+    if not benchmarks_dir.is_dir():
+        return registry
+    for readme in sorted(benchmarks_dir.glob("*/README.md")):
+        name = readme.parent.name
+        smoke_file = "eval.yaml"
+        text = readme.read_text(encoding="utf-8")
+        if text.startswith("---"):
+            end = text.find("---", 3)
+            if end != -1:
+                front = yaml.safe_load(text[3:end])
+                if isinstance(front, dict):
+                    val = front.get("smoke_config", "eval.yaml")
+                    if val is None:
+                        continue
+                    smoke_file = val
+        config_path = readme.parent / smoke_file
+        if config_path.exists():
+            registry[name] = str(config_path.relative_to(REPO_ROOT))
+    return registry
+
+
+BENCHMARK_REGISTRY: dict[str, str] = _discover_benchmark_registry()
 
 # Each model server has one designated smoke test config.
 SERVER_REGISTRY: dict[str, str] = {
-    "cogact":               "configs/model_servers/cogact/cogact.yaml",
-    "openvla":              "configs/model_servers/openvla/openvla.yaml",
-    "groot":                "configs/model_servers/groot/groot.yaml",
-    "pi0":                  "configs/model_servers/pi0/libero.yaml",
-    "oft":                  "configs/model_servers/oft/libero_spatial.yaml",
-    "xvla":                 "configs/model_servers/xvla/libero.yaml",
-    "rtc":                  "configs/model_servers/rtc/kinetix.yaml",
-    "db_cogact":            "configs/model_servers/db_cogact/libero.yaml",
-    "starvla_groot":        "configs/model_servers/starvla/groot_simpler.yaml",
-    "starvla_oft":          "configs/model_servers/starvla/oft_simpler.yaml",
-    "starvla_pi":           "configs/model_servers/starvla/pi_simpler.yaml",
-    "starvla_fast":         "configs/model_servers/starvla/fast_simpler.yaml",
-    "vlanext":              "configs/model_servers/vlanext/libero_spatial.yaml",
-    "molmobot":             "configs/model_servers/molmobot/droid.yaml",
+    "cogact": "configs/model_servers/cogact/cogact.yaml",
+    "openvla": "configs/model_servers/openvla/openvla.yaml",
+    "groot": "configs/model_servers/groot/groot.yaml",
+    "pi0": "configs/model_servers/pi0/libero.yaml",
+    "oft": "configs/model_servers/oft/libero_spatial.yaml",
+    "xvla": "configs/model_servers/xvla/libero.yaml",
+    "rtc": "configs/model_servers/rtc/kinetix.yaml",
+    "db_cogact": "configs/model_servers/db_cogact/libero.yaml",
+    "starvla_groot": "configs/model_servers/starvla/groot_simpler.yaml",
+    "starvla_oft": "configs/model_servers/starvla/oft_simpler.yaml",
+    "starvla_pi": "configs/model_servers/starvla/pi_simpler.yaml",
+    "starvla_fast": "configs/model_servers/starvla/fast_simpler.yaml",
+    "vlanext": "configs/model_servers/vlanext/libero_spatial.yaml",
+    "molmobot": "configs/model_servers/molmobot/droid.yaml",
 }
-# fmt: on
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +150,7 @@ def _extract_model_id(data: dict[str, Any]) -> str:
 def discover_validate_tests() -> list[SmokeTest]:
     """Find all benchmark configs that have a 'benchmarks' key."""
     tests: list[SmokeTest] = []
-    for path in sorted(CONFIGS_DIR.glob("*.yaml")):
+    for path in sorted(CONFIGS_DIR.glob("benchmarks/**/*.yaml")):
         data = _load_yaml(path)
         if isinstance(data.get("benchmarks"), list):
             n = len(data["benchmarks"])

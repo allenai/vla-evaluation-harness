@@ -1,0 +1,130 @@
+# SimplerEnv evaluation -- Google Robot Variant Aggregation (VA).
+#
+# Variant matrix derived from the SimplerEnv evaluation scripts at:
+#   https://github.com/simpler-env/SimplerEnv/tree/main/scripts
+
+server:
+  url: ws://localhost:8000
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+  env:
+  - NVIDIA_DRIVER_CAPABILITIES=all
+  volumes:
+  - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro
+output_dir: ./results
+
+_shared_init_config: &init_config
+  robot_x: [0.65, 0.65, 1]
+  robot_y: [-0.2, 0.2, 3]
+  obj_x: [-0.08, -0.02, 3]
+  obj_y: [-0.02, 0.08, 3]
+
+_shared_build_kwargs: &build_kwargs
+  shader_dir: rt
+  model_ids: apple
+  robot: google_robot_static
+  sim_freq: 513
+  control_freq: 3
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_base
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "frl_apartment_stage_simple"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_bg_bedroom
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "modern_bedroom_no_roof"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_bg_office
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "modern_office_no_roof"
+      env_build_kwargs: *build_kwargs
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_light_bright
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "frl_apartment_stage_simple"
+      env_build_kwargs:
+        shader_dir: "rt"
+        model_ids: "apple"
+        light_mode: "brighter"
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_light_dark
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "frl_apartment_stage_simple"
+      env_build_kwargs:
+        shader_dir: "rt"
+        model_ids: "apple"
+        light_mode: "darker"
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_cabinet_2
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "frl_apartment_stage_simple"
+      env_build_kwargs:
+        shader_dir: "rt"
+        model_ids: "apple"
+        station_name: "mk_station2"
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+
+  - benchmark: "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark"
+    subname: put_in_drawer_va_cabinet_3
+    mode: sync
+    episodes_per_task: 27
+    params:
+      task_name: "google_robot_place_apple_in_closed_top_drawer"
+      env_name: "PlaceIntoClosedTopDrawerCustomInScene-v0"
+      scene_name: "frl_apartment_stage_simple"
+      env_build_kwargs:
+        shader_dir: "rt"
+        model_ids: "apple"
+        station_name: "mk_station3"
+        robot: "google_robot_static"
+        sim_freq: 513
+        control_freq: 3
+      init_config: *init_config
+

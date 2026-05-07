@@ -1,0 +1,32 @@
+# LIBERO-Plus libero_spatial — full perturbation evaluation
+#
+# The libero_spatial suite in LIBERO-Plus registers ~2,402 perturbed task
+# variants across seven robustness dimensions (object layout, camera views,
+# robot initial states, language, lighting, background textures, sensor
+# noise). The original LIBERO-Plus protocol evaluates each variant with a
+# single trial per task.
+#
+# To evaluate only a specific perturbation axis, set params.category to
+# one of the categories listed in
+# libero/benchmark/task_classification.json (e.g. "Background Textures",
+# "Camera Views"). Omit category for the full set.
+#
+# To run a quick reproduction subset, use params.max_tasks — the benchmark
+# keeps the first N tasks after classification filtering.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/libero-plus:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.libero_plus.benchmark:LIBEROPlusBenchmark"
+    subname: libero_plus_spatial
+    mode: sync
+    episodes_per_task: 1
+    params:
+      suite: libero_spatial
+      seed: 7
+      num_steps_wait: 10

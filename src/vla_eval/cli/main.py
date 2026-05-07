@@ -799,7 +799,7 @@ Combines shard JSON files produced by --shard-id/--num-shards runs.
   Duplicate episode IDs across shards: last file wins (a warning is logged).
 
 examples:
-  vla-eval merge -c configs/libero_spatial.yaml -o results/libero_spatial.json
+  vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
   vla-eval merge results/LIBEROBenchmark_shard*of4.json -o merged.json
   vla-eval merge results/*.json  # merges all shard files found
 """,
