@@ -8,7 +8,7 @@ Typical usage::
     recorder = EpisodeRecorder("/workspace/results/episodes")
     recorder.start({"env_id": "BinFill", "episode_idx": 0})
     recorder.record_frame(front_rgb)
-    recorder.record_data({"step": n, "gt_subgoal": "pick up cube", ...})
+    recorder.record_step({"step": n, "gt_subgoal": "pick up cube", ...})
     recorder.save(status="fail")
 """
 
@@ -26,6 +26,8 @@ import numpy as np
 
 from vla_eval.benchmarks.recording import EpisodeVideoRecorder
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class RecordingConfig:
@@ -36,8 +38,6 @@ class RecordingConfig:
     record_step: bool = True
     step_fields: list[str] = field(default_factory=list)
 
-
-logger = logging.getLogger(__name__)
 
 __all__ = ["EpisodeRecorder", "RecordingConfig"]
 
@@ -55,7 +55,8 @@ class EpisodeRecorder:
         fps: int = 20,
     ) -> None:
         out = Path(output_dir)
-        out.mkdir(parents=True, exist_ok=True)
+        if record_video or record_step:
+            out.mkdir(parents=True, exist_ok=True)
         self._video: EpisodeVideoRecorder | None = (
             EpisodeVideoRecorder(output_dir=out, filename=filename_stem + ".mp4", fps=fps) if record_video else None
         )
@@ -84,7 +85,7 @@ class EpisodeRecorder:
         if self._video is not None:
             self._video.record(frame)
 
-    def record_data(self, data: dict[str, Any]) -> None:
+    def record_step(self, data: dict[str, Any]) -> None:
         if self._data_fh is None:
             return
         self._data_fh.write(json.dumps(data, ensure_ascii=False, default=str) + "\n")
@@ -96,13 +97,17 @@ class EpisodeRecorder:
         if self._data_fh is not None:
             self._data_fh.close()
             self._data_fh = None
-            final_name = self._data_filename.format(**status_kwargs)
-            assert self._data_dir is not None and self._data_working is not None
-            final_path = self._data_dir / final_name
-            if final_path.exists():
-                final_path.unlink()
-            self._data_working.rename(final_path)
-            logger.info("Saved episode data: %s", final_path)
+            try:
+                final_name = self._data_filename.format(**status_kwargs)
+                if self._data_dir is None or self._data_working is None:
+                    return
+                final_path = self._data_dir / final_name
+                if final_path.exists():
+                    final_path.unlink()
+                self._data_working.rename(final_path)
+                logger.info("Saved episode data: %s", final_path)
+            except Exception:
+                logger.warning("Failed to save episode data", exc_info=True)
             self._data_working = None
 
     def discard(self) -> None:

@@ -371,8 +371,8 @@ class RoboMMEBenchmark(StepBenchmark):
             # Without a unique episode_idx, multi-episode runs would all
             # write to "<task>_ep0_<status>.mp4" and silently overwrite.
             raise ValueError(
-                "save_episode_video=True requires task['episode_idx'] to be set "
-                "(otherwise per-episode videos collide on the same filename)"
+                "recording requires task['episode_idx'] to be set "
+                "(otherwise per-episode files collide on the same filename)"
             )
 
         episode_idx = task.get("episode_idx", 0)
@@ -448,7 +448,7 @@ class RoboMMEBenchmark(StepBenchmark):
                     row["robot_state"] = state.tolist() if hasattr(state, "tolist") else list(state)
             if "terminated" in fields:
                 row["terminated"] = terminated
-            self._recorder.record_data(row)
+            self._recorder.record_step(row)
         self._step_counter += 1
 
         return StepResult(obs=obs, reward=reward, done=done, info=info)
