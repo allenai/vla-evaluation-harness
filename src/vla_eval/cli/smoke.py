@@ -82,18 +82,18 @@ def _classify_data(data: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _discover_benchmark_registry() -> dict[str, str]:
-    """Auto-discover benchmark smoke configs from README.md frontmatter.
+def _discover_registry(subdir: str) -> dict[str, str]:
+    """Auto-discover smoke configs from README.md frontmatter.
 
-    Each ``configs/benchmarks/<name>/README.md`` must contain YAML frontmatter
-    with a ``smoke_config`` key naming the YAML file to use for smoke testing.
+    Scans ``configs/<subdir>/*/README.md`` for YAML frontmatter with a
+    ``smoke_config`` key naming the YAML file to use for smoke testing.
     Set to ``null`` to skip. Directories without frontmatter are ignored.
     """
     registry: dict[str, str] = {}
-    benchmarks_dir = CONFIGS_DIR / "benchmarks"
-    if not benchmarks_dir.is_dir():
+    parent = CONFIGS_DIR / subdir
+    if not parent.is_dir():
         return registry
-    for readme in sorted(benchmarks_dir.glob("*/README.md")):
+    for readme in sorted(parent.glob("*/README.md")):
         name = readme.parent.name
         try:
             text = readme.read_text(encoding="utf-8")
@@ -117,25 +117,8 @@ def _discover_benchmark_registry() -> dict[str, str]:
     return registry
 
 
-BENCHMARK_REGISTRY: dict[str, str] = _discover_benchmark_registry()
-
-# Each model server has one designated smoke test config.
-SERVER_REGISTRY: dict[str, str] = {
-    "cogact": "configs/model_servers/cogact/cogact.yaml",
-    "openvla": "configs/model_servers/openvla/openvla.yaml",
-    "groot": "configs/model_servers/groot/groot.yaml",
-    "pi0": "configs/model_servers/pi0/libero.yaml",
-    "oft": "configs/model_servers/oft/libero_spatial.yaml",
-    "xvla": "configs/model_servers/xvla/libero.yaml",
-    "rtc": "configs/model_servers/rtc/kinetix.yaml",
-    "db_cogact": "configs/model_servers/db_cogact/libero.yaml",
-    "starvla_groot": "configs/model_servers/starvla/groot_simpler.yaml",
-    "starvla_oft": "configs/model_servers/starvla/oft_simpler.yaml",
-    "starvla_pi": "configs/model_servers/starvla/pi_simpler.yaml",
-    "starvla_fast": "configs/model_servers/starvla/fast_simpler.yaml",
-    "vlanext": "configs/model_servers/vlanext/libero_spatial.yaml",
-    "molmobot": "configs/model_servers/molmobot/droid.yaml",
-}
+BENCHMARK_REGISTRY: dict[str, str] = _discover_registry("benchmarks")
+SERVER_REGISTRY: dict[str, str] = _discover_registry("model_servers")
 
 
 # ---------------------------------------------------------------------------
