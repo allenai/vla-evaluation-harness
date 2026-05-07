@@ -3,7 +3,7 @@
 # dependencies = [
 #     "vla-eval",
 #     "molmobot @ git+https://github.com/allenai/MolmoBot.git@33c0ca77bf6062a23d60ffd4a6859334c4a46d30#subdirectory=MolmoBot",
-#     "molmo-spaces @ git+https://github.com/allenai/molmospaces.git",
+#     "molmo-spaces @ git+https://github.com/allenai/molmospaces.git@3c50ae6093f7e4a4ef32529f8a773715da410a2f",
 #     "torch>=2.3.1",
 #     "transformers>=4.37.1",
 #     "huggingface_hub",
