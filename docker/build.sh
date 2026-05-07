@@ -95,19 +95,22 @@ build_image() {
 if [[ -n "$TARGET" ]]; then
   if [[ "$TARGET" != "base" ]]; then
     found=false
-    is_derived=false
+    target_is_derived=false
     for b in "${BENCHMARKS[@]}"; do
       [[ "$b" == "$TARGET" ]] && found=true && break
     done
     for b in "${DERIVED_BENCHMARKS[@]}"; do
-      [[ "$b" == "$TARGET" ]] && found=true && is_derived=true && break
+      [[ "$b" == "$TARGET" ]] && found=true && target_is_derived=true && break
     done
     if ! $found; then
       echo "ERROR: Unknown image '${TARGET}'. Available: base ${BENCHMARKS[*]} ${DERIVED_BENCHMARKS[*]}"
       exit 1
     fi
-    # Build base first (and parent benchmark for derived images)
     build_image base
+    if $target_is_derived; then
+      parent="${TARGET%%_*}"
+      build_image "$parent"
+    fi
   fi
   build_image "$TARGET"
 else

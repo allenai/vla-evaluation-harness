@@ -1,11 +1,11 @@
 """Add absolute EE (base_pose) controller to Google Robot config for X-VLA."""
 
 import pathlib
+import sys
 
 p = pathlib.Path("mani_skill2_real2sim/agents/configs/google_robot/defaults.py")
 s = p.read_text()
 
-# Add base_pose controller definition before _C["arm"] = dict(
 old = '        _C["arm"] = dict('
 new_ctrl = (
     "        arm_pd_ee_base_pose_align_interpolate_by_planner = PDEEPoseControllerConfig(\n"
@@ -21,13 +21,21 @@ new_ctrl = (
     "        )\n"
     '        _C["arm"] = dict('
 )
+
+if old not in s:
+    print(f"ERROR: patch target not found in {p}: {old!r}", file=sys.stderr)
+    sys.exit(1)
 s = s.replace(old, new_ctrl)
 
-# Register in arm_controllers dict
+register_old = "arm_pd_ee_target_delta_pose_align_interpolate_by_planner=arm_pd_ee_target_delta_pose_align_interpolate_by_planner,"
+if register_old not in s:
+    print(f"ERROR: patch target not found in {p}: {register_old[:80]!r}", file=sys.stderr)
+    sys.exit(1)
 s = s.replace(
-    "arm_pd_ee_target_delta_pose_align_interpolate_by_planner=arm_pd_ee_target_delta_pose_align_interpolate_by_planner,",
-    "arm_pd_ee_target_delta_pose_align_interpolate_by_planner=arm_pd_ee_target_delta_pose_align_interpolate_by_planner,\n"
+    register_old,
+    register_old + "\n"
     "            arm_pd_ee_base_pose_align_interpolate_by_planner=arm_pd_ee_base_pose_align_interpolate_by_planner,",
 )
+
 p.write_text(s)
 print("Patched Google Robot base_pose controller")
