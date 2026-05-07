@@ -85,9 +85,9 @@ def _classify_data(data: dict[str, Any]) -> str:
 def _discover_benchmark_registry() -> dict[str, str]:
     """Auto-discover benchmark smoke configs from README.md frontmatter.
 
-    Each ``configs/benchmarks/<name>/README.md`` may contain YAML frontmatter
+    Each ``configs/benchmarks/<name>/README.md`` must contain YAML frontmatter
     with a ``smoke_config`` key naming the YAML file to use for smoke testing.
-    Defaults to ``eval.yaml``; ``null`` means skip (no smoke test).
+    Set to ``null`` to skip. Directories without frontmatter are ignored.
     """
     registry: dict[str, str] = {}
     benchmarks_dir = CONFIGS_DIR / "benchmarks"
@@ -95,18 +95,23 @@ def _discover_benchmark_registry() -> dict[str, str]:
         return registry
     for readme in sorted(benchmarks_dir.glob("*/README.md")):
         name = readme.parent.name
-        smoke_file = "eval.yaml"
-        text = readme.read_text(encoding="utf-8")
-        if text.startswith("---"):
+        try:
+            text = readme.read_text(encoding="utf-8")
+            if not text.startswith("---"):
+                continue
             end = text.find("---", 3)
-            if end != -1:
-                front = yaml.safe_load(text[3:end])
-                if isinstance(front, dict):
-                    val = front.get("smoke_config", "eval.yaml")
-                    if val is None:
-                        continue
-                    smoke_file = val
-        config_path = readme.parent / smoke_file
+            if end == -1:
+                continue
+            front = yaml.safe_load(text[3:end])
+            if not isinstance(front, dict) or "smoke_config" not in front:
+                continue
+            val = front["smoke_config"]
+            if val is None:
+                continue
+        except Exception:
+            logger.warning("Failed to parse frontmatter in %s, skipping", readme)
+            continue
+        config_path = readme.parent / val
         if config_path.exists():
             registry[name] = str(config_path.relative_to(REPO_ROOT))
     return registry
