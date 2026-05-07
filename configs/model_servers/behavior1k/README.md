@@ -1,5 +1,5 @@
 ---
-smoke_config: baseline.yaml
+smoke_config: null  # requires Isaac Sim + OmniGibson runtime
 ---
 
 # BEHAVIOR-1K Model Servers

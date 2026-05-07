@@ -86,15 +86,22 @@ def _discover_registry(subdir: str) -> dict[str, str]:
     """Auto-discover smoke configs from README.md frontmatter.
 
     Scans ``configs/<subdir>/*/README.md`` for YAML frontmatter with a
-    ``smoke_config`` key naming the YAML file to use for smoke testing.
-    Set to ``null`` to skip. Directories without frontmatter are ignored.
+    ``smoke_config`` key. Supported formats::
+
+        smoke_config: eval.yaml          # single entry, key = directory name
+        smoke_config:                    # multiple entries, key = registry name
+          starvla_groot: groot_simpler.yaml
+          starvla_oft: oft_simpler.yaml
+        smoke_config: null               # skip (no smoke test)
+
+    Directories without frontmatter are ignored.
     """
     registry: dict[str, str] = {}
     parent = CONFIGS_DIR / subdir
     if not parent.is_dir():
         return registry
     for readme in sorted(parent.glob("*/README.md")):
-        name = readme.parent.name
+        dir_name = readme.parent.name
         try:
             text = readme.read_text(encoding="utf-8")
             if not text.startswith("---"):
@@ -111,9 +118,15 @@ def _discover_registry(subdir: str) -> dict[str, str]:
         except Exception:
             logger.warning("Failed to parse frontmatter in %s, skipping", readme)
             continue
-        config_path = readme.parent / val
-        if config_path.exists():
-            registry[name] = str(config_path.relative_to(REPO_ROOT))
+        entries: dict[str, str] = {}
+        if isinstance(val, str):
+            entries[dir_name] = val
+        elif isinstance(val, dict):
+            entries = val
+        for entry_name, filename in entries.items():
+            config_path = readme.parent / filename
+            if config_path.exists():
+                registry[entry_name] = str(config_path.relative_to(REPO_ROOT))
     return registry
 
 
