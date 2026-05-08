@@ -5,8 +5,6 @@
 
 script: "src/vla_eval/model_servers/molmobot.py"
 args:
-  primary_image_key: "exo_camera_1"
-  wrist_image_key: "wrist_camera"
   execute_horizon: 8            # Matches SynthVLAPolicyConfig.execute_horizon
   states_mode: "cross_attn"     # Matches SynthVLAPolicyConfig.states_mode
   max_joint_delta: 0.2          # Per-step safety clamp on arm joint deltas

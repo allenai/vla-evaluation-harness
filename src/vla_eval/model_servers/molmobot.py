@@ -54,8 +54,6 @@ class MolmoBotModelServer(ModelServer):
         execute_horizon: Actions executed before re-querying the model.
         states_mode: Model config override (paper uses ``cross_attn``).
         max_joint_delta: Per-step safety clamp on arm joint deltas.
-        primary_image_key: Primary camera key in obs["images"].
-        wrist_image_key: Wrist camera key in obs["images"].
     """
 
     def __init__(
@@ -64,16 +62,12 @@ class MolmoBotModelServer(ModelServer):
         execute_horizon: int = 8,
         states_mode: str = "cross_attn",
         max_joint_delta: float = 0.2,
-        primary_image_key: str = "exo_camera_1",
-        wrist_image_key: str = "wrist_camera",
     ) -> None:
         super().__init__()
         self.hf_repo = hf_repo
         self.execute_horizon = execute_horizon
         self.states_mode = states_mode
         self.max_joint_delta = float(max_joint_delta)
-        self.primary_image_key = primary_image_key
-        self.wrist_image_key = wrist_image_key
 
         self._wrapper: Any = None
         self.n_obs_steps: int = 1
@@ -95,11 +89,13 @@ class MolmoBotModelServer(ModelServer):
         if not ok:
             raise FileNotFoundError(f"Model weights: {msg}")
 
+        from huggingface_hub import snapshot_download
         from olmo.models.molmobot.inference_wrapper import SynthManipMolmoInferenceWrapper
 
         logger.info("Loading MolmoBot from %s (states_mode=%s)", self.hf_repo, self.states_mode)
+        local_dir = snapshot_download(self.hf_repo)
         self._wrapper = SynthManipMolmoInferenceWrapper(
-            checkpoint_path=self.hf_repo,
+            checkpoint_path=local_dir,
             states_mode=self.states_mode,
         )
         mc = self._wrapper.model_config
@@ -153,15 +149,17 @@ class MolmoBotModelServer(ModelServer):
         )
 
         # Extract per-camera images from this step's observation.
+        # After spec mapping, images arrive in spec order (primary, wrist).
         images_dict = obs.get("images", {})
-        cam_obs: dict[str, np.ndarray] = {}
-        for cam_key in (self.primary_image_key, self.wrist_image_key):
-            img = images_dict.get(cam_key)
-            if img is None:
-                raise KeyError(
-                    f"MolmoBotModelServer: missing camera '{cam_key}' in obs. Available: {list(images_dict.keys())}"
-                )
-            cam_obs[cam_key] = np.asarray(img, dtype=np.uint8)
+        img_list = list(images_dict.values())
+        if len(img_list) < 2:
+            raise KeyError(
+                f"MolmoBotModelServer: expected 2 images, got {len(img_list)} (keys: {list(images_dict.keys())})"
+            )
+        cam_obs = {
+            "primary": np.asarray(img_list[0], dtype=np.uint8),
+            "wrist": np.asarray(img_list[1], dtype=np.uint8),
+        }
         state["obs_history"].append(cam_obs)
 
         # Refill action buffer if exhausted.
@@ -209,8 +207,8 @@ class MolmoBotModelServer(ModelServer):
         for i in range(self.n_obs_steps):
             frame_idx = current_step - (self.n_obs_steps - 1 - i) * self.obs_step_delta
             if 0 <= frame_idx < len(history):
-                primary_frames.append(history[frame_idx][self.primary_image_key])
-                wrist_frames.append(history[frame_idx][self.wrist_image_key])
+                primary_frames.append(history[frame_idx]["primary"])
+                wrist_frames.append(history[frame_idx]["wrist"])
 
         assert primary_frames, "No frames available for inference"
         images: list[np.ndarray] = [*primary_frames, *wrist_frames]
