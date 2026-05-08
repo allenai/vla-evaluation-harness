@@ -1,9 +1,5 @@
 ---
-smoke_config:
-  starvla_groot: groot_simpler.yaml
-  starvla_oft: oft_simpler.yaml
-  starvla_pi: pi_simpler.yaml
-  starvla_fast: fast_simpler.yaml
+smoke_config: null  # uv git+subdirectory build bug
 ---
 
 # starVLA
