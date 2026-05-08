@@ -268,6 +268,7 @@ class RTCModelServer(PredictModelServer):
         level = task.get("level")
         if level is None:
             level = next(iter(self._models))
+            logger.warning("No level in task config; falling back to %r", level)
 
         if level not in self._models:
             raise ValueError(f"No RTC model loaded for level={level!r}. Available: {list(self._models.keys())}")

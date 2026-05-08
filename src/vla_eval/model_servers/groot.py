@@ -134,11 +134,9 @@ class GR00TModelServer(PredictModelServer):
     def _load_model(self) -> None:
         if self._policy is not None:
             return
-        from vla_eval.dirs import check_model_available
+        from vla_eval.dirs import require_model_available
 
-        ok, msg = check_model_available(self.model_path)
-        if not ok:
-            raise FileNotFoundError(f"Model weights: {msg}")
+        require_model_available(self.model_path)
 
         import json
 

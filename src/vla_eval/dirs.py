@@ -55,7 +55,8 @@ def is_hf_cached(model_id: str) -> bool:
     """Check if a HuggingFace model has any cached snapshot (no download)."""
     from huggingface_hub.constants import HF_HUB_CACHE
 
-    snapshots = Path(HF_HUB_CACHE) / f"models--{model_id.replace('/', '--')}" / "snapshots"
+    repo_id = "/".join(model_id.split("/")[:2])
+    snapshots = Path(HF_HUB_CACHE) / f"models--{repo_id.replace('/', '--')}" / "snapshots"
     return snapshots.is_dir() and any(snapshots.iterdir())
 
 
@@ -84,6 +85,13 @@ def check_model_available(model_id: str) -> tuple[bool, str]:
             return True, "cached"
         return False, f"not cached (download: hf download {model_id})"
     return False, f"not found: {model_id}"
+
+
+def require_model_available(model_id: str) -> None:
+    """Raise ``FileNotFoundError`` if *model_id* is not locally available."""
+    ok, msg = check_model_available(model_id)
+    if not ok:
+        raise FileNotFoundError(f"Model weights: {msg}")
 
 
 _LICENCE_BANNER = "=" * 70

@@ -83,11 +83,9 @@ class MolmoBotModelServer(ModelServer):
     def _load_model(self) -> None:
         if self._wrapper is not None:
             return
-        from vla_eval.dirs import check_model_available
+        from vla_eval.dirs import require_model_available
 
-        ok, msg = check_model_available(self.hf_repo)
-        if not ok:
-            raise FileNotFoundError(f"Model weights: {msg}")
+        require_model_available(self.hf_repo)
 
         from huggingface_hub import snapshot_download
         from olmo.models.molmobot.inference_wrapper import SynthManipMolmoInferenceWrapper
@@ -111,9 +109,12 @@ class MolmoBotModelServer(ModelServer):
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         # Reset per-episode state.
+        from collections import deque
+
+        max_history = (self.n_obs_steps - 1) * self.obs_step_delta + 1
         self._sessions[ctx.session_id] = {
-            "obs_history": [],  # list[dict[cam_name, np.ndarray]]
-            "action_buffer": [],  # list[dict{"arm": (7,), "gripper": (1,)}]
+            "obs_history": deque(maxlen=max_history),
+            "action_buffer": [],
             "buffer_index": 0,
             "step_count": 0,
         }
