@@ -62,9 +62,6 @@ exclude-newer = "2026-04-22"
 [tool.ruff]
 line-length = 119
 
-[tool.ty.src]
-exclude = ["experiments/"]
-
 [tool.ty.environment]
 python-version = "3.11"
 

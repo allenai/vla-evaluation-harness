@@ -397,7 +397,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
             cmd.extend([flag, str(value)])
     cmd.extend(["--port", str(port)])
 
-    # Build a task dict with fields the server may require at episode_start.
+    # Extract suite for servers with chunk_size_map
     task: dict[str, Any] = {"name": "smoke_test"}
     args_cfg = config.get("args", {})
     chunk_map_raw = args_cfg.get("chunk_size_map")
@@ -405,13 +405,6 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
         chunk_map = json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
         if chunk_map:
             task["suite"] = next(iter(chunk_map.keys()))
-    checkpoint_dir = args_cfg.get("checkpoint_dir")
-    if checkpoint_dir:
-        ckpt_path = Path(checkpoint_dir)
-        if ckpt_path.is_dir():
-            levels = [f.stem.removeprefix("worlds_l_") for f in ckpt_path.glob("worlds_l_*.pkl")]
-            if levels:
-                task["level"] = levels[0]
 
     import anyio
 

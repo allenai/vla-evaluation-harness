@@ -140,7 +140,7 @@ class LIBEROBenchmark(StepBenchmark):
             kwargs.setdefault("weights_only", False)
             return _original_torch_load(*args, **kwargs)
 
-        torch.load = _patched_load
+        torch.load = _patched_load  # ty: ignore[invalid-assignment]
 
         from libero.libero import benchmark
 
