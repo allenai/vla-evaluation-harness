@@ -20,6 +20,9 @@ while [[ $# -gt 0 ]]; do
     --tag)              TAG="$2"; shift 2 ;;
     --base-image)       BASE_IMAGE="$2"; shift 2 ;;
     --accept-license)   ACCEPTED_LICENSES+=("$2"); shift 2 ;;
+    -h|--help)
+      sed -n '2,/^[^#]/{ s/^# \?//p; }' "$0"
+      exit 0 ;;
     -*)                 echo "Unknown flag: $1"; exit 1 ;;
     *)                  TARGET="$1"; shift ;;
   esac

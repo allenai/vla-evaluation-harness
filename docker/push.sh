@@ -19,6 +19,9 @@ while [[ $# -gt 0 ]]; do
     --tag)       TAG="$2"; shift 2 ;;
     --no-latest) UPDATE_LATEST=false; shift ;;
     -y)          FORCE=true; shift ;;
+    -h|--help)
+      sed -n '2,/^[^#]/{ s/^# \?//p; }' "$0"
+      exit 0 ;;
     -*)          echo "Unknown flag: $1"; exit 1 ;;
     *)           TARGET="$1"; shift ;;
   esac
