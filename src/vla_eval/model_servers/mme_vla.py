@@ -5,8 +5,8 @@
 #     "openpi",
 #     "numpy>=1.24",
 #     "huggingface_hub",
-#     "pytest",
-#     "chex",
+#     "pytest",  # not declared in openpi's deps but imported by openpi.models_pytorch
+#     "chex",    # not declared in openpi's deps but imported by openpi.models
 # ]
 #
 # [tool.uv.sources]
