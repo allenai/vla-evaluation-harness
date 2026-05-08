@@ -7,6 +7,9 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
+#
+# [tool.uv]
+# exclude-newer = "2026-02-24T00:00:00Z"
 # ///
 """BEHAVIOR-1K zero-action baseline model server.
 

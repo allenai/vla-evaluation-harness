@@ -13,6 +13,9 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
+#
+# [tool.uv]
+# exclude-newer = "2026-04-25T00:00:00Z"
 # ///
 """MolmoBot model server (Molmo2-4B + DiT flow-matching).
 
