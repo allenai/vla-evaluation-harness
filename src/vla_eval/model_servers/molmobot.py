@@ -2,17 +2,16 @@
 # requires-python = "~=3.11"
 # dependencies = [
 #     "vla-eval",
-#     "molmobot @ git+https://github.com/allenai/MolmoBot.git@33c0ca77bf6062a23d60ffd4a6859334c4a46d30#subdirectory=MolmoBot",
-#     "molmo-spaces @ git+https://github.com/allenai/molmospaces.git",
-#     "torch>=2.3.1",
-#     "transformers>=4.37.1",
-#     "huggingface_hub",
-#     "torchmetrics",
-#     "numpy",
+#     "molmobot",
+#     "torchmetrics",  # not declared in molmobot's deps but imported by olmo.models.model
 # ]
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
+# molmobot = { git = "https://github.com/allenai/MolmoBot.git", rev = "33c0ca77bf6062a23d60ffd4a6859334c4a46d30", subdirectory = "MolmoBot" }
+#
+# [tool.uv]
+# exclude-newer = "2026-05-08T00:00:00Z"
 # ///
 """MolmoBot model server (Molmo2-4B + DiT flow-matching).
 

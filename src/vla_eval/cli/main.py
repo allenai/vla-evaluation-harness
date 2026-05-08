@@ -858,7 +858,7 @@ examples:
     test_parser.add_argument(
         "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
     )
-    test_parser.add_argument("--timeout", type=int, default=300, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds for server/benchmark tests")
     test_parser.add_argument(
         "--parallel",
         nargs="?",

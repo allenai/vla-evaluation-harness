@@ -5,13 +5,11 @@
 #     "openpi",
 #     "numpy>=1.24",
 #     "huggingface_hub",
-#     "pytest",
-#     "chex",
 # ]
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# openpi = { git = "https://github.com/RoboMME/robomme_policy_learning.git", rev = "main" }
+# openpi = { git = "https://github.com/RoboMME/robomme_policy_learning.git", rev = "ecf086c3be7c2223167d9bb2f6ef1f0a6e24353b" }
 #
 # [tool.uv]
 # exclude-newer = "2026-04-06T00:00:00Z"

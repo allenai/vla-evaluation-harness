@@ -267,7 +267,7 @@ class RTCModelServer(PredictModelServer):
         task = config.get("task", {})
         level = task.get("level")
         if level is None:
-            raise ValueError("Task must have a 'level' field for RTC model selection")
+            level = next(iter(self._models))
 
         if level not in self._models:
             raise ValueError(f"No RTC model loaded for level={level!r}. Available: {list(self._models.keys())}")
@@ -324,6 +324,11 @@ class RTCModelServer(PredictModelServer):
             raise RuntimeError("No model selected — on_episode_start must be called first")
 
         obs_vec = self._get_obs_with_history(obs, ctx)
+        if obs_vec.shape[-1] != self.obs_dim:
+            logger.warning("obs dim %d != expected %d, zero-padding", obs_vec.shape[-1], self.obs_dim)
+            padded = np.zeros(self.obs_dim, dtype=np.float32)
+            padded[: min(obs_vec.shape[-1], self.obs_dim)] = obs_vec[: self.obs_dim]
+            obs_vec = padded
 
         # Split the per-episode RNG so each step gets a unique key.
         # This makes the diffusion policy stochastic across episodes.

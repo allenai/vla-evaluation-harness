@@ -4,8 +4,6 @@
 #     "vla-eval",
 #     "openpi",
 #     "numpy>=1.24",
-#     "pytest",
-#     "chex",
 # ]
 #
 # [tool.uv.sources]

@@ -72,7 +72,7 @@ class Orchestrator:
 
     @property
     def _output_dir(self) -> Path:
-        d = Path(self.config.get("output_dir", "./results"))
+        d = Path(self.config.get("output_dir", "./results")).resolve()
         d.mkdir(parents=True, exist_ok=True)
         return d
 
