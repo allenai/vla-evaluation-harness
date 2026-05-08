@@ -51,15 +51,12 @@ def ensure_git_clone(name: str, repo: str, rev: str, *, shallow: bool = False) -
     return target
 
 
-def is_hf_cached(model_id: str, filename: str = "config.json") -> bool:
-    """Check if a HuggingFace model has a cached snapshot (no download).
+def is_hf_cached(model_id: str) -> bool:
+    """Check if a HuggingFace model has any cached snapshot (no download)."""
+    from huggingface_hub.constants import HF_HUB_CACHE
 
-    Uses ``huggingface_hub.try_to_load_from_cache`` (stable public API, v0.14+).
-    """
-    from huggingface_hub import try_to_load_from_cache
-
-    result = try_to_load_from_cache(model_id, filename)
-    return isinstance(result, str)
+    snapshots = Path(HF_HUB_CACHE) / f"models--{model_id.replace('/', '--')}" / "snapshots"
+    return snapshots.is_dir() and any(snapshots.iterdir())
 
 
 def _looks_like_hf_id(model_id: str) -> bool:
