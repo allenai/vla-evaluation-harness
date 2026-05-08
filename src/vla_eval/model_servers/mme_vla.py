@@ -140,6 +140,12 @@ class MmeVlaModelServer(PredictModelServer):
         if os.path.isdir(self.checkpoint) and os.path.isdir(os.path.join(self.checkpoint, "params")):
             return self.checkpoint
 
+        from vla_eval.dirs import check_model_available
+
+        ok, msg = check_model_available(self.checkpoint)
+        if not ok:
+            raise FileNotFoundError(f"Model weights: {msg}")
+
         from huggingface_hub import snapshot_download
 
         # Handle 3-segment paths: org/repo/subdir

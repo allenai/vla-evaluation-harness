@@ -182,6 +182,12 @@ class StarVLAModelServer(PredictModelServer):
         via ``huggingface_hub.snapshot_download``.  The first checkpoint
         file found under the ``checkpoints/`` sub-directory is returned.
         """
+        from vla_eval.dirs import check_model_available
+
+        ok, msg = check_model_available(checkpoint)
+        if not ok:
+            raise FileNotFoundError(f"Model weights: {msg}")
+
         path = Path(checkpoint)
         if path.is_file() and path.suffix in (".pt", ".safetensors"):
             return str(path)
