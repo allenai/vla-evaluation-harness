@@ -415,9 +415,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     captured_stderr: list[bytes] = []  # shared with _run() closure
 
     async def _run() -> dict:
-        env = {**os.environ, "TF_CPP_MIN_LOG_LEVEL": "2"}
-        if gpu_id is not None:
-            env["CUDA_VISIBLE_DEVICES"] = gpu_id
+        env = {**os.environ, "CUDA_VISIBLE_DEVICES": gpu_id} if gpu_id is not None else None
         proc = await anyio.open_process(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env)
 
         async def _drain_stderr() -> None:
