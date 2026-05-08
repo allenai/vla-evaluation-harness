@@ -6,8 +6,6 @@
 #     "torch>=2.2,<2.8",
 #     "numpy>=1.24",
 #     "pillow>=9.0",
-#     "opencv-python-headless",
-#     "huggingface_hub",
 # ]
 #
 # [tool.uv.sources]
