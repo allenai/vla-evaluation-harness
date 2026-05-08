@@ -1,4 +1,4 @@
-"""Host-side cache directory resolver and runtime licence helper.
+"""Host-side cache directory resolver, model availability checker, and runtime licence helper.
 
 Mirrors HuggingFace's ``HF_HOME`` / ``HF_ASSETS_CACHE`` precedence shape so consumers (benchmarks,
 model servers) put state in one canonical place.  See PR #58 for the full layout discussion.
@@ -49,6 +49,44 @@ def ensure_git_clone(name: str, repo: str, rev: str, *, shallow: bool = False) -
         subprocess.check_call(["git", "clone", repo, str(target)])
         subprocess.check_call(["git", "-C", str(target), "checkout", rev])
     return target
+
+
+def is_hf_cached(model_id: str, filename: str = "config.json") -> bool:
+    """Check if a HuggingFace model has a cached snapshot (no download).
+
+    Uses ``huggingface_hub.try_to_load_from_cache`` (stable public API, v0.14+).
+    """
+    from huggingface_hub import try_to_load_from_cache
+
+    result = try_to_load_from_cache(model_id, filename)
+    return isinstance(result, str)
+
+
+def _looks_like_hf_id(model_id: str) -> bool:
+    """Return True if *model_id* looks like a HuggingFace ``org/repo`` identifier."""
+    parts = model_id.split("/")
+    return len(parts) in (2, 3) and not model_id.startswith(("/", ".", "~"))
+
+
+def check_model_available(model_id: str) -> tuple[bool, str]:
+    """Check if model weights are locally available (no download).
+
+    Handles local filesystem paths and HuggingFace model IDs.
+    Returns ``(available, message)`` tuple.
+    """
+    if not model_id or model_id == "unknown":
+        return True, "no checkpoint configured"
+    if os.path.exists(model_id):
+        return True, "local path"
+    if _looks_like_hf_id(model_id):
+        try:
+            cached = is_hf_cached(model_id)
+        except ImportError:
+            return True, "unchecked (pip install huggingface_hub to verify)"
+        if cached:
+            return True, "cached"
+        return False, f"not cached (download: hf download {model_id})"
+    return False, f"not found: {model_id}"
 
 
 _LICENCE_BANNER = "=" * 70

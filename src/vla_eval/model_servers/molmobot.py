@@ -89,6 +89,12 @@ class MolmoBotModelServer(ModelServer):
     def _load_model(self) -> None:
         if self._wrapper is not None:
             return
+        from vla_eval.dirs import check_model_available
+
+        ok, msg = check_model_available(self.hf_repo)
+        if not ok:
+            raise FileNotFoundError(f"Model weights: {msg}")
+
         from olmo.models.molmobot.inference_wrapper import SynthManipMolmoInferenceWrapper
 
         logger.info("Loading MolmoBot from %s (states_mode=%s)", self.hf_repo, self.states_mode)
