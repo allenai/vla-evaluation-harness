@@ -324,11 +324,6 @@ class RTCModelServer(PredictModelServer):
             raise RuntimeError("No model selected — on_episode_start must be called first")
 
         obs_vec = self._get_obs_with_history(obs, ctx)
-        if obs_vec.shape[-1] != self.obs_dim:
-            logger.warning("obs dim %d != expected %d, zero-padding", obs_vec.shape[-1], self.obs_dim)
-            padded = np.zeros(self.obs_dim, dtype=np.float32)
-            padded[: min(obs_vec.shape[-1], self.obs_dim)] = obs_vec[: self.obs_dim]
-            obs_vec = padded
 
         # Split the per-episode RNG so each step gets a unique key.
         # This makes the diffusion policy stochastic across episodes.

@@ -5,6 +5,8 @@
 #     "openpi",
 #     "numpy>=1.24",
 #     "huggingface_hub",
+#     "pytest",
+#     "chex",
 # ]
 #
 # [tool.uv.sources]
