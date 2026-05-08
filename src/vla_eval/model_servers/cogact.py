@@ -23,6 +23,10 @@
 # ///
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # suppress TF GPU init noise (transitive dep)
+
 import logging
 from typing import Any
 
