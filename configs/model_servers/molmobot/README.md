@@ -1,5 +1,5 @@
 ---
-smoke_config: droid.yaml
+smoke_config: null  # uv git+subdirectory build bug
 ---
 
 # MolmoBot
