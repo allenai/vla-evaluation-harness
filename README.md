@@ -18,6 +18,13 @@
 
 **One framework to evaluate any VLA model on any robot simulation benchmark.**
 
+### Latest News
+
+- [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers — the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
+- [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 1,885 models x 18 benchmarks, schema-validated pipeline, updated monthly.
+- [2026/04] [v0.1.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.1.0) released. 6 VLA models [reproduced](docs/reproductions/) within 2pp of published scores.
+- [2026/04] Batch parallel eval: 2,000 LIBERO episodes in 18 min on 1x H100 ([details](#batch-parallel-evaluation)).
+
 ### Why vla-evaluation-harness?
 
 | | |
@@ -72,19 +79,29 @@ vla-eval serve --config configs/model_servers/db_cogact/libero.yaml
 vla-eval run --config configs/benchmarks/libero/smoke_test.yaml
 ```
 
-Results are saved to `results/` as JSON. The benchmark runs inside Docker by default — pass `--no-docker` for local development.
+Results are saved to `results/` as JSON. The benchmark runs inside Docker by default; pass `--no-docker` for local development.
 
-### Full Evaluation
-
-For full evaluation (10 tasks × 50 episodes):
+For full evaluation (10 tasks x 50 episodes):
 
 ```bash
 vla-eval run --config configs/benchmarks/libero/spatial.yaml
 ```
 
-See [Reproduction Reports](docs/reproductions/) for verified scores and per-model details.
+Other benchmarks and models follow the same pattern. Pick a benchmark and a compatible model server from [`configs/`](configs/):
 
-> **Need faster runs?** See [Batch Parallel Evaluation](#batch-parallel-evaluation) — **2 000 LIBERO episodes in ~18 min** (47× vs sequential).
+```bash
+# SimplerEnv + X-VLA
+vla-eval serve --config configs/model_servers/xvla/simpler_widowx.yaml
+vla-eval run --config configs/benchmarks/simpler/widowx_vm.yaml
+
+# CALVIN + DB-CogACT
+vla-eval serve --config configs/model_servers/db_cogact/calvin.yaml
+vla-eval run --config configs/benchmarks/calvin/eval.yaml
+```
+
+Each benchmark and model server directory has a README with setup details, supported configs, and Docker image info. See [Reproduction Reports](docs/reproductions/) for verified scores.
+
+> **Need faster runs?** See [Batch Parallel Evaluation](#batch-parallel-evaluation) for up to 47x throughput.
 
 ---
 
