@@ -81,10 +81,9 @@ class GR00TModelServer(PredictModelServer):
             self._extra_obs_params = (
                 json.loads(observation_params) if isinstance(observation_params, str) else observation_params
             )
-        self._policy = None
-        self._modality_config: dict[str, Any] | None = None
         self._state_dims: dict[str, int] = {}
-        self._language_key: str = "task"
+
+        self._init_policy()
 
     # Data files that Isaac-GR00T's pip package omits from Eagle backbone.
     _EAGLE_DATA_FILES = [
@@ -131,9 +130,7 @@ class GR00TModelServer(PredictModelServer):
             logger.info("Downloading missing Eagle data file: %s", fname)
             urllib.request.urlretrieve(url, dst)
 
-    def _load_model(self) -> None:
-        if self._policy is not None:
-            return
+    def _init_policy(self) -> None:
         from vla_eval.dirs import require_model_available
 
         require_model_available(self.model_path)
@@ -194,8 +191,6 @@ class GR00TModelServer(PredictModelServer):
     _BRIDGE_DEFAULT_ROT = np.array([[0, 0, 1.0], [0, 1.0, 0], [-1.0, 0, 0]])
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
-        self._load_model()
-        assert self._policy is not None and self._modality_config is not None
         B = len(obs_batch)
 
         if self.image_resolution:
@@ -286,8 +281,7 @@ class GR00TModelServer(PredictModelServer):
         return outputs
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        if self._policy is not None:
-            self._policy.reset()
+        self._policy.reset()
         await super().on_episode_start(config, ctx)
 
 

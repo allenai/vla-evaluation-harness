@@ -171,7 +171,8 @@ class StarVLAModelServer(PredictModelServer):
             self._observation_params = (
                 json.loads(observation_params) if isinstance(observation_params, str) else observation_params
             )
-        self._model = None
+
+        self._init_model()
 
     @staticmethod
     def _resolve_checkpoint(checkpoint: str) -> str:
@@ -211,9 +212,7 @@ class StarVLAModelServer(PredictModelServer):
             )
         return str(candidates[-1])  # latest by name
 
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
+    def _init_model(self) -> None:
         import torch
 
         ckpt_path = self._resolve_checkpoint(self.checkpoint)
@@ -429,8 +428,6 @@ class StarVLAModelServer(PredictModelServer):
         return np.where(mask, 0.5 * (normalized + 1) * (high - low) + low, normalized)
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
-        self._load_model()
-        assert self._model is not None
 
         def _prepare_img(img: Any) -> PILImage.Image:
             if isinstance(img, np.ndarray):

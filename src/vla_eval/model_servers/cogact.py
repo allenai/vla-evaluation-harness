@@ -67,17 +67,7 @@ class CogACTModelServer(PredictModelServer):
         self.cfg_scale = cfg_scale
         self.use_ddim = use_ddim
         self.num_ddim_steps = num_ddim_steps
-        self._model = None
 
-    def get_action_spec(self) -> dict[str, DimSpec]:
-        return {"actions": RAW}
-
-    def get_observation_spec(self) -> dict[str, DimSpec]:
-        return {"image": IMAGE_RGB, "language": LANGUAGE}
-
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
         import os
 
         os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # suppress TF GPU init hang (transitive dep)
@@ -103,6 +93,12 @@ class CogACTModelServer(PredictModelServer):
         self._model.to(device).eval()
         logger.info("CogACT model loaded.")
 
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"actions": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {"image": IMAGE_RGB, "language": LANGUAGE}
+
     @staticmethod
     def _obs_to_pil(obs: Observation) -> Any:
         """Extract the first image from an observation and convert to PIL RGB."""
@@ -113,9 +109,6 @@ class CogACTModelServer(PredictModelServer):
         return PILImage.fromarray(img_array).convert("RGB") if isinstance(img_array, np.ndarray) else img_array
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        self._load_model()
-        assert self._model is not None
-
         pil_image = self._obs_to_pil(obs)
         prompt = obs.get("task_description", "")
 
@@ -130,9 +123,6 @@ class CogACTModelServer(PredictModelServer):
         return {"actions": actions}
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[dict[str, Any]]:
-        self._load_model()
-        assert self._model is not None
-
         pil_images = [self._obs_to_pil(obs) for obs in obs_batch]
         prompts = [obs.get("task_description", "") for obs in obs_batch]
 

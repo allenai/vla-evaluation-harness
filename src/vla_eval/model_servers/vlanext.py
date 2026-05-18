@@ -127,14 +127,14 @@ class VLANeXtModelServer(PredictModelServer):
         self.suite = suite
         self.attn_implementation = attn_implementation
         self.center_crop_ratio = center_crop_ratio
-        self._model = None
-        self._device = None
         self._state_histories: dict[str, list[np.ndarray]] = {}
 
         if suite not in ACTION_BOUNDS:
             raise ValueError(f"Unknown suite {suite!r}. Choose from {list(ACTION_BOUNDS)}")
         self._action_min = np.array(ACTION_BOUNDS[suite][0], dtype=np.float32)
         self._action_max = np.array(ACTION_BOUNDS[suite][1], dtype=np.float32)
+
+        self._init_model()
 
     def get_observation_params(self) -> dict[str, Any]:
         return {"send_state": True, "send_wrist_image": True, "quat_no_antipodal": True}
@@ -232,10 +232,7 @@ class VLANeXtModelServer(PredictModelServer):
             f"No checkpoint matching suite {suite!r} in {local_dir}. Available: {[c.name for c in candidates]}"
         )
 
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
-
+    def _init_model(self) -> None:
         _ensure_vlanext()
         from src.models.VLANeXt import VLANeXt
 
@@ -304,9 +301,6 @@ class VLANeXtModelServer(PredictModelServer):
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from PIL import Image as PILImage
-
-        self._load_model()
-        assert self._model is not None
 
         device = self._device
         data_cfg = self._model.train_config["data"]

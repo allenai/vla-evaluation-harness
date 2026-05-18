@@ -357,8 +357,6 @@ class XVLAModelServer(PredictModelServer):
         self._euler_offset: np.ndarray | None = None
         if euler_offset is not None:
             self._euler_offset = np.array([float(x) for x in euler_offset.split(",")], dtype=np.float32)
-        self._model = None
-        self._processor = None
         # Closed-loop proprio: store raw 20-D actions per session so the
         # next predict() call can feed the model its own last prediction.
         # Disabled when use_predicted_proprio=False (e.g. VLABench, which
@@ -366,19 +364,6 @@ class XVLAModelServer(PredictModelServer):
         self._last_raw_actions: dict[str, np.ndarray] = {}
         self._current_xyz: dict[str, np.ndarray] = {}
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        self._last_raw_actions.pop(ctx.session_id, None)
-        self._current_xyz.pop(ctx.session_id, None)
-        await super().on_episode_start(config, ctx)
-
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        self._last_raw_actions.pop(ctx.session_id, None)
-        self._current_xyz.pop(ctx.session_id, None)
-        await super().on_episode_end(result, ctx)
-
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
         import torch
         from transformers import AutoConfig, AutoModel, AutoProcessor
 
@@ -415,6 +400,16 @@ class XVLAModelServer(PredictModelServer):
             self.benchmark_profile or "custom",
         )
 
+    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+        self._last_raw_actions.pop(ctx.session_id, None)
+        self._current_xyz.pop(ctx.session_id, None)
+        await super().on_episode_start(config, ctx)
+
+    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
+        self._last_raw_actions.pop(ctx.session_id, None)
+        self._current_xyz.pop(ctx.session_id, None)
+        await super().on_episode_end(result, ctx)
+
     def get_observation_params(self) -> dict[str, Any]:
         if self.benchmark_profile and self.benchmark_profile in _PROFILE_OBS_PARAMS:
             return dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
@@ -438,8 +433,6 @@ class XVLAModelServer(PredictModelServer):
         return spec
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        self._load_model()
-        assert self._model is not None and self._processor is not None
         import torch
         from PIL import Image
 

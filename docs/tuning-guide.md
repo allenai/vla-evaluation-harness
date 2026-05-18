@@ -63,7 +63,8 @@ Starts an instant-response server and launches N real Docker shards against it. 
 > "How many requests/sec can the model server process under saturation?"
 
 ```bash
-# Server must already be running
+# Server must already be running and ready
+# (probe: ``curl -fsS http://GPU-NODE:8000/config`` returns 200 once __init__ finishes loading weights)
 # Sweep max_batch_size at runtime (no restart needed)
 uv run python experiments/bench_supply.py \
     --url ws://GPU-NODE:8000 \

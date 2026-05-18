@@ -57,22 +57,7 @@ class OpenVLAModelServer(PredictModelServer):
         self.unnorm_key = unnorm_key
         self.jpeg_roundtrip = jpeg_roundtrip
         self.center_crop = center_crop
-        self._model = None
-        self._processor = None
-        self._device = None
 
-    def get_observation_params(self) -> dict[str, Any]:
-        return {"seed": 0}
-
-    def get_action_spec(self) -> dict[str, DimSpec]:
-        return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}
-
-    def get_observation_spec(self) -> dict[str, DimSpec]:
-        return {"image": IMAGE_RGB, "language": LANGUAGE}
-
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
         import torch
         from transformers import AutoModelForVision2Seq, AutoProcessor
 
@@ -86,6 +71,15 @@ class OpenVLAModelServer(PredictModelServer):
             trust_remote_code=True,
         ).to(self._device)
         logger.info("OpenVLA model loaded.")
+
+    def get_observation_params(self) -> dict[str, Any]:
+        return {"seed": 0}
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"position": POSITION_DELTA, "rotation": ROTATION_AA, "gripper": GRIPPER_CLOSE_POS}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        return {"image": IMAGE_RGB, "language": LANGUAGE}
 
     def _preprocess_image(self, obs: Observation) -> Any:
         """Convert observation image to PIL with optional RLDS-matching preprocessing."""
@@ -123,10 +117,6 @@ class OpenVLAModelServer(PredictModelServer):
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         import torch
-
-        self._load_model()
-        assert self._model is not None
-        assert self._processor is not None
 
         pil_image = self._preprocess_image(obs)
         task_description = obs.get("task_description", "")

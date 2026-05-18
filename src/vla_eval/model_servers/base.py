@@ -70,7 +70,14 @@ class SessionContext:
 
 
 class ModelServer(ABC):
-    """Base async model server. For advanced use cases only."""
+    """Base async model server. For advanced use cases only.
+
+    Subclasses MUST load all weights and complete any setup needed
+    to serve inference inside ``__init__`` — including JIT warmup
+    (e.g. one dummy forward) when first-call latency would otherwise
+    blow the HELLO response budget. The framework starts accepting
+    WebSocket connections as soon as ``__init__`` returns.
+    """
 
     @abstractmethod
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:

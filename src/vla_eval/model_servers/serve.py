@@ -457,10 +457,5 @@ def run_server(server_cls: type[ModelServer]) -> None:
     ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
     server = server_cls(**ctor_kwargs)
 
-    load_model = getattr(server, "_load_model", None)
-    if callable(load_model):
-        logger.info("Pre-loading model...")
-        load_model()
-
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)
