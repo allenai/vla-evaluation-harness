@@ -1,170 +1,177 @@
-"""Merge shard result files produced by ``--shard-id`` / ``--num-shards`` runs.
-
-Merge behavior:
-    - All shards must share the same ``benchmark`` name and ``shard.total``.
-    - Missing shards are allowed — the result is marked ``"partial": True``.
-    - Duplicate ``episode_id`` across shards: **last file wins** (dict overwrite,
-      logged as warning).
-    - Metric aggregates are recomputed from the merged episode set.
-
-Expected input format:
-    Each shard file is a JSON object with at minimum::
-
-        {
-            "benchmark": "...",
-            "shard": {"id": 0, "total": 4},
-            "tasks": [{"task": "...", "episodes": [...]}]
-        }
-"""
+"""Materialize the SQLite recording → per-episode jsonl + per-benchmark aggregate JSON."""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from vla_eval import __version__
+from vla_eval.recording import db_path_for_eval
 from vla_eval.results.collector import _aggregate_metrics, _build_task_result, _extract_seed, print_task_table
 
 logger = logging.getLogger(__name__)
 
 
-def load_shard_files(paths: list[Path]) -> list[dict[str, Any]]:
-    """Load and validate shard JSON files."""
-    shards = []
-    for p in paths:
-        data = json.loads(p.read_text())
-        if "shard" not in data:
-            raise ValueError(f"{p}: not a shard result file (missing 'shard' field)")
-        shards.append(data)
-    return shards
+def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, default=str) + "\n")
+    os.replace(str(tmp), str(path))
 
 
-def merge_shards(shards: list[dict[str, Any]]) -> dict[str, Any]:
-    """Merge shard results into a single BenchmarkResult.
+def _write_json_atomic(path: Path, body: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(body, indent=2, default=str), encoding="utf-8")
+    os.replace(str(tmp), str(path))
 
-    Returns the merged result dict with coverage metadata.
-    """
-    if not shards:
-        raise ValueError("No shard files to merge")
 
-    # Validate consistency
-    benchmark_name = shards[0]["benchmark"]
-    expected_total = shards[0]["shard"]["total"]
-    for s in shards:
-        if s["benchmark"] != benchmark_name:
-            raise ValueError(f"Benchmark mismatch: {s['benchmark']!r} vs {benchmark_name!r}")
-        if s["shard"]["total"] != expected_total:
-            raise ValueError(f"Shard total mismatch: {s['shard']['total']} vs {expected_total}")
+def merge_db(db_path: Path, output_dir: Path) -> list[dict[str, Any]]:
+    """Walk one recording SQLite and emit per-episode jsonl + per-benchmark
+    aggregate JSON. Returns the list of per-benchmark aggregates."""
+    if not db_path.exists():
+        raise FileNotFoundError(f"Recording DB not found: {db_path}")
 
-    # Detect missing/duplicate shards
-    found_ids = sorted(s["shard"]["id"] for s in shards)
-    expected_ids = list(range(expected_total))
-    missing_ids = sorted(set(expected_ids) - set(found_ids))
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        aggregates: list[dict[str, Any]] = []
+        for row in conn.execute("SELECT eval_id, safe_name, metadata FROM eval_metadata"):
+            eval_id = row["eval_id"]
+            safe_name = row["safe_name"]
+            metadata = json.loads(row["metadata"])
+            aggregate = _build_aggregate(conn, eval_id, safe_name, metadata, output_dir)
+            agg_path = output_dir / f"{safe_name}_aggregate.json"
+            _write_json_atomic(agg_path, aggregate)
+            logger.info("Wrote aggregate: %s (%d episodes)", agg_path, aggregate.get("num_episodes_total", 0))
+            aggregates.append(aggregate)
+        return aggregates
+    finally:
+        conn.close()
 
-    from collections import Counter
 
-    id_counts = Counter(found_ids)
-    duplicate_ids = [sid for sid, count in id_counts.items() if count > 1]
-    if duplicate_ids:
-        raise ValueError(f"Duplicate shard IDs found: {sorted(duplicate_ids)}")
+def _build_aggregate(
+    conn: sqlite3.Connection,
+    eval_id: str,
+    safe_name: str,
+    metadata: dict[str, Any],
+    output_dir: Path,
+) -> dict[str, Any]:
+    """For one benchmark: walk its episodes, write per-episode jsonl, build aggregate."""
+    metric_keys = dict(metadata.get("metric_keys") or {})
+    config = metadata.get("config") or {}
 
-    # Merge episodes by task, dedup by episode_id (last-write-wins)
-    all_episodes: dict[str, dict[int, dict[str, Any]]] = {}  # task -> {ep_id -> ep}
-    for shard in shards:
-        shard_id = shard.get("shard", {}).get("id", "?")
-        for task_result in shard.get("tasks", []):
-            task_name = task_result["task"]
-            if task_name not in all_episodes:
-                all_episodes[task_name] = {}
-            for ep in task_result.get("episodes", []):
-                ep_id = ep.get("episode_id", 0)
-                if ep_id in all_episodes[task_name]:
-                    logger.warning(
-                        "Duplicate episode_id %r in task %r (shard %s overwrites previous)", ep_id, task_name, shard_id
-                    )
-                all_episodes[task_name][ep_id] = ep
+    tasks_acc: dict[str, list[dict[str, Any]]] = {}
+    all_episodes: list[dict[str, Any]] = []
+    episode_count = 0
 
-    # Build merged task results
-    metric_keys: dict[str, str] = shards[0].get("metric_keys", {})
-    tasks = []
-    all_episodes_flat: list[dict] = []
-    for task_name in sorted(all_episodes.keys()):
-        episodes = list(all_episodes[task_name].values())
-        tasks.append(_build_task_result(task_name, episodes, metric_keys))
-        all_episodes_flat.extend(episodes)
+    for er in conn.execute(
+        """
+        SELECT sid, eid, task_name, episode_id, status, metrics, steps, elapsed_sec,
+               context, jsonl_path, failure_reason, failure_detail
+        FROM episode_results
+        WHERE eval_id = ?
+        ORDER BY task_name, episode_id, sid, eid
+        """,
+        (eval_id,),
+    ):
+        context = json.loads(er["context"]) if er["context"] else {}
+        metrics = json.loads(er["metrics"]) if er["metrics"] else {}
+        episode_row: dict[str, Any] = {
+            "sid": er["sid"],
+            "eid": er["eid"],
+            "episode_id": er["episode_id"],
+            "metrics": metrics,
+            "steps": er["steps"],
+            "elapsed_sec": er["elapsed_sec"],
+            **context,
+        }
+        if er["failure_reason"]:
+            episode_row["failure_reason"] = er["failure_reason"]
+        if er["failure_detail"]:
+            episode_row["failure_detail"] = er["failure_detail"]
 
-    is_partial = bool(missing_ids) or any(s.get("partial") for s in shards)
+        task_name = str(er["task_name"] or "_unknown")
+        tasks_acc.setdefault(task_name, []).append(episode_row)
+        all_episodes.append(episode_row)
+        episode_count += 1
 
-    config = shards[0].get("config", {})
-    merged: dict[str, Any] = {
-        "benchmark": benchmark_name,
-        "mode": shards[0].get("mode", "sync"),
-        "harness_version": __version__,
+        if er["jsonl_path"]:
+            jsonl_p = Path(er["jsonl_path"])
+            if not jsonl_p.is_absolute():
+                jsonl_p = output_dir / jsonl_p
+            _write_episode_jsonl(conn, er["sid"], er["eid"], jsonl_p)
+
+    tasks_out: list[Any] = []
+    for task_name in sorted(tasks_acc):
+        tasks_out.append(_build_task_result(task_name, tasks_acc[task_name], metric_keys))
+
+    body: dict[str, Any] = {
+        "benchmark": metadata.get("benchmark", safe_name),
+        "mode": metadata.get("mode"),
+        "harness_version": metadata.get("harness_version") or __version__,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "tasks": tasks,
+        "tasks": tasks_out,
         "config": config,
-        "merge_info": {
-            "num_shards": expected_total,
-            "shards_found": found_ids,
-            "shards_missing": missing_ids,
-            "total_episodes": len(all_episodes_flat),
-        },
+        "eval_id": eval_id,
     }
-    if is_partial:
-        merged["partial"] = True
-
-    server_info = shards[0].get("server_info")
-    if server_info is not None:
-        merged["server_info"] = server_info
-
-    # Preserve original measurement metadata from shards
-    merged["shard_harness_version"] = shards[0].get("harness_version")
-    shard_dates = sorted(s.get("created_at", "") for s in shards if s.get("created_at"))
-    if shard_dates:
-        merged["shard_created_at"] = {"first": shard_dates[0], "last": shard_dates[-1]}
-
+    if "server_info" in metadata:
+        body["server_info"] = metadata["server_info"]
     seed = _extract_seed(config)
     if seed is not None:
-        merged["seed"] = seed
-
+        body["seed"] = seed
     if metric_keys:
-        merged["metric_keys"] = metric_keys
-        _aggregate_metrics(merged, all_episodes_flat, metric_keys)
+        body["metric_keys"] = metric_keys
+        _aggregate_metrics(body, all_episodes, metric_keys)
+    body["num_episodes_total"] = episode_count
+    return body
 
-    return merged
+
+def _write_episode_jsonl(conn: sqlite3.Connection, sid: str, eid: str, path: Path) -> None:
+    rows: list[dict[str, Any]] = []
+    for sr in conn.execute(
+        "SELECT step_id, fields FROM step_rows WHERE sid = ? AND eid = ? ORDER BY step_id",
+        (sid, eid),
+    ):
+        row: dict[str, Any] = {"step": sr["step_id"]}
+        try:
+            row.update(json.loads(sr["fields"]))
+        except Exception:
+            logger.warning(
+                "step_rows row for sid=%s eid=%s step=%d has bad JSON; skipping",
+                sid,
+                eid,
+                sr["step_id"],
+            )
+            continue
+        rows.append(row)
+    if not rows:
+        return
+    _write_jsonl_atomic(path, rows)
 
 
-def print_merge_report(merged: dict[str, Any]) -> None:
-    """Print a human-readable merge report to stderr."""
+def merge_eval(output_dir: Path, eval_id: str) -> list[dict[str, Any]]:
+    """Convenience wrapper: ``merge_db(db_path_for_eval(output_dir, eval_id), output_dir)``."""
+    return merge_db(db_path_for_eval(output_dir, eval_id), output_dir)
+
+
+def print_merge_summary(aggregates: list[dict[str, Any]]) -> None:
+    """Reuse the collector's task table for the final printed summary."""
     from rich.console import Console
 
-    con = Console(stderr=True, highlight=False)
-    info = merged["merge_info"]
-    total_shards = info["num_shards"]
-    found = info["shards_found"]
-    missing = info["shards_missing"]
-    total_eps = info["total_episodes"]
-    rate = merged.get("mean_success", 0.0)
-    rate_color = "green" if rate >= 0.5 else "red"
-
-    if missing:
-        con.print(f"\n[yellow]⚠  Missing shards: {missing} (expected 0..{total_shards - 1})[/yellow]")
-        con.print(f"Coverage: {total_eps} episodes (shards {len(found)}/{total_shards})")
-        con.print(f"Merged result ([yellow]PARTIAL[/yellow]): [{rate_color}]{rate:.1%}[/{rate_color}]")
-        for sid in missing:
-            con.print(
-                f"  To complete: [dim]vla-eval run -c <config> --shard-id {sid} --num-shards {total_shards}[/dim]"
-            )
-    else:
-        con.print(f"\n[green]All {total_shards} shards complete.[/green] {total_eps} episodes.")
-        con.print(f"Overall: [{rate_color}]{rate:.1%}[/{rate_color}]")
-
-    # Per-task summary
-    con.print(f"\n{'=' * 60}")
-    con.print(f"[bold]Benchmark: {merged['benchmark']}[/bold]")
-    con.print(f"{'=' * 60}")
-    print_task_table(con, merged["tasks"], rate, rate_color)
-    con.print(f"{'=' * 60}\n")
+    console = Console(highlight=False)
+    for body in aggregates:
+        rate = body.get("mean_success", 0.0)
+        rate_color = "green" if rate >= 0.5 else "red"
+        console.print(f"\n{'=' * 60}")
+        console.print(f"[bold]Benchmark: {body['benchmark']}[/bold] (mode: {body.get('mode')})")
+        console.print(f"{'=' * 60}")
+        print_task_table(console, body["tasks"], rate, rate_color)
+        console.print(f"{'=' * 60}\n")

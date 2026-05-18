@@ -33,6 +33,7 @@ from anyio.to_thread import run_sync as _run_in_thread
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.dirs import ensure_license
+from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -496,9 +497,10 @@ class Behavior1KBenchmark(StepBenchmark):
     # to ``anyio.to_thread.run_sync`` keeps the orchestrator loop intact while Isaac Sim does its
     # synchronous work.
 
-    async def start_episode(self, task: Task) -> None:
+    async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
         self._t0 = time.monotonic()
         self._task = task
+        self._recorder = recorder or NullEpisodeRecorder()
         # Run imports + signal-handler registration on the main thread (Python's signal module forbids
         # setting handlers from a worker thread, and OmniGibson registers SIGINT during its top-level
         # ``__init__.py``).  Only the env construction / reset itself is offloaded to the worker

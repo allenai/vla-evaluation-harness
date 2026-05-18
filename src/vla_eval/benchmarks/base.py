@@ -20,6 +20,7 @@ from vla_eval.specs import DimSpec
 
 import numpy as np
 
+from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
@@ -67,8 +68,9 @@ class Benchmark(ABC):
     # -- abstract: commands -----------------------------------------------
 
     @abstractmethod
-    async def start_episode(self, task: Task) -> None:
-        """Initialise an episode (env stored internally)."""
+    async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
+        """Initialise an episode. ``recorder`` is always non-None (Null when recording is off),
+        so subclasses can call ``recorder.record_*`` unconditionally."""
 
     @abstractmethod
     async def apply_action(self, action: Action) -> None:
@@ -195,9 +197,10 @@ class StepBenchmark(Benchmark, ABC):
     # a dedicated CapacityLimiter is needed to avoid starvation
     # (see _DECODE_LIMITER in serve.py for an example).
 
-    async def start_episode(self, task: Task) -> None:
+    async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
         self._t0 = time.monotonic()
         self._task = task
+        self._recorder: EpisodeRecorder = recorder or NullEpisodeRecorder()
         raw_obs = self.reset(task)
         self._last_result = StepResult(obs=raw_obs, reward=0.0, done=False, info={})
 

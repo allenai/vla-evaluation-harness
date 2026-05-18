@@ -107,6 +107,8 @@ def _run_via_docker(
     shard_id: int | None = None,
     num_shards: int | None = None,
     accept_license: list[str] | None = None,
+    eval_id: str | None = None,
+    no_save: bool = False,
 ) -> None:
     """Execute the evaluation inside a Docker container."""
     import shutil
@@ -135,6 +137,31 @@ def _run_via_docker(
 
     docker_config = dict(config)
     docker_config["output_dir"] = "/workspace/results"
+    # Also remap any per-benchmark `recording.output_dir` that points under the
+    # host results_dir — otherwise the recorder writes mp4/jsonl inside the
+    # container at the host path and they vanish when the container exits.
+    benchmarks = docker_config.get("benchmarks") or []
+    remapped_benchmarks = []
+    for entry in benchmarks:
+        rec = (entry or {}).get("recording")
+        if isinstance(rec, dict) and rec.get("output_dir"):
+            host_path = Path(rec["output_dir"]).resolve()
+            try:
+                rel = host_path.relative_to(results_dir)
+                new_entry = dict(entry)
+                new_rec = dict(rec)
+                new_rec["output_dir"] = str(Path("/workspace/results") / rel)
+                new_entry["recording"] = new_rec
+                remapped_benchmarks.append(new_entry)
+                continue
+            except ValueError:
+                logger.warning(
+                    "recording.output_dir=%s is outside output_dir=%s; container writes will not persist on the host",
+                    host_path,
+                    results_dir,
+                )
+        remapped_benchmarks.append(entry)
+    docker_config["benchmarks"] = remapped_benchmarks
     docker_config_fd, docker_config_path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-docker-")
     try:
         with os.fdopen(docker_config_fd, "w") as f:
@@ -186,6 +213,10 @@ def _run_via_docker(
     cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
     if shard_id is not None:
         cmd.extend(["--shard-id", str(shard_id), "--num-shards", str(num_shards)])
+    if eval_id:
+        cmd.extend(["--eval-id", eval_id])
+    if no_save:
+        cmd.append("--no-save")
 
     logger.info("Running via Docker: %s", " ".join(cmd))
     try:
@@ -247,6 +278,9 @@ def cmd_run(args: argparse.Namespace) -> None:
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     use_docker = bool(docker_cfg.image) and not getattr(args, "no_docker", False) and not _inside_docker()
 
+    eval_id = getattr(args, "eval_id", None)
+    no_save = getattr(args, "no_save", False)
+
     if use_docker:
         _run_via_docker(
             config,
@@ -255,17 +289,40 @@ def cmd_run(args: argparse.Namespace) -> None:
             shard_id=shard_id,
             num_shards=num_shards,
             accept_license=getattr(args, "accept_license", None),
+            eval_id=eval_id,
+            no_save=no_save,
         )
         return
 
     import anyio
 
-    orchestrator = Orchestrator(config, shard_id=shard_id, num_shards=num_shards)
+    orchestrator = Orchestrator(
+        config,
+        shard_id=shard_id,
+        num_shards=num_shards,
+        eval_id=eval_id,
+        no_save=no_save,
+    )
     results = anyio.run(orchestrator.run)
 
     # Print final summary
     for r in results:
         print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}")
+
+    # Single-shard runs auto-merge: write per-episode jsonl + aggregate JSON from
+    # the SQLite recording, since there are no other shard processes to coordinate
+    # with. Sharded runs leave the merge to the launcher (run_sharded.sh) so it
+    # only runs once after all shards exit.
+    if not no_save and shard_id is None:
+        from vla_eval.results.merge import merge_eval
+
+        output_dir = Path(config.get("output_dir", "./results")).resolve()
+        try:
+            merge_eval(output_dir, orchestrator.eval_id)
+        except FileNotFoundError:
+            logger.info("No recording DB to merge (likely all benchmarks opted out of recording)")
+        except Exception:
+            logger.exception("vla-eval merge failed for eval_id=%s", orchestrator.eval_id)
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -328,114 +385,55 @@ def cmd_serve(args: argparse.Namespace) -> None:
     _exec_subprocess(cmd)
 
 
-def _discover_shard_groups(config_path: str) -> dict[str, list[Path]]:
-    """Auto-discover shard files from a config YAML, grouped by benchmark name.
-
-    Returns a dict mapping ``safe_name`` to its shard file paths.
-    """
-    import re
-
-    from vla_eval.config import EvalConfig
-
-    config = _load_config(config_path)
-    output_dir = Path(config.get("output_dir", "./results"))
-
-    groups: dict[str, list[Path]] = {}
-    for bench_cfg in config.get("benchmarks", []):
-        cfg = EvalConfig.from_dict(bench_cfg)
-        safe_name = re.sub(r"[^\w\-.]", "_", cfg.resolved_name())
-        if safe_name in groups:
-            continue
-        matched = sorted(output_dir.glob(f"{safe_name}_shard*of*.json"))
-        if not matched:
-            _stderr_console().print(f"[yellow]WARNING: no shard files found for {safe_name} in {output_dir}[/yellow]")
-        groups[safe_name] = matched
-    return groups
-
-
 def cmd_merge(args: argparse.Namespace) -> None:
-    """Merge shard result files."""
-    import glob
-    import json
+    """Materialize per-episode jsonl + aggregate JSON from a recording SQLite.
 
-    from vla_eval.results.merge import load_shard_files, merge_shards, print_merge_report
+    Two ways to specify which DB to merge:
 
-    if not args.files and not args.config:
-        _stderr_console().print("[red]ERROR: provide shard files or --config/-c to auto-discover[/red]")
-        sys.exit(1)
+    - ``--config -c <yaml>``: derive ``output_dir`` from the YAML, then
+      either use ``--eval-id <id>`` to pick a specific DB or merge every
+      ``recording-*.sqlite`` under it. The launcher script
+      (``run_sharded.sh``) calls this with both.
+    - ``--db <path>``: direct DB path. Output goes to
+      ``--output-dir`` (or the DB's parent dir).
+    """
+    from vla_eval.results.merge import merge_db, print_merge_summary
 
-    # When --config is given, merge each sub-benchmark separately.
-    if args.config:
-        groups = _discover_shard_groups(args.config)
-        # Also include any explicitly passed files as an extra group
-        if args.files:
-            extra: list[Path] = []
-            for pattern in args.files:
-                extra.extend(Path(p) for p in sorted(glob.glob(pattern)))
-            if extra:
-                groups["_extra"] = extra
+    db_paths: list[Path] = []
+    output_dir: Path
 
-        if not any(groups.values()):
-            _stderr_console().print("[red]ERROR: no shard files found[/red]")
-            sys.exit(1)
+    if getattr(args, "db", None):
+        db_paths = [Path(args.db)]
+        output_dir = Path(getattr(args, "output_dir", None) or db_paths[0].parent).resolve()
+    elif getattr(args, "config", None):
+        config = _load_config(args.config)
+        output_dir = Path(getattr(args, "output_dir", None) or config.get("output_dir", "./results")).resolve()
+        if getattr(args, "eval_id", None):
+            from vla_eval.recording import db_path_for_eval
 
-        output_base = Path(args.output) if args.output else None
-        merged_count = 0
-        for name, paths in groups.items():
-            if not paths:
-                continue
-            try:
-                shards = load_shard_files(paths)
-                merged = merge_shards(shards)
-            except ValueError as e:
-                _stderr_console().print(f"[red]ERROR ({name}): {e}[/red]")
+            db_paths = [db_path_for_eval(output_dir, args.eval_id)]
+        else:
+            db_paths = sorted(output_dir.glob("recording-*.sqlite"))
+            if not db_paths:
+                _stderr_console().print(f"[red]ERROR: no recording-*.sqlite found under {output_dir}[/red]")
                 sys.exit(1)
-            print_merge_report(merged)
-            if output_base:
-                if len(groups) == 1:
-                    out = output_base
-                else:
-                    out = output_base.parent / f"{output_base.stem}_{name}{output_base.suffix}"
-                out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_text(json.dumps(merged, indent=2, default=str))
-                _stderr_console().print(f"Merged result saved to {out}")
-            else:
-                print(json.dumps(merged, indent=2, default=str))
-            merged_count += 1
-
-        if merged_count == 0:
-            _stderr_console().print("[red]ERROR: no shard files found[/red]")
-            sys.exit(1)
-        return
-
-    # Legacy path: positional file args only
-    paths: list[Path] = []
-    for pattern in args.files:
-        matched = sorted(glob.glob(pattern))
-        if not matched:
-            _stderr_console().print(f"[yellow]WARNING: no files matched: {pattern}[/yellow]")
-        paths.extend(Path(p) for p in matched)
-
-    if not paths:
-        _stderr_console().print("[red]ERROR: no shard files found[/red]")
-        sys.exit(1)
-
-    try:
-        shards = load_shard_files(paths)
-        merged = merge_shards(shards)
-    except ValueError as e:
-        _stderr_console().print(f"[red]ERROR: {e}[/red]")
-        sys.exit(1)
-
-    print_merge_report(merged)
-
-    output = Path(args.output) if args.output else None
-    if output:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(merged, indent=2, default=str))
-        _stderr_console().print(f"Merged result saved to {output}")
     else:
-        print(json.dumps(merged, indent=2, default=str))
+        _stderr_console().print(
+            "[red]ERROR: pass --config / -c <yaml> (optionally with --eval-id) or --db <path>[/red]"
+        )
+        sys.exit(1)
+
+    all_aggregates: list[dict[str, Any]] = []
+    for db in db_paths:
+        try:
+            all_aggregates.extend(merge_db(db, output_dir))
+        except FileNotFoundError:
+            _stderr_console().print(f"[yellow]WARNING: skipping missing DB {db}[/yellow]")
+        except Exception as exc:
+            _stderr_console().print(f"[red]ERROR merging {db}: {exc}[/red]")
+            sys.exit(1)
+
+    print_merge_summary(all_aggregates)
 
 
 def cmd_test(args: argparse.Namespace) -> None:
@@ -692,8 +690,16 @@ execution flow:
 
   sharding (--shard-id / --num-shards):
     Work items (task × episode pairs) are distributed round-robin across shards.
-    Each shard writes a deterministic output file: {name}_shard{id}of{total}.json.
-    Use 'vla-eval merge' to combine shard results.
+    All shards share a single recording-<eval-id>.sqlite via WAL mode.
+    Pass the same --eval-id to every shard, then run 'vla-eval merge' once at
+    the end (scripts/run_sharded.sh does this for you).
+
+  recording:
+    Step rows + episode results + eval metadata land in
+    <output_dir>/recording-<eval-id>.sqlite. 'vla-eval merge' materialises
+    per-episode jsonl + a BenchmarkResult-shaped aggregate JSON from there.
+    Single-shard runs auto-merge. Use --no-save to skip SQLite entirely
+    (in-memory summary only).
 
   error recovery:
     Episodes are isolated — one failure does not abort the run.
@@ -753,6 +759,25 @@ execution flow:
     run_parser.add_argument(
         "--dev", action="store_true", help="Mount local src/ into the container (skip image rebuild on code changes)"
     )
+    run_parser.add_argument(
+        "--eval-id",
+        default=None,
+        help=(
+            "Run-level identifier shared across shards of the same evaluation. "
+            "All shards with the same --eval-id write to "
+            "<output_dir>/recording-<eval-id>.sqlite. Defaults to a fresh uuid; "
+            "supply explicitly to fan multiple shards into one DB."
+        ),
+    )
+    run_parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help=(
+            "Run without writing anything to disk: no SQLite recording, no per-episode "
+            "mp4/jsonl, no aggregate JSON. The eval still executes and prints its "
+            "summary to stdout. Use for quick local checks; omit for persisted results."
+        ),
+    )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
 
@@ -789,26 +814,39 @@ Bool args become flags (--use_text_template), others become --key value.
     # merge command
     merge_parser = sub.add_parser(
         "merge",
-        help="Merge shard result files",
+        help="Materialize per-episode jsonl + aggregate JSON from a recording SQLite",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-Combines shard JSON files produced by --shard-id/--num-shards runs.
+Reads <output_dir>/recording-<eval-id>.sqlite written by `vla-eval run` and
+emits the human-readable per-episode jsonl + per-benchmark aggregate JSON.
 
-  Expects files named {name}_shard{id}of{total}.json.
-  Missing shards are allowed — the merged result is marked partial.
-  Duplicate episode IDs across shards: last file wins (a warning is logged).
+Multi-shard runs all write to one DB (same --eval-id). Run merge once after
+all shards exit (run_sharded.sh does this automatically). Single-shard `vla-eval
+run` invokes merge inline at the end, so manual merge is only needed for sharded
+runs or to re-render outputs.
 
 examples:
-  vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
-  vla-eval merge results/LIBEROBenchmark_shard*of4.json -o merged.json
-  vla-eval merge results/*.json  # merges all shard files found
+  vla-eval merge -c configs/benchmarks/libero/spatial.yaml --eval-id abc
+  vla-eval merge -c configs/benchmarks/libero/spatial.yaml  # merge every DB
+  vla-eval merge --db /path/to/recording-abc.sqlite
 """,
     )
-    merge_parser.add_argument("files", nargs="*", help="Shard result JSON files (supports glob patterns)")
+    merge_parser.add_argument("--config", "-c", default=None, help="Config YAML (provides output_dir)")
     merge_parser.add_argument(
-        "--config", "-c", default=None, help="Config YAML — auto-discover shard files from output_dir"
+        "--eval-id",
+        default=None,
+        help="Specific eval id (= specific DB file). Omit with --config to merge every DB under output_dir.",
     )
-    merge_parser.add_argument("--output", "-o", default=None, help="Output path for merged JSON (default: stdout)")
+    merge_parser.add_argument(
+        "--db",
+        default=None,
+        help="Direct path to a recording-*.sqlite. Bypasses --config.",
+    )
+    merge_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Override the directory the materialised files land in (default: config output_dir or DB parent).",
+    )
     merge_parser.add_argument("--verbose", "-v", action="store_true")
     merge_parser.set_defaults(func=cmd_merge)
 

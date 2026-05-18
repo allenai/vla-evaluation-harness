@@ -116,6 +116,12 @@ class EvalConfig:
         max_tasks: Cap on number of tasks.  ``None`` → run all tasks.
         tasks: Filter to specific task names/suites.  ``None`` → all tasks.
         params: Benchmark-specific kwargs passed to the constructor.
+        recording: Optional dict describing where per-episode artefacts land.
+            Keys: ``output_dir``, ``filename_stem``, ``record_video``,
+            ``record_step``, ``video_fps``. The benchmark is *not* involved
+            in this — the orchestrator builds the recorder from this dict
+            and the task dict directly. Absent → no recording (the
+            benchmark receives a ``NullEpisodeRecorder``).
     """
 
     benchmark: str = ""
@@ -127,6 +133,7 @@ class EvalConfig:
     max_tasks: int | None = None
     tasks: list[str] | None = None
     params: dict[str, Any] = field(default_factory=dict)
+    recording: dict[str, Any] | None = None
     # Real-time evaluation params (used when mode starts with "realtime")
     hz: float = 10.0
     hold_policy: str = "repeat_last"
@@ -153,6 +160,7 @@ class EvalConfig:
             max_tasks=data.get("max_tasks"),
             tasks=data.get("tasks"),
             params=data.get("params", {}),
+            recording=data.get("recording"),
             hz=data.get("hz", 10.0),
             hold_policy=data.get("hold_policy", "repeat_last"),
             throughput_mode=data.get("throughput_mode", False),

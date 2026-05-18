@@ -18,7 +18,20 @@ class SessionContext:
 
     Attributes:
         session_id: Persistent across episodes within one WebSocket connection.
-        episode_id: Regenerated on each ``EPISODE_START``.
+            When the harness supplies a ``recording.sid`` in ``EPISODE_START``,
+            it overrides the WS-level session id so external recording emits
+            (e.g. opening a :class:`vla_eval.recording.StepRecorder` with
+            ``ctx.session_id`` / ``ctx.episode_id``) land in the same SQLite
+            bucket the harness wrote to.
+        episode_id: Regenerated on each ``EPISODE_START``. When the harness
+            supplies a ``recording.eid`` it is used verbatim.
+        eval_id: Run-level identifier (from ``EPISODE_START.recording.eval_id``),
+            or ``""`` when recording is disabled.
+        recording_db_path: Path to the SQLite file the harness writes to, or
+            ``""`` when recording is disabled. External callers (e.g.
+            reflex-train) open a :class:`vla_eval.recording.StepRecorder` at
+            this path to record per-step inference traces alongside the
+            benchmark's step rows.
         task: Task metadata dict sent by the client in ``EPISODE_START``.
         step: Number of observations processed so far in this episode.
             Inside ``predict()``, this is the count *before* the current
@@ -32,10 +45,14 @@ class SessionContext:
         session_id: str,
         episode_id: str,
         mode: Literal["sync", "realtime"] = "sync",
+        eval_id: str = "",
+        recording_db_path: str = "",
     ) -> None:
         self._session_id = session_id
         self._episode_id = episode_id
         self._mode: Literal["sync", "realtime"] = mode
+        self._eval_id = eval_id
+        self._recording_db_path = recording_db_path
         self._step = 0
         self._send_action_fn: SendActionFn | None = None  # set by framework
 
@@ -46,6 +63,14 @@ class SessionContext:
     @property
     def episode_id(self) -> str:
         return self._episode_id
+
+    @property
+    def eval_id(self) -> str:
+        return self._eval_id
+
+    @property
+    def recording_db_path(self) -> str:
+        return self._recording_db_path
 
     @property
     def mode(self) -> Literal["sync", "realtime"]:

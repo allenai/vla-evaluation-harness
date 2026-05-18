@@ -43,7 +43,8 @@ CLI (cli/main.py)
      ├─ Benchmark (benchmarks/base.py)  ── runs inside Docker container
      │   └─ EpisodeRunner (runners/)    ── sync or async (Sim2Live)
      │       └─ Connection (connection.py) ←─ WebSocket/msgpack ─→ ModelServer (model_servers/base.py)
-     └─ ResultCollector (results/collector.py)
+     ├─ ResultCollector (results/collector.py)  ── in-memory aggregation for stdout summary
+     └─ RecordingStore (recording.py) ── SQLite (one per eval) capturing step rows + per-episode results
 ```
 
 ### Key design decisions
@@ -51,5 +52,17 @@ CLI (cli/main.py)
 - **Episode-level error isolation**: One episode failure never aborts the entire evaluation.
 - **anyio-based async**: asyncio-compatible, not trio. Use anyio primitives for new async code.
 - **Parallel evaluation**: Environment parallelism via episode sharding + inference parallelism via batch forward passes.
+- **Recording goes through SQLite**: per-episode step rows + episode results + per-eval metadata live in `<output_dir>/recording-<eval_id>.sqlite`. WAL mode + `json_patch` UPSERT lets shards AND the model server (e.g. reflex-train) write concurrently and field-union step rows for the same `(sid, eid, step_id)`. `vla-eval merge` materialises the human-readable per-episode jsonl + per-benchmark aggregate JSON from that DB.
+
+### Recording flow
+
+`vla-eval run` writes raw rows to `<output_dir>/recording-<eval_id>.sqlite`:
+
+- Recording is configured at the **benchmark config's top-level `recording:` key** (sibling of `params`). The orchestrator reads this dict — `output_dir`, `filename_stem`, `record_video`, `record_step`, `video_fps` — and builds the recorder. Benchmarks are not involved in recording policy; they only decide *what* to record (which obs frame, which step fields).
+- Benchmark calls `recorder.record_video(frame)` / `recorder.record_step(row)`; the recorder buffers per-episode and flushes in one transaction at episode end.
+- `filename_stem` (default `"ep{episode_idx:04d}_{status}"`) is a `str.format` template against the task dict's serializable fields + `{status}`. The orchestrator validates it against the first task at startup so a typo fails fast.
+- Model server (optional, used by external callers like reflex-train) receives `(sid, eid, eval_id, db_path)` in the `EPISODE_START` WS payload and opens a `vla_eval.recording.StepRecorder` to push its own step rows. Field-union with the benchmark's rows is automatic via SQLite `json_patch`.
+- `vla-eval merge -c <config> [--eval-id <id>]` reads the DB and emits per-episode jsonl + a `BenchmarkResult`-shaped aggregate JSON. Single-shard `vla-eval run` invokes this inline; sharded runs delegate to `scripts/run_sharded.sh` which calls `vla-eval merge` once after `wait`.
+- `vla-eval run --no-save` skips recording entirely (in-memory only).
 
 Read `CONTRIBUTING.md` before any integration work (adding benchmarks/model servers, PR workflow).

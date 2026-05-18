@@ -7,17 +7,25 @@ import json
 import logging
 import math
 import re
-import time
 import traceback
+import uuid
 from pathlib import Path
 from typing import Any, cast
 
-from filelock import FileLock, Timeout
-
 import websockets
 
+from vla_eval import __version__
 from vla_eval.config import EvalConfig, ServerConfig
 from vla_eval.connection import Connection
+from vla_eval.recording import (
+    DEFAULT_FILENAME_STEM,
+    EpisodeRecorder,
+    EpisodeStatus,
+    NullEpisodeRecorder,
+    RecordingStore,
+    db_path_for_eval,
+    serializable_task_kwargs,
+)
 from vla_eval.registry import resolve_import_string
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
@@ -36,25 +44,21 @@ class Orchestrator:
     Execution flow:
         1. For each benchmark in config, resolve the import string to a class.
         2. Instantiate the benchmark with ``params`` from config.
-        3. Determine ``max_steps``: if config omits ``max_steps``, the
-           benchmark's ``get_metadata()["max_steps"]`` is used instead.
-           An explicit config value always takes precedence.
+        3. Determine ``max_steps``: if config omits it, the benchmark's
+           ``get_metadata()["max_steps"]`` is used.
         4. Build a flat list of (task, episode) work items.
         5. If sharding is enabled, select this shard's subset via round-robin
            (``item_index % num_shards == shard_id``).
-        6. Run each work item, recording results.  Failures are isolated per
-           episode — one crash does not abort the entire benchmark.
+        6. Run each work item via the runner. Recording goes through SQLite.
+           Failures are isolated per episode.
 
     Error recovery:
-        - ``ConnectionError`` (server unreachable after retries): aborts the
-          benchmark and saves partial results.
-        - ``ConnectionClosed`` / ``TimeoutError``: marks the episode as failed,
-          attempts reconnection, and continues with the next episode.
-        - Other exceptions: marks the episode as failed and continues.
+        - ``ConnectionError`` (server unreachable after retries): abort the
+          benchmark, return partial.
+        - ``ConnectionClosed`` / ``TimeoutError``: mark episode failed,
+          reconnect, continue.
+        - Other exceptions: mark episode failed, continue.
 
-    Result files:
-        - Non-sharded: ``{name}_{partial|sync}_{unix_timestamp}.json``
-        - Sharded: ``{name}_shard{id}of{total}.json`` (deterministic, no timestamp).
     """
 
     def __init__(
@@ -62,13 +66,23 @@ class Orchestrator:
         config: dict[str, Any],
         shard_id: int | None = None,
         num_shards: int | None = None,
+        eval_id: str | None = None,
+        no_save: bool = False,
     ) -> None:
         self.config = config
         self._server_cfg = ServerConfig.from_dict(config.get("server"))
         self.shard_id = shard_id
         self.num_shards = num_shards
-        self._output_file_lock: FileLock | None = None
+        self.no_save = no_save
+        self._eval_id = eval_id or str(uuid.uuid4())
+        self._sid = str(uuid.uuid4())  # one per shard process
         self._progress_path: Path | None = None
+        self._progress_last: tuple[int, int, int] | None = None
+        self._store: RecordingStore | None = None
+
+    @property
+    def eval_id(self) -> str:
+        return self._eval_id
 
     @property
     def _output_dir(self) -> Path:
@@ -77,79 +91,57 @@ class Orchestrator:
         return d
 
     def _shard_stem(self, safe_name: str) -> str:
-        """Return the base filename stem for shard files (without extension)."""
         if self.num_shards is not None and self.shard_id is not None:
             return f"{safe_name}_shard{self.shard_id}of{self.num_shards}"
         return safe_name
 
     async def run(self) -> list[dict[str, Any]]:
         """Run all benchmarks defined in config."""
-        benchmark_configs = self.config.get("benchmarks", [])
-        all_results = []
+        if not self.no_save:
+            self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
 
-        for bench_cfg in benchmark_configs:
-            result = await self._run_benchmark(bench_cfg)
-            all_results.append(result)
+        all_results = []
+        try:
+            for bench_cfg in self.config.get("benchmarks", []):
+                result = await self._run_benchmark(bench_cfg)
+                all_results.append(result)
+        finally:
+            if self._store is not None:
+                self._store.close()
+                self._store = None
 
         return all_results
 
-    def _release_file_lock(self) -> None:
-        """Release the shard output file lock (lock file is auto-deleted by filelock)."""
-        if self._output_file_lock is not None:
-            self._output_file_lock.release()
-            self._output_file_lock = None
-
     def _update_progress(self, completed: int, total: int, errors: int) -> None:
-        """Write a lightweight progress file for live monitoring."""
+        """Atomic per-shard progress file for live monitoring; skips no-op writes."""
         if self._progress_path is None:
             return
+        snap = (completed, total, errors)
+        if snap == self._progress_last:
+            return
+        self._progress_last = snap
         tmp = self._progress_path.with_suffix(".tmp")
         tmp.write_text(json.dumps({"completed": completed, "total": total, "errors": errors}))
-        tmp.replace(self._progress_path)  # atomic on POSIX
+        tmp.replace(self._progress_path)
 
     async def _run_benchmark(self, bench_cfg: dict[str, Any]) -> dict[str, Any]:
-        """Run a single benchmark evaluation."""
         cfg = EvalConfig.from_dict(bench_cfg)
         name = cfg.resolved_name()
         safe_name = _SAFE_NAME_RE.sub("_", name)
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
-
-        # Fail fast: claim the output path via file lock (shard mode).
-        self._output_file_lock = None
-        if self.num_shards is not None and self.shard_id is not None:
-            output_path = self._output_dir / f"{self._shard_stem(safe_name)}.json"
-            if output_path.exists():
-                raise FileExistsError(
-                    f"Result file already exists: {output_path}\nRemove it or use a different output_dir."
-                )
-            lock = FileLock(str(output_path) + ".lock", timeout=0)
-            try:
-                lock.acquire()
-                self._output_file_lock = lock
-            except Timeout:
-                raise FileExistsError(f"Another eval is already writing to {output_path}")
-
-        try:
-            return await self._run_benchmark_inner(cfg, name, safe_name)
-        finally:
-            self._release_file_lock()
+        return await self._run_benchmark_inner(cfg, name, safe_name)
 
     async def _run_benchmark_inner(self, cfg: EvalConfig, name: str, safe_name: str) -> dict[str, Any]:
-        """Run benchmark episodes, collect results, and save."""
-        # Set up progress file for live monitoring
         self._progress_path = self._output_dir / f"{self._shard_stem(safe_name)}.progress"
+        self._progress_last = None
 
-        # Connect to model server FIRST to get observation requirements
         conn = Connection(self._server_cfg.url, timeout=self._server_cfg.timeout)
         await conn.connect(benchmark=cfg.benchmark)
 
-        # Resolve benchmark class and inspect its __init__ signature once
         benchmark_cls = resolve_import_string(cfg.benchmark)
         sig = inspect.signature(benchmark_cls.__init__)
 
-        # Merge server's observation_params into benchmark config.
-        # Only fills in keys not already set (--param / YAML values take precedence).
         obs_params = conn.server_info.get("observation_params", {})
         merged_params = dict(cfg.params)
         if obs_params:
@@ -164,7 +156,7 @@ class Orchestrator:
             await conn.close()
             raise
 
-        # Cross-validate action/observation specs between server and benchmark.
+        # Spec cross-validation
         try:
             bench_action_spec: dict[str, DimSpec] = {}
             bench_obs_spec: dict[str, DimSpec] = {}
@@ -175,7 +167,6 @@ class Orchestrator:
                 bench_obs_spec = benchmark.get_observation_spec()
             except NotImplementedError:
                 logger.debug("Benchmark %s does not implement specs yet", name)
-            # Deserialize server specs from HELLO handshake
             for key, raw in conn.server_info.get("action_spec", {}).items():
                 server_action_spec[key] = DimSpec.from_dict(raw)
             for key, raw in conn.server_info.get("observation_spec", {}).items():
@@ -189,7 +180,6 @@ class Orchestrator:
         except Exception as exc:
             logger.warning("Spec validation failed: %s", exc)
 
-        # Warn if benchmark supports seeding but config doesn't specify one
         if "seed" in sig.parameters and "seed" not in merged_params:
             default = sig.parameters["seed"].default
             logger.warning(
@@ -200,11 +190,8 @@ class Orchestrator:
             )
 
         metadata = benchmark.get_metadata()
-
-        # max_steps: config value wins; otherwise benchmark metadata; otherwise 300.
         max_steps = cfg.max_steps if cfg.max_steps is not None else metadata.get("max_steps", 300)
 
-        # Create runner
         if cfg.mode.startswith("realtime"):
             runner = AsyncEpisodeRunner(
                 hz=cfg.hz,
@@ -216,69 +203,90 @@ class Orchestrator:
         else:
             runner = SyncEpisodeRunner()
 
-        # Get tasks
         tasks = benchmark.get_tasks()
         if cfg.tasks:
             tasks = [t for t in tasks if t.get("suite") in cfg.tasks or t.get("name") in cfg.tasks]
         if cfg.max_tasks:
             tasks = tasks[: cfg.max_tasks]
 
-        # Build flat work-item list and apply sharding
         work_items = [(task, ep) for task in tasks for ep in range(cfg.episodes_per_task)]
         if self.num_shards is not None and self.shard_id is not None:
-            # Sharding: round-robin by work-item index, not by task.
-            # E.g. 2 tasks × 3 episodes = 6 items → shard 0 gets items 0,2,4.
             work_items = [w for i, w in enumerate(work_items) if i % self.num_shards == self.shard_id]
-            logger.info(
-                "Shard %d/%d: %d episodes assigned",
-                self.shard_id,
-                self.num_shards,
-                len(work_items),
-            )
+            logger.info("Shard %d/%d: %d episodes assigned", self.shard_id, self.num_shards, len(work_items))
 
         collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
-
         total_items = len(work_items)
         self._update_progress(0, total_items, 0)
 
-        def record_failure(reason: str, detail: str) -> None:
-            collector.record(
-                task_name,
-                {
-                    "episode_id": ep,
-                    "metrics": {"success": False},
-                    "failure_reason": reason,
-                    "failure_detail": detail,
-                },
-            )
+        bench_eval_id = f"{self._eval_id}-{safe_name}"
+        bench_metadata = {
+            "benchmark": name,
+            "mode": cfg.mode,
+            "config": cfg.to_dict(),
+            "metric_keys": benchmark.get_metric_keys(),
+            "harness_version": __version__,
+            "server_info": conn.server_info,
+        }
+        if self._store is not None:
+            self._store.upsert_eval_metadata(bench_eval_id, safe_name, bench_metadata)
+
+        rec_cfg = cfg.recording if self._store is not None else None
+        if rec_cfg and work_items:
+            self._validate_filename_stem(rec_cfg, work_items[0][0])
+
+        def record_failure(reason: str, detail: str) -> dict[str, Any]:
+            fail: dict[str, Any] = {
+                "episode_id": ep,
+                "metrics": {"success": False},
+                "failure_reason": reason,
+                "failure_detail": detail,
+            }
+            collector.record(task_name, cast(EpisodeResult, fail))
             self._update_progress(item_idx + 1, total_items, collector.error_count)
+            return fail
+
+        def close_recorder(ep_dict: dict[str, Any], status: EpisodeStatus) -> None:
+            recorder.close(
+                status=status,
+                metrics=ep_dict.get("metrics") or {},
+                task_name=task_name,
+                episode_id=int(ep_dict.get("episode_id", ep)),
+                steps=int(ep_dict.get("steps", 0)),
+                elapsed_sec=float(ep_dict.get("elapsed_sec", 0.0)),
+                failure_reason=ep_dict.get("failure_reason"),
+                failure_detail=ep_dict.get("failure_detail"),
+            )
 
         try:
             for item_idx, (task, ep) in enumerate(work_items):
                 task_name = task.get("name", str(task))
+                recorder: EpisodeRecorder = NullEpisodeRecorder()
                 try:
                     episode_idx = ep
                     max_ep = metadata.get("max_episodes_per_task")
                     if cfg.throughput_mode and max_ep is not None:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
-                    raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps)
+                    recorder = self._build_recorder(cfg.recording, task, bench_eval_id)
+                    raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps, recorder=recorder)
                     raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
                     collector.record(task_name, ep_result)
-                    status = "SUCCESS" if ep_result.get("metrics", {}).get("success") else "FAIL"
+                    ep_dict = dict(ep_result)
+                    success = bool((ep_dict.get("metrics") or {}).get("success"))
                     logger.info(
                         "  [%d/%d] %s ep%d: %s (steps=%d)",
                         item_idx + 1,
                         total_items,
                         task_name,
                         ep,
-                        status,
-                        ep_result.get("steps", 0),
+                        "SUCCESS" if success else "FAIL",
+                        ep_dict.get("steps", 0),
                     )
                     self._update_progress(item_idx + 1, total_items, collector.error_count)
+                    close_recorder(ep_dict, "success" if success else "fail")
+                    continue
                 except ConnectionError as exc:
-                    # Server unreachable after all retries — save partial and abort
                     logger.error(
                         "  [%d/%d] %s ep%d: server unreachable, aborting benchmark",
                         item_idx + 1,
@@ -286,8 +294,11 @@ class Orchestrator:
                         task_name,
                         ep,
                     )
-                    record_failure("server_unreachable", str(exc))
-                    return self._save_results(collector, cfg, safe_name, partial=True, server_info=conn.server_info)
+                    fail = record_failure("server_unreachable", str(exc))
+                    close_recorder(fail, "error")
+                    return self._finalize_benchmark(
+                        collector, cfg, safe_name, partial=True, server_info=conn.server_info
+                    )
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
                     close_reason = exc.rcvd.reason if exc.rcvd else None
@@ -300,14 +311,16 @@ class Orchestrator:
                         close_code,
                         close_reason,
                     )
-                    record_failure("connection_closed", f"code={close_code} reason={close_reason}")
+                    fail = record_failure("connection_closed", f"code={close_code} reason={close_reason}")
+                    close_recorder(fail, "error")
                     try:
                         await conn.reconnect()
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
-                        return self._save_results(
+                        return self._finalize_benchmark(
                             collector, cfg, safe_name, partial=True, server_info=conn.server_info
                         )
+                    continue
                 except TimeoutError as exc:
                     logger.warning(
                         "  [%d/%d] %s ep%d: TimeoutError (act timeout=%ss)",
@@ -317,14 +330,16 @@ class Orchestrator:
                         ep,
                         self._server_cfg.timeout,
                     )
-                    record_failure("timeout", f"timeout={self._server_cfg.timeout}s: {exc}")
+                    fail = record_failure("timeout", f"timeout={self._server_cfg.timeout}s: {exc}")
+                    close_recorder(fail, "error")
                     try:
                         await conn.reconnect()
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
-                        return self._save_results(
+                        return self._finalize_benchmark(
                             collector, cfg, safe_name, partial=True, server_info=conn.server_info
                         )
+                    continue
                 except Exception:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
@@ -333,14 +348,54 @@ class Orchestrator:
                         task_name,
                         ep,
                     )
-                    record_failure("exception", traceback.format_exc())
+                    fail = record_failure("exception", traceback.format_exc())
+                    close_recorder(fail, "error")
+                    continue
         finally:
             benchmark.cleanup()
             await conn.close()
 
-        return self._save_results(collector, cfg, safe_name, partial=False, server_info=conn.server_info)
+        return self._finalize_benchmark(collector, cfg, safe_name, partial=False, server_info=conn.server_info)
 
-    def _save_results(
+    def _build_recorder(
+        self,
+        rec_cfg: dict[str, Any] | None,
+        task: dict[str, Any],
+        bench_eval_id: str,
+    ) -> EpisodeRecorder:
+        """Build per-episode recorder from YAML config + task dict, or Null if recording is off."""
+        if self._store is None or rec_cfg is None:
+            return NullEpisodeRecorder()
+        eid = str(uuid.uuid4())
+        return EpisodeRecorder(
+            store=self._store,
+            sid=self._sid,
+            eid=eid,
+            eval_id=bench_eval_id,
+            output_dir=rec_cfg.get("output_dir") or str(self._output_dir / "episodes"),
+            filename_stem=rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM,
+            context=serializable_task_kwargs(task),
+            record_video=bool(rec_cfg.get("record_video", True)),
+            record_step=bool(rec_cfg.get("record_step", True)),
+            video_fps=int(rec_cfg.get("video_fps", 20)),
+        )
+
+    def _validate_filename_stem(self, rec_cfg: dict[str, Any], first_task: dict[str, Any]) -> None:
+        """Dry-render the template so YAML key typos fail before any episode runs."""
+        stem = rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM
+        # episode_idx is injected per-iteration by the run loop, not present on first_task itself.
+        probe = {**serializable_task_kwargs(first_task), "episode_idx": 0, "status": "success"}
+        try:
+            stem.format(**probe)
+        except KeyError as exc:
+            raise ValueError(
+                f"recording.filename_stem={stem!r} references key {exc} "
+                f"that's not in the task dict (available: {sorted(probe)})."
+            ) from None
+        except (IndexError, ValueError) as exc:
+            raise ValueError(f"recording.filename_stem={stem!r} is malformed: {exc}") from None
+
+    def _finalize_benchmark(
         self,
         collector: ResultCollector,
         cfg: EvalConfig,
@@ -349,30 +404,17 @@ class Orchestrator:
         partial: bool,
         server_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Save results to disk. Marks output as partial when the run was interrupted."""
+        """Print summary and return the in-memory benchmark result for the caller."""
         collector.print_summary()
 
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
-
         if server_info is not None:
             output["server_info"] = server_info
-
         if partial:
             output["partial"] = True
-
-        # Add shard metadata
         if self.num_shards is not None and self.shard_id is not None:
             output["shard"] = {"id": self.shard_id, "total": self.num_shards}
-            output_path = self._output_dir / f"{self._shard_stem(safe_name)}.json"
-        else:
-            tag = "partial" if partial else cfg.mode
-            output_path = self._output_dir / f"{safe_name}_{tag}_{int(time.time())}.json"
 
-        output_path.write_text(json.dumps(output, indent=2, default=str))
-        logger.info("Results saved to %s", output_path)
-
-        # Remove progress file — the result JSON replaces it
         if self._progress_path is not None and self._progress_path.exists():
             self._progress_path.unlink()
-
         return output
