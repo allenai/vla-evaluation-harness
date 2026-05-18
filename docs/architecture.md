@@ -50,13 +50,13 @@ Each integrated benchmark has a corresponding Dockerfile under `docker/`.
 
 ## Server Startup & Readiness
 
-Model servers load all weights inside `__init__` (the framework starts listening only after `__init__` returns), so the standard readiness probe is an HTTP request:
+Model servers load all weights inside `__init__` (the framework starts listening only after `__init__` returns), so the standard readiness probe is:
 
 ```bash
-curl -fsS http://host:port/config   # → HTTP 200 once the server is up
+curl -fsS http://host:port/health   # → HTTP 200 once the server is up
 ```
 
-There is no separate `/health` endpoint and none is needed — TCP listen, HTTP `/config`, and the WebSocket HELLO handshake all become live at the same moment, when `__init__` completes. An `__init__` that throws (OOM, bad config, missing checkpoint) kills the process before anything starts listening, so a failing connect is itself a fail-fast signal.
+TCP listen, HTTP routes (`/health`, `/config`), and the WebSocket HELLO handshake all become live at the same moment, when `__init__` completes. An `__init__` that throws (OOM, bad config, missing checkpoint) kills the process before anything starts listening, so a failing connect is itself a fail-fast signal.
 
 ## Episode Execution Flow (Sync)
 

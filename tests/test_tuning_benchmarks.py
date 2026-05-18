@@ -74,18 +74,33 @@ async def test_measure_supply_more_clients_more_requests(instant_server_url: str
     assert result["total_requests"] == 20
 
 
-# ── /config HTTP control plane tests ─────────────────────────────────────
+# ── /health + /config HTTP control plane tests ───────────────────────────
 
 
 @pytest.fixture
 async def echo_server_url(free_port: int):
-    """Spin up an EchoModelServer for /config tests."""
+    """Spin up an EchoModelServer for the HTTP control-plane tests."""
     from tests.conftest import EchoModelServer
 
     server = EchoModelServer()
     task = await start_server(server, free_port)
     yield f"ws://127.0.0.1:{free_port}"
     await stop_server(task)
+
+
+@pytest.mark.anyio
+async def test_health_returns_ok(echo_server_url: str):
+    """GET /health is the readiness probe — 200 with a JSON body + Content-Type."""
+    http_url = echo_server_url.replace("ws://", "http://")
+
+    def _probe():
+        with urllib.request.urlopen(f"{http_url}/health", timeout=5) as resp:
+            return resp.status, resp.headers.get("Content-Type"), json.loads(resp.read())
+
+    status, content_type, body = await asyncio.to_thread(_probe)
+    assert status == 200
+    assert content_type == "application/json"
+    assert body == {"status": "ok"}
 
 
 @pytest.mark.anyio

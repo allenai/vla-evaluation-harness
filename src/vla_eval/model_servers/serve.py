@@ -15,6 +15,8 @@ Error handling:
     and log the traceback, but do **not** close the connection.
 
 HTTP control plane:
+    ``GET /health`` returns ``200 {"status": "ok"}`` once ``__init__`` has
+    finished — use this as the readiness probe.
     ``GET /config`` returns the current server configuration as JSON.
     ``GET /config?max_batch_size=8`` updates whitelisted parameters and
     returns the applied values.  This allows tools like ``bench_supply.py``
@@ -208,11 +210,13 @@ async def _handle_connection(
 
 
 def _make_process_request(model_server: ModelServer) -> Any:
-    """Create a ``process_request`` callback that serves ``GET /config``.
+    """Create a ``process_request`` callback that serves the HTTP control plane.
 
-    When the request path is ``/config``, the callback returns an HTTP
-    response instead of proceeding with the WebSocket handshake:
+    When the request path matches one of the supported routes, the callback
+    returns an HTTP response instead of proceeding with the WebSocket handshake:
 
+    - ``GET /health`` — returns ``200 {"status": "ok"}``. Reaches this point
+      only after ``__init__`` returned, so it is a true readiness signal.
     - ``GET /config`` — returns current whitelisted attribute values as JSON.
     - ``GET /config?max_batch_size=8`` — updates the attribute(s) and returns
       the applied values.
@@ -223,6 +227,12 @@ def _make_process_request(model_server: ModelServer) -> Any:
 
     def process_request(connection: Any, request: Any) -> Any:
         parsed = urlparse(request.path)
+        if parsed.path == "/health":
+            resp = connection.respond(HTTPStatus.OK, '{"status": "ok"}\n')
+            # respond() defaults Content-Type to text/plain; replace with JSON.
+            del resp.headers["Content-Type"]
+            resp.headers["Content-Type"] = "application/json"
+            return resp
         if parsed.path != "/config":
             return None  # proceed with WebSocket handshake
 
