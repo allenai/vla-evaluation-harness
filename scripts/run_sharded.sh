@@ -48,6 +48,12 @@ if [[ ! -f "$CONFIG" ]]; then
   exit 1
 fi
 
+if ! command -v vla-eval >/dev/null 2>&1; then
+  echo "Error: 'vla-eval' is not on PATH. Activate the venv first" >&2
+  echo "       (e.g. '. .venv/bin/activate') or invoke this script via 'uv run'." >&2
+  exit 1
+fi
+
 if [[ -z "$EVAL_ID" ]]; then
   EVAL_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')"
 fi
