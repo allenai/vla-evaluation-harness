@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -101,6 +102,20 @@ def db_path_for_eval(output_dir: str | Path, eval_id: str) -> Path:
     return Path(output_dir) / f"recording-{eval_id}.sqlite"
 
 
+def _host_translate(path: Path) -> Path:
+    """Rewrite ``/workspace/results/...`` to the host root under
+    ``VLA_EVAL_HOST_OUTPUT_DIR`` (set by the outer CLI on ``docker run``).
+    Passes through unchanged otherwise."""
+    host_root = os.environ.get("VLA_EVAL_HOST_OUTPUT_DIR")
+    if not host_root:
+        return path
+    try:
+        rel = path.resolve().relative_to(Path("/workspace/results"))
+    except ValueError:
+        return path
+    return Path(host_root) / rel
+
+
 class RecordingStore:
     """SQLite connection holder. One per process; same-file concurrency via WAL."""
 
@@ -109,6 +124,13 @@ class RecordingStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(self.db_path), isolation_level=None, timeout=30.0)
         self._conn.executescript(SCHEMA_SQL)
+        # Mode 666 on main + WAL/SHM so external writers (different uid) can
+        # co-write via field-union upsert. SQLite WAL needs SHM writable.
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                os.chmod(str(self.db_path) + suffix, 0o666)
+            except OSError:
+                pass
 
     def close(self) -> None:
         self._conn.close()
@@ -250,7 +272,8 @@ class EpisodeRecorder:
 
     @property
     def db_path(self) -> str:
-        return str(self._store.db_path)
+        """Host-resolvable SQLite path (translated when orchestrator is in docker)."""
+        return str(_host_translate(self._store.db_path))
 
     # -- Capture API -------------------------------------------------------
 

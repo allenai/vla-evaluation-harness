@@ -184,6 +184,20 @@ def _run_via_docker(
     ]
     # fmt: on
 
+    # Opt-in --user (see DockerConfig.user).
+    if docker_cfg.user == "host":
+        if not hasattr(os, "getuid"):
+            _stderr_console().print(
+                "[red]ERROR: docker.user='host' needs a POSIX host; pin user: '<uid>:<gid>' instead.[/red]"
+            )
+            sys.exit(1)
+        cmd.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
+    elif docker_cfg.user:
+        cmd.extend(["--user", docker_cfg.user])
+
+    # Forward host-side results_dir for recorder._host_translate.
+    cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
+
     # Forward stdin/TTY for in-container licence prompts.
     cmd.extend(tty_docker_flags())
 

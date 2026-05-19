@@ -77,6 +77,9 @@ class DockerConfig:
         gpus: GPU devices for benchmark containers (e.g. ``"0,1"``).
             ``None`` or ``"all"`` exposes all GPUs.  Devices are round-robin
             distributed across shards.
+        user: Optional ``docker run --user`` value. ``None`` (default) →
+            no flag (image-default user). ``"host"`` → ``$(id -u):$(id -g)``.
+            ``"<uid>:<gid>"`` → explicit pin.
     """
 
     image: str | None = None
@@ -84,6 +87,7 @@ class DockerConfig:
     env: list[str] = field(default_factory=list)
     cpus: str | None = None
     gpus: str | None = None
+    user: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> DockerConfig:
@@ -95,6 +99,7 @@ class DockerConfig:
             env=data.get("env", []),
             cpus=data.get("cpus"),
             gpus=data.get("gpus"),
+            user=data.get("user") or None,
         )
 
     def to_dict(self) -> dict[str, Any]:

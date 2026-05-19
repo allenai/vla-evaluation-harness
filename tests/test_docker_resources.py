@@ -318,3 +318,48 @@ class TestRocmShardDockerFlags:
     def test_rocm_explicit_gpu_round_robin(self, _runtime_mock):
         flags = shard_docker_flags(2, 4, gpus="2,3")
         assert "HIP_VISIBLE_DEVICES=2" in flags
+
+
+# --------------------------------------------------------------------------
+# DockerConfig.user default-to-host-uid (cli _run_via_docker behavior)
+# --------------------------------------------------------------------------
+
+
+def test_docker_config_user_default_none():
+    """Default: None (image-default user)."""
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"image": "x"})
+    assert cfg.user is None
+
+
+def test_docker_config_user_host_opt_in():
+    """``user: host`` opt-in."""
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"image": "x", "user": "host"})
+    assert cfg.user == "host"
+
+
+def test_docker_config_user_explicit_override():
+    """Explicit uid:gid pin."""
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"image": "x", "user": "1234:5678"})
+    assert cfg.user == "1234:5678"
+
+
+def test_docker_config_user_null_yaml_stays_none():
+    """``user: null`` ≡ unset."""
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"image": "x", "user": None})
+    assert cfg.user is None
+
+
+def test_docker_config_user_empty_string_stays_none():
+    """``user: ""`` ≡ unset."""
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"image": "x", "user": ""})
+    assert cfg.user is None

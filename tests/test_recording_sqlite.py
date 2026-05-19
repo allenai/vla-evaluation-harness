@@ -456,3 +456,52 @@ def test_merge_handles_missing_jsonl_path(tmp_path: Path) -> None:
     body = aggregates[0]
     failed = body["tasks"][0]["episodes"][0]
     assert failed["failure_reason"] == "server_unreachable"
+
+
+# --------------------------------------------------------------------------
+# Host translation (VLA_EVAL_HOST_OUTPUT_DIR) for cross-container db_path
+# --------------------------------------------------------------------------
+
+
+def test_host_translate_no_env(monkeypatch, tmp_path):
+    """Env unset → passthrough."""
+    monkeypatch.delenv("VLA_EVAL_HOST_OUTPUT_DIR", raising=False)
+    from vla_eval.recording import _host_translate
+
+    p = tmp_path / "recording-x.sqlite"
+    assert _host_translate(p) == p
+
+
+def test_host_translate_rewrites_container_prefix(monkeypatch, tmp_path):
+    """Env set + container-prefix path → host root rewrite."""
+    monkeypatch.setenv("VLA_EVAL_HOST_OUTPUT_DIR", str(tmp_path))
+    from vla_eval.recording import _host_translate
+
+    container_path = Path("/workspace/results/recording-abc.sqlite")
+    out = _host_translate(container_path)
+    assert out == tmp_path / "recording-abc.sqlite"
+
+
+def test_host_translate_leaves_unrelated_path_alone(monkeypatch, tmp_path):
+    """Env set + path outside container prefix → passthrough."""
+    monkeypatch.setenv("VLA_EVAL_HOST_OUTPUT_DIR", str(tmp_path))
+    from vla_eval.recording import _host_translate
+
+    p = Path("/some/other/place/recording-y.sqlite")
+    assert _host_translate(p) == p
+
+
+def test_recording_store_chmods_db_world_writable(tmp_path):
+    """Main + WAL + SHM are mode 666 so external (different-uid) writers can upsert."""
+    from vla_eval.recording import RecordingStore
+
+    db = tmp_path / "rec.sqlite"
+    store = RecordingStore(db)
+    try:
+        for suffix in ("", "-wal", "-shm"):
+            f = tmp_path / ("rec.sqlite" + suffix)
+            assert f.exists(), f"missing {f.name}"
+            mode = f.stat().st_mode & 0o777
+            assert mode == 0o666, f"{f.name}: expected 0o666, got {oct(mode)}"
+    finally:
+        store.close()
