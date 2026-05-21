@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import websockets
 
-from vla_eval import __version__
+from vla_eval import __version__, watchdog
 from vla_eval.config import EvalConfig, ServerConfig
 from vla_eval.connection import Connection
 from vla_eval.recording import (
@@ -260,6 +260,7 @@ class Orchestrator:
         try:
             for item_idx, (task, ep) in enumerate(work_items):
                 task_name = task.get("name", str(task))
+                watchdog.pet(f"{safe_name} {task_name} ep{ep}")
                 recorder: EpisodeRecorder = NullEpisodeRecorder()
                 try:
                     episode_idx = ep
@@ -352,6 +353,7 @@ class Orchestrator:
                     close_recorder(fail, "error")
                     continue
         finally:
+            watchdog.pet(f"{safe_name} cleanup")
             benchmark.cleanup()
             await conn.close()
 

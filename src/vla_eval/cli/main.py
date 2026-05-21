@@ -11,6 +11,7 @@ from typing import Any
 
 import yaml
 
+from vla_eval import watchdog
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.cli._docker import (
     check_docker_daemon as _check_docker_daemon,
@@ -310,6 +311,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     import anyio
 
+    watchdog.start(float(os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S", "1200")))
     orchestrator = Orchestrator(
         config,
         shard_id=shard_id,
