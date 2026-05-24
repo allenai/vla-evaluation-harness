@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sqlite3
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -225,6 +226,8 @@ class EpisodeRecorder:
         record_video: bool = True,
         record_step: bool = True,
         video_fps: int = 20,
+        step_fields: Iterable[str] | None = None,
+        allowed_fields: Iterable[str] | None = None,
     ) -> None:
         self._store = store
         self._sid = sid
@@ -238,6 +241,23 @@ class EpisodeRecorder:
         self._next_step = 0
         self._closed = False
         self._video: Any = None
+        # step_fields=None → record everything in ``allowed_fields`` (or
+        # everything, if both are None). Explicit empty list = record nothing.
+        allowed = frozenset(allowed_fields) if allowed_fields is not None else None
+        if step_fields is None:
+            self._step_fields: frozenset[str] | None = allowed
+        else:
+            if isinstance(step_fields, str):
+                raise TypeError(
+                    f"step_fields must be a list of field names, got bare string {step_fields!r} — "
+                    "did you forget the YAML list brackets?"
+                )
+            requested = frozenset(step_fields)
+            if allowed is not None:
+                unknown = requested - allowed
+                if unknown:
+                    raise ValueError(f"Unknown step_fields: {sorted(unknown)}. Valid: {sorted(allowed)}")
+            self._step_fields = requested
         if record_video:
             from vla_eval.benchmarks.video import EpisodeVideoRecorder
 
@@ -277,17 +297,23 @@ class EpisodeRecorder:
 
     # -- Capture API -------------------------------------------------------
 
-    def record_video(self, frame: "np.ndarray") -> None:
-        if self._video is not None:
-            self._video.record(frame)
+    def record_video(self, frame: "np.ndarray | None") -> None:
+        """Append one frame to the per-episode mp4. ``None`` is a no-op so
+        benchmarks can pass ``self._extract_frame(obs)`` directly."""
+        if frame is None or self._video is None:
+            return
+        self._video.record(frame)
 
-    def record_step(self, row: dict[str, Any]) -> None:
+    def record_step(self, **fields: Any) -> None:
+        """``step_fields`` filters caller keys; ``step`` kwarg overrides
+        auto-increment (used to amend a previous row)."""
         if not self._record_step:
             return
-        step_id = int(row.get("step", self._next_step))
+        if self._step_fields is not None:
+            fields = {k: v for k, v in fields.items() if k == "step" or k in self._step_fields}
+        step_id = int(fields.pop("step", self._next_step))
         self._next_step = step_id + 1
-        existing = self._steps.setdefault(step_id, {})
-        existing.update((k, v) for k, v in row.items() if k != "step")
+        self._steps.setdefault(step_id, {}).update(fields)
 
     # -- Close (orchestrator) ---------------------------------------------
 
@@ -385,10 +411,10 @@ class NullEpisodeRecorder(EpisodeRecorder):
     def db_path(self) -> str:  # type: ignore[override]
         return ""
 
-    def record_video(self, frame: "np.ndarray") -> None:  # type: ignore[override]
+    def record_video(self, frame: "np.ndarray | None") -> None:  # type: ignore[override]
         pass
 
-    def record_step(self, row: dict[str, Any]) -> None:  # type: ignore[override]
+    def record_step(self, **fields: Any) -> None:  # type: ignore[override]
         pass
 
     def close(  # type: ignore[override]

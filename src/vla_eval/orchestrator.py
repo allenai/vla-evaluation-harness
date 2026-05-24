@@ -268,7 +268,7 @@ class Orchestrator:
                     if cfg.throughput_mode and max_ep is not None:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
-                    recorder = self._build_recorder(cfg.recording, task, bench_eval_id)
+                    recorder = self._build_recorder(cfg.recording, task, bench_eval_id, benchmark)
                     raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps, recorder=recorder)
                     raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
@@ -364,11 +364,18 @@ class Orchestrator:
         rec_cfg: dict[str, Any] | None,
         task: dict[str, Any],
         bench_eval_id: str,
+        benchmark: Any,
     ) -> EpisodeRecorder:
-        """Build per-episode recorder from YAML config + task dict, or Null if recording is off."""
+        """Build per-episode recorder from YAML config + task dict, or Null if recording is off.
+
+        ``step_fields`` is read from the benchmark config (per-benchmark
+        ``params.step_fields``) and validated against ``benchmark._ALL_RECORD_FIELDS``
+        by the recorder.
+        """
         if self._store is None or rec_cfg is None:
             return NullEpisodeRecorder()
         eid = str(uuid.uuid4())
+        allowed = getattr(benchmark, "_ALL_RECORD_FIELDS", None)
         return EpisodeRecorder(
             store=self._store,
             sid=self._sid,
@@ -380,6 +387,8 @@ class Orchestrator:
             record_video=bool(rec_cfg.get("record_video", True)),
             record_step=bool(rec_cfg.get("record_step", True)),
             video_fps=int(rec_cfg.get("video_fps", 20)),
+            step_fields=rec_cfg.get("step_fields"),
+            allowed_fields=allowed,
         )
 
     def _validate_filename_stem(self, rec_cfg: dict[str, Any], first_task: dict[str, Any]) -> None:

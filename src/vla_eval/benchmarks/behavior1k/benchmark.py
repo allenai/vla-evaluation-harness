@@ -164,6 +164,8 @@ class Behavior1KBenchmark(StepBenchmark):
                   this to reproduce the challenge protocol (50 tasks × 10 instances).
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -348,6 +350,7 @@ class Behavior1KBenchmark(StepBenchmark):
             episode_idx = int(task.get("episode_idx", 0))
             instance_id = self._task_instance_ids[episode_idx % len(self._task_instance_ids)]
             obs = self._load_task_instance(instance_id)
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def _load_task_instance(self, instance_id: int) -> Any:
@@ -428,7 +431,36 @@ class Behavior1KBenchmark(StepBenchmark):
         info = dict(info)
         info["truncated"] = bool(truncated)
         done = bool(terminated) or bool(truncated)
+        done_info = info.get("done") or {}
+        success = bool(done_info.get("success", False))
+
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(
+            reward=float(reward),
+            done=done,
+            terminated=bool(terminated),
+            truncated=bool(truncated),
+            success=success,
+        )
+
         return StepResult(obs=obs, reward=float(reward), done=done, info=info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        from omnigibson.learning.utils.eval_utils import flatten_obs_dict
+
+        flat = flatten_obs_dict(raw_obs)
+        for cam in self._camera_names:
+            key = R1PRO_CAMERAS[cam] + RGB_SUFFIX
+            value = flat.get(key)
+            if value is None:
+                continue
+            if hasattr(value, "cpu"):
+                value = value.cpu().numpy()
+            arr = np.asarray(value, dtype=np.uint8)
+            if arr.ndim == 3 and arr.shape[-1] == 4:
+                arr = arr[..., :3]
+            return np.ascontiguousarray(arr)
+        return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         from omnigibson.learning.utils.eval_utils import flatten_obs_dict

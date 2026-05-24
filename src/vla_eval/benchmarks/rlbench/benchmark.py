@@ -36,6 +36,8 @@ class RLBenchBenchmark(StepBenchmark):
         max_steps: Maximum steps per episode.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -118,6 +120,7 @@ class RLBenchBenchmark(StepBenchmark):
         self._task_env = self._env.get_task(task_class)
         self._task_env.sample_variation()
         self._descriptions, obs = self._task_env.reset()
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -132,7 +135,17 @@ class RLBenchBenchmark(StepBenchmark):
 
         assert self._task_env is not None
         obs, reward, terminate = self._task_env.step(act)
-        return StepResult(obs=obs, reward=reward, done=terminate, info={})
+        success = reward > 0.99
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=float(reward), done=bool(terminate), success=bool(success))
+        return StepResult(obs=obs, reward=reward, done=terminate, info={"success": bool(success)})
+
+    @staticmethod
+    def _extract_frame(raw_obs: Any) -> np.ndarray | None:
+        front = getattr(raw_obs, "front_rgb", None)
+        if front is None:
+            return None
+        return np.asarray(front, dtype=np.uint8)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         images = {}

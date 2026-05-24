@@ -199,7 +199,7 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
 
         def step(self, action):
             res = super().step(action)
-            self._recorder.record_step({"reward": float(self._step_count)})
+            self._recorder.record_step(reward=float(self._step_count))
             return res
 
     config = {

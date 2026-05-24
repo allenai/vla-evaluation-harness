@@ -56,6 +56,8 @@ class ManiSkill2Benchmark(StepBenchmark):
         enabled_cameras: Camera names to include (default ``["base_camera"]``).
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -118,6 +120,7 @@ class ManiSkill2Benchmark(StepBenchmark):
         else:
             self._goal = goal_template
 
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -141,8 +144,25 @@ class ManiSkill2Benchmark(StepBenchmark):
         # Track gripper state for next observation (sign inversion)
         self.gripper_state = -env_action[-1]
 
-        done = terminated or truncated
+        done = bool(terminated) or bool(truncated)
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(
+            reward=float(reward),
+            done=done,
+            terminated=bool(terminated),
+            truncated=bool(truncated),
+            success=bool(info.get("success", False)),
+        )
         return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        for cam in self.enabled_cameras:
+            cam_data = raw_obs.get("image", {}).get(cam)
+            if cam_data is not None and "rgb" in cam_data:
+                return np.asarray(cam_data["rgb"])
+        return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         # Extract camera images

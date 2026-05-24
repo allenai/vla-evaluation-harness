@@ -51,6 +51,8 @@ class RoboCasaBenchmark(StepBenchmark):
         seed: Random seed for environment creation.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -110,6 +112,7 @@ class RoboCasaBenchmark(StepBenchmark):
 
         obs = self._env.reset()
         self._lang = self._env.get_ep_meta().get("lang", task_name)
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -129,7 +132,19 @@ class RoboCasaBenchmark(StepBenchmark):
         obs, reward, done, info = self._env.step(raw_action)
         success = bool(self._env._check_success())
         info["success"] = success
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=float(success), done=bool(done), success=success)
         return StepResult(obs=obs, reward=float(success), done=done, info=info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        for cam in self._camera_names:
+            key = f"{cam}_image"
+            if key in raw_obs:
+                # Match make_obs's vertical flip so recorded video matches what the model sees.
+                return np.ascontiguousarray(raw_obs[key][::-1])
+        return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         images: dict[str, Any] = {}

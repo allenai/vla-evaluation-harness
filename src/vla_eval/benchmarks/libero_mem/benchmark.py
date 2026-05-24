@@ -48,6 +48,11 @@ class LIBEROMemBenchmark(LIBEROBenchmark):
         # subgoal state machine. Preserve the env's own done flag too.
         assert self._env is not None
         done = result.done or self._env.env._check_success(inc=True)
+        # super().step already recorded one row; overwrite its done/success
+        # fields with the mutated value (json_patch merges by step_id).
+        last_step_id = self._recorder._next_step - 1
+        if last_step_id >= 0:
+            self._recorder.record_step(step=last_step_id, done=bool(done), success=bool(done))
         return StepResult(obs=result.obs, reward=result.reward, done=done, info=result.info)
 
     def get_metadata(self) -> dict[str, Any]:

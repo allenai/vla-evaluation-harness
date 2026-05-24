@@ -153,8 +153,6 @@ class RoboMMEBenchmark(StepBenchmark):
             ``info['simple_subgoal_online']`` (no coords).  Both come from
             ``DemonstrationWrapper`` in the upstream robomme env.  ``"grounded"``
             falls back to simple if grounded is empty.
-        step_fields: Subset of ``_ALL_RECORD_FIELDS`` to write into each step row.
-            ``None`` selects all.
     """
 
     _ALL_RECORD_FIELDS = frozenset(
@@ -174,7 +172,6 @@ class RoboMMEBenchmark(StepBenchmark):
         send_video_history: bool = True,
         send_subgoal: bool = False,
         subgoal_mode: Literal["grounded", "simple"] = "grounded",
-        step_fields: list[str] | None = None,
     ) -> None:
         super().__init__()
         if subgoal_mode not in ("grounded", "simple"):
@@ -188,17 +185,6 @@ class RoboMMEBenchmark(StepBenchmark):
         self.send_video_history = send_video_history
         self.send_subgoal = send_subgoal
         self.subgoal_mode = subgoal_mode
-
-        # Validate the requested field subset at construction time so a typo
-        # crashes the run before the first episode rather than silently
-        # dropping rows.
-        if step_fields is None:
-            self._step_fields: frozenset[str] = self._ALL_RECORD_FIELDS
-        else:
-            unknown = set(step_fields) - self._ALL_RECORD_FIELDS
-            if unknown:
-                raise ValueError(f"Unknown step_fields: {sorted(unknown)}. Valid: {sorted(self._ALL_RECORD_FIELDS)}")
-            self._step_fields = frozenset(step_fields) if step_fields else self._ALL_RECORD_FIELDS
 
         self._env: Any = None
         self._task: Task | None = None
@@ -389,10 +375,7 @@ class RoboMMEBenchmark(StepBenchmark):
         if self.send_subgoal:
             self._current_subgoal = self._extract_subgoal(info_flat)
 
-        front_list = obs_batch.get("front_rgb_list", [])
-        if front_list:
-            self._recorder.record_video(front_list[-1])
-
+        self._recorder.record_video(self._extract_frame(obs_batch))
         return obs_batch
 
     def step(self, action: Action) -> StepResult:
@@ -410,38 +393,34 @@ class RoboMMEBenchmark(StepBenchmark):
         if self.send_subgoal:
             self._current_subgoal = self._extract_subgoal(info)
 
-        if obs:
-            front_list = obs.get("front_rgb_list", [])
-            if front_list:
-                self._recorder.record_video(front_list[-1])
-
         terminated = bool(terminated)
         truncated = bool(truncated)
         reward = float(reward)
         done = terminated or truncated or info.get("status") == "error"
 
-        self._recorder.record_step(self._step_row(info, obs, reward, terminated))
-
-        return StepResult(obs=obs, reward=reward, done=done, info=info)
-
-    def _step_row(
-        self,
-        info: dict[str, Any],
-        obs: Any,
-        reward: float,
-        terminated: bool,
-    ) -> dict[str, Any]:
-        sources: dict[str, Any] = {
+        row: dict[str, Any] = {
             "simple_subgoal_online": info.get("simple_subgoal_online", ""),
             "grounded_subgoal_online": info.get("grounded_subgoal_online", ""),
             "reward": reward,
             "terminated": terminated,
         }
-        if obs:
+        if isinstance(obs, dict):
             state = obs.get("state_fq")
             if state is not None:
-                sources["state_fq"] = state.tolist() if hasattr(state, "tolist") else list(state)
-        return {k: sources[k] for k in self._step_fields if k in sources}
+                row["state_fq"] = state.tolist() if hasattr(state, "tolist") else list(state)
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(**row)
+
+        return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    @staticmethod
+    def _extract_frame(raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        front_list = raw_obs.get("front_rgb_list", [])
+        if not front_list:
+            return None
+        return np.asarray(front_list[-1])
 
     def _extract_subgoal(self, info: dict[str, Any]) -> str:
         """Pick the configured subgoal text from the env's info dict.

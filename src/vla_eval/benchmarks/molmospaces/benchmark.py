@@ -70,6 +70,8 @@ class MolmoSpacesBenchmark(StepBenchmark):
         send_state: Include proprioceptive state (qpos) in wire observations.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         benchmark_dir: str,
@@ -173,7 +175,9 @@ class MolmoSpacesBenchmark(StepBenchmark):
             raw_obs = reset_output[0]
         else:
             raw_obs = reset_output
-        return self._unwrap_batch(raw_obs)
+        unwrapped = self._unwrap_batch(raw_obs)
+        self._recorder.record_video(self._extract_frame(unwrapped))
+        return unwrapped
 
     def step(self, action: Action) -> StepResult:
         raw = action.get("actions", action.get("action"))
@@ -201,7 +205,21 @@ class MolmoSpacesBenchmark(StepBenchmark):
             info = info[0] if info else {}
 
         done = bool(terminated or truncated)
-        return StepResult(obs=obs, reward=float(reward), done=done, info=info or {})
+        success = bool(self._scalar(info.get("success", False), default=False)) if isinstance(info, dict) else False
+
+        out_info = dict(info) if isinstance(info, dict) else {}
+        out_info.setdefault("success", success)
+
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=float(reward), done=done, success=success)
+
+        return StepResult(obs=obs, reward=float(reward), done=done, info=out_info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        # Reuse the primary-camera resolution logic that make_obs uses for the model server.
+        return self._find_camera(raw_obs, PRIMARY_CAM_ALIASES)
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         if not isinstance(raw_obs, dict):

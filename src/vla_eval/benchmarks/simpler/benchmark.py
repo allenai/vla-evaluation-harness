@@ -69,6 +69,8 @@ class SimplerEnvBenchmark(StepBenchmark):
             ``obj_episode_range`` ([start, end) end-exclusive, episode mode).
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+
     def __init__(
         self,
         task_name: str = "widowx_stack_cube",
@@ -208,6 +210,7 @@ class SimplerEnvBenchmark(StepBenchmark):
         except AttributeError:
             self._task_description = self._env.get_wrapper_attr("get_language_instruction")()
 
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def _common_make_kwargs(self) -> dict[str, Any]:
@@ -286,7 +289,28 @@ class SimplerEnvBenchmark(StepBenchmark):
         if done:
             self._success_seen = True
 
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(
+            reward=float(reward),
+            done=bool(done),
+            terminated=bool(done),
+            truncated=bool(truncated),
+            success=bool(done),
+        )
+
         return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        if self._env is None:
+            return None
+        try:
+            from simpler_env.utils.env.observation_utils import (
+                get_image_from_maniskill2_obs_dict,
+            )
+
+            return np.asarray(get_image_from_maniskill2_obs_dict(self._env, raw_obs))
+        except Exception:
+            return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         from simpler_env.utils.env.observation_utils import (

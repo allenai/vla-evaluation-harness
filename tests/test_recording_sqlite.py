@@ -150,29 +150,6 @@ def test_jsonl_path_is_relative_to_db_dir(tmp_path: Path) -> None:
     assert jsonl_path == "episodes/task_success.jsonl"
 
 
-def test_record_step_does_not_mutate_caller_dict(tmp_path: Path) -> None:
-    """``record_step`` must not pop ``"step"`` from the caller's dict."""
-    db = tmp_path / "recording.sqlite"
-    store = RecordingStore(db)
-    rec = EpisodeRecorder(
-        store=store,
-        sid="s",
-        eid="e",
-        eval_id="ev",
-        output_dir=str(tmp_path),
-        filename_stem="ep_{status}",
-        context={},
-        record_video=False,
-    )
-    try:
-        row = {"step": 0, "reward": 0.5}
-        rec.record_step(row)
-        assert row == {"step": 0, "reward": 0.5}, "caller's dict was mutated"
-    finally:
-        rec.close(status="success", metrics={})
-        store.close()
-
-
 # ---------------------------------------------------------------------------
 # Multi-writer: orchestrator + model server -style fan-in
 # ---------------------------------------------------------------------------
@@ -275,7 +252,7 @@ def _frame() -> np.ndarray:
 def test_null_recorder_is_strict_noop(tmp_path: Path) -> None:
     rec = NullEpisodeRecorder()
     rec.record_video(_frame())
-    rec.record_step({"reward": 1.0})
+    rec.record_step(reward=1.0)
     rec.close(status="success", metrics={"success": True})
     rec.close(status="success", metrics={})  # idempotent
     assert rec.is_active is False
@@ -297,9 +274,9 @@ def test_episode_recorder_close_writes_steps_and_result(tmp_path: Path) -> None:
         context={"env_id": "demo", "episode_idx": 3},
         record_video=False,
     )
-    rec.record_step({"reward": 0.1})
-    rec.record_step({"reward": 0.2})
-    rec.record_step({"reward": 0.3})
+    rec.record_step(reward=0.1)
+    rec.record_step(reward=0.2)
+    rec.record_step(reward=0.3)
     rec.close(
         status="success",
         metrics={"success": True},
