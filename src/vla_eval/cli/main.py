@@ -388,6 +388,9 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
     cmd: list[str] = [uv, "run", str(script)]
     for key, value in server_args.items():
+        if value is None:
+            # yaml-null = "no override"; let the inner script's argparse default apply.
+            continue
         if isinstance(value, bool):
             cmd.append(f"--{key}" if value else f"--no-{key}")
         elif isinstance(value, (list, dict)):
