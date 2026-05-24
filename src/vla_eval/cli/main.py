@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -341,6 +342,58 @@ def cmd_run(args: argparse.Namespace) -> None:
             logger.exception("vla-eval merge failed for eval_id=%s", orchestrator.eval_id)
 
 
+# yaml convention puts these under ``args:`` but they belong to the WS server,
+# not ModelServer.__init__; emitted at the inner root so jsonargparse routes
+# them correctly.
+_SERVER_LEVEL_KEYS = {"port", "host"}
+
+
+def _stringify_arg(value: Any) -> str:
+    """Render a yaml value as one argv token for the inner jsonargparse parser.
+    list/dict round-trip as JSON literals; primitives go through ``str`` (jsonargparse
+    parses ``"null"`` / ``"8000"`` back to the typed value)."""
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    if value is None:
+        return "null"
+    return str(value)
+
+
+def _build_serve_cmd(
+    uv: str,
+    script: Path,
+    config: dict[str, Any],
+    *,
+    address: str | None = None,
+    port: int | None = None,
+    overrides: list[str] | None = None,
+) -> list[str]:
+    """Build ``uv run <script> --<server_key>=v --args.<class_key>=v ...``.
+
+    Server-level keys (``port`` / ``host``) emit at the inner root; everything
+    in the yaml's ``args:`` block emits under ``--args.*`` so jsonargparse maps
+    them onto ``server_cls.__init__``.
+    """
+    cmd: list[str] = [uv, "run", str(script)]
+    args_block = dict(config.get("args") or {})
+    for k in _SERVER_LEVEL_KEYS:
+        if k in args_block:
+            cmd.append(f"--{k}={_stringify_arg(args_block.pop(k))}")
+    for k, v in args_block.items():
+        cmd.append(f"--args.{k}={_stringify_arg(v)}")
+    if port is not None:
+        cmd.append(f"--port={port}")
+    if address:
+        cmd.extend(["--address", address])
+    for override in overrides or []:
+        key, sep, value = override.partition("=")
+        if not key or not sep:
+            raise ValueError(f"--arg must be KEY=VALUE, got {override!r}")
+        prefix = "" if key in _SERVER_LEVEL_KEYS else "args."
+        cmd.append(f"--{prefix}{key}={value}")
+    return cmd
+
+
 def cmd_serve(args: argparse.Namespace) -> None:
     """Launch a model server from a YAML config via uv run."""
     import shutil
@@ -356,50 +409,17 @@ def cmd_serve(args: argparse.Namespace) -> None:
         _stderr_console().print(f"[red]ERROR: Script not found: {script}[/red]")
         sys.exit(1)
 
-    # CLI overrides
-    server_args = dict(config.get("args", {}))
-    address = getattr(args, "address", None)
-    if address:
-        from vla_eval.model_servers.serve import _parse_address
-
-        try:
-            host, port = _parse_address(address)
-        except ValueError as exc:
-            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
-            sys.exit(1)
-        server_args["host"] = host
-        server_args["port"] = port
-    for override in getattr(args, "arg", None) or []:
-        key, _, value = override.partition("=")
-        if not key or not _:
-            _stderr_console().print(f"[red]ERROR: --arg must be KEY=VALUE, got {override!r}[/red]")
-            sys.exit(1)
-        # Auto-coerce types: bool, int, float
-        if value.lower() in ("true", "false"):
-            server_args[key] = value.lower() == "true"
-        else:
-            try:
-                server_args[key] = int(value)
-            except ValueError:
-                try:
-                    server_args[key] = float(value)
-                except ValueError:
-                    server_args[key] = value
-
-    cmd: list[str] = [uv, "run", str(script)]
-    for key, value in server_args.items():
-        if value is None:
-            # yaml-null = "no override"; let the inner script's argparse default apply.
-            continue
-        if isinstance(value, bool):
-            cmd.append(f"--{key}" if value else f"--no-{key}")
-        elif isinstance(value, (list, dict)):
-            import json
-
-            cmd.extend([f"--{key}", json.dumps(value)])
-        else:
-            cmd.extend([f"--{key}", str(value)])
-
+    try:
+        cmd = _build_serve_cmd(
+            uv,
+            script,
+            config,
+            address=getattr(args, "address", None),
+            overrides=getattr(args, "arg", None),
+        )
+    except ValueError as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
     logger.info("Running: %s", " ".join(cmd))
     _exec_subprocess(cmd)
 
@@ -811,11 +831,14 @@ Requires 'uv' (https://docs.astral.sh/uv/) on PATH.
 
 The config YAML must contain:
   script: path/to/server_script.py   # resolved relative to cwd
-  args:                               # converted to --key value flags
+  args:                               # passed to the server class __init__
     model_path: Org/model-name
     port: 8000
 
-Bool args become flags (--use_text_template), others become --key value.
+The yaml is handed to the inner script via --config; jsonargparse maps
+args.* onto the class signature with full type validation. CLI overrides
+--arg KEY=VALUE compose with the yaml; KEY may be a class kwarg or a
+server-level key (host/port).
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")

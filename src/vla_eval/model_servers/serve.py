@@ -25,6 +25,7 @@ HTTP control plane:
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import os
@@ -32,7 +33,6 @@ import time
 import uuid
 from functools import partial
 from http import HTTPStatus
-from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -346,136 +346,37 @@ def _parse_address(address: str, default_host: str = "0.0.0.0", default_port: in
     return host, port
 
 
-def _resolve_cli_type(
-    annotation: type,
-    default: object,
-) -> tuple[Callable[[str], Any] | None, bool, bool]:
-    """Map a Python type annotation to an argparse type.
-
-    Returns ``(type_fn, is_bool, skip)``.
-    - ``type_fn`` is a string-to-value callable (``int``, ``str``,
-      ``json.loads``, …). argparse accepts anything callable, so we
-      type it as ``Callable[[str], Any]`` rather than ``type``.
-    - ``is_bool=True`` → use ``BooleanOptionalAction``.
-    - ``skip=True``    → don't expose this parameter on the CLI.
-    """
-    import inspect
-    import types as _types
-    import typing as _typing
-
-    _EMPTY = inspect.Parameter.empty
-
-    # Unwrap Optional / Union with None
-    origin = getattr(annotation, "__origin__", None)
-    args = getattr(annotation, "__args__", None)
-    if isinstance(annotation, _types.UnionType) or origin is _typing.Union:
-        non_none = [a for a in (args or ()) if a is not type(None)]
-        if len(non_none) == 1:
-            return _resolve_cli_type(non_none[0], default)
-        if str in non_none:
-            return (str, False, False)
-        return (None, False, True)  # complex union → skip
-
-    if annotation is bool or (annotation is _EMPTY and isinstance(default, bool)):
-        return (None, True, False)
-    if annotation is int or (annotation is _EMPTY and isinstance(default, int) and not isinstance(default, bool)):
-        return (int, False, False)
-    if annotation is float or (annotation is _EMPTY and isinstance(default, float)):
-        return (float, False, False)
-    if annotation is str or annotation is _EMPTY:
-        return (str, False, False)
-
-    # list/dict types: accept JSON string on CLI
-    if origin in (list, dict) or annotation in (list, dict):
-        import json
-
-        return (json.loads, False, False)
-
-    return (None, False, True)  # unknown → skip
-
-
 def run_server(server_cls: type[ModelServer]) -> None:
     """Standard entrypoint for model server scripts.
 
-    Builds an ``argparse.ArgumentParser`` from *server_cls*'s ``__init__``
-    signature (walking the MRO), always includes ``--port``, ``--host``,
-    and ``--verbose``, then instantiates the server and starts it.
-
-    Usage in each model server script::
-
-        if __name__ == "__main__":
-            from vla_eval.model_servers.serve import run_server
-            run_server(MyModelServer)
+    ``--config <yaml>`` reads the model-server yaml directly via
+    ``ActionConfigFile``; the yaml's ``args:`` sub-dict maps to
+    ``server_cls.__init__`` kwargs. CLI overrides use ``--args.<key>=<value>``.
     """
-    import argparse
-    import inspect
+    from jsonargparse import ActionConfigFile, ArgumentParser
 
-    parser = argparse.ArgumentParser(
-        description=f"{server_cls.__name__} model server",
-    )
+    parser = ArgumentParser(description=f"{server_cls.__name__} model server")
+    parser.add_argument("--config", action=ActionConfigFile, help="Path(s) to YAML config")
     parser.add_argument("--address", default=None, help="Bind address as host:port (e.g. 0.0.0.0:8001)")
     parser.add_argument("--host", default="0.0.0.0", help="Bind host (prefer --address)")
     parser.add_argument("--port", type=int, default=8000, help="Bind port (prefer --address)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+    # ``script`` is host-side yaml metadata; absorb here so the same yaml loads.
+    parser.add_argument("--script", default=None, help=argparse.SUPPRESS)
+    parser.add_class_arguments(server_cls, nested_key="args", fail_untyped=False, sub_configs=True)
 
-    import typing
-
-    _EMPTY = inspect.Parameter.empty
-    _SERVE_KEYS = {"address", "host", "port", "verbose"}
-    seen = {"self"} | _SERVE_KEYS
-
-    for cls in server_cls.__mro__:
-        if cls is object:
-            break
-        init = cls.__dict__.get("__init__")
-        if init is None:
-            continue
-        # Resolve stringified annotations (from __future__ import annotations)
-        try:
-            hints = typing.get_type_hints(init)
-        except Exception:
-            logger.warning("Could not resolve type hints for %s.__init__, falling back to defaults", cls.__name__)
-            hints = {}
-        for name, param in inspect.signature(init).parameters.items():
-            if name in seen or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
-                continue
-            seen.add(name)
-
-            annotation = hints.get(name, param.annotation)
-            type_fn, is_bool, skip = _resolve_cli_type(annotation, param.default)
-            if skip:
-                continue
-
-            flag = f"--{name}"
-            if is_bool:
-                default = param.default if param.default is not _EMPTY else False
-                parser.add_argument(flag, action=argparse.BooleanOptionalAction, default=default)
-                continue
-            # _resolve_cli_type's contract: when is_bool=False and
-            # skip=False, type_fn is always a non-None string converter.
-            # The assert narrows the union for the checker and guards
-            # against a future branch being added that breaks the
-            # invariant.
-            assert type_fn is not None
-            if param.default is not _EMPTY:
-                parser.add_argument(flag, type=type_fn, default=param.default)
-            else:
-                parser.add_argument(flag, type=type_fn, required=True)
-
-    args = parser.parse_args()
+    cfg = parser.parse_args()
 
     logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
+        level=logging.DEBUG if cfg.verbose else logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
 
-    # Resolve address: --address host:port takes precedence over --host/--port
-    host, port = args.host, args.port
-    if args.address:
-        host, port = _parse_address(args.address, host, port)
+    host, port = cfg.host, cfg.port
+    if cfg.address:
+        host, port = _parse_address(cfg.address, host, port)
 
-    ctor_kwargs = {k: v for k, v in vars(args).items() if k not in _SERVE_KEYS}
-    server = server_cls(**ctor_kwargs)
+    server = server_cls(**cfg.args.as_dict())
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)

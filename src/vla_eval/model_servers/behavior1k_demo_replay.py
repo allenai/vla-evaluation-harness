@@ -28,8 +28,10 @@ action encoding, instance state, ...).
 Usage:
 
     uv run --script src/vla_eval/model_servers/behavior1k_demo_replay.py \\
-        --demo-path /data/og_data/demos/task-0000/episode_00000010.parquet \\
+        --args.demo_path /data/og_data/demos/task-0000/episode_00000010.parquet \\
         --port 8765 --host 0.0.0.0
+
+Or via a yaml config with ``args.demo_path: ...`` and ``vla-eval serve -c <yaml>``.
 """
 
 from __future__ import annotations
