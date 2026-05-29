@@ -526,7 +526,7 @@ def cmd_test(args: argparse.Namespace) -> None:
     # --- resolve parallelism ---
     gpu_queue: queue.Queue[str] | None = None
     if args.parallel is not None:
-        gpu_ids = parse_gpus(None)  # auto-detect via nvidia-smi
+        gpu_ids = parse_gpus(None)  # auto-detect via the active GPU runtime
         if args.parallel == "auto":
             workers = len(gpu_ids)
         else:
