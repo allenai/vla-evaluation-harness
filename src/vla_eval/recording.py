@@ -83,9 +83,9 @@ CREATE TABLE IF NOT EXISTS step_rows (
 # ---------------------------------------------------------------------------
 
 
-# Default when ``recording.filename_stem`` is omitted — uses only keys the
-# orchestrator always injects, so it renders for any benchmark.
-DEFAULT_FILENAME_STEM = "ep{episode_idx:04d}_{status}"
+# Default when ``recording.filename_stem`` is omitted. Every benchmark's
+# task dict carries ``name``; including it prevents per-shard collisions.
+DEFAULT_FILENAME_STEM = "{name}_ep{episode_idx:04d}_{status}"
 
 
 def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
