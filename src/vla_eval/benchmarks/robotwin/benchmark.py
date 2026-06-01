@@ -198,6 +198,8 @@ class RoboTwinBenchmark(StepBenchmark):
             differ from the reference benchmark.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         task_name: str,
@@ -396,6 +398,7 @@ class RoboTwinBenchmark(StepBenchmark):
             )
         self._env.set_instruction(instruction=task["instruction"])
         raw_obs = self._env.get_obs()
+        self._recorder.record_video(self._extract_frame(raw_obs))
         return raw_obs
 
     def step(self, action: Action) -> StepResult:
@@ -411,7 +414,18 @@ class RoboTwinBenchmark(StepBenchmark):
         raw_obs = self._env.get_obs()
         success = bool(self._env.eval_success)
         done = success or (self._env.take_action_cnt >= self._env.step_lim)
+        self._recorder.record_video(self._extract_frame(raw_obs))
+        self._recorder.record_step(reward=1.0 if success else 0.0, done=done, success=success)
         return StepResult(obs=raw_obs, reward=1.0 if success else 0.0, done=done, info={"success": success})
+
+    @staticmethod
+    def _extract_frame(raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        try:
+            return np.asarray(raw_obs["observation"]["head_camera"]["rgb"])
+        except (KeyError, TypeError):
+            return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         return {

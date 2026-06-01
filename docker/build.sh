@@ -46,8 +46,12 @@ REGISTRY="ghcr.io/allenai/vla-evaluation-harness"
 # Default BASE_IMAGE follows TAG unless explicitly overridden
 BASE_IMAGE="${BASE_IMAGE:-${REGISTRY}/base:${TAG}}"
 
-# Derive harness version via hatch-vcs (PEP 440 compliant)
-HARNESS_VERSION="$(uvx hatch version 2>/dev/null || echo "0.0.0")"
+# Derive harness version via hatch-vcs (PEP 440 compliant).
+# Both layers (NO_COLOR=1 + -q on each tool): hatch writes ANSI escapes and a
+# "Inspecting build dependencies" status line to stdout even without a TTY, and
+# either alone leaks one or the other into the captured value, which breaks
+# setuptools-scm parsing inside the Docker build.
+HARNESS_VERSION="$(NO_COLOR=1 uvx -q hatch -q version 2>/dev/null || echo "0.0.0")"
 
 is_license_accepted() {
   local n="$1"

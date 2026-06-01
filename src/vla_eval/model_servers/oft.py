@@ -86,15 +86,8 @@ class OFTModelServer(PredictModelServer):
         self.center_crop = center_crop
         self.load_in_8bit = load_in_8bit
         self.load_in_4bit = load_in_4bit
-        self._vla = None
-        self._processor = None
-        self._action_head = None
         self._proprio_projector = None
-        self._cfg = None
 
-    def _load_model(self) -> None:
-        if self._vla is not None:
-            return
         import types
 
         from experiments.robot.openvla_utils import get_action_head, get_processor, get_proprio_projector, get_vla
@@ -152,9 +145,6 @@ class OFTModelServer(PredictModelServer):
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         from experiments.robot.openvla_utils import get_vla_action
         from prismatic.vla.constants import PROPRIO_DIM
-
-        self._load_model()
-        assert self._vla is not None and self._cfg is not None
 
         # Build OFT observation dict — get_vla_action expects numpy arrays (uint8 HWC)
         images_dict = obs.get("images", {})

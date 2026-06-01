@@ -384,18 +384,10 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
 
     port = _free_port()
 
-    # Build uv run command with --port override
-    cmd: list[str] = [uv, "run", str(script)]
-    for key, value in config.get("args", {}).items():
-        if key == "port":
-            continue
-        flag = f"--{key}"
-        if isinstance(value, bool):
-            if value:
-                cmd.append(flag)
-        else:
-            cmd.extend([flag, str(value)])
-    cmd.extend(["--port", str(port)])
+    # Reuse cmd_serve's cmd-build helper so smoke stays lock-step with serve.
+    from vla_eval.cli.main import _build_serve_cmd
+
+    cmd = _build_serve_cmd(uv, script, config, port=port)
 
     # Extract suite for servers with chunk_size_map
     task: dict[str, Any] = {"name": "smoke_test"}

@@ -94,29 +94,7 @@ class CogACTModelServer(PredictModelServer):
         self.chunk_size_map = chunk_size_map
         self.camera_keys = camera_keys
         self.image_resolution = image_resolution
-        self._model = None
-        self._tokenizer = None
-        self._norm_stats = None
-        self._device = None
 
-    def get_observation_params(self) -> dict[str, Any]:
-        return {
-            "success_mode": "truncation",
-        }
-
-    def get_action_spec(self) -> dict[str, DimSpec]:
-        return {"actions": RAW}
-
-    def get_observation_spec(self) -> dict[str, DimSpec]:
-        spec: dict[str, DimSpec] = {"image": IMAGE_RGB, "language": LANGUAGE}
-        if self.camera_keys and len(self.camera_keys) > 1:
-            for key in self.camera_keys[1:]:
-                spec[key] = IMAGE_RGB
-        return spec
-
-    def _load_model(self) -> None:
-        if self._model is not None:
-            return
         import torch
         from dexbotic.model.cogact.cogact_arch import CogACTForCausalLM
         from transformers import AutoTokenizer
@@ -135,6 +113,21 @@ class CogACTModelServer(PredictModelServer):
 
         self._norm_stats = self._load_norm_stats()
         logger.info("Model loaded. Norm stats: %s", self._norm_stats)
+
+    def get_observation_params(self) -> dict[str, Any]:
+        return {
+            "success_mode": "truncation",
+        }
+
+    def get_action_spec(self) -> dict[str, DimSpec]:
+        return {"actions": RAW}
+
+    def get_observation_spec(self) -> dict[str, DimSpec]:
+        spec: dict[str, DimSpec] = {"image": IMAGE_RGB, "language": LANGUAGE}
+        if self.camera_keys and len(self.camera_keys) > 1:
+            for key in self.camera_keys[1:]:
+                spec[key] = IMAGE_RGB
+        return spec
 
     def _load_norm_stats(self) -> dict[str, Any]:
         """Load norm_stats.json from local path or HuggingFace Hub."""
@@ -230,10 +223,6 @@ class CogACTModelServer(PredictModelServer):
         from dexbotic.tokenization import conversation as conversation_lib
         from dexbotic.tokenization.tokenization import tokenizer_image_token
 
-        self._load_model()
-        assert self._model is not None
-        assert self._tokenizer is not None
-
         pil_images = self._obs_to_pil_images(obs)
         image_tensor = self._model.process_images(pil_images).to(dtype=self._model.dtype)
         if len(pil_images) > 1:
@@ -272,9 +261,6 @@ class CogACTModelServer(PredictModelServer):
         from dexbotic.tokenization import conversation as conversation_lib
         from dexbotic.tokenization.tokenization import tokenizer_image_token
 
-        self._load_model()
-        assert self._model is not None
-        assert self._tokenizer is not None
         B = len(obs_batch)
 
         # --- Preprocess all observations ---

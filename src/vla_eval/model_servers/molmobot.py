@@ -69,20 +69,10 @@ class MolmoBotModelServer(ModelServer):
         self.states_mode = states_mode
         self.max_joint_delta = float(max_joint_delta)
 
-        self._wrapper: Any = None
-        self.n_obs_steps: int = 1
-        self.obs_step_delta: int = 8
-        self.action_horizon: int = 16
-
         # Per-session state: obs_history (list of per-cam image lists),
         # action_buffer (list of (arm, gripper) tuples), buffer_index (int).
         self._sessions: dict[str, dict[str, Any]] = {}
 
-    # -- lifecycle --------------------------------------------------------
-
-    def _load_model(self) -> None:
-        if self._wrapper is not None:
-            return
         from vla_eval.dirs import require_model_available
 
         require_model_available(self.hf_repo)
@@ -106,6 +96,8 @@ class MolmoBotModelServer(ModelServer):
             self.obs_step_delta,
             self.action_horizon,
         )
+
+    # -- lifecycle --------------------------------------------------------
 
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         # Reset per-episode state.
@@ -141,9 +133,6 @@ class MolmoBotModelServer(ModelServer):
     # -- inference --------------------------------------------------------
 
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
-        self._load_model()
-        assert self._wrapper is not None
-
         state = self._sessions.setdefault(
             ctx.session_id,
             {"obs_history": [], "action_buffer": [], "buffer_index": 0, "step_count": 0},

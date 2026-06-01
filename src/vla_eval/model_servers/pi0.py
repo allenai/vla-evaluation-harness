@@ -63,7 +63,16 @@ class Pi0ModelServer(PredictModelServer):
         self.state_key = None if state_key in (None, "None", "none") else state_key
         self.state_dim = state_dim
         self.image_resolution = image_resolution
-        self._policy = None
+
+        from openpi.policies import policy_config
+        from openpi.training import config as _config
+
+        logger.info("Loading OpenPI config: %s", self.config_name)
+        _cfg = _config.get_config(self.config_name)
+        ckpt = checkpoint if checkpoint is not None else f"gs://openpi-assets/checkpoints/{self.config_name}"
+        logger.info("Loading policy from checkpoint: %s", ckpt)
+        self._policy = policy_config.create_trained_policy(_cfg, ckpt)
+        logger.info("π₀ policy loaded successfully.")
 
     def _maybe_resize(self, img: np.ndarray) -> np.ndarray:
         """Resize image to ``image_resolution`` if set and size differs."""
@@ -74,23 +83,6 @@ class Pi0ModelServer(PredictModelServer):
         pil = Image.fromarray(img)
         pil = pil.resize((self.image_resolution, self.image_resolution), Image.Resampling.BILINEAR)
         return np.asarray(pil)
-
-    def _load_model(self) -> None:
-        if self._policy is not None:
-            return
-        from openpi.policies import policy_config
-        from openpi.training import config as _config
-
-        logger.info("Loading OpenPI config: %s", self.config_name)
-        config = _config.get_config(self.config_name)
-
-        checkpoint = self.checkpoint
-        if checkpoint is None:
-            checkpoint = f"gs://openpi-assets/checkpoints/{self.config_name}"
-
-        logger.info("Loading policy from checkpoint: %s", checkpoint)
-        self._policy = policy_config.create_trained_policy(config, checkpoint)
-        logger.info("π₀ policy loaded successfully.")
 
     def get_observation_params(self) -> dict[str, Any]:
         params: dict[str, Any] = {}
@@ -111,9 +103,6 @@ class Pi0ModelServer(PredictModelServer):
         return spec
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        self._load_model()
-        assert self._policy is not None
-
         openpi_obs: dict[str, Any] = {}
 
         images_dict = obs.get("images", {})

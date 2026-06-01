@@ -88,6 +88,8 @@ class KinetixBenchmark(StepBenchmark):
             ``"symbolic"`` for the flat symbolic state vector used by RTC.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -202,6 +204,7 @@ class KinetixBenchmark(StepBenchmark):
         self._step_count = 0
         self._episode_success = False
 
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -245,7 +248,19 @@ class KinetixBenchmark(StepBenchmark):
         if reward_val > 0:
             self._episode_success = True
 
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=reward_val, done=done_val, success=bool(self._episode_success))
+
         return StepResult(obs=obs, reward=reward_val, done=done_val, info=info)
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        # Symbolic-obs runs have no renderable frame.
+        if self._observation_type != "pixels":
+            return None
+        img = np.asarray(getattr(raw_obs, "image", raw_obs))
+        if img.dtype != np.uint8:
+            img = (np.clip(img, 0.0, 1.0) * 255).astype(np.uint8)
+        return img
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         if self._observation_type == "symbolic":

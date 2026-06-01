@@ -73,6 +73,8 @@ TASK_DESCRIPTIONS: dict[str, str] = {
 class MIKASABenchmark(StepBenchmark):
     """MIKASA-Robo memory-intensive manipulation benchmark."""
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -121,6 +123,7 @@ class MIKASABenchmark(StepBenchmark):
 
         obs, info = self._env.reset()
         self._task_desc = TASK_DESCRIPTIONS.get(env_name, f"Complete {env_name}")
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -144,7 +147,24 @@ class MIKASABenchmark(StepBenchmark):
         done = bool(terminated.any()) or bool(truncated.any())
         rew = float(reward.sum())
         success = bool(info.get("success", torch.tensor(False)).any())
+
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=rew, done=done, success=success)
+
         return StepResult(obs=obs, reward=rew, done=done, info={"success": success})
+
+    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict) or "sensor_data" not in raw_obs:
+            return None
+        for _cam_name, cam_data in raw_obs["sensor_data"].items():
+            if "rgb" in cam_data:
+                img = cam_data["rgb"]
+                if hasattr(img, "cpu"):
+                    img = img.cpu().numpy()
+                if img.ndim == 4:
+                    img = img[0]
+                return np.asarray(img)
+        return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         images: dict[str, np.ndarray] = {}

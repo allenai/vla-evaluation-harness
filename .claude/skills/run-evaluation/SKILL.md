@@ -47,14 +47,14 @@ The model server and benchmark runner communicate over WebSocket and must run co
 ```bash
 vla-eval serve -c configs/model_servers/<model>.yaml
 ```
-Wait for the `"Model ready, starting server on ws://..."` log before proceeding.
+Wait until `curl -fsS http://localhost:8000/health` returns HTTP 200 — the server only starts listening after `__init__` finishes loading weights, so this is the readiness signal.
 
 **Remote serving via slurm** (when model needs GPUs on a different node):
 ```bash
 srun --gres=gpu:1 --mem=32G --job-name=model-serve \
   bash -c "uv run vla-eval serve -c configs/model_servers/<model>.yaml" &
 ```
-Check the allocated node with `squeue`, verify with `curl -s http://<node>:8000/config`, then use `--server-url ws://<node>:8000` for benchmark runs. Cancel with `scancel` when done.
+Check the allocated node with `squeue`, verify with `curl -s http://<node>:8000/health`, then use `--server-url ws://<node>:8000` for benchmark runs. Cancel with `scancel` when done.
 
 **Terminal 2 — run the benchmark:**
 ```bash
@@ -171,7 +171,7 @@ Progress files are removed automatically when the shard finishes and writes its 
 | Problem | Fix |
 |---|---|
 | Docker daemon not running | Start Docker (may need sysadmin on shared clusters) |
-| `Connection refused` | Server not ready — wait for the "ready" log |
+| `Connection refused` | Server not ready — wait for `GET /health` to return HTTP 200 |
 | `TimeoutError` | Increase `server.timeout` in config or check GPU utilization |
 | OOM | Reduce batch size or use smaller checkpoint |
 | Mismatched action dims | Check `unnorm_key` and `chunk_size` in model server config |

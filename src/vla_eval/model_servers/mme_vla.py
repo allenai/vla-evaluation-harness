@@ -124,8 +124,19 @@ class MmeVlaModelServer(PredictModelServer):
         self.state_key = None if state_key in (None, "None", "none") else state_key
         self.state_dim = state_dim
         self.image_resolution = image_resolution
-        self._policy: Any = None
         self._state_warned = False
+
+        _ensure_mme_vla_suite()
+
+        from mme_vla_suite.policies import policy_config
+        from mme_vla_suite.training import config as _config
+
+        logger.info("Loading MME-VLA config: %s", self.config_name)
+        _cfg = _config.get_config(self.config_name)
+        ckpt_path = pathlib.Path(self._resolve_checkpoint())
+        logger.info("Loading policy from checkpoint: %s", ckpt_path)
+        self._policy = policy_config.create_trained_policy(_cfg, ckpt_path)
+        logger.info("MME-VLA policy loaded successfully.")
 
     # ------------------------------------------------------------------
     # Model loading
@@ -194,23 +205,6 @@ class MmeVlaModelServer(PredictModelServer):
                 return root
 
         raise FileNotFoundError(f"No params/ directory found in {dl_path}")
-
-    def _load_model(self) -> None:
-        if self._policy is not None:
-            return
-
-        _ensure_mme_vla_suite()
-
-        from mme_vla_suite.policies import policy_config
-        from mme_vla_suite.training import config as _config
-
-        logger.info("Loading MME-VLA config: %s", self.config_name)
-        config = _config.get_config(self.config_name)
-
-        checkpoint = pathlib.Path(self._resolve_checkpoint())
-        logger.info("Loading policy from checkpoint: %s", checkpoint)
-        self._policy = policy_config.create_trained_policy(config, checkpoint)
-        logger.info("MME-VLA policy loaded successfully.")
 
     # ------------------------------------------------------------------
     # Image helpers
@@ -292,9 +286,6 @@ class MmeVlaModelServer(PredictModelServer):
     # ------------------------------------------------------------------
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        self._load_model()
-        assert self._policy is not None
-
         # Handle video history on first observation
         if self.use_history and ctx.is_first and obs.get("video_history"):
             self._process_video_history(obs)

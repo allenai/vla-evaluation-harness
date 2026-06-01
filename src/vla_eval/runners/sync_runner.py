@@ -6,6 +6,7 @@ import itertools
 from typing import Any
 
 from vla_eval.benchmarks.base import Benchmark
+from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.base import EpisodeRunner
 from vla_eval.types import EpisodeResult, Task
 
@@ -14,7 +15,7 @@ class SyncEpisodeRunner(EpisodeRunner):
     """Synchronous episode runner: one observation → one action per step.
 
     Episode flow:
-        1. ``benchmark.start_episode(task)``
+        1. ``benchmark.start_episode(task, recorder=...)``
         2. ``benchmark.get_observation()`` → initial observation.
         3. ``conn.start_episode(task_info)``
         4. Step loop (up to ``max_steps``):
@@ -32,14 +33,22 @@ class SyncEpisodeRunner(EpisodeRunner):
         conn: Any,  # Connection
         *,
         max_steps: int | None = None,
+        recorder: EpisodeRecorder | None = None,
     ) -> EpisodeResult:
         """Run a synchronous episode."""
-        await benchmark.start_episode(task)
+        await benchmark.start_episode(task, recorder=recorder)
         obs_dict = await benchmark.get_observation()
 
-        # Send only serializable task info to the model server
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        await conn.start_episode({"task": task_info})
+        ep_payload: dict[str, Any] = {"task": task_info}
+        if recorder is not None and recorder.is_active:
+            ep_payload["recording"] = {
+                "sid": recorder.sid,
+                "eid": recorder.eid,
+                "eval_id": recorder.eval_id,
+                "db_path": recorder.db_path,
+            }
+        await conn.start_episode(ep_payload)
 
         steps = range(max_steps) if max_steps is not None else itertools.count()
         for step in steps:

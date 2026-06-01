@@ -61,16 +61,7 @@ class MyModelServer(PredictModelServer):
     def __init__(self, checkpoint: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.checkpoint = checkpoint
-        self._model = None
 
-    def _load_model(self) -> None:
-        """Lazily load model on first predict() call.
-
-        Always use this pattern — never load in __init__(), because the
-        server process may fork or the model may not be needed immediately.
-        """
-        if self._model is not None:
-            return
         import torch
         # Load model here...
         self._model = ...
@@ -89,7 +80,6 @@ class MyModelServer(PredictModelServer):
               - (action_dim,) for single actions
               - (chunk_size, action_dim) for action chunks
         """
-        self._load_model()
         # Extract image and task description
         images = obs.get("images", {})
         img_array = next(iter(images.values()))
@@ -118,7 +108,7 @@ if __name__ == "__main__":
 
 ### `run_server()` — standard CLI entrypoint
 
-`run_server(MyModelServer)` auto-generates argparse from the `__init__` signature, sets up logging, pre-loads the model (via `_load_model()` if present), and starts the WebSocket server. **Always use this instead of manual argparse.** It auto-discovers:
+`run_server(MyModelServer)` auto-generates argparse from the `__init__` signature, sets up logging, and starts the WebSocket server (model load happens inside `__init__`). **Always use this instead of manual argparse.** It auto-discovers:
 - All `__init__` parameters as `--flag` CLI arguments (bool → `--flag/--no-flag`, list → JSON string)
 - Standard flags: `--host`, `--port`, `--address`, `--verbose`
 

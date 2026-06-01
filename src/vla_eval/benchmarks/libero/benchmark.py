@@ -88,6 +88,8 @@ class LIBEROBenchmark(StepBenchmark):
             OpenVLA reference uses ``env_seed=0`` separately from ``seed=7``.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         suite: str = "libero_spatial",
@@ -206,6 +208,7 @@ class LIBEROBenchmark(StepBenchmark):
             for robot in self._env.robots:
                 robot.controller.use_delta = False
 
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
@@ -223,7 +226,19 @@ class LIBEROBenchmark(StepBenchmark):
 
         assert self._env is not None
         obs, reward, done, info = self._env.step(processed_action)
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=float(reward), done=bool(done), success=bool(done))
         return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    @staticmethod
+    def _extract_frame(raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        frame = raw_obs.get("agentview_image")
+        if frame is None:
+            return None
+        # Robosuite renders agentview/wrist inverted; flip to upright.
+        return np.ascontiguousarray(frame[::-1, ::-1])
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         img = preprocess_libero_image(raw_obs["agentview_image"], LIBERO_ENV_RESOLUTION)

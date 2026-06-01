@@ -3,30 +3,38 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") -c <config> [-n <num_shards>] [-o <output>]
+Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output_dir>]
 
-Run a benchmark in parallel shards and merge results.
+Spawn N shards of \`vla-eval run\` against the same SQLite recording, then
+call \`vla-eval merge\` once after all shards exit. Shards share an eval id
+(default: a fresh uuid) so they all write to one
+\`<output_dir>/recording-<eval_id>.sqlite\`.
 
 Options:
-  -c <config>       Config YAML file (required)
-  -n <num_shards>   Number of shards (default: 50)
-  -o <output>       Output file for merged results (default: results/<config_name>.json)
-  -h                Show this help
+  -c <config>          Config YAML file (required)
+  -n <num_shards>      Number of shards (default: 50)
+  -e <eval_id>         Eval id (default: fresh uuid)
+  -o <output_dir>      Override the config's output_dir (passed to each shard
+                       AND to merge so the SQLite + materialised outputs land
+                       in the same place)
+  -h                   Show this help
 EOF
   exit "${1:-0}"
 }
 
 CONFIG=""
 NUM_SHARDS=50
-OUTPUT=""
+EVAL_ID=""
+OUTPUT_DIR=""
 
-while getopts "c:n:o:h" opt; do
-  case "$opt" in
-    c) CONFIG="$OPTARG" ;;
-    n) NUM_SHARDS="$OPTARG" ;;
-    o) OUTPUT="$OPTARG" ;;
-    h) usage 0 ;;
-    *) usage 1 ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -c) CONFIG="$2"; shift 2 ;;
+    -n) NUM_SHARDS="$2"; shift 2 ;;
+    -e) EVAL_ID="$2"; shift 2 ;;
+    -o) OUTPUT_DIR="$2"; shift 2 ;;
+    -h|--help) usage 0 ;;
+    *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac
 done
 
@@ -40,11 +48,14 @@ if [[ ! -f "$CONFIG" ]]; then
   exit 1
 fi
 
-# Derive output name from config filename if not specified
-if [[ -z "$OUTPUT" ]]; then
-  config_name="$(basename "$CONFIG" .yaml)"
-  config_name="$(basename "$config_name" .yml)"
-  OUTPUT="results/${config_name}.json"
+if ! command -v vla-eval >/dev/null 2>&1; then
+  echo "Error: 'vla-eval' is not on PATH. Activate the venv first" >&2
+  echo "       (e.g. '. .venv/bin/activate') or invoke this script via 'uv run'." >&2
+  exit 1
+fi
+
+if [[ -z "$EVAL_ID" ]]; then
+  EVAL_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')"
 fi
 
 cleanup() {
@@ -55,43 +66,24 @@ trap cleanup EXIT
 
 echo "Config:     $CONFIG"
 echo "Shards:     $NUM_SHARDS"
-echo "Output:     $OUTPUT"
+echo "Eval ID:    $EVAL_ID"
+if [[ -n "$OUTPUT_DIR" ]]; then
+  echo "Output dir: $OUTPUT_DIR"
+fi
 echo ""
 
-# Check for existing shard results
-existing=$(CONFIG="$CONFIG" NUM_SHARDS="$NUM_SHARDS" python3 -c "
-import os, yaml, re
-from pathlib import Path
-with open(os.environ['CONFIG']) as f:
-    cfg = yaml.safe_load(f)
-num_shards = os.environ['NUM_SHARDS']
-output_dir = Path(cfg.get('output_dir', './results'))
-found = []
-seen = set()
-for b in cfg.get('benchmarks', []):
-    name = b.get('name') or b['benchmark'].rsplit(':', 1)[-1]
-    sub = b.get('subname')
-    if sub:
-        name = f'{name}_{sub}'
-    safe = re.sub(r'[^\w\-.]', '_', name)
-    if safe in seen:
-        continue
-    seen.add(safe)
-    found.extend(output_dir.glob(f'{safe}_shard*of{num_shards}.json'))
-if found:
-    print(f'{len(found)} existing shard file(s) found, e.g.: {found[0]}')
-")
-if [[ -n "$existing" ]]; then
-  echo "Error: $existing" >&2
-  echo "Remove existing results or use a different output_dir." >&2
-  exit 1
+# Build the shared CLI args once so the run and merge invocations stay in sync.
+RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
+MERGE_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
+if [[ -n "$OUTPUT_DIR" ]]; then
+  RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
+  MERGE_OPTS+=(--output-dir "$OUTPUT_DIR")
 fi
 
 echo "Launching ${NUM_SHARDS} shards..."
-
 pids=()
 for i in $(seq 0 $((NUM_SHARDS - 1))); do
-  vla-eval run -c "$CONFIG" --shard-id "$i" --num-shards "$NUM_SHARDS" &
+  vla-eval run "${RUN_OPTS[@]}" --shard-id "$i" --num-shards "$NUM_SHARDS" &
   pids+=($!)
 done
 
@@ -105,10 +97,12 @@ done
 
 if [[ "$failed" -gt 0 ]]; then
   echo "ERROR: $failed of $NUM_SHARDS shards failed." >&2
-  exit 1
 fi
 
-echo "Merging results..."
-vla-eval merge -c "$CONFIG" -o "$OUTPUT"
+echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval merge'..."
+vla-eval merge "${MERGE_OPTS[@]}" || \
+  echo "WARNING: merge failed; the SQLite recording still has the raw data — rerun 'vla-eval merge' manually." >&2
 
-echo "Done. Results saved to $OUTPUT"
+if [[ "$failed" -gt 0 ]]; then
+  exit 1
+fi

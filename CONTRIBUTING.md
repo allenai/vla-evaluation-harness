@@ -98,7 +98,7 @@ See `benchmarks/libero/` for a complete reference implementation.
 
 1. Create `src/vla_eval/model_servers/<name>.py` as a **uv script** with [PEP 723](https://peps.python.org/pep-0723/) inline metadata
 2. Subclass `PredictModelServer` from `model_servers/predict.py` (or `ModelServer` from `model_servers/base.py` for advanced async use cases)
-3. Implement `predict(obs, ctx) -> dict` — lazy-load the model in `_load_model()`, never in `__init__()`
+3. Implement `predict(obs, ctx) -> dict`. Load the model inside `__init__` (no lazy-load hook)
 4. Use `run_server()` for the CLI entrypoint — **do not write manual argparse**:
    ```python
    if __name__ == "__main__":

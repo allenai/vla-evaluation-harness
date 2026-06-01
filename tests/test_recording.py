@@ -1,4 +1,4 @@
-"""Unit tests for ``vla_eval.benchmarks.recording.EpisodeVideoRecorder``.
+"""Unit tests for ``vla_eval.benchmarks.video.EpisodeVideoRecorder``.
 
 Exercises the full lifecycle (start → record → save / discard), filename
 templating (str + callable), required-context auto-derivation,
@@ -22,7 +22,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from vla_eval.benchmarks.recording import EpisodeVideoRecorder, _fields_from_template
+from vla_eval.benchmarks.video import EpisodeVideoRecorder, _fields_from_template
 
 
 def _frame() -> np.ndarray:

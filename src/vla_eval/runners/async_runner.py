@@ -21,6 +21,7 @@ import anyio
 import numpy as np
 
 from vla_eval.benchmarks.base import Benchmark
+from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.action_buffer import ActionBuffer
 from vla_eval.runners.base import EpisodeRunner
 from vla_eval.runners.clock import Clock
@@ -60,6 +61,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
         conn: Any,  # Connection
         *,
         max_steps: int | None = None,
+        recorder: EpisodeRecorder | None = None,
     ) -> EpisodeResult:
         """Run a single real-time episode.
 
@@ -73,11 +75,19 @@ class AsyncEpisodeRunner(EpisodeRunner):
         clock = self.clock
 
         # --- Setup phase (not timed) ---
-        await benchmark.start_episode(task)
+        await benchmark.start_episode(task, recorder=recorder)
         obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        await conn.start_episode({"task": task_info, "mode": "realtime"})
+        ep_payload: dict[str, Any] = {"task": task_info, "mode": "realtime"}
+        if recorder is not None and recorder.is_active:
+            ep_payload["recording"] = {
+                "sid": recorder.sid,
+                "eid": recorder.eid,
+                "eval_id": recorder.eval_id,
+                "db_path": recorder.db_path,
+            }
+        await conn.start_episode(ep_payload)
 
         action_buffer = ActionBuffer(
             hold_policy=self.hold_policy,

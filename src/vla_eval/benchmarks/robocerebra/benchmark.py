@@ -47,6 +47,8 @@ class RoboCerebraBenchmark(StepBenchmark):
         send_state: Include proprioceptive state in observations.
     """
 
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
     def __init__(
         self,
         robocerebra_root: str = "/workspace/RoboCerebra_Bench",
@@ -192,6 +194,7 @@ class RoboCerebraBenchmark(StepBenchmark):
         for _ in range(self.num_steps_wait):
             obs, _, _, _ = self._env.step(_DUMMY_ACTION)
 
+        self._recorder.record_video(self._extract_frame(obs))
         return obs
 
     # ------------------------------------------------------------------
@@ -217,7 +220,21 @@ class RoboCerebraBenchmark(StepBenchmark):
             except Exception as e:
                 logger.warning("Failed to check success criteria: %s", e)
         info["success"] = success
+
+        self._recorder.record_video(self._extract_frame(obs))
+        self._recorder.record_step(reward=float(reward), done=bool(done), success=success)
+
         return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    @staticmethod
+    def _extract_frame(raw_obs: Any) -> np.ndarray | None:
+        if not isinstance(raw_obs, dict):
+            return None
+        img = raw_obs.get("agentview_image")
+        if img is None:
+            return None
+        # Same flip as make_obs so the recorded frame matches what the model sees.
+        return np.ascontiguousarray(img[::-1, ::-1])
 
     # ------------------------------------------------------------------
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
