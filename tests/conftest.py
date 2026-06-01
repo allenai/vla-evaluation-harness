@@ -17,11 +17,57 @@ from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
+from vla_eval.tracking import Tracker
 
 
 # ---------------------------------------------------------------------------
 # Reusable test doubles
 # ---------------------------------------------------------------------------
+
+
+class RecordingTracker(Tracker):
+    """Tracker that records every hook call — drives lifecycle assertions."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[tuple[str, tuple[Any, ...]]] = []
+
+    def on_eval_begin(self, eval_id, config):
+        self.calls.append(("on_eval_begin", (eval_id, config)))
+
+    def on_benchmark_begin(self, bench_name, bench_config):
+        self.calls.append(("on_benchmark_begin", (bench_name, bench_config)))
+
+    def on_episode_end(self, bench_name, task_name, ep_dict, status):
+        self.calls.append(("on_episode_end", (bench_name, task_name, ep_dict, status)))
+
+    def on_benchmark_end(self, bench_name, result):
+        self.calls.append(("on_benchmark_end", (bench_name, result)))
+
+    def on_eval_end(self, all_results):
+        self.calls.append(("on_eval_end", (all_results,)))
+
+    def close(self):
+        self.calls.append(("close", ()))
+
+
+class BrokenTracker(Tracker):
+    """Tracker that raises on every hook — proves call_each isolates failures."""
+
+    def on_eval_begin(self, *a, **kw):
+        raise RuntimeError("backend exploded")
+
+    def on_benchmark_begin(self, *a, **kw):
+        raise RuntimeError("backend exploded")
+
+    def on_episode_end(self, *a, **kw):
+        raise RuntimeError("backend exploded")
+
+    def on_benchmark_end(self, *a, **kw):
+        raise RuntimeError("backend exploded")
+
+    def on_eval_end(self, *a, **kw):
+        raise RuntimeError("backend exploded")
 
 
 class EchoModelServer(PredictModelServer):

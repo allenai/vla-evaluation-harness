@@ -103,6 +103,12 @@ def db_path_for_eval(output_dir: str | Path, eval_id: str) -> Path:
     return Path(output_dir) / f"recording-{eval_id}.sqlite"
 
 
+def eval_id_from_db_path(path: str | Path) -> str | None:
+    """Inverse of :func:`db_path_for_eval`: ``recording-<id>.sqlite`` → ``<id>`` or ``None``."""
+    stem = Path(path).stem
+    return stem[len("recording-") :] if stem.startswith("recording-") else None
+
+
 def _host_translate(path: Path) -> Path:
     """Rewrite ``/workspace/results/...`` to the host root under
     ``VLA_EVAL_HOST_OUTPUT_DIR`` (set by the outer CLI on ``docker run``).

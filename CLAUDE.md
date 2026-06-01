@@ -65,4 +65,8 @@ CLI (cli/main.py)
 - `vla-eval merge -c <config> [--eval-id <id>]` reads the DB and emits per-episode jsonl + a `BenchmarkResult`-shaped aggregate JSON. Single-shard `vla-eval run` invokes this inline; sharded runs delegate to `scripts/run_sharded.sh` which calls `vla-eval merge` once after `wait`.
 - `vla-eval run --no-save` skips recording entirely (in-memory only).
 
+### Tracking
+
+Optional sibling to recording: top-level `tracking.report_to: wandb` (or list / `"all"`) in the eval YAML mirrors aggregate metrics to wandb/trackio. Backend settings come from native env vars (`WANDB_*`, `TRACKIO_*`); the harness only injects `eval_id` + `resume="allow"` so live and merge paths converge on the same run. Per-episode tracking fires on the live path only; sharded mode defers aggregate emission to `vla-eval merge`. See the README "Observability" section.
+
 Read `CONTRIBUTING.md` before any integration work (adding benchmarks/model servers, PR workflow).

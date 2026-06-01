@@ -437,9 +437,11 @@ def cmd_merge(args: argparse.Namespace) -> None:
       ``--output-dir`` (or the DB's parent dir).
     """
     from vla_eval.results.merge import merge_db, print_merge_summary
+    from vla_eval.tracking import call_each, get_reporting_trackers
 
     db_paths: list[Path] = []
     output_dir: Path
+    config: dict[str, Any] = {}
 
     if getattr(args, "db", None):
         db_paths = [Path(args.db)]
@@ -462,15 +464,37 @@ def cmd_merge(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
 
+    # Tracker run identity needs the same eval_id the orchestrator used so
+    # id+resume converges live + merge on one run. Sniff from the DB filename
+    # if --eval-id wasn't passed; skip emission entirely otherwise (orphan
+    # hooks would raise on backends that require init first).
+    from vla_eval.recording import eval_id_from_db_path
+
+    trackers = get_reporting_trackers((config.get("tracking") or {}).get("report_to"))
+    eval_id_for_trackers = getattr(args, "eval_id", None)
+    if trackers and not eval_id_for_trackers and db_paths:
+        eval_id_for_trackers = eval_id_from_db_path(db_paths[0])
+    if not eval_id_for_trackers:
+        trackers = []
+    call_each(trackers, "on_eval_begin", eval_id_for_trackers, config)
+
     all_aggregates: list[dict[str, Any]] = []
     for db in db_paths:
         try:
-            all_aggregates.extend(merge_db(db, output_dir))
+            aggs = merge_db(db, output_dir)
         except FileNotFoundError:
             _stderr_console().print(f"[yellow]WARNING: skipping missing DB {db}[/yellow]")
+            continue
         except Exception as exc:
             _stderr_console().print(f"[red]ERROR merging {db}: {exc}[/red]")
             sys.exit(1)
+        for agg in aggs:
+            call_each(trackers, "on_benchmark_begin", agg.get("benchmark", ""), {})
+            call_each(trackers, "on_benchmark_end", agg.get("benchmark", ""), agg)
+        all_aggregates.extend(aggs)
+
+    call_each(trackers, "on_eval_end", all_aggregates)
+    call_each(trackers, "close")
 
     print_merge_summary(all_aggregates)
 

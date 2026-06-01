@@ -17,7 +17,7 @@ import websockets.exceptions
 
 from vla_eval.orchestrator import Orchestrator
 
-from tests.conftest import StubBenchmark
+from tests.conftest import BrokenTracker, RecordingTracker, StubBenchmark
 
 
 @pytest.mark.anyio
@@ -243,6 +243,164 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
     assert step_count == 3  # done_at_step=3 → 3 steps recorded
     assert episode_count == 1
     assert jsonl_path == "episodes/task_0_ep0000_success.jsonl"
+
+
+@pytest.mark.anyio
+async def test_orchestrator_fires_tracker_lifecycle_on_success(echo_server, tmp_path):
+    """A clean run drives eval_begin → benchmark_begin → episode_end(success)*
+    → benchmark_end → eval_end → close."""
+    tracker = RecordingTracker()
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "tracking": {"report_to": "wandb"},  # value is irrelevant; we patch the factory
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "ok",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 2, "num_tasks": 2},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StubBenchmark,
+    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]):
+        orch = Orchestrator(config, no_save=True)
+        await orch.run()
+
+    hooks = [c[0] for c in tracker.calls]
+    assert hooks[0] == "on_eval_begin"
+    assert hooks[1] == "on_benchmark_begin"
+    # on_episode_end args: (bench_name, task_name, ep_dict, status) — status at index 3
+    episode_calls = [c for c in tracker.calls if c[0] == "on_episode_end"]
+    assert len(episode_calls) == 2
+    assert all(c[1][3] == "success" for c in episode_calls), f"expected all success, got {episode_calls}"
+    assert "on_benchmark_end" in hooks
+    assert hooks[-2] == "on_eval_end"
+    assert hooks[-1] == "close"
+
+
+@pytest.mark.anyio
+async def test_orchestrator_tracker_sees_error_status(tmp_path):
+    """Server-death path: tracker must receive on_episode_end with status='error'
+    so the wandb timeline reflects failed episodes, matching Recording's coverage."""
+
+    class DyingConnection:
+        def __init__(self, url, **kwargs):
+            self.url = url
+            self.server_info = {}
+
+        async def connect(self, **kwargs):
+            pass
+
+        async def close(self):
+            pass
+
+        async def start_episode(self, cfg):
+            pass
+
+        async def end_episode(self, result):
+            pass
+
+        async def act(self, obs):
+            raise websockets.exceptions.ConnectionClosed(None, None)
+
+        async def reconnect(self):
+            raise ConnectionError("server gone")
+
+    tracker = RecordingTracker()
+    config = {
+        "server": {"url": "ws://fake:0"},
+        "output_dir": str(tmp_path),
+        "tracking": {"report_to": "wandb"},
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "err",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StubBenchmark,
+    ), patch("vla_eval.orchestrator.Connection", DyingConnection), patch(
+        "vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]
+    ):
+        orch = Orchestrator(config, no_save=True)
+        await orch.run()
+
+    # on_episode_end args at index 3 = status; reconnect path must produce status="error"
+    error_episodes = [c for c in tracker.calls if c[0] == "on_episode_end" and c[1][3] == "error"]
+    assert error_episodes, f"expected at least one status='error', got {tracker.calls}"
+
+
+@pytest.mark.anyio
+async def test_orchestrator_sharded_skips_live_hooks(echo_server, tmp_path):
+    """Under sharding, the orchestrator must instantiate trackers (config errors
+    fail fast on every shard) but skip live + eval-end hooks — merge owns those."""
+    tracker = RecordingTracker()
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "tracking": {"report_to": "wandb"},
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "shard",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 2},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StubBenchmark,
+    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]):
+        orch = Orchestrator(config, shard_id=0, num_shards=2, no_save=True)
+        await orch.run()
+
+    assert tracker.calls == [], f"sharded mode should fire no live hooks; got {tracker.calls}"
+
+
+@pytest.mark.anyio
+async def test_orchestrator_isolates_broken_tracker(echo_server, tmp_path):
+    """A backend that raises on every hook must not abort the eval."""
+    good = RecordingTracker()
+    bad = BrokenTracker()
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "tracking": {"report_to": ["wandb", "trackio"]},
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "robust",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StubBenchmark,
+    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[bad, good]):
+        orch = Orchestrator(config, no_save=True)
+        results = await orch.run()
+
+    assert len(results) == 1, "eval should have completed despite the broken backend"
+    assert any(c[0] == "on_episode_end" for c in good.calls), "good tracker should still have fired"
 
 
 @pytest.mark.anyio

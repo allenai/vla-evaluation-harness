@@ -32,6 +32,7 @@ from vla_eval.results.collector import EpisodeResult, ResultCollector
 from vla_eval.runners.async_runner import AsyncEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
+from vla_eval.tracking import Tracker, call_each, get_reporting_trackers
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,17 @@ class Orchestrator:
         self._progress_last: tuple[int, int, int] | None = None
         self._store: RecordingStore | None = None
 
+        # Trackers are instantiated on every shard so config errors surface
+        # fast, but live emission only fires when there's a single writer —
+        # ``vla-eval merge`` owns the aggregate push for sharded runs.
+        self._trackers: list[Tracker] = get_reporting_trackers((config.get("tracking") or {}).get("report_to"))
+        self._live_tracking = num_shards is None
+        if self._trackers and not self._live_tracking:
+            logger.warning(
+                "tracking.report_to set with sharding active; per-episode and eval-end "
+                "emission deferred to `vla-eval merge`."
+            )
+
     @property
     def eval_id(self) -> str:
         return self._eval_id
@@ -100,15 +112,23 @@ class Orchestrator:
         if not self.no_save:
             self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
 
+        if self._live_tracking:
+            call_each(self._trackers, "on_eval_begin", self._eval_id, self.config)
+
         all_results = []
         try:
             for bench_cfg in self.config.get("benchmarks", []):
                 result = await self._run_benchmark(bench_cfg)
                 all_results.append(result)
+                if self._live_tracking:
+                    call_each(self._trackers, "on_benchmark_end", result.get("benchmark", ""), result)
         finally:
             if self._store is not None:
                 self._store.close()
                 self._store = None
+            if self._live_tracking:
+                call_each(self._trackers, "on_eval_end", all_results)
+                call_each(self._trackers, "close")
 
         return all_results
 
@@ -130,6 +150,8 @@ class Orchestrator:
         safe_name = _SAFE_NAME_RE.sub("_", name)
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
+        if self._live_tracking:
+            call_each(self._trackers, "on_benchmark_begin", name, bench_cfg)
         return await self._run_benchmark_inner(cfg, name, safe_name)
 
     async def _run_benchmark_inner(self, cfg: EvalConfig, name: str, safe_name: str) -> dict[str, Any]:
@@ -256,6 +278,10 @@ class Orchestrator:
                 failure_reason=ep_dict.get("failure_reason"),
                 failure_detail=ep_dict.get("failure_detail"),
             )
+            # Fire from this site so error terminations (status != "success") reach
+            # trackers too — collector.record() above misses the reconnect paths.
+            if self._live_tracking:
+                call_each(self._trackers, "on_episode_end", name, task_name, ep_dict, status)
 
         try:
             for item_idx, (task, ep) in enumerate(work_items):
