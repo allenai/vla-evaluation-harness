@@ -8,7 +8,15 @@ and CPU resources across parallel shard containers.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
+from functools import lru_cache
+from glob import glob
+from typing import Literal
+
+GpuRuntime = Literal["nvidia", "rocm"]
+
+_ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
 
 
 def _format_cpuset(cpu_ids: list[int]) -> str:
@@ -47,7 +55,19 @@ def parse_cpus(spec: str | None) -> list[int]:
     return sorted(set(cpus))
 
 
-def _detect_gpu_ids() -> list[str]:
+@lru_cache(maxsize=1)
+def _detect_runtime() -> GpuRuntime:
+    """Detect the host GPU runtime used for Docker device forwarding."""
+    if not os.path.exists("/dev/kfd"):
+        return "nvidia"
+    try:
+        subprocess.check_output(["rocm-smi", "--showid"], text=True, stderr=subprocess.DEVNULL, timeout=5)
+        return "rocm"
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return "nvidia"
+
+
+def _detect_gpu_ids_nvidia() -> list[str]:
     """Query nvidia-smi for available GPU indices."""
     try:
         out = subprocess.check_output(
@@ -56,14 +76,35 @@ def _detect_gpu_ids() -> list[str]:
             stderr=subprocess.DEVNULL,
         )
         return [idx.strip() for idx in out.strip().splitlines() if idx.strip()]
-    except (FileNotFoundError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
         return ["0"]
+
+
+def _detect_gpu_ids_rocm() -> list[str]:
+    """Query rocm-smi for GPU indices, falling back to render-node count."""
+    try:
+        out = subprocess.check_output(["rocm-smi", "--showid"], text=True, stderr=subprocess.DEVNULL, timeout=5)
+        ids = list(dict.fromkeys(m.group(1) for m in re.finditer(r"GPU\[(\d+)\]", out)))
+        if ids:
+            return ids
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+
+    render_nodes = sorted(glob("/dev/dri/renderD*"))
+    return [str(i) for i, _ in enumerate(render_nodes)] or ["0"]
+
+
+def _detect_gpu_ids() -> list[str]:
+    """Query the active GPU runtime for available GPU indices."""
+    if _detect_runtime() == "rocm":
+        return _detect_gpu_ids_rocm()
+    return _detect_gpu_ids_nvidia()
 
 
 def parse_gpus(spec: str | None) -> list[str]:
     """Parse GPU spec into list of device IDs.
 
-    ``None`` or ``"all"`` enumerates GPUs via nvidia-smi.
+    ``None`` or ``"all"`` enumerates GPUs via the active runtime.
     ``"0,1"`` returns ``["0", "1"]``.
     """
     if spec is None or spec.strip().lower() == "all":
@@ -72,10 +113,26 @@ def parse_gpus(spec: str | None) -> list[str]:
 
 
 def gpu_docker_flag(spec: str | None) -> list[str]:
-    """Return ``--gpus`` flag pair for a single (non-sharded) container."""
+    """Return GPU device flags for a single (non-sharded) container."""
+    runtime = _detect_runtime()
+    if runtime == "rocm":
+        flags = list(_ROCM_DEVICE_FLAGS)
+        if spec is None or spec.strip().lower() == "all":
+            # ROCm treats missing HIP_VISIBLE_DEVICES as "all visible devices".
+            return flags
+        flags.extend(["-e", f"HIP_VISIBLE_DEVICES={spec}"])
+        return flags
     if spec is None or spec.strip().lower() == "all":
         return ["--gpus", "all"]
     return ["--gpus", f"device={spec}"]
+
+
+def gpu_visibility_env(gpu_id: str | None) -> dict[str, str]:
+    """Return host-side GPU visibility env vars for one worker."""
+    if gpu_id is None:
+        return {}
+    key = "HIP_VISIBLE_DEVICES" if _detect_runtime() == "rocm" else "CUDA_VISIBLE_DEVICES"
+    return {key: gpu_id}
 
 
 def tty_docker_flags() -> list[str]:
@@ -109,16 +166,15 @@ def shard_docker_flags(
         gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``.
 
     Returns:
-        Flag list to extend a ``docker run`` command, e.g.
-        ``["--gpus", "device=0", "--cpuset-cpus", "0-5",
-          "-e", "OMP_NUM_THREADS=1", "-e", "MKL_NUM_THREADS=1"]``.
+        Flag list to extend a ``docker run`` command.  GPU flags are
+        runtime-dependent (delegated to :func:`gpu_docker_flag`).
     """
     flags: list[str] = []
 
     # GPU: round-robin across available devices
     gpu_list = parse_gpus(gpus)
     device = gpu_list[shard_id % len(gpu_list)]
-    flags.extend(["--gpus", f"device={device}"])
+    flags.extend(gpu_docker_flag(device))
 
     # CPU: partition available cores across shards
     cpu_ids = parse_cpus(cpus)

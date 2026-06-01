@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import argparse
 import copy
+import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -38,6 +40,7 @@ import numpy as np
 import yaml
 from tqdm import tqdm
 
+from vla_eval.docker_resources import _detect_runtime
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
@@ -133,6 +136,16 @@ class ResourceMonitor:
 
     @staticmethod
     def _gpu_stats() -> dict[str, float]:
+        if _detect_runtime() == "rocm":
+            return ResourceMonitor._rocm_gpu_stats()
+        return ResourceMonitor._nvidia_gpu_stats()
+
+    @staticmethod
+    def _zero_gpu_stats() -> dict[str, float]:
+        return {"gpu_util_pct": 0.0, "gpu_mem_used_gb": 0.0, "gpu_mem_total_gb": 0.0}
+
+    @staticmethod
+    def _nvidia_gpu_stats() -> dict[str, float]:
         try:
             out = subprocess.check_output(
                 [
@@ -157,7 +170,72 @@ class ResourceMonitor:
                 "gpu_mem_total_gb": round(total_mem / 1024, 1),
             }
         except Exception:
-            return {"gpu_util_pct": 0.0, "gpu_mem_used_gb": 0.0, "gpu_mem_total_gb": 0.0}
+            return ResourceMonitor._zero_gpu_stats()
+
+    @staticmethod
+    def _rocm_gpu_stats() -> dict[str, float]:
+        try:
+            out = subprocess.check_output(
+                [
+                    "rocm-smi",
+                    "--showuse",
+                    "--showmemuse",
+                    "--showmeminfo",
+                    "vram",
+                    "--json",
+                ],
+                text=True,
+                timeout=5,
+            )
+            data = json.loads(out)
+            max_util = 0.0
+            total_mem_used = 0.0
+            total_mem = 0.0
+            for stats in data.values():
+                if not isinstance(stats, dict):
+                    continue
+                util, mem_used, mem_total = ResourceMonitor._parse_rocm_card_stats(stats)
+                max_util = max(max_util, util)
+                total_mem_used += mem_used
+                total_mem += mem_total
+            return {
+                "gpu_util_pct": round(max_util, 1),
+                "gpu_mem_used_gb": round(total_mem_used, 1),
+                "gpu_mem_total_gb": round(total_mem, 1),
+            }
+        except Exception:
+            return ResourceMonitor._zero_gpu_stats()
+
+    @staticmethod
+    def _parse_rocm_card_stats(stats: dict[str, Any]) -> tuple[float, float, float]:
+        util = 0.0
+        mem_used_gb = 0.0
+        mem_total_gb = 0.0
+        for key, value in stats.items():
+            key_lower = key.lower()
+            if "gpu use" in key_lower:
+                util = ResourceMonitor._parse_float(value)
+            elif "vram" in key_lower and "memory" in key_lower and "used" in key_lower and "%" not in key_lower:
+                mem_used_gb = ResourceMonitor._memory_value_to_gb(value, key_lower)
+            elif "vram" in key_lower and "memory" in key_lower and "total" in key_lower and "%" not in key_lower:
+                mem_total_gb = ResourceMonitor._memory_value_to_gb(value, key_lower)
+        return util, mem_used_gb, mem_total_gb
+
+    @staticmethod
+    def _parse_float(value: Any) -> float:
+        match = re.search(r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?", str(value).replace(",", ""))
+        if match is None:
+            return 0.0
+        return float(match.group(0))
+
+    @staticmethod
+    def _memory_value_to_gb(value: Any, key_lower: str) -> float:
+        amount = ResourceMonitor._parse_float(value)
+        if "(b)" in key_lower or key_lower.endswith(" b"):
+            return amount / 1073741824
+        if "mib" in key_lower or "mb" in key_lower:
+            return amount / 1024
+        return amount
 
 
 # ---------------------------------------------------------------------------
