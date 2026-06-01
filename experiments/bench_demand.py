@@ -40,6 +40,7 @@ import numpy as np
 import yaml
 from tqdm import tqdm
 
+from vla_eval.docker_resources import _detect_runtime
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
@@ -135,8 +136,6 @@ class ResourceMonitor:
 
     @staticmethod
     def _gpu_stats() -> dict[str, float]:
-        from vla_eval.docker_resources import _detect_runtime
-
         if _detect_runtime() == "rocm":
             return ResourceMonitor._rocm_gpu_stats()
         return ResourceMonitor._nvidia_gpu_stats()

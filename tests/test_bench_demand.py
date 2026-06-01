@@ -7,7 +7,7 @@ from experiments.bench_demand import ResourceMonitor
 
 
 class TestResourceMonitorGpuStats:
-    @patch("vla_eval.docker_resources._detect_runtime", return_value="nvidia")
+    @patch("experiments.bench_demand._detect_runtime", return_value="nvidia")
     @patch(
         "experiments.bench_demand.subprocess.check_output",
         return_value="10, 1024, 8192\n75, 2048, 8192\n",
@@ -19,7 +19,7 @@ class TestResourceMonitorGpuStats:
             "gpu_mem_total_gb": 16.0,
         }
 
-    @patch("vla_eval.docker_resources._detect_runtime", return_value="rocm")
+    @patch("experiments.bench_demand._detect_runtime", return_value="rocm")
     @patch(
         "experiments.bench_demand.subprocess.check_output",
         return_value=json.dumps(
@@ -44,7 +44,7 @@ class TestResourceMonitorGpuStats:
             "gpu_mem_total_gb": 48.0,
         }
 
-    @patch("vla_eval.docker_resources._detect_runtime", return_value="rocm")
+    @patch("experiments.bench_demand._detect_runtime", return_value="rocm")
     @patch("experiments.bench_demand.subprocess.check_output", side_effect=FileNotFoundError)
     def test_rocm_gpu_stats_falls_back_to_zero(self, _check_output_mock, _runtime_mock):
         assert ResourceMonitor._gpu_stats() == {

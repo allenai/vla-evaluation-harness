@@ -104,13 +104,15 @@ class TestDetectRuntime:
         assert _detect_runtime() == "rocm"
         assert mock_check_output.call_count == 1
 
+    @patch("vla_eval.docker_resources.os.path.exists", return_value=True)
     @patch("vla_eval.docker_resources.subprocess.check_output", side_effect=FileNotFoundError)
-    def test_defaults_to_nvidia_when_rocm_smi_missing(self, _mock):
+    def test_defaults_to_nvidia_when_rocm_smi_missing(self, _mock, _exists_mock):
         _detect_runtime.cache_clear()
         assert _detect_runtime() == "nvidia"
 
+    @patch("vla_eval.docker_resources.os.path.exists", return_value=True)
     @patch("vla_eval.docker_resources.subprocess.check_output", side_effect=PermissionError)
-    def test_defaults_to_nvidia_when_rocm_smi_is_not_executable(self, _mock):
+    def test_defaults_to_nvidia_when_rocm_smi_is_not_executable(self, _mock, _exists_mock):
         _detect_runtime.cache_clear()
         assert _detect_runtime() == "nvidia"
 

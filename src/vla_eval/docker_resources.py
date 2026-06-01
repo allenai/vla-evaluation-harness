@@ -16,7 +16,7 @@ from typing import Literal
 
 GpuRuntime = Literal["nvidia", "rocm"]
 
-_ROCM_DEVICE_FLAGS = ["--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video"]
+_ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
 
 
 def _format_cpuset(cpu_ids: list[int]) -> str:
@@ -166,9 +166,8 @@ def shard_docker_flags(
         gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``.
 
     Returns:
-        Flag list to extend a ``docker run`` command, e.g.
-        ``["--gpus", "device=0", "--cpuset-cpus", "0-5",
-          "-e", "OMP_NUM_THREADS=1", "-e", "MKL_NUM_THREADS=1"]``.
+        Flag list to extend a ``docker run`` command.  GPU flags are
+        runtime-dependent (delegated to :func:`gpu_docker_flag`).
     """
     flags: list[str] = []
 
