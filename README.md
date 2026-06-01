@@ -57,10 +57,10 @@ See [Architecture](docs/architecture.md) for how the pieces connect.
 pip install vla-eval
 ```
 
-Or from source:
+Or from source (pinned to the latest stable release):
 
 ```bash
-git clone https://github.com/allenai/vla-evaluation-harness.git
+git clone --branch v0.2.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
 uv sync --python 3.11 --all-extras --dev
 ```
