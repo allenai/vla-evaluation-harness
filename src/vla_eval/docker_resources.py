@@ -58,6 +58,8 @@ def parse_cpus(spec: str | None) -> list[int]:
 @lru_cache(maxsize=1)
 def _detect_runtime() -> GpuRuntime:
     """Detect the host GPU runtime used for Docker device forwarding."""
+    if not os.path.exists("/dev/kfd"):
+        return "nvidia"
     try:
         subprocess.check_output(["rocm-smi", "--showid"], text=True, stderr=subprocess.DEVNULL, timeout=5)
         return "rocm"
@@ -74,7 +76,7 @@ def _detect_gpu_ids_nvidia() -> list[str]:
             stderr=subprocess.DEVNULL,
         )
         return [idx.strip() for idx in out.strip().splitlines() if idx.strip()]
-    except (FileNotFoundError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
         return ["0"]
 
 
@@ -171,14 +173,9 @@ def shard_docker_flags(
     flags: list[str] = []
 
     # GPU: round-robin across available devices
-    runtime = _detect_runtime()
     gpu_list = parse_gpus(gpus)
     device = gpu_list[shard_id % len(gpu_list)]
-    if runtime == "rocm":
-        flags.extend(_ROCM_DEVICE_FLAGS)
-        flags.extend(["-e", f"HIP_VISIBLE_DEVICES={device}"])
-    else:
-        flags.extend(["--gpus", f"device={device}"])
+    flags.extend(gpu_docker_flag(device))
 
     # CPU: partition available cores across shards
     cpu_ids = parse_cpus(cpus)

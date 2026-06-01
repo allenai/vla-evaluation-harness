@@ -90,13 +90,15 @@ class TestDetectRuntime:
     def teardown_method(self):
         _detect_runtime.cache_clear()
 
+    @patch("vla_eval.docker_resources.os.path.exists", return_value=True)
     @patch("vla_eval.docker_resources.subprocess.check_output", return_value="")
-    def test_detects_rocm_when_rocm_smi_succeeds(self, _mock):
+    def test_detects_rocm_when_rocm_smi_succeeds(self, _mock, _exists_mock):
         _detect_runtime.cache_clear()
         assert _detect_runtime() == "rocm"
 
+    @patch("vla_eval.docker_resources.os.path.exists", return_value=True)
     @patch("vla_eval.docker_resources.subprocess.check_output", return_value="")
-    def test_detection_is_cached(self, mock_check_output):
+    def test_detection_is_cached(self, mock_check_output, _exists_mock):
         _detect_runtime.cache_clear()
         assert _detect_runtime() == "rocm"
         assert _detect_runtime() == "rocm"
@@ -109,6 +111,11 @@ class TestDetectRuntime:
 
     @patch("vla_eval.docker_resources.subprocess.check_output", side_effect=PermissionError)
     def test_defaults_to_nvidia_when_rocm_smi_is_not_executable(self, _mock):
+        _detect_runtime.cache_clear()
+        assert _detect_runtime() == "nvidia"
+
+    @patch("vla_eval.docker_resources.os.path.exists", return_value=False)
+    def test_defaults_to_nvidia_when_dev_kfd_missing(self, _exists_mock):
         _detect_runtime.cache_clear()
         assert _detect_runtime() == "nvidia"
 

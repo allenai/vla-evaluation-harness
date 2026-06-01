@@ -224,7 +224,7 @@ class ResourceMonitor:
 
     @staticmethod
     def _parse_float(value: Any) -> float:
-        match = re.search(r"-?\d+(?:\.\d+)?", str(value).replace(",", ""))
+        match = re.search(r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?", str(value).replace(",", ""))
         if match is None:
             return 0.0
         return float(match.group(0))
