@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import logging
 import os
 import sqlite3
+import sys
 import time
 from collections.abc import Iterable
 from pathlib import Path
@@ -124,12 +126,101 @@ def _host_translate(path: Path) -> Path:
     return Path(host_root) / rel
 
 
+# ---------------------------------------------------------------------------
+# Network/parallel filesystem detection (WAL safety)
+# ---------------------------------------------------------------------------
+
+# SQLite WAL coordinates writers through a memory-mapped ``-shm`` index plus POSIX
+# advisory locks that network/parallel filesystems do not provide with the coherence
+# SQLite assumes, so concurrent multi-process writes can corrupt the DB ("database
+# disk image is malformed"). A shared multi-writer sink can't be transparently
+# relocated like a per-process cache, so we warn and let the caller place it on local
+# storage. Detection mirrors pixi's ``detect_network_filesystem`` (prefix-dev/pixi,
+# crates/pixi_config): ``statfs(2)`` f_type compared against known magics.
+_NETWORK_FS_MAGICS: dict[int, str] = {
+    0x6969: "nfs",  # NFS_SUPER_MAGIC
+    0x517B: "smb",  # SMB_SUPER_MAGIC (smbfs)
+    0xFF534D42: "cifs",  # fs/smb/client/cifsfs.h
+    0x65735546: "fuse",  # FUSE_SUPER_MAGIC
+    0x0187: "autofs",  # AUTOFS_SUPER_MAGIC
+    0x19830326: "beegfs",  # BeeGFS / fhgfs
+    0x0BD00BD0: "lustre",  # Lustre LL_SUPER_MAGIC
+    0x47504653: "gpfs",  # GPFS / IBM Spectrum Scale ("GPFS")
+    0x00C36400: "ceph",  # CephFS CEPH_SUPER_MAGIC
+}
+
+
+def _statfs_f_type(path: str) -> int | None:
+    """``statfs(2)`` f_type magic (low 32 bits) for *path*, or None if unavailable. Linux-only:
+    ``struct statfs`` layout is platform-specific, so other OSes return None rather than misread."""
+    if sys.platform != "linux":
+        return None
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        statfs = libc.statfs
+        statfs.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
+        statfs.restype = ctypes.c_int
+        buf = ctypes.create_string_buffer(256)  # >= sizeof(struct statfs) on Linux
+        if statfs(os.fsencode(path), buf) != 0:
+            return None
+        # f_type is the first field of ``struct statfs`` (__fsword_t == long on Linux).
+        return ctypes.c_long.from_buffer_copy(buf).value & 0xFFFFFFFF
+    except (OSError, ValueError, AttributeError):  # best-effort: never break recording
+        return None
+
+
+def _nearest_existing(path: Path) -> Path | None:
+    """Closest ancestor of *path* that exists (the DB file may not exist yet)."""
+    p = path
+    while True:
+        try:
+            if p.exists():
+                return p
+        except OSError:  # unreadable ancestor → give up (best-effort)
+            return None
+        if p.parent == p:
+            return None
+        p = p.parent
+
+
+def _detect_network_fs(path: Path) -> str | None:
+    """Name of the network/parallel filesystem *path* lives on (where SQLite WAL is unsafe),
+    else None. Mirrors pixi: ``statfs(2)`` f_type vs known magics. Best-effort, Linux-only
+    (None when it can't tell). Set ``VLA_EVAL_DISABLE_NETFS_WARNING`` to skip."""
+    if os.environ.get("VLA_EVAL_DISABLE_NETFS_WARNING"):
+        return None
+    existing = _nearest_existing(path)
+    if existing is None:
+        return None
+    f_type = _statfs_f_type(str(existing))
+    return _NETWORK_FS_MAGICS.get(f_type) if f_type is not None else None
+
+
+# RecordingStore is constructed many times (per shard, and per episode by an external
+# StepRecorder), so warn about a network filesystem at most once per DB path.
+_checked_netfs_paths: set[str] = set()
+
+
 class RecordingStore:
     """SQLite connection holder. One per process; same-file concurrency via WAL."""
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        key = str(self.db_path)
+        if key not in _checked_netfs_paths:
+            _checked_netfs_paths.add(key)
+            netfs = _detect_network_fs(self.db_path.parent)
+            if netfs is not None:
+                logger.warning(
+                    "Recording DB %s is on a %r filesystem. SQLite WAL relies on coherent shared "
+                    "memory + advisory locks that network/parallel filesystems do not reliably "
+                    "provide, so concurrent multi-writer recording can corrupt it ('database disk "
+                    "image is malformed'). Place the recording output on node-local storage (e.g. "
+                    "/dev/shm or a local disk) and copy the finished file out, or use a single writer.",
+                    self.db_path,
+                    netfs,
+                )
         self._conn = sqlite3.connect(str(self.db_path), isolation_level=None, timeout=60.0)
         # journal_mode=WAL (SCHEMA_SQL line 1) switches under an exclusive lock
         # SQLite won't reliably retry; arm busy_timeout first + retry so N shards
