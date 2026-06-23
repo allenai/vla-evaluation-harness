@@ -24,6 +24,7 @@ from vla_eval.recording import (
     NullEpisodeRecorder,
     RecordingStore,
     StepRecorder,
+    _detect_network_fs,
     db_path_for_eval,
 )
 from vla_eval.results.merge import merge_db, merge_eval
@@ -480,5 +481,88 @@ def test_recording_store_chmods_db_world_writable(tmp_path):
             assert f.exists(), f"missing {f.name}"
             mode = f.stat().st_mode & 0o777
             assert mode == 0o666, f"{f.name}: expected 0o666, got {oct(mode)}"
+    finally:
+        store.close()
+
+
+# ---------------------------------------------------------------------------
+# Network/parallel filesystem detection (WAL-safety warning)
+# ---------------------------------------------------------------------------
+
+
+def test_network_fs_magics_known() -> None:
+    import vla_eval.recording as rec
+
+    # magic→name table mirrors pixi's `detect_network_filesystem` set
+    assert rec._NETWORK_FS_MAGICS[0x00C36400] == "ceph"
+    assert rec._NETWORK_FS_MAGICS[0x6969] == "nfs"
+    assert rec._NETWORK_FS_MAGICS[0x0BD00BD0] == "lustre"
+    assert rec._NETWORK_FS_MAGICS[0x47504653] == "gpfs"
+
+
+def test_statfs_f_type_smoke(tmp_path: Path) -> None:
+    import vla_eval.recording as rec
+
+    # real statfs on a local dir returns an int magic (tmpfs/ext4/xfs/…), or None off-Linux
+    ft = rec._statfs_f_type(str(tmp_path))
+    assert ft is None or isinstance(ft, int)
+
+
+def test_detect_network_fs_real(tmp_path: Path) -> None:
+    # exercises the real statfs path; result is either None (local) or a known network-fs
+    # name — never garbage / never raises. (Avoids a hard ``is None`` assert that would flake
+    # if the CI runner's tmp dir is itself NFS-backed.)
+    import vla_eval.recording as rec
+
+    res = _detect_network_fs(tmp_path)
+    assert res is None or res in set(rec._NETWORK_FS_MAGICS.values())
+
+
+def test_detect_network_fs_flags_known_magic(tmp_path: Path, monkeypatch) -> None:
+    import vla_eval.recording as rec
+
+    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0x00C36400)  # CephFS magic
+    assert _detect_network_fs(tmp_path) == "ceph"
+
+
+def test_detect_network_fs_ignores_local_magic(tmp_path: Path, monkeypatch) -> None:
+    import vla_eval.recording as rec
+
+    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0xEF53)  # ext4 — not network
+    assert _detect_network_fs(tmp_path) is None
+
+
+def test_detect_network_fs_disabled_by_env(tmp_path: Path, monkeypatch) -> None:
+    import vla_eval.recording as rec
+
+    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0x00C36400)  # would be ceph
+    monkeypatch.setenv("VLA_EVAL_DISABLE_NETFS_WARNING", "1")
+    assert _detect_network_fs(tmp_path) is None
+
+
+def test_recordingstore_warns_on_network_fs(tmp_path: Path, monkeypatch, caplog) -> None:
+    import logging
+
+    import vla_eval.recording as rec
+
+    monkeypatch.setattr(rec, "_detect_network_fs", lambda _p: "ceph")
+    with caplog.at_level(logging.WARNING, logger="vla_eval.recording"):
+        store = rec.RecordingStore(tmp_path / "rec.sqlite")
+    try:
+        assert any("network/parallel" in r.getMessage() for r in caplog.records)
+    finally:
+        store.close()
+
+
+def test_recordingstore_silent_on_local_fs(tmp_path: Path, monkeypatch, caplog) -> None:
+    import logging
+
+    import vla_eval.recording as rec
+
+    monkeypatch.setattr(rec, "_detect_network_fs", lambda _p: None)
+    with caplog.at_level(logging.WARNING, logger="vla_eval.recording"):
+        store = rec.RecordingStore(tmp_path / "rec.sqlite")
+    try:
+        assert not any("network/parallel" in r.getMessage() for r in caplog.records)
     finally:
         store.close()
