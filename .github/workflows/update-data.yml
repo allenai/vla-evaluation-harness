@@ -17,7 +17,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # sync_external/scan/validate read leaderboard.json
           # (LFS-tracked) — smudge the blob so they don't hit a pointer.

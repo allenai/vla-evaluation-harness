@@ -12,14 +12,14 @@ jobs:
   ty:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - run: uv run --python 3.11 --dev ty check
 
   ruff:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/ruff-action@v3
       - run: ruff check
       - run: ruff format --check --diff
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Pytest (vla_eval)
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: Install vla_eval deps
         run: uv sync --python 3.11 --all-extras --dev
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Pytest (leaderboard)
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: Install leaderboard deps
         # --no-install-project so we don't pull vla_eval's runtime
