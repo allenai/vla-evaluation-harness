@@ -5,18 +5,22 @@
 #   docker/push.sh --tag 0.1.0          # push :0.1.0 and update :latest
 #   docker/push.sh --tag 0.1.0 libero   # push a single image
 #   docker/push.sh --tag 0.1.0 --no-latest  # push version tag only
+#   docker/push.sh --tag 0.1.0 --registry ghcr.io/worv-ai/vla-evaluation-public
+#                                       # mirror to another registry (re-tags the local build)
 #   docker/push.sh                      # push :latest only (with confirmation)
 set -euo pipefail
 
 TAG="latest"
 TARGET=""
-REGISTRY="ghcr.io/allenai/vla-evaluation-harness"
+SOURCE_REGISTRY="ghcr.io/allenai/vla-evaluation-harness"  # where build.sh tags images locally
+REGISTRY="$SOURCE_REGISTRY"                               # push target; override with --registry
 FORCE=false
 UPDATE_LATEST=true
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tag)       TAG="$2"; shift 2 ;;
+    --registry)  REGISTRY="$2"; shift 2 ;;
     --no-latest) UPDATE_LATEST=false; shift ;;
     -y)          FORCE=true; shift ;;
     -h|--help)
@@ -48,6 +52,7 @@ is_no_redist() {
 push_image() {
   local name="$1"
   local image_name="${name//_/-}"
+  local source="${SOURCE_REGISTRY}/${image_name}:${TAG}"
   local versioned="${REGISTRY}/${image_name}:${TAG}"
 
   if is_no_redist "$name"; then
@@ -55,6 +60,12 @@ push_image() {
     echo "binaries that may not be redistributed to a public registry."
     echo "(See docs/reproductions/${name}.md for the license rationale.)"
     return 0
+  fi
+
+  # build.sh always tags under SOURCE_REGISTRY; re-tag when mirroring to another registry.
+  if [[ "$versioned" != "$source" ]]; then
+    echo "Tagging: ${source} -> ${versioned}"
+    docker tag "${source}" "${versioned}"
   fi
 
   echo "Pushing: ${versioned}"
