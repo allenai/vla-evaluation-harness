@@ -20,6 +20,7 @@
 
 ### Latest News
 
+- [2026/06] [v0.3.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.3.0) released. SQLite recording + `vla-eval merge`, wandb/trackio tracking, and a watchdog for wedged benchmarks.
 - [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers — the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
 - [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 1,885 models x 18 benchmarks, schema-validated pipeline, updated monthly.
 - [2026/04] [v0.1.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.1.0) released. 6 VLA models [reproduced](docs/reproductions/) within 2pp of published scores.
@@ -60,7 +61,7 @@ pip install vla-eval
 Or from source (pinned to the latest stable release):
 
 ```bash
-git clone --branch v0.2.0 https://github.com/allenai/vla-evaluation-harness.git
+git clone --branch v0.3.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
 uv sync --python 3.11 --all-extras --dev
 ```
