@@ -44,13 +44,13 @@ class SessionContext:
         self,
         session_id: str,
         episode_id: str,
-        mode: Literal["sync", "async"] = "sync",
+        mode: Literal["sync", "live"] = "sync",
         eval_id: str = "",
         recording_db_path: str = "",
     ) -> None:
         self._session_id = session_id
         self._episode_id = episode_id
-        self._mode: Literal["sync", "async"] = mode
+        self._mode: Literal["sync", "live"] = mode
         self._eval_id = eval_id
         self._recording_db_path = recording_db_path
         self._step = 0
@@ -73,7 +73,7 @@ class SessionContext:
         return self._recording_db_path
 
     @property
-    def mode(self) -> Literal["sync", "async"]:
+    def mode(self) -> Literal["sync", "live"]:
         return self._mode
 
     @property

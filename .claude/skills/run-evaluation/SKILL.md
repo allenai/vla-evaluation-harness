@@ -142,7 +142,7 @@ Key metrics:
 |---|---|---|
 | No Docker | `--no-docker` | Dev/debug, requires local benchmark deps |
 | Dev mode | `--dev` | Bind-mounts local `src/` into container (no rebuild needed) |
-| Real-time mode | Set `mode: realtime` in config | For control benchmarks (Kinetix) |
+| Real-time mode | Set `mode: live` in config | For control benchmarks (Kinetix) |
 | Skip Docker prompt | `--yes` | Non-interactive image pull |
 | Custom overrides | Edit config YAML | `episodes_per_task`, `max_steps`, `max_tasks`, `params.seed`, `server.timeout` |
 

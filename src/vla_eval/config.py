@@ -112,7 +112,7 @@ class EvalConfig:
 
     Attributes:
         benchmark: Import string in ``module.path:ClassName`` format.
-        mode: Execution mode — ``"sync"`` (env waits for inference) or ``"async"``
+        mode: Execution mode — ``"sync"`` (env waits for inference) or ``"live"``
             (env advances on a clock, decoupled from inference; real-time at pace=1).
         name: Display name.  Defaults to class name from ``benchmark``.
         subname: Disambiguator appended to name (e.g. suite name).  Use when
@@ -140,7 +140,7 @@ class EvalConfig:
     tasks: list[str] | None = None
     params: dict[str, Any] = field(default_factory=dict)
     recording: dict[str, Any] | None = None
-    # Async-mode params (used when mode starts with "async"); pace 1.0 = real-time
+    # Live-mode params (used when mode starts with "live"); pace 1.0 = real-time
     hz: float = 10.0
     # Throughput testing mode: relaxes benchmark constraints (e.g. initial state reuse)
     throughput_mode: bool = False

@@ -1,4 +1,4 @@
-"""Tests for SyncEpisodeRunner, AsyncEpisodeRunner, ActionBuffer, batched PredictModelServer, and CI/LAAS."""
+"""Tests for SyncEpisodeRunner, LiveEpisodeRunner, ActionBuffer, batched PredictModelServer, and CI/LAAS."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import pytest
 from vla_eval.benchmarks.base import repeat_last_hold
 from vla_eval.connection import Connection
 from vla_eval.runners.action_buffer import ActionBuffer
-from vla_eval.runners.async_runner import AsyncEpisodeRunner
+from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.base import SessionContext
@@ -253,15 +253,15 @@ def test_action_buffer_metrics():
 
 
 # ---------------------------------------------------------------------------
-# AsyncEpisodeRunner tests
+# LiveEpisodeRunner tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.anyio
-async def test_async_runner_completes(echo_server):
-    """AsyncEpisodeRunner finishes when benchmark reports done."""
+async def test_live_runner_completes(echo_server):
+    """LiveEpisodeRunner finishes when benchmark reports done."""
     benchmark = StubBenchmark(done_at_step=3)
-    runner = AsyncEpisodeRunner(hz=100.0)
+    runner = LiveEpisodeRunner(hz=100.0)
     task = {"name": "task_0"}
 
     async with Connection(echo_server) as conn:
@@ -273,10 +273,10 @@ async def test_async_runner_completes(echo_server):
 
 
 @pytest.mark.anyio
-async def test_async_runner_respects_max_steps(echo_server):
-    """AsyncEpisodeRunner stops at max_steps even if benchmark is not done."""
+async def test_live_runner_respects_max_steps(echo_server):
+    """LiveEpisodeRunner stops at max_steps even if benchmark is not done."""
     benchmark = StubBenchmark(done_at_step=100)
-    runner = AsyncEpisodeRunner(hz=100.0)
+    runner = LiveEpisodeRunner(hz=100.0)
     task = {"name": "task_0"}
 
     async with Connection(echo_server) as conn:
@@ -323,7 +323,7 @@ async def test_ci_server_sends_action(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             # Send obs — CI server buffers it and returns immediately,
             # then the CI loop picks it up and sends action asynchronously
             action = await conn.act({"value": 2.0})
@@ -342,7 +342,7 @@ async def test_ci_laas_skips_stale_actions(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             action = await conn.act({"value": 1.0})
             assert "actions" in action
             # With 50ms latency and 10Hz, delay_steps = int(0.05 * 10) = 0
@@ -362,12 +362,12 @@ async def test_ci_loop_stops_on_episode_end(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             _ = await conn.act({"value": 1.0})
             await conn.end_episode({})
             # After episode end, CI loop should be cleaned up
             # Start a new episode to verify server is still functional
-            await conn.start_episode({"task": {"name": "test2"}, "mode": "async"})
+            await conn.start_episode({"task": {"name": "test2"}, "mode": "live"})
             action = await conn.act({"value": 3.0})
             assert np.allclose(action["actions"], 3.0 * np.ones(7))
             await conn.end_episode({})

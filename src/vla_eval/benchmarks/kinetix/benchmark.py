@@ -3,7 +3,7 @@
 Kinetix is a JAX-based 2D physics engine with dynamic manipulation tasks
 (throwing, catching, balancing, locomotion). This benchmark wraps the 12
 tasks used in the RTC paper (arXiv:2506.07339) for evaluation under both
-sync and async conditions.
+sync and live conditions.
 
 The environment uses a gymnax-style functional API where state is passed
 explicitly on every call. This adapter stores JAX state as instance

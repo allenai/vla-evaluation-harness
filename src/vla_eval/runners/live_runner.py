@@ -1,4 +1,4 @@
-"""AsyncEpisodeRunner: real-time wall-clock evaluation.
+"""LiveEpisodeRunner: real-time wall-clock evaluation.
 
 Ties the environment clock to wall-clock time.  The environment advances at
 a fixed Hz whether or not the model has returned an action.
@@ -30,7 +30,7 @@ from vla_eval.types import EpisodeResult, Task
 logger = logging.getLogger(__name__)
 
 
-class AsyncEpisodeRunner(EpisodeRunner):
+class LiveEpisodeRunner(EpisodeRunner):
     """Real-time episode runner with clock-based pacing.
 
     Args:
@@ -76,7 +76,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
         obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        ep_payload: dict[str, Any] = {"task": task_info, "mode": "async"}
+        ep_payload: dict[str, Any] = {"task": task_info, "mode": "live"}
         if recorder is not None and recorder.is_active:
             ep_payload["recording"] = {
                 "sid": recorder.sid,
@@ -107,7 +107,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
             # like real deployment where physics does not pause for inference.
             #
             # When wait_first_action=True, we block until the first action
-            # arrives.  This is useful for sanity-checking that the async
+            # arrives.  This is useful for sanity-checking that the live
             # pipeline matches sync results (eliminates step-0 zero action).
             if self.wait_first_action:
                 deadline = _time.monotonic() + 30.0
