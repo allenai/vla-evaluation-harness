@@ -1,0 +1,18 @@
+# DuoBench smoke (1 task × 1 episode).
+
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/duobench:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.duobench.benchmark:DuoBenchBenchmark"
+    name: duobench
+    episodes_per_task: 1
+    params:
+      task_ids: [ball_maze]
+      seed: 0
+      send_state: true

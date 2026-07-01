@@ -1,0 +1,32 @@
+# DuoBench (11 tasks × 100 episodes = 1100 total).
+
+server:
+  url: "ws://localhost:8000"
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/duobench:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.duobench.benchmark:DuoBenchBenchmark"
+    name: duobench
+    episodes_per_task: 100
+    params:
+      task_ids:
+        - ball_maze
+        - bin_sort
+        - block_balance
+        - carry_pot
+        - hinge_chest
+        - join_blocks
+        - pour_marbles
+        - spring_door
+        - transfer_cube
+        - transfer_gate
+        - transfer_reorient
+      seed: 0
+      send_state: true
+      control_mode: cartesian_tquat
+      relative_to: last_step
+      binary_gripper: false
+      frequency: 30
