@@ -323,7 +323,7 @@ async def test_ci_server_sends_action(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
             # Send obs — CI server buffers it and returns immediately,
             # then the CI loop picks it up and sends action asynchronously
             action = await conn.act({"value": 2.0})
@@ -342,7 +342,7 @@ async def test_ci_laas_skips_stale_actions(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
             action = await conn.act({"value": 1.0})
             assert "actions" in action
             # With 50ms latency and 10Hz, delay_steps = int(0.05 * 10) = 0
@@ -362,12 +362,12 @@ async def test_ci_loop_stops_on_episode_end(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "async"})
             _ = await conn.act({"value": 1.0})
             await conn.end_episode({})
             # After episode end, CI loop should be cleaned up
             # Start a new episode to verify server is still functional
-            await conn.start_episode({"task": {"name": "test2"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test2"}, "mode": "async"})
             action = await conn.act({"value": 3.0})
             assert np.allclose(action["actions"], 3.0 * np.ones(7))
             await conn.end_episode({})

@@ -1,5 +1,5 @@
-# Real-time (Sim2Live) evaluation example: wall-clock-paced async runner.
-# Uses Kinetix, which supports real-time mode (implements get_hold_action).
+# Async-mode evaluation example (real-time pacing at pace=1).
+# Uses Kinetix, which supports async mode (implements get_hold_action).
 # NOTE: LIBERO is sync-only and cannot run here.
 server:
   url: "ws://localhost:8000"
@@ -11,7 +11,7 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.kinetix.benchmark:KinetixBenchmark"
-    mode: realtime
+    mode: async
     hz: 10.0
     pace: 1.0
     episodes_per_task: 10

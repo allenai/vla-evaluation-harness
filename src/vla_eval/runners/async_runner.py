@@ -76,7 +76,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
         obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        ep_payload: dict[str, Any] = {"task": task_info, "mode": "realtime"}
+        ep_payload: dict[str, Any] = {"task": task_info, "mode": "async"}
         if recorder is not None and recorder.is_active:
             ep_payload["recording"] = {
                 "sid": recorder.sid,

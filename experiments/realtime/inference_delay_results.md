@@ -1,4 +1,4 @@
-# Inference Delay Sweep Results — RTC Kinetix Sim2Live Evaluation
+# Inference Delay Sweep Results — RTC Kinetix Real-time Evaluation
 
 **Date:** 2026-03-10
 **Model:** RTC flow-matching diffusion policy (BC checkpoint, denoising_steps=5)
@@ -38,7 +38,7 @@
 | Condition | Grasp | Catapult | Cartpole | Lunar | Cheetah | Swimmer | Walker | Unicycle | Chain | Catcher | Tramp. | Car | **Avg** |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Sync | 62 | 26 | 50 | 36 | 96 | 32 | 32 | 90 | 100 | 68 | 58 | 64 | 59.5 |
-| Sim2Live | 58 | 34 | 50 | 34 | 94 | 24 | 36 | 84 | 100 | 58 | 44 | 56 | 56.0 |
+| Real-time | 58 | 34 | 50 | 34 | 94 | 24 | 36 | 84 | 100 | 58 | 44 | 56 | 56.0 |
 | + CI | 80 | 40 | 98 | 80 | 96 | 100 | 42 | 98 | 100 | 80 | 64 | 86 | 80.3 |
 | + LAAS | 92 | 20 | 98 | 74 | 96 | 100 | 42 | 94 | 100 | 92 | 64 | 84 | 79.7 |
 

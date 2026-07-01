@@ -214,7 +214,7 @@ class Orchestrator:
         metadata = benchmark.get_metadata()
         max_steps = cfg.max_steps if cfg.max_steps is not None else metadata.get("max_steps", 300)
 
-        if cfg.mode.startswith("realtime"):
+        if cfg.mode.startswith("async"):
             # Fail fast before any episode: a real-time benchmark must declare its
             # stale-tick hold, else every episode would raise mid-run and the
             # per-episode error isolation would flood logs while wasting resources.

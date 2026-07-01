@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pace=1.0 experiments: main table (sim2live/ci/laas) + inference delay sweep
+# Pace=1.0 experiments: main table (realtime/ci/laas) + inference delay sweep
 # All conditions use pace=1.0, wait_first_action=true, 50 eps/task, 12 tasks
 set -euo pipefail
 
@@ -9,7 +9,7 @@ cd "$HARNESS"
 RESULTS_BASE="./results/pace1_experiments"
 SLURM_ARGS="--partition=h100 --gres=gpu:1 --cpus-per-task=8 --mem=32G --time=04:00:00"
 EP=50
-BENCH_CONFIG="experiments/sim2live/kinetix_realtime_wait.yaml"
+BENCH_CONFIG="experiments/realtime/kinetix_realtime_wait.yaml"
 VOLUME_MOUNT="${HARNESS}/src/vla_eval:/opt/conda/envs/kinetix/lib/python3.11/site-packages/vla_eval"
 JOB_ID=""
 NODE=""
@@ -114,14 +114,14 @@ echo "============================================"
 echo ""
 
 # ==========================================
-# Experiment 1: Main table (sim2live/ci/laas)
+# Experiment 1: Main table (realtime/ci/laas)
 # ==========================================
 
 echo ">>> EXPERIMENT 1: Main table <<<"
 
-# --- Sim2Live (base, no CI/LAAS) ---
+# --- Real-time (base, no CI/LAAS) ---
 launch_server configs/model_servers/rtc_kinetix.yaml "base"
-run_benchmark "sim2live" "$BENCH_CONFIG"
+run_benchmark "realtime" "$BENCH_CONFIG"
 stop_server
 
 # --- +CI ---
