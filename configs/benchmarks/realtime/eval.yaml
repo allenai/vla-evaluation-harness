@@ -13,7 +13,6 @@ benchmarks:
     name: "libero_spatial_rt"
     episodes_per_task: 50
     hz: 10.0
-    hold_policy: repeat_last
     params:
       suite: libero_spatial
       seed: 7
@@ -24,7 +23,6 @@ benchmarks:
     name: "libero_object_rt"
     episodes_per_task: 50
     hz: 10.0
-    hold_policy: repeat_last
     params:
       suite: libero_object
       seed: 7
@@ -35,7 +33,6 @@ benchmarks:
     name: "libero_goal_rt"
     episodes_per_task: 50
     hz: 10.0
-    hold_policy: repeat_last
     params:
       suite: libero_goal
       seed: 7
@@ -46,7 +43,6 @@ benchmarks:
     name: "libero_10_rt"
     episodes_per_task: 50
     hz: 10.0
-    hold_policy: repeat_last
     params:
       suite: libero_10
       seed: 7

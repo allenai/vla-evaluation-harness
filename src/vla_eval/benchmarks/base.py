@@ -24,6 +24,18 @@ from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
+def repeat_last_hold(last_action: Action | None, action_dim: int) -> Action:
+    """Hold for absolute-position control: repeat the last commanded action, or
+    a zero action of ``action_dim`` before the first one.
+
+    Convenience for :meth:`Benchmark.get_hold_action`. Only safe for *absolute*
+    targets — for delta/velocity control return a fixed null action instead.
+    """
+    if last_action is not None:
+        return last_action
+    return {"actions": np.zeros(action_dim, dtype=np.float32)}
+
+
 @dataclass
 class StepResult:
     """Result of a single environment step."""
@@ -133,6 +145,29 @@ class Benchmark(ABC):
     def get_metadata(self) -> dict[str, Any]:
         """Return benchmark defaults and metadata. Optional override."""
         return {}
+
+    def get_hold_action(self, last_action: Action | None) -> Action:
+        """Return the action to command on a stale real-time tick.
+
+        Real-time runners call this when the model has not produced a fresh
+        action this tick (and before the first one, with ``last_action=None``).
+        The safe hold is embodiment knowledge with no universal default:
+
+        * absolute-position control → ``return last_action`` (hold the target);
+          use :func:`repeat_last_hold`.
+        * delta / velocity control → return a fixed null action (stay put);
+          repeating a delta would keep moving.
+
+        There is deliberately **no default**: a real-time run whose benchmark
+        has not declared a hold fails fast here rather than driving a robot with
+        an unsafe reuse. Sync-mode benchmarks never call this, so they need not
+        implement it.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} is running in real-time mode but does not implement "
+            "get_hold_action(); declare the embodiment's safe do-nothing action explicitly "
+            "(see Benchmark.get_hold_action / repeat_last_hold)."
+        )
 
     def cleanup(self) -> None:
         """Release benchmark resources (environments, renderers, etc.). Optional override."""

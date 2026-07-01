@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 import websockets
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
@@ -134,6 +134,9 @@ class StubBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": 50}
+
+    def get_hold_action(self, last_action: Any) -> dict[str, Any]:
+        return repeat_last_hold(last_action, 1)
 
 
 # ---------------------------------------------------------------------------

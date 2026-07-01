@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -293,6 +293,9 @@ class KinetixBenchmark(StepBenchmark):
             "max_steps": self._max_episode_steps,
             "action_dim": ACTION_DIM,
         }
+
+    def get_hold_action(self, last_action: Action | None) -> Action:
+        return repeat_last_hold(last_action, ACTION_DIM)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"action": RAW}

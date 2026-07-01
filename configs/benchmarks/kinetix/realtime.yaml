@@ -12,7 +12,6 @@ benchmarks:
     mode: realtime
     hz: 10.0
     pace: 1.0
-    hold_policy: repeat_last
     episodes_per_task: 100
     params:
       seed: 0

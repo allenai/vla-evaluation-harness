@@ -141,7 +141,6 @@ class EvalConfig:
     recording: dict[str, Any] | None = None
     # Real-time evaluation params (used when mode starts with "realtime")
     hz: float = 10.0
-    hold_policy: str = "repeat_last"
     # Throughput testing mode: relaxes benchmark constraints (e.g. initial state reuse)
     throughput_mode: bool = False
     # Whether to pace the step loop to real-time (True=real-time, False=max speed)
@@ -167,7 +166,6 @@ class EvalConfig:
             params=data.get("params", {}),
             recording=data.get("recording"),
             hz=data.get("hz", 10.0),
-            hold_policy=data.get("hold_policy", "repeat_last"),
             throughput_mode=data.get("throughput_mode", False),
             paced=_parse_paced(data),
             wait_first_action=data.get("wait_first_action", False),
