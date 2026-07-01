@@ -9,7 +9,7 @@ import math
 
 import numpy as np
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
+from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.benchmarks.libero.utils import preprocess_libero_image
 from vla_eval.rotation import matrix_to_quat, quat_to_axisangle
 from vla_eval.specs import (
@@ -285,14 +285,6 @@ class LIBEROBenchmark(StepBenchmark):
             "max_episodes_per_task": 50,  # bounded by initial_states per task
             "suite": self.suite,
         }
-
-    def get_hold_action(self, last_action: Action | None) -> Action:
-        # Hold matches the control mode (get_action_spec advertises POSITION_DELTA):
-        # absolute → repeat the last target (hold pose); delta (default) → null
-        # action, since repeating a delta keeps moving.
-        if self.absolute_action:
-            return repeat_last_hold(last_action, 7)
-        return {"actions": np.zeros(7, dtype=np.float32)}
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {

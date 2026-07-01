@@ -4,13 +4,16 @@ smoke_config: null  # requires real-time capable server
 
 # Real-Time Evaluation
 
-Wall-clock paced evaluation on LIBERO using vla-eval's `mode: realtime` async episode runner.
-Not a standalone benchmark; uses the LIBERO docker image and benchmark class with real-time pacing (`hz: 10.0`).
+Wall-clock-paced evaluation via vla-eval's `mode: realtime` async episode runner.
 
-**Docker image:** `ghcr.io/allenai/vla-evaluation-harness/libero:latest`
+A benchmark can run here only if it implements `get_hold_action` (the safe stale-tick hold that the runner reuses when the model hasn't produced a fresh action). Kinetix implements it; LIBERO is sync-only and does not.
+
+**Docker image:** `ghcr.io/allenai/vla-evaluation-harness/kinetix:latest`
 
 ## Configs
 
-| File | Description | Suites | Episodes/task |
-|------|-------------|:------:|:-------------:|
-| `eval.yaml` | 4 LIBERO suites at 10 Hz wall-clock | 4 | 50 |
+| File | Description | Episodes/task |
+|------|-------------|:-------------:|
+| `eval.yaml` | Kinetix at 10 Hz wall-clock (minimal example) | 10 |
+
+For the full Kinetix real-time run, see `configs/benchmarks/kinetix/realtime.yaml`.
