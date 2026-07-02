@@ -12,6 +12,7 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.duobench.benchmark:DuoBenchBenchmark"
     name: duobench
     episodes_per_task: 1
+    action_dim: 16  # Smoke echo-action width; tracks control_mode (cartesian_tquat/joints=16, cartesian_trpy=14).
     params:
       task_ids: [ball_maze]
       seed: 0

@@ -259,10 +259,12 @@ class DuoBenchBenchmark(StepBenchmark):
         obs, reward, terminated, truncated, info = self._env.step(action_dict)
         self._elapsed += 1
         done = bool(terminated or truncated or self._elapsed >= self._cap)
-        stage = int(info["stage"])
+        stage = int(info.get("stage", 0))
         self._max_stage_reached = max(self._max_stage_reached, stage)
         self._recorder.record_video(self._extract_frame(obs))
-        self._recorder.record_step(reward=float(reward), done=done, success=bool(info["success"]), stage=stage)
+        self._recorder.record_step(
+            reward=float(reward), done=done, success=bool(info.get("success", False)), stage=stage
+        )
         return StepResult(obs=obs, reward=reward, done=done, info=info)
 
     @staticmethod
@@ -270,9 +272,10 @@ class DuoBenchBenchmark(StepBenchmark):
         return extract_rgb(raw_obs["frames"]["head"])
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
+        max_stage = int(step_result.info.get("max_stage", 0))
         return {
-            "success": bool(step_result.info["success"]),
-            "progress": self._max_stage_reached / step_result.info["max_stage"],
+            "success": bool(step_result.info.get("success", False)),
+            "progress": self._max_stage_reached / max_stage if max_stage else 0.0,
         }
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
@@ -330,4 +333,4 @@ class DuoBenchBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         ceiling = self._max_steps if self._max_steps is not None else max(TASK_HORIZONS.values())
-        return {"max_steps": ceiling}
+        return {"max_steps": ceiling, "action_dim": 2 * self._arm_action_dim + 2}
