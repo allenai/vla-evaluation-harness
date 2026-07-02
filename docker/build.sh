@@ -28,7 +28,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces behavior1k)
+BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa kinetix robomme molmospaces behavior1k duobench)
 
 # Derived images that extend a benchmark image instead of base
 DERIVED_BENCHMARKS=(simpler_groot simpler_xvla)
