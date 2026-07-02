@@ -1,4 +1,4 @@
-"""Tests for SyncEpisodeRunner, AsyncEpisodeRunner, ActionBuffer, batched PredictModelServer, and CI/LAAS."""
+"""Tests for SyncEpisodeRunner, LiveEpisodeRunner, ActionBuffer, batched PredictModelServer, and CI/LAAS."""
 
 from __future__ import annotations
 
@@ -6,14 +6,16 @@ import asyncio
 import anyio
 import threading
 import time
+from functools import partial
 from typing import Any
 
 import numpy as np
 import pytest
 
+from vla_eval.benchmarks.base import repeat_last_hold
 from vla_eval.connection import Connection
 from vla_eval.runners.action_buffer import ActionBuffer
-from vla_eval.runners.async_runner import AsyncEpisodeRunner
+from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.base import SessionContext
@@ -179,9 +181,13 @@ async def test_batch_server_predict_batch_exception_propagates(free_port):
 # ---------------------------------------------------------------------------
 
 
+# Reuse the shared hold helper (absolute-control repeat-last, action_dim=7).
+_repeat_hold = partial(repeat_last_hold, action_dim=7)
+
+
 def test_action_buffer_initial_state():
     """Buffer starts with no action and zero metrics."""
-    buf = ActionBuffer()
+    buf = ActionBuffer(hold_fn=_repeat_hold)
     assert not buf.has_action()
     assert not buf.is_new()
     assert buf.update_count == 0
@@ -190,7 +196,7 @@ def test_action_buffer_initial_state():
 
 def test_action_buffer_update_and_get():
     """update() then get() returns the action."""
-    buf = ActionBuffer()
+    buf = ActionBuffer(hold_fn=_repeat_hold)
     action = {"actions": np.ones(7)}
     buf.update(action)
     assert buf.has_action()
@@ -201,29 +207,30 @@ def test_action_buffer_update_and_get():
     assert buf.stale_count == 0
 
 
-def test_action_buffer_repeat_last_policy():
-    """Default hold policy repeats the last action."""
-    buf = ActionBuffer(hold_policy="repeat_last")
+def test_action_buffer_hold_repeats_last():
+    """On a stale tick, hold_fn receives the last fresh action (repeat semantics)."""
+    buf = ActionBuffer(hold_fn=_repeat_hold)
     buf.update({"actions": np.ones(7) * 2})
     buf.get()  # consume the "new" flag
-    result = buf.get()  # stale → repeat
+    result = buf.get()  # stale → hold_fn(last_fresh) → repeat
     assert np.array_equal(result["actions"], np.ones(7) * 2)
     assert buf.stale_count == 1
 
 
-def test_action_buffer_zero_policy():
-    """Zero hold policy returns zeros when stale."""
-    buf = ActionBuffer(hold_policy="zero", action_dim=7)
+def test_action_buffer_hold_null_action():
+    """hold_fn can return a fixed null action (delta/velocity control)."""
+    null = {"actions": np.zeros(7, dtype=np.float32)}
+    buf = ActionBuffer(hold_fn=lambda last: null)
     buf.update({"actions": np.ones(7)})
     buf.get()  # consume new
-    result = buf.get()  # stale → zero
+    result = buf.get()  # stale → null
     assert np.allclose(result["actions"], np.zeros(7))
     assert buf.stale_count == 1
 
 
 def test_action_buffer_reset():
     """reset() clears all state."""
-    buf = ActionBuffer()
+    buf = ActionBuffer(hold_fn=_repeat_hold)
     buf.update({"actions": np.ones(7)})
     buf.get()
     buf.reset()
@@ -234,7 +241,7 @@ def test_action_buffer_reset():
 
 def test_action_buffer_metrics():
     """get_metrics() returns correct stale ratio."""
-    buf = ActionBuffer()
+    buf = ActionBuffer(hold_fn=_repeat_hold)
     buf.update({"actions": np.ones(7)})
     buf.get()  # 1 fresh get
     buf.get()  # 1 stale get
@@ -246,15 +253,15 @@ def test_action_buffer_metrics():
 
 
 # ---------------------------------------------------------------------------
-# AsyncEpisodeRunner tests
+# LiveEpisodeRunner tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.anyio
-async def test_async_runner_completes(echo_server):
-    """AsyncEpisodeRunner finishes when benchmark reports done."""
+async def test_live_runner_completes(echo_server):
+    """LiveEpisodeRunner finishes when benchmark reports done."""
     benchmark = StubBenchmark(done_at_step=3)
-    runner = AsyncEpisodeRunner(hz=100.0)
+    runner = LiveEpisodeRunner(hz=100.0)
     task = {"name": "task_0"}
 
     async with Connection(echo_server) as conn:
@@ -266,10 +273,10 @@ async def test_async_runner_completes(echo_server):
 
 
 @pytest.mark.anyio
-async def test_async_runner_respects_max_steps(echo_server):
-    """AsyncEpisodeRunner stops at max_steps even if benchmark is not done."""
+async def test_live_runner_respects_max_steps(echo_server):
+    """LiveEpisodeRunner stops at max_steps even if benchmark is not done."""
     benchmark = StubBenchmark(done_at_step=100)
-    runner = AsyncEpisodeRunner(hz=100.0)
+    runner = LiveEpisodeRunner(hz=100.0)
     task = {"name": "task_0"}
 
     async with Connection(echo_server) as conn:
@@ -316,7 +323,7 @@ async def test_ci_server_sends_action(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             # Send obs — CI server buffers it and returns immediately,
             # then the CI loop picks it up and sends action asynchronously
             action = await conn.act({"value": 2.0})
@@ -335,7 +342,7 @@ async def test_ci_laas_skips_stale_actions(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             action = await conn.act({"value": 1.0})
             assert "actions" in action
             # With 50ms latency and 10Hz, delay_steps = int(0.05 * 10) = 0
@@ -355,12 +362,12 @@ async def test_ci_loop_stops_on_episode_end(free_port):
     await wait_for_server(free_port)
     try:
         async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "test"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test"}, "mode": "live"})
             _ = await conn.act({"value": 1.0})
             await conn.end_episode({})
             # After episode end, CI loop should be cleaned up
             # Start a new episode to verify server is still functional
-            await conn.start_episode({"task": {"name": "test2"}, "mode": "realtime"})
+            await conn.start_episode({"task": {"name": "test2"}, "mode": "live"})
             action = await conn.act({"value": 3.0})
             assert np.allclose(action["actions"], 3.0 * np.ones(7))
             await conn.end_episode({})

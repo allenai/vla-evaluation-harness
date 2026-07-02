@@ -162,17 +162,17 @@ class Connection:
         return response.payload
 
     async def send_observation(self, obs: Observation) -> None:
-        """Send observation without waiting (realtime mode)."""
+        """Send observation without waiting (live mode)."""
         await self.send(MessageType.OBSERVATION, obs)
 
     def on_action(self, callback: Callable[[Action], None]) -> None:
-        """Register callback for incoming actions (realtime mode)."""
+        """Register callback for incoming actions (live mode)."""
         self._action_callback = callback
 
     async def start_listener(self) -> None:
         """Start a background task that reads messages and dispatches to on_action.
 
-        Required for realtime mode where actions arrive asynchronously.
+        Required for live mode where actions arrive asynchronously.
         Call ``stop_listener()`` to cancel.
         """
         if self._listener_task is not None and not self._listener_task.done():
@@ -236,7 +236,7 @@ class Connection:
     async def _listener_loop(self) -> None:
         """Background loop: read messages and dispatch to on_action callback.
 
-        Only used in realtime mode (AsyncEpisodeRunner).  Sync mode uses
+        Only used in live mode (LiveEpisodeRunner).  Sync mode uses
         ``act()`` (send + recv) directly and never starts the listener.
 
         On connection loss the listener exits instead of reconnecting.

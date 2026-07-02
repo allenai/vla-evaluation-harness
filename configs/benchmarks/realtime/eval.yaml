@@ -1,56 +1,24 @@
-# Real-time evaluation — wall-clock pacing, 4 LIBERO suites
+# Live-mode evaluation example (real-time pacing at pace=1).
+# Uses Kinetix, which supports live mode (implements get_hold_action).
+# NOTE: LIBERO is sync-only and cannot run here.
 server:
   url: "ws://localhost:8000"
 
 docker:
-  image: ghcr.io/allenai/vla-evaluation-harness/libero:latest
+  image: ghcr.io/allenai/vla-evaluation-harness/kinetix:latest
 
 output_dir: "./results"
 
 benchmarks:
-  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
-    mode: realtime
-    name: "libero_spatial_rt"
-    episodes_per_task: 50
+  - benchmark: "vla_eval.benchmarks.kinetix.benchmark:KinetixBenchmark"
+    mode: live
     hz: 10.0
-    hold_policy: repeat_last
+    pace: 1.0
+    episodes_per_task: 10
     params:
-      suite: libero_spatial
-      seed: 7
-      num_steps_wait: 10
-
-  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
-    mode: realtime
-    name: "libero_object_rt"
-    episodes_per_task: 50
-    hz: 10.0
-    hold_policy: repeat_last
-    params:
-      suite: libero_object
-      seed: 7
-      num_steps_wait: 10
-
-  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
-    mode: realtime
-    name: "libero_goal_rt"
-    episodes_per_task: 50
-    hz: 10.0
-    hold_policy: repeat_last
-    params:
-      suite: libero_goal
-      seed: 7
-      num_steps_wait: 10
-
-  - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
-    mode: realtime
-    name: "libero_10_rt"
-    episodes_per_task: 50
-    hz: 10.0
-    hold_policy: repeat_last
-    params:
-      suite: libero_10
-      seed: 7
-      num_steps_wait: 10
-
-
-
+      seed: 0
+      observation_type: symbolic
+      max_episode_steps: 256
+      rtc_worlds_dir: "/app/rtc/worlds"
+      action_noise_std: 0.1
+    action_dim: 6

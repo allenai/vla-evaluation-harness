@@ -1,13 +1,18 @@
-"""ActionBuffer: stores the latest action for real-time episode runners.
+"""ActionBuffer: holds the latest action for real-time episode runners.
 
-In real-time mode, the environment steps on a fixed wall-clock schedule.
-If no new action has arrived from the model server, the hold policy
-determines what action to use.
+In real-time mode the environment steps on a fixed wall-clock schedule. When no
+fresh action has arrived from the model server since the last tick, the buffer
+falls back to a *hold* action produced by ``hold_fn`` — the embodiment's safe
+reuse for a stale tick.
 
-Hold policies:
-    - ``repeat_last``: replay the most recent action (default).
-    - ``zero``: output a zero-filled action dict.
-    - A callable ``() -> dict`` for custom fallback logic.
+``hold_fn`` receives the last *fresh* action (``None`` before the first one) and
+returns the action to command:
+    * absolute-position control → repeat the last action (hold the target);
+    * delta / velocity control → a fixed null action (stay put) — repeating a
+      delta would keep moving.
+
+The policy lives on the benchmark (:meth:`vla_eval.benchmarks.base.Benchmark.get_hold_action`),
+not in a config string, because only the embodiment knows what "do nothing" means.
 """
 
 from __future__ import annotations
@@ -16,32 +21,26 @@ import threading
 import time
 from typing import Any, Callable
 
-import numpy as np
-
 from vla_eval.types import Action
 
 
 class ActionBuffer:
-    """Thread-safe buffer for the latest action from the model server.
+    """Thread-safe latest-action buffer with an embodiment-defined stale hold.
 
-    Attributes:
-        hold_policy: Strategy when no new action is available.
-        action_dim: Dimension of the action vector (for ``zero`` policy).
+    Args:
+        hold_fn: ``(last_fresh_action | None) -> Action`` used on stale ticks
+            (and before the first action arrives, with ``None``).
     """
 
-    def __init__(
-        self,
-        hold_policy: str | Callable[[], Action] = "repeat_last",
-        action_dim: int = 7,
-    ) -> None:
+    def __init__(self, hold_fn: Callable[[Action | None], Action]) -> None:
         self._lock = threading.Lock()
         self._latest_action: Action | None = None
+        self._last_fresh: Action | None = None
         self._new_since_last_get: bool = False
         self._update_count: int = 0
         self._stale_count: int = 0
         self._last_update_time: float | None = None
-        self.hold_policy = hold_policy
-        self.action_dim = action_dim
+        self.hold_fn = hold_fn
 
     def update(self, action: Action) -> None:
         """Called by the on_action callback when a new action arrives."""
@@ -52,24 +51,16 @@ class ActionBuffer:
             self._last_update_time = time.monotonic()
 
     def get(self) -> Action:
-        """Return the current action (new or held).
-
-        Returns the latest action if one has arrived since the last ``get()``.
-        Otherwise, applies the hold policy.
-        """
+        """Return the fresh action if one arrived since the last ``get()``,
+        otherwise the hold action from ``hold_fn(last_fresh_action)``."""
         with self._lock:
             if self._new_since_last_get:
                 self._new_since_last_get = False
                 assert self._latest_action is not None
+                self._last_fresh = self._latest_action
                 return self._latest_action
-
-            # Hold policy
             self._stale_count += 1
-            if self._latest_action is not None:
-                return self._apply_hold_policy()
-
-            # No action ever received — return zero
-            return self._zero_action()
+            return self.hold_fn(self._last_fresh)
 
     def has_action(self) -> bool:
         """True if at least one action has been received."""
@@ -88,7 +79,7 @@ class ActionBuffer:
 
     @property
     def stale_count(self) -> int:
-        """Number of times hold policy was applied."""
+        """Number of times the hold action was used."""
         return self._stale_count
 
     @property
@@ -100,24 +91,11 @@ class ActionBuffer:
         """Clear buffer state for a new episode."""
         with self._lock:
             self._latest_action = None
+            self._last_fresh = None
             self._new_since_last_get = False
             self._update_count = 0
             self._stale_count = 0
             self._last_update_time = None
-
-    def _apply_hold_policy(self) -> Action:
-        """Apply hold policy when no new action is available."""
-        if not isinstance(self.hold_policy, str) and callable(self.hold_policy):
-            return self.hold_policy()
-        if self.hold_policy == "repeat_last":
-            assert self._latest_action is not None
-            return self._latest_action
-        if self.hold_policy == "zero":
-            return self._zero_action()
-        raise ValueError(f"Unknown hold_policy: {self.hold_policy!r}")
-
-    def _zero_action(self) -> Action:
-        return {"actions": np.zeros(self.action_dim, dtype=np.float32)}
 
     def get_metrics(self) -> dict[str, Any]:
         """Return real-time metrics for this buffer."""

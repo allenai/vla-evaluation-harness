@@ -29,7 +29,7 @@ Status markers: ✅ implemented, 🚧 partial, 🔜 planned.
 | **Model Server** | Runs model inference. User implements `predict()`. | ✅ |
 | **Connection** | Client library for benchmark→server communication. Framework-provided. | ✅ |
 | **Benchmark** | Environment interface ABC (reset, step, make_obs, is_done). User implements per benchmark. | ✅ |
-| **EpisodeRunner** | Episode execution strategy. Combines Benchmark + Connection. | ✅ Sync, ✅ Async (Sim2Live) |
+| **EpisodeRunner** | Episode execution strategy. Combines Benchmark + Connection. | ✅ Sync, ✅ Live |
 | **Orchestrator** | Coordinates evaluation: config parsing, benchmark creation, episode iteration, result saving. | ✅ |
 | **ResultCollector** | Aggregates episode→task→benchmark metrics. JSON output + summary table. | ✅ |
 | **Import Resolution** | Resolves `"module:Class"` import strings from config to actual classes. | ✅ |
@@ -136,7 +136,7 @@ server:
 output_dir: "./results"
 benchmarks:
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
-    mode: sync                    # "sync" or "realtime"
+    mode: sync                    # "sync" or "live"
     episodes_per_task: 50
     max_steps: 300                # optional, falls back to benchmark.get_metadata()
     params:                       # passed to Benchmark constructor as **kwargs
@@ -168,7 +168,7 @@ Results are aggregated hierarchically: **episode → task → benchmark**.
 # Structured output (TypedDict)
 BenchmarkResult:
     benchmark: str
-    mode: str                        # "sync" | "realtime"
+    mode: str                        # "sync" | "live"
     harness_version: str
     tasks: list[TaskResult]          # per-task success rate, avg steps
     overall_success_rate: float

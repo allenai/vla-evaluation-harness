@@ -41,7 +41,7 @@ Line length is **119** (configured in pyproject.toml for ruff and ty).
 CLI (cli/main.py)
  └─ Orchestrator (orchestrator.py)
      ├─ Benchmark (benchmarks/base.py)  ── runs inside Docker container
-     │   └─ EpisodeRunner (runners/)    ── sync or async (Sim2Live)
+     │   └─ EpisodeRunner (runners/)    ── sync or live
      │       └─ Connection (connection.py) ←─ WebSocket/msgpack ─→ ModelServer (model_servers/base.py)
      ├─ ResultCollector (results/collector.py)  ── in-memory aggregation for stdout summary
      └─ RecordingStore (recording.py) ── SQLite (one per eval) capturing step rows + per-episode results

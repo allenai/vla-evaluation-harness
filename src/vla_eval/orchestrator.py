@@ -29,7 +29,7 @@ from vla_eval.recording import (
 from vla_eval.registry import resolve_import_string
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
-from vla_eval.runners.async_runner import AsyncEpisodeRunner
+from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 from vla_eval.tracking import Tracker, call_each, get_reporting_trackers
@@ -214,11 +214,20 @@ class Orchestrator:
         metadata = benchmark.get_metadata()
         max_steps = cfg.max_steps if cfg.max_steps is not None else metadata.get("max_steps", 300)
 
-        if cfg.mode.startswith("realtime"):
-            runner = AsyncEpisodeRunner(
+        if cfg.mode.startswith("live"):
+            # Fail fast before any episode: a real-time benchmark must declare its
+            # stale-tick hold, else every episode would raise mid-run and the
+            # per-episode error isolation would flood logs while wasting resources.
+            try:
+                benchmark.get_hold_action(None)
+            except NotImplementedError as exc:
+                await conn.close()
+                raise RuntimeError(
+                    f"Benchmark {name} is configured for real-time mode but does not implement "
+                    "get_hold_action(); declare the embodiment's safe do-nothing action."
+                ) from exc
+            runner = LiveEpisodeRunner(
                 hz=cfg.hz,
-                hold_policy=cfg.hold_policy,
-                action_dim=metadata.get("action_dim", 7),
                 clock=Clock(pace=1.0 if cfg.paced else math.inf),
                 wait_first_action=cfg.wait_first_action,
             )

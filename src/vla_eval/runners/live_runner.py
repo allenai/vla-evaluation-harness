@@ -1,4 +1,4 @@
-"""AsyncEpisodeRunner: real-time wall-clock evaluation.
+"""LiveEpisodeRunner: real-time wall-clock evaluation.
 
 Ties the environment clock to wall-clock time.  The environment advances at
 a fixed Hz whether or not the model has returned an action.
@@ -30,27 +30,24 @@ from vla_eval.types import EpisodeResult, Task
 logger = logging.getLogger(__name__)
 
 
-class AsyncEpisodeRunner(EpisodeRunner):
+class LiveEpisodeRunner(EpisodeRunner):
     """Real-time episode runner with clock-based pacing.
 
     Args:
         hz: Environment step frequency (default 10.0).
-        hold_policy: ActionBuffer hold policy (default "repeat_last").
-        action_dim: Action dimension for zero hold policy.
         clock: Clock instance for pacing. Defaults to real-time (pace=1.0).
+
+    The stale-tick hold action comes from ``benchmark.get_hold_action`` — the
+    embodiment owns it (see :class:`~vla_eval.runners.action_buffer.ActionBuffer`).
     """
 
     def __init__(
         self,
         hz: float = 10.0,
-        hold_policy: str = "repeat_last",
-        action_dim: int = 7,
         clock: Clock | None = None,
         wait_first_action: bool = False,
     ) -> None:
         self.hz = hz
-        self.hold_policy = hold_policy
-        self.action_dim = action_dim
         self.clock = clock or Clock()
         self.wait_first_action = wait_first_action
 
@@ -68,9 +65,9 @@ class AsyncEpisodeRunner(EpisodeRunner):
         The clock resets right before the first observation is sent, so setup
         time (env reset, model server episode_start) is NOT counted.  The step
         loop starts immediately — no waiting for the first action.  Until the
-        model server responds, the hold policy (zero or repeat_last) supplies
-        actions, faithfully reflecting real deployment where physics does not
-        pause for the controller to warm up.
+        model server responds, the benchmark's hold action (``get_hold_action``)
+        supplies actions, faithfully reflecting real deployment where physics does
+        not pause for the controller to warm up.
         """
         clock = self.clock
 
@@ -79,7 +76,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
         obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        ep_payload: dict[str, Any] = {"task": task_info, "mode": "realtime"}
+        ep_payload: dict[str, Any] = {"task": task_info, "mode": "live"}
         if recorder is not None and recorder.is_active:
             ep_payload["recording"] = {
                 "sid": recorder.sid,
@@ -89,10 +86,9 @@ class AsyncEpisodeRunner(EpisodeRunner):
             }
         await conn.start_episode(ep_payload)
 
-        action_buffer = ActionBuffer(
-            hold_policy=self.hold_policy,
-            action_dim=self.action_dim,
-        )
+        # Stale-tick hold is embodiment-owned; get_hold_action(None) also covers
+        # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
+        action_buffer = ActionBuffer(hold_fn=benchmark.get_hold_action)
         conn.on_action(lambda a: action_buffer.update(a))
         await conn.start_listener()
 
@@ -111,7 +107,7 @@ class AsyncEpisodeRunner(EpisodeRunner):
             # like real deployment where physics does not pause for inference.
             #
             # When wait_first_action=True, we block until the first action
-            # arrives.  This is useful for sanity-checking that the async
+            # arrives.  This is useful for sanity-checking that the live
             # pipeline matches sync results (eliminates step-0 zero action).
             if self.wait_first_action:
                 deadline = _time.monotonic() + 30.0
