@@ -19,7 +19,7 @@ ModelServer (ABC, async)
 └── BatchPredictModelServer (dynamic batching)
 ```
 
-## ModelServer (Base — Async)
+## ModelServer (Base, Async)
 
 ```python
 class ModelServer(ABC):
@@ -52,7 +52,7 @@ class PredictModelServer(ModelServer):
         Shape (action_dim,) for chunk_size=1, (chunk_size, action_dim) otherwise."""
 ```
 
-The framework wraps `predict()` in `asyncio.run_in_executor` — the researcher never touches async. When `chunk_size > 1`, the framework manages a per-session `ActionChunkBuffer`: it pops buffered actions on each observation and only calls `predict()` when the buffer is exhausted (or every step for `"average"` ensemble).
+The framework wraps `predict()` in `asyncio.run_in_executor`, so the researcher never touches async. When `chunk_size > 1`, the framework manages a per-session `ActionChunkBuffer`: it pops buffered actions on each observation and only calls `predict()` when the buffer is exhausted (or every step for `"average"` ensemble).
 
 ## Action Chunking
 
@@ -65,7 +65,7 @@ Action chunking is entirely the server's responsibility. The benchmark client al
 | `"ema"` | Exponential moving average with `ema_alpha`. Newer chunk weighted higher. |
 | `callable` | User function: `(old_actions, new_actions) → ensembled`. |
 
-Callable example — cosine-similarity adaptive ensemble (used in starVLA, dexbotic):
+Callable example: cosine-similarity adaptive ensemble (used in starVLA, dexbotic):
 
 ```python
 def adaptive_ensemble(old: np.ndarray, new: np.ndarray) -> np.ndarray:
@@ -100,7 +100,7 @@ class BatchPredictModelServer(ModelServer):
         """Batched blocking inference. len(result) == len(obs_batch)."""
 ```
 
-The framework queues observations across sessions and dispatches `predict_batch()` when `max_batch_size` is reached or `max_wait_time` elapses — whichever comes first. Per-session chunk buffers are managed identically to `PredictModelServer`.
+The framework queues observations across sessions and dispatches `predict_batch()` when `max_batch_size` is reached or `max_wait_time` elapses, whichever comes first. Per-session chunk buffers are managed identically to `PredictModelServer`.
 
 ## SessionContext
 
@@ -135,17 +135,16 @@ In `PredictModelServer`, `send_action` is called automatically from the return v
 
 ## When to Use Which
 
-- **`PredictModelServer`** — default choice. Covers single-step and chunk models in both sync and real-time evaluation.
-- **`BatchPredictModelServer`** — multiple environments evaluated concurrently to maximize GPU utilization.
-- **`ModelServer`** — only when you need direct async control (custom observation filtering, streaming inference, etc.).
+- **`PredictModelServer`**: default choice. Covers single-step and chunk models in both sync and real-time evaluation.
+- **`BatchPredictModelServer`**: multiple environments evaluated concurrently to maximize GPU utilization.
+- **`ModelServer`**: only when you need direct async control (custom observation filtering, streaming inference, etc.).
 
 ## Implementation Status
 
 - ✅ `ModelServer` ABC (`model_servers/base.py`)
 - ✅ `PredictModelServer` with action chunking (`model_servers/predict.py`, `model_servers/chunking.py`)
 - ✅ `SessionContext` (`model_servers/base.py`)
-- ✅ Server runner — WebSocket wrapper (`model_servers/serve.py`)
+- ✅ Server runner: WebSocket wrapper (`model_servers/serve.py`)
 - ✅ CogACT reference implementation (`model_servers/dexbotic/cogact.py`)
 - ✅ Batched inference via `PredictModelServer` (`max_batch_size > 1`)
 - ✅ Real-time observation dispatch (`continuous_inference` mode)
-

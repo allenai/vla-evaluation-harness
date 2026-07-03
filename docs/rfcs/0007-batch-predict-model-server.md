@@ -69,7 +69,7 @@ Key properties:
 
 ```python
 async def on_observation(self, obs, ctx):
-    # 1. Check chunk buffer — serve cached action if available
+    # 1. Check chunk buffer; serve cached action if available
     if self.chunk_size > 1:
         buf = self._chunk_buffers.get(ctx.session_id)
         if buf and not buf.empty:
@@ -134,6 +134,4 @@ N shard processes produce N concurrent WebSocket connections. The server's async
 - Verify `max_wait_time` triggers partial batch dispatch.
 - Verify chunk buffer serves cached actions without enqueuing.
 - Verify exception in `predict_batch` propagates to all awaiting callers.
-
-
 

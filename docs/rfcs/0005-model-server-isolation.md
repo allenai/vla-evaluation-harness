@@ -9,7 +9,7 @@
 
 ## Summary
 
-Model servers should use PEP 723 inline script metadata ("uv scripts") for dependency isolation. This complements Docker isolation for benchmarks — benchmarks need strong OS-level isolation, while model servers need lightweight Python-level isolation.
+Model servers should use PEP 723 inline script metadata ("uv scripts") for dependency isolation. This complements Docker isolation for benchmarks: benchmarks need strong OS-level isolation, while model servers need lightweight Python-level isolation.
 
 ## Motivation
 
@@ -23,15 +23,15 @@ Currently, model servers run on the host with no isolation.
 
 ### Why Not Docker?
 - GPU passthrough is cumbersome (nvidia-container-toolkit, --gpus all)
-- CUDA/cuDNN pinned in image — host mismatch causes failures
+- CUDA/cuDNN pinned in image; host mismatch causes failures
 - Model checkpoint/HuggingFace cache mounting adds complexity
 - Disproportionate overhead for "one Python script"
 
 ### Why uv Scripts Fit
 - Model servers are fundamentally "one Python script"
-- GPU uses host drivers directly — most natural path
+- GPU uses host drivers directly, the most natural path
 - Python-level isolation sufficient (no C library conflicts between models)
-- uv creates venv + installs deps automatically — zero user friction
+- uv creates venv + installs deps automatically, with zero user friction
 - PEP 723 is a Python standard
 
 ## Design
@@ -74,7 +74,7 @@ vla-eval serve --config configs/model_servers/dexbotic_cogact_libero.yaml
 |---|---|---|
 | Isolation reason | Simulator conflicts (robosuite vs SAPIEN) | Model dep differences (transformers versions) |
 | GPU needed | Often (rendering) | Yes (inference) |
-| Conflict severity | Strong — OS libs, C bindings | Weak — Python packages |
+| Conflict severity | Strong: OS libs, C bindings | Weak: Python packages |
 | Right tool | Docker | uv script |
 
 ### External Contribution Model
@@ -88,8 +88,7 @@ vla-eval serve --config configs/model_servers/dexbotic_cogact_libero.yaml
 - Cache management for overlapping deps across scripts?
 
 ## Implementation Status
-- ✅ PEP 723 inline script metadata — CogACT reference (`model_servers/cogact.py`)
+- ✅ PEP 723 inline script metadata: CogACT reference (`model_servers/cogact.py`)
 - ✅ `vla-eval serve` CLI wrapping `uv run` (`cli/main.py`)
 - ✅ Model server YAML config format (`configs/model_servers/`)
 - ✅ Documentation (`CONTRIBUTING.md`)
-

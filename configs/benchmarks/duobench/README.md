@@ -17,6 +17,5 @@ Tasks: `ball_maze`, `bin_sort`, `block_balance`, `carry_pot`, `hinge_chest`,
 
 | File | Description | Tasks | Episodes/task |
 |------|-------------|:-----:|:-------------:|
-| `eval.yaml` | Canonical evaluation — all 11 tasks | 11 | 100 |
+| `eval.yaml` | Canonical evaluation across all 11 tasks | 11 | 100 |
 | `smoke_test.yaml` | Minimal pipeline check (`ball_maze`, 1 episode) | 1 | 1 |
-

@@ -106,7 +106,7 @@ numpy arrays are encoded inline within msgpack:
 
 ### Payload convention
 
-Observations and actions are `dict[str, Any]` — the framework imposes **no fixed schema**. Each benchmark defines its own observation structure via `make_obs()`. The recommended (not enforced) convention:
+Observations and actions are `dict[str, Any]`; the framework imposes **no fixed schema**. Each benchmark defines its own observation structure via `make_obs()`. The recommended (not enforced) convention:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -150,7 +150,7 @@ The full config is saved alongside results for reproducibility.
 
 ## Import Resolution
 
-Benchmarks are referenced by full import path (`"module.path:ClassName"`) in config files. No registry or short-name mapping — explicit is better than implicit.
+Benchmarks are referenced by full import path (`"module.path:ClassName"`) in config files. No registry or short-name mapping; explicit is better than implicit.
 
 ```python
 from vla_eval.registry import resolve_import_string
@@ -192,14 +192,14 @@ All failures are recorded in structured results with `failure_reason`.
 
 ## Planned Features
 
-- **Video / trajectory recording** — Per-episode video via `Benchmark.render()` and trajectory logs in msgpack format.
-- **Reference score comparison** — Regression testing against known model+benchmark scores.
+- **Video / trajectory recording**: Per-episode video via `Benchmark.render()` and trajectory logs in msgpack format.
+- **Reference score comparison**: Regression testing against known model+benchmark scores.
 
 ## Design Background
 
 The design philosophy and detailed design outline were written before implementation:
 
-- [Design Philosophy](design-philosophy.md) — Core principles: freshness, convenience, layered abstraction, quality, reproducibility, openness.
-- [RFCs](rfcs/README.md) — Detailed component specifications, protocol design, and technical decisions.
+- [Design Philosophy](design-philosophy.md): Core principles: freshness, convenience, layered abstraction, quality, reproducibility, openness.
+- [RFCs](rfcs/README.md): Detailed component specifications, protocol design, and technical decisions.
 
 These documents reflect the intended direction. The implementation follows them closely.

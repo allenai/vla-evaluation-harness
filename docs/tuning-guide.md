@@ -14,7 +14,7 @@ These interact: the optimal value of each depends on the others. Two benchmark s
 
 ## Resource Allocation
 
-By default, `vla-eval` assumes the benchmark host is fully dedicated to the evaluation — all CPUs and GPUs are available for shard containers. If you share the machine with other workloads, use `--cpus` and `--gpus` to restrict resources (see below).
+By default, `vla-eval` assumes the benchmark host is fully dedicated to the evaluation, with all CPUs and GPUs available for shard containers. If you share the machine with other workloads, use `--cpus` and `--gpus` to restrict resources (see below).
 
 When running sharded evaluations, each Docker container receives isolated CPU and GPU resources automatically via [`docker_resources.py`](../src/vla_eval/docker_resources.py):
 
@@ -24,7 +24,7 @@ When running sharded evaluations, each Docker container receives isolated CPU an
 | **CPU** | All host CPUs | Partitioned evenly (e.g. 48 cores / 8 shards = 6 cores each) |
 | **Threads** | Default | `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1` |
 
-Thread pinning (`OMP_NUM_THREADS=1`) prevents cross-container contention — without it, each shard spawns one OpenMP thread per visible core, causing massive context-switch overhead (e.g. 8 shards × 48 threads = 384 threads on 48 cores).
+Thread pinning (`OMP_NUM_THREADS=1`) prevents cross-container contention. Without it, each shard spawns one OpenMP thread per visible core, causing massive context-switch overhead (e.g. 8 shards × 48 threads = 384 threads on 48 cores).
 
 Override via CLI flags:
 
@@ -43,7 +43,7 @@ docker:
   cpus: "0-31"
 ```
 
-## Step 1: Measure Demand — λ(N)
+## Step 1: Measure Demand, λ(N)
 
 > "With N shards, how many inference requests/sec does the environment generate?"
 
@@ -58,7 +58,7 @@ Starts an instant-response server and launches N real Docker shards against it. 
 
 **What to look for**: λ(N) grows linearly at first, then flattens at high N due to host contention.
 
-## Step 2: Measure Supply — μ(B)
+## Step 2: Measure Supply, μ(B)
 
 > "How many requests/sec can the model server process under saturation?"
 
@@ -78,17 +78,17 @@ Floods the running model server with saturating clients while sweeping `max_batc
 
 If the server uses chunk buffering (chunk_size > 1), only 1 out of every chunk_size requests triggers GPU inference. Set `--requests-per-client` high enough that each client triggers many inferences (e.g. ≥ chunk_size × 15). Too few requests yields noisy, unreliable throughput numbers.
 
-**What to look for**: μ grows with B but eventually plateaus (or even degrades due to padding overhead). The optimal `max_batch_size` is at the knee — not necessarily the maximum.
+**What to look for**: μ grows with B but eventually plateaus (or even degrades due to padding overhead). The optimal `max_batch_size` is at the knee, not necessarily the maximum.
 
 ## Step 3: Combine the Curves
 
 Read the tables from Step 1 and Step 2.
 
-**Rule of thumb: always keep λ(N) < μ(B\*).** If demand exceeds supply, the server's request queue grows without bound — latency climbs over time, clients eventually hit their response timeout, and you get connection drops, lost episodes, and cascading failures. The correct approach is to maximize demand (more shards = faster wall-clock) while staying strictly below the supply ceiling.
+**Rule of thumb: always keep λ(N) < μ(B\*).** If demand exceeds supply, the server's request queue grows without bound. Latency climbs over time, clients eventually hit their response timeout, and you get connection drops, lost episodes, and cascading failures. The correct approach is to maximize demand (more shards = faster wall-clock) while staying strictly below the supply ceiling.
 
-1. **`max_batch_size = B*`**: Find the optimal B that maximizes μ — pick B at the knee where μ(B) starts to plateau. Larger B does not always help (padding overhead, memory pressure). This sets the supply ceiling.
+1. **`max_batch_size = B*`**: Find the optimal B that maximizes μ. Pick B at the knee where μ(B) starts to plateau. Larger B does not always help (padding overhead, memory pressure). This sets the supply ceiling.
 
-2. **`num_shards = N*`**: Maximize λ while keeping λ(N) < ~80% of μ(B*) — pick the largest N that stays well below the supply ceiling.
+2. **`num_shards = N*`**: Maximize λ while keeping λ(N) < ~80% of μ(B*). Pick the largest N that stays well below the supply ceiling.
    - A ~20% margin absorbs variance in per-step timing, batch fill fluctuations, and GC pauses. Without margin, λ ≈ μ puts you right at the edge where transient spikes cause queue buildup.
    - More shards = faster wall-clock, but you must not cross μ(B*).
    - Also watch for host contention: beyond a certain N, per-shard throughput degrades even if the aggregate λ stays below μ.
@@ -128,7 +128,7 @@ args:
   max_wait_time: 0.05
 ```
 
-Under the hood, `vla-eval serve` resolves `script` to an absolute path, converts `args` into CLI flags (`--key value`; bools become bare `--flag`), and runs `uv run <script> <flags>`. The script's inline metadata (`# /// script`) declares its own dependencies, so `uv` creates an isolated environment automatically — no manual install needed.
+Under the hood, `vla-eval serve` resolves `script` to an absolute path, converts `args` into CLI flags (`--key value`; bools become bare `--flag`), and runs `uv run <script> <flags>`. The script's inline metadata (`# /// script`) declares its own dependencies, so `uv` creates an isolated environment automatically without a manual install.
 
 To run on a specific GPU, set `CUDA_VISIBLE_DEVICES` before the command.
 
@@ -138,9 +138,9 @@ Server configs live in `configs/model_servers/`. The `--sweep-batch-sizes` flag 
 
 Before running the demand/supply benchmarks, you may want to measure the basic timing properties of your setup:
 
-- **`experiments/measure_sim_delay.py`** — Instant server that records per-step timestamps. Run alongside a single Docker shard to measure per-step simulation time. Useful for sanity-checking demand curve results.
+- **`experiments/measure_sim_delay.py`**: Instant server that records per-step timestamps. Run alongside a single Docker shard to measure per-step simulation time. Useful for sanity-checking demand curve results.
 
-- **`experiments/measure_inference_delay.py`** — Sends realistic observations to a running model server and measures per-request latency. Useful for sanity-checking supply curve results and separating cold-start from warm inference.
+- **`experiments/measure_inference_delay.py`**: Sends realistic observations to a running model server and measures per-request latency. Useful for sanity-checking supply curve results and separating cold-start from warm inference.
 
 ## Worked Example: DB-CogACT
 
@@ -152,9 +152,9 @@ DB-CogACT (dexbotic fine-tuned CogACT 7B) is evaluated across three benchmarks w
 | CALVIN ABC→D | GPU EGL (PyBullet) | 7 | 1000 sequences × 5 subtasks | 200×200 |
 | SimplerEnv | GPU (SAPIEN/Vulkan) | 5 | 96 (4 tasks × 24 ep) | 224×224 |
 
-### Supply — μ(B)
+### Supply: μ(B)
 
-The supply curve below was measured with the LIBERO checkpoint (chunk_size=12). **chunk_size directly affects supply**: with chunk_size=C, only 1 out of every C observations triggers GPU inference — the rest are served from the cached action chunk. Smaller chunk_size means more frequent GPU inference, so lower obs/s throughput.
+The supply curve below was measured with the LIBERO checkpoint (chunk_size=12). **chunk_size directly affects supply**: with chunk_size=C, only 1 out of every C observations triggers GPU inference; the rest are served from the cached action chunk. Smaller chunk_size means more frequent GPU inference, so lower obs/s throughput.
 
 ```bash
 # Start server:
@@ -169,7 +169,7 @@ uv run python experiments/bench_supply.py \
     --image-size 256
 ```
 
-**A100-80GB (PCIe)** — chunk_size=12:
+**A100-80GB (PCIe)**, chunk_size=12:
 
 | B (max_batch_size) | μ (obs/s) | Inference latency (p50) |
 |:------------------:|:---------:|:-----------------------:|
@@ -181,7 +181,7 @@ uv run python experiments/bench_supply.py \
 | 24                 | 196.6     | 51.4ms                  |
 | 32                 | 201.4     | 68.4ms                  |
 
-**H100-80GB SXM** — chunk_size=12:
+**H100-80GB SXM**, chunk_size=12:
 
 | B (max_batch_size) | μ (obs/s) | Inference latency (p50) |
 |:------------------:|:---------:|:-----------------------:|
@@ -203,11 +203,11 @@ A100 peaks at B=16 (203.1 obs/s), H100 peaks at B=24 (485.5 obs/s). The pipeline
 | 7 (CALVIN) | ~118 obs/s | ~283 obs/s |
 | 5 (SimplerEnv) | ~85 obs/s | ~202 obs/s |
 
-These are linear estimates (μ ≈ inf/s × C). Actual supply may differ — run `bench_supply.py` with each checkpoint for precise numbers.
+These are linear estimates (μ ≈ inf/s × C). Actual supply may differ; run `bench_supply.py` with each checkpoint for precise numbers.
 
 ### LIBERO Spatial (chunk_size=12, GPU EGL rendering)
 
-#### Demand — λ(N)
+#### Demand: λ(N)
 
 ```bash
 uv run python experiments/bench_demand.py \
@@ -229,7 +229,7 @@ uv run python experiments/bench_demand.py \
 | 80         | 88,000       | 196.8       | 446.8     |
 | 100        | 110,000      | 282.3       | 389.4     |
 
-λ(N) scales nearly linearly through N=80, peaking at 446.8 obs/s. Per-shard throughput gradually decreases from ~11.2 obs/s/shard (N=1) to ~7.3 (N=50), then degrades more sharply at N=64 (~6.4) and N=80 (~5.6) from host-level CPU/Docker overhead. At N=100, aggregate throughput drops to 389.4 obs/s — contention overwhelms parallelism. **Peak demand: N=80, λ≈447 obs/s.**
+λ(N) scales nearly linearly through N=80, peaking at 446.8 obs/s. Per-shard throughput gradually decreases from ~11.2 obs/s/shard (N=1) to ~7.3 (N=50), then degrades more sharply at N=64 (~6.4) and N=80 (~5.6) from host-level CPU/Docker overhead. At N=100, aggregate throughput drops to 389.4 obs/s because contention overwhelms parallelism. **Peak demand: N=80, λ≈447 obs/s.**
 
 #### Derivation
 
@@ -242,11 +242,11 @@ uv run python experiments/bench_demand.py \
 
 1. **`max_batch_size`**: A100 peaks at B=16, H100 at B=24.
 
-2. **`num_shards`**: Per-shard demand is ~7.3 obs/s. With ~20% margin: N ≤ 0.8 × μ(B*) / 7.3 → A100: 0.8×203.1/7.3 ≈ 22, H100: 0.8×485.5/7.3 ≈ 53. Rounded down to **20** and **50** so that LIBERO Spatial's 500 work items divide evenly — 25 episodes/shard (A100) and 10 episodes/shard (H100).
+2. **`num_shards`**: Per-shard demand is ~7.3 obs/s. With ~20% margin: N ≤ 0.8 × μ(B*) / 7.3 → A100: 0.8×203.1/7.3 ≈ 22, H100: 0.8×485.5/7.3 ≈ 53. Rounded down to **20** and **50** so that LIBERO Spatial's 500 work items divide evenly: 25 episodes/shard (A100) and 10 episodes/shard (H100).
 
 3. **`max_wait_time`**: predict_rate = λ(N) / chunk_size. A100: 146/12 ≈ 12.2 → 16/12.2 ≈ 1.31s. H100: 365/12 ≈ 30.4 → 24/30.4 ≈ 0.79s.
 
-**Production result (H100, 50 shards)**: All 4 LIBERO suites (2000 episodes) completed in **~18 min** wall-clock with `max_batch_size=16`, `max_wait_time=0.05` — a ~47× throughput gain over sequential execution. See `docs/reproductions/db-cogact.md` (LIBERO section) for full results.
+**Production result (H100, 50 shards)**: All 4 LIBERO suites (2000 episodes) completed in **~18 min** wall-clock with `max_batch_size=16`, `max_wait_time=0.05`, a ~47× throughput gain over sequential execution. See `docs/reproductions/db-cogact.md` (LIBERO section) for full results.
 
 **Scaling note**: H100 supply (485.5 obs/s) exceeds single-host demand peak (446.8 obs/s at N=80), so one H100 can saturate a full host of Docker shards. A100 (203.1 obs/s) requires ~2 replicas to match peak demand.
 
@@ -254,7 +254,7 @@ uv run python experiments/bench_demand.py \
 
 CALVIN uses PyBullet with GPU EGL rendering (like LIBERO). Physics is CPU but image rendering uses GPU via EGL. Each sequence chains 5 subtasks with up to 360 steps each. PyBullet steps are faster than MuJoCo, giving CALVIN a much higher per-shard observation rate (~36.7 obs/s vs LIBERO's ~11.2 obs/s).
 
-#### Demand — λ(N)
+#### Demand: λ(N)
 
 ```bash
 uv run python experiments/bench_demand.py \
@@ -273,9 +273,9 @@ uv run python experiments/bench_demand.py \
 | 24         | 25,920       | 60.0        | 432.3     |
 | 32         | 34,560       | 87.6        | 394.6     |
 
-λ(N) scales well through N=24, peaking at 432.3 obs/s. Per-shard throughput decreases from ~36.7 obs/s/shard (N=1) to ~23.5 (N=16) to ~18.0 (N=24) to ~12.3 (N=32). At N=32, aggregate throughput drops — CPU/Docker overhead overwhelms parallelism. **Peak demand: N=24, λ≈432 obs/s.**
+λ(N) scales well through N=24, peaking at 432.3 obs/s. Per-shard throughput decreases from ~36.7 obs/s/shard (N=1) to ~23.5 (N=16) to ~18.0 (N=24) to ~12.3 (N=32). At N=32, aggregate throughput drops because CPU/Docker overhead overwhelms parallelism. **Peak demand: N=24, λ≈432 obs/s.**
 
-CALVIN's high per-shard obs rate means demand exceeds the estimated H100 supply (~283 obs/s) at just N=16. This makes CALVIN **supply-bottlenecked** — unlike LIBERO and SimplerEnv where demand is the bottleneck.
+CALVIN's high per-shard obs rate means demand exceeds the estimated H100 supply (~283 obs/s) at just N=16. This makes CALVIN **supply-bottlenecked**, unlike LIBERO and SimplerEnv where demand is the bottleneck.
 
 #### Derivation
 
@@ -286,21 +286,21 @@ CALVIN's high per-shard obs rate means demand exceeds the estimated H100 supply 
 | **num_shards**     | 16                |
 | **max_wait_time**  | 0.42s             |
 
-1. **`max_batch_size`**: H100 peaks at B=24 at chunk_size=12. Optimal B may differ at chunk_size=7 — run `bench_supply.py` with the CALVIN checkpoint to confirm.
+1. **`max_batch_size`**: H100 peaks at B=24 at chunk_size=12. Optimal B may differ at chunk_size=7; run `bench_supply.py` with the CALVIN checkpoint to confirm.
 
-2. **`num_shards`**: Per-shard demand is ~23.5 obs/s at N=16. With ~20% margin: N ≤ 0.8 × 283 / 23.5 ≈ 9.6. However, CALVIN is supply-bottlenecked — even at N=16, demand (376 obs/s) exceeds estimated supply (~283 obs/s). In practice, the server's batch queue absorbs the excess demand without failures because chunk buffering reduces actual predict calls to ~54/s (376/7). Use **16** shards so that 1000 sequences divide into ~62–63 per shard.
+2. **`num_shards`**: Per-shard demand is ~23.5 obs/s at N=16. With ~20% margin: N ≤ 0.8 × 283 / 23.5 ≈ 9.6. However, CALVIN is supply-bottlenecked; even at N=16, demand (376 obs/s) exceeds estimated supply (~283 obs/s). In practice, the server's batch queue absorbs the excess demand without failures because chunk buffering reduces actual predict calls to ~54/s (376/7). Use **16** shards so that 1000 sequences divide into ~62–63 per shard.
 
-3. **`max_wait_time`**: predict_rate = λ(N) / chunk_size. At N=16 (supply-limited, effective λ ≈ 283): 283 / 7 ≈ 40.4 → 24 / 40.4 ≈ 0.59s. In production, `max_wait_time=0.05s` was used — batches fill almost instantly because demand far exceeds supply, so the wait timer rarely fires.
+3. **`max_wait_time`**: predict_rate = λ(N) / chunk_size. At N=16 (supply-limited, effective λ ≈ 283): 283 / 7 ≈ 40.4 → 24 / 40.4 ≈ 0.59s. In production, `max_wait_time=0.05s` was used because batches fill almost instantly when demand far exceeds supply, so the wait timer rarely fires.
 
-**Production result (H100, 16 shards)**: All 1000 sequences completed in **~33 min** wall-clock with `max_batch_size=16`, `max_wait_time=0.05` — a ~16× throughput gain over sequential (513.9 min). See `docs/reproductions/db-cogact.md` (CALVIN section) for full results (Avg Len 4.051, reproducing reference 4.063).
+**Production result (H100, 16 shards)**: All 1000 sequences completed in **~33 min** wall-clock with `max_batch_size=16`, `max_wait_time=0.05`, a ~16× throughput gain over sequential (513.9 min). See `docs/reproductions/db-cogact.md` (CALVIN section) for full results (Avg Len 4.051, reproducing reference 4.063).
 
 **Supply-bottleneck note**: CALVIN's fast PyBullet rendering generates demand faster than the model server can process. The server's internal queue absorbs bursts, but sustained overload would increase latency. To increase throughput: (a) use a faster GPU, (b) reduce num_shards to stay within supply, or (c) run multiple model server replicas behind a load balancer.
 
 ### SimplerEnv WidowX Bridge (chunk_size=5, GPU rendering)
 
-SimplerEnv uses SAPIEN/Vulkan GPU rendering on the benchmark host. Multiple shards compete for GPU memory and compute — like LIBERO/CALVIN (EGL) but with heavier GPU usage per shard.
+SimplerEnv uses SAPIEN/Vulkan GPU rendering on the benchmark host. Multiple shards compete for GPU memory and compute, as in LIBERO/CALVIN (EGL), but with heavier GPU usage per shard.
 
-#### Demand — λ(N)
+#### Demand: λ(N)
 
 ```bash
 uv run python experiments/bench_demand.py \
@@ -320,9 +320,9 @@ uv run python experiments/bench_demand.py \
 | 24         | 42,825       | 298.1       | 143.7 *   |
 | 32         | 41,484       | 300.6       | 138.0 *   |
 
-\* timeout — partial results
+\* timeout, partial results
 
-λ(N) scales sub-linearly from the start because multiple SAPIEN rendering shards contend for GPU resources on the benchmark host. Per-shard throughput drops from ~10.1 obs/s/shard (N=1) to ~7.2 (N=8) to ~6.0 (N=24). At N=32, aggregate throughput actually decreases — GPU contention between rendering shards overwhelms parallelism. **Peak demand: N=24, λ≈144 obs/s.** Far lower than LIBERO's 447 obs/s peak because SAPIEN shards consume significantly more GPU memory per shard than MuJoCo EGL.
+λ(N) scales sub-linearly from the start because multiple SAPIEN rendering shards contend for GPU resources on the benchmark host. Per-shard throughput drops from ~10.1 obs/s/shard (N=1) to ~7.2 (N=8) to ~6.0 (N=24). At N=32, aggregate throughput actually decreases because GPU contention between rendering shards overwhelms parallelism. **Peak demand: N=24, λ≈144 obs/s.** Far lower than LIBERO's 447 obs/s peak because SAPIEN shards consume significantly more GPU memory per shard than MuJoCo EGL.
 
 #### Derivation
 
@@ -333,9 +333,9 @@ uv run python experiments/bench_demand.py \
 | **num_shards**     | 16                |
 | **max_wait_time**  | 0.93s             |
 
-1. **`max_batch_size`**: H100 peaks at B=24 at chunk_size=12. Optimal B may differ at chunk_size=5 — run `bench_supply.py` with the SimplerEnv checkpoint to confirm.
+1. **`max_batch_size`**: H100 peaks at B=24 at chunk_size=12. Optimal B may differ at chunk_size=5; run `bench_supply.py` with the SimplerEnv checkpoint to confirm.
 
-2. **`num_shards`**: Per-shard demand is ~7.2 obs/s at moderate N. With ~20% margin: N ≤ 0.8 × 202 / 7.2 ≈ 22. However, SimplerEnv's GPU rendering saturates demand at N=24 (λ≈144 obs/s) — adding more shards decreases throughput. Rounded down to **16** so that 96 work items (4 tasks × 24 episodes) divide evenly — 6 episodes/shard. λ(16) ≈ 128.4 obs/s, below the ~202 estimated supply ceiling.
+2. **`num_shards`**: Per-shard demand is ~7.2 obs/s at moderate N. With ~20% margin: N ≤ 0.8 × 202 / 7.2 ≈ 22. However, SimplerEnv's GPU rendering saturates demand at N=24 (λ≈144 obs/s), and adding more shards decreases throughput. Rounded down to **16** so that 96 work items (4 tasks × 24 episodes) divide evenly: 6 episodes/shard. λ(16) ≈ 128.4 obs/s, below the ~202 estimated supply ceiling.
 
 3. **`max_wait_time`**: predict_rate = λ(N) / chunk_size = 128.4 / 5 ≈ 25.7 → 24 / 25.7 ≈ 0.93s.
 
@@ -355,7 +355,7 @@ uv run python experiments/bench_demand.py \
 | **Headroom**       | 28%                   | 25%                   | −33% (supply-bottlenecked) | 37%   |
 
 Key takeaways:
-- **Lightweight GPU rendering** (LIBERO, CALVIN via EGL) scales to many more shards — MuJoCo/PyBullet EGL uses minimal GPU memory per shard.
+- **Lightweight GPU rendering** (LIBERO, CALVIN via EGL) scales to many more shards because MuJoCo/PyBullet EGL uses minimal GPU memory per shard.
 - **GPU-rendered benchmarks** (SimplerEnv) saturate much earlier because rendering shards contend for GPU resources on the benchmark host. Spread shards across multiple GPUs to increase demand headroom.
 - **Supply-bottlenecked benchmarks** (CALVIN): Fast per-shard obs rate + small chunk_size can push demand above supply. The server queue absorbs bursts, but sustained overload increases latency. Use fewer shards, a faster GPU, or model server replicas.
 - **chunk_size** directly affects both supply and max_wait_time: larger chunks (LIBERO=12) mean fewer GPU inferences per observation → higher supply ceiling but slower batch fill → longer max_wait_time. Smaller chunks (SimplerEnv=5) → lower supply ceiling but faster batch fill → shorter max_wait_time.

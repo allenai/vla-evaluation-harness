@@ -14,9 +14,9 @@ Defines the wire protocol between benchmark clients and model servers: transport
 ## Transport
 
 - **WebSocket + msgpack** async communication.
-- **Single WebSocket connection** (`ws://server:port`). Message `type` field multiplexes logical channels — no need for multiple connections or HTTP endpoints.
+- **Single WebSocket connection** (`ws://server:port`). Message `type` field multiplexes logical channels, so no multiple connections or HTTP endpoints are needed.
 - **Serialization**: msgpack with a custom numpy codec (see below). Arbitrary `dict[str, Any]` payloads including numpy arrays are serialized transparently.
-- **Image encoding**: Configurable per deployment — raw numpy (default), JPEG, or PNG.
+- **Image encoding**: Configurable per deployment: raw numpy (default), JPEG, or PNG.
 - **Compression**: Default `None`. On LAN the compression CPU overhead exceeds network savings. WAN deployments can enable compression via configuration.
 
 ## Message Schema
@@ -53,13 +53,13 @@ numpy arrays are encoded inline as msgpack dicts by the custom codec in `protoco
 - `dtype`: numpy dtype string (e.g. `"float32"`, `"uint8"`).
 - `shape`: integer tuple.
 
-**Security**: On deserialization the codec rejects `Void`, `Object`, and `Complex` dtypes — these can trigger arbitrary code execution via pickle. Only `bool`, `int*`, `uint*`, and `float*` kinds are allowed.
+**Security**: On deserialization the codec rejects `Void`, `Object`, and `Complex` dtypes because these can trigger arbitrary code execution via pickle. Only `bool`, `int*`, `uint*`, and `float*` kinds are allowed.
 
 Scalar numpy types (`np.integer`, `np.floating`, `np.bool_`) are converted to Python builtins during encoding so they survive msgpack round-trips.
 
 ## Payload Convention
 
-Observations and actions are `dict[str, Any]` — the framework imposes **no fixed schema**. Each benchmark defines its own structure via `Benchmark.make_obs()`.
+Observations and actions are `dict[str, Any]`; the framework imposes **no fixed schema**. Each benchmark defines its own structure via `Benchmark.make_obs()`.
 
 The recommended (not enforced) convention, based on the [RLinf](../proposal/03_REFERENCE_SURVEY/rlinf.md) field set adopted by starVLA / InternVLA-M1 / dexbotic:
 
@@ -69,12 +69,12 @@ The recommended (not enforced) convention, based on the [RLinf](../proposal/03_R
 | `states` | `np.ndarray` | Proprioception (joint angles, end-effector pose, etc.) |
 | `task_description` | `str` | Natural-language task instruction |
 
-Following the convention enables a single model server implementation to work across multiple benchmarks without per-benchmark key mapping. Not following it is fine — the protocol layer only requires `dict[str, Any]`.
+Following the convention enables a single model server implementation to work across multiple benchmarks without per-benchmark key mapping. Not following it is fine; the protocol layer only requires `dict[str, Any]`.
 
 
 ## Connection Client API
 
-The framework provides `Connection` — a client library used by benchmarks and episode runners to communicate with the model server. No user-side ABC implementation is needed.
+The framework provides `Connection`, a client library used by benchmarks and episode runners to communicate with the model server. No user-side ABC implementation is needed.
 
 ```python
 conn = vla_eval.connect("ws://model-server:8000")
@@ -86,17 +86,17 @@ class Connection:
     async def start_episode(self, config: dict[str, Any]) -> None: ...
     async def end_episode(self, result: dict[str, Any]) -> None: ...
 
-    # Sync mode — send observation, await action
+    # Sync mode: send observation, await action
     async def act(self, obs: dict[str, Any]) -> dict[str, Any]: ...
 
-    # Real-time mode — non-blocking send + action callback
+    # Real-time mode: non-blocking send + action callback
     async def send_observation(self, obs: dict[str, Any]) -> None: ...
     def on_action(self, callback: Callable[[dict[str, Any]], None]) -> None: ...
 ```
 
 Key design points:
 
-- **`act()` uses `asyncio.Future`** internally — it awaits the server's action response without busy-polling.
+- **`act()` uses `asyncio.Future`** internally; it awaits the server's action response without busy-polling.
 - **Sync mode**: `act()` sends an observation and returns the matching action (matched by `seq`).
 - **Real-time mode**: `send_observation()` fires and forgets; incoming actions are dispatched to the registered `on_action` callback. The `AsyncEpisodeRunner` uses this with an `ActionBuffer` and a hold policy.
 - **Sequence numbering** is managed internally; callers never set `seq` manually.
@@ -114,6 +114,4 @@ Implemented in `connection.py`.
 | Server-side WebSocket handler | `model_servers/serve.py` | ✅ Implemented |
 | Image encoding (JPEG/PNG/raw) | `protocol/image_codec.py` | ✅ Implemented |
 | WAN compression option | — | 🔜 Not yet implemented |
-
-
 
