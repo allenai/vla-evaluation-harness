@@ -159,12 +159,6 @@ ROTATION_EULER_ACCEPTS_AA = DimSpec(
     accepts=frozenset({"euler_xyz", "axis_angle"}),
 )
 
-# Joint-space (action) — per-arm joint angles.  ``dims=0`` keeps it robot-agnostic
-# (DoF varies); pin a concrete count with ``dataclasses.replace(JOINT_ABSOLUTE,
-# dims=N)`` when declaring a fixed-DoF arm.
-JOINT_ABSOLUTE = DimSpec("joints", 0, "joint_positions_absolute")
-JOINT_DELTA = DimSpec("joints", 0, "joint_positions_delta")
-
 # Gripper
 GRIPPER_CLOSE_POS = DimSpec("gripper", 1, "binary_close_positive", (-1, 1))
 GRIPPER_CLOSE_NEG = DimSpec("gripper", 1, "binary_close_negative", (-1, 1))

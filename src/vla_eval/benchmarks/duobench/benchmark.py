@@ -25,7 +25,6 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, Sequence
-from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -35,8 +34,6 @@ from vla_eval.benchmarks.duobench.utils import ensure_mujoco_arena_memory, extra
 from vla_eval.specs import (
     GRIPPER_01,
     IMAGE_RGB,
-    JOINT_ABSOLUTE,
-    JOINT_DELTA,
     LANGUAGE,
     POSITION_ABSOLUTE,
     POSITION_DELTA,
@@ -82,6 +79,11 @@ PROPRIO_DIMS: dict[str, int] = {
     "tquat": 7,  # EE pose: position(3) + quaternion(4)
     "gripper": 1,  # gripper
 }
+
+# DuoBench-local joint action specs.  The repo does not yet have a global
+# joint-action convention; keep this benchmark-scoped and use existing formats.
+DUOBENCH_JOINT_ABSOLUTE = DimSpec("joints", 7, "joint_positions")
+DUOBENCH_JOINT_DELTA = DimSpec("joints", 7, "joint_delta_pos")
 
 
 class DuoBenchBenchmark(StepBenchmark):
@@ -142,12 +144,12 @@ class DuoBenchBenchmark(StepBenchmark):
         self._max_steps = max_steps
         self.send_state = send_state
         self._camera_resolution = camera_resolution
-        self.control_mode = control_mode
+        self.control_mode = control_mode.lower()
         if self.control_mode not in ARM_ACTION_BY_CONTROL_MODE:
             raise ValueError(f"control_mode must be one of {sorted(ARM_ACTION_BY_CONTROL_MODE)}, got {control_mode!r}")
         self._arm_action_key = ARM_ACTION_BY_CONTROL_MODE[self.control_mode]
         self._arm_action_dim = PROPRIO_DIMS[self._arm_action_key]
-        self.relative_to = relative_to
+        self.relative_to = relative_to.lower()
         self.binary_gripper = binary_gripper
 
         self._env = None
@@ -316,9 +318,9 @@ class DuoBenchBenchmark(StepBenchmark):
         return spec
 
     def get_action_spec(self) -> dict[str, DimSpec]:
-        delta = self.relative_to == "last_step"
+        delta = self.relative_to != "none"
         if self.control_mode == "joints":
-            segments = {"joints": replace(JOINT_DELTA if delta else JOINT_ABSOLUTE, dims=7)}
+            segments = {"joints": DUOBENCH_JOINT_DELTA if delta else DUOBENCH_JOINT_ABSOLUTE}
         else:  # cartesian_trpy / cartesian_tquat
             position = POSITION_DELTA if delta else POSITION_ABSOLUTE
             rotation = ROTATION_QUAT if self.control_mode == "cartesian_tquat" else ROTATION_EULER
