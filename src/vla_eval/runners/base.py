@@ -28,7 +28,7 @@ class EpisodeRunner(ABC):
         ``recorder`` (when active) is forwarded to ``benchmark.start_episode``
         so video frames and step rows are captured. The runner also bundles
         ``{sid, eid, eval_id, db_path}`` into the ``EPISODE_START`` WS payload
-        so model-server code (e.g. reflex-train) can open its own
+        so model-server code (e.g. a training pipeline) can open its own
         :class:`vla_eval.recording.StepRecorder` against the same SQLite file
         and field-union its inference traces with the benchmark's step rows.
         """
