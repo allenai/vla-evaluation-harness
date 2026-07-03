@@ -21,8 +21,8 @@
 ### Latest News
 
 - [2026/06] [v0.3.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.3.0) released. SQLite recording + `vla-eval merge`, wandb/trackio tracking, and a watchdog for wedged benchmarks.
-- [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers — the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
-- [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 1,885 models x 18 benchmarks, schema-validated pipeline, updated monthly.
+- [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers, the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
+- [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 2,456 models x 18 benchmarks, schema-validated pipeline, updated monthly.
 - [2026/04] [v0.1.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.1.0) released. 6 VLA models [reproduced](docs/reproductions/) within 2pp of published scores.
 - [2026/04] Batch parallel eval: 2,000 LIBERO episodes in 18 min on 1x H100 ([details](#batch-parallel-evaluation)).
 
@@ -31,22 +31,22 @@
 | | |
 |:--|:--|
 | **Batch Parallel Evaluation** | Episode sharding + batched GPU inference → **47× throughput** (2 000 LIBERO episodes in 18 min on 1× H100). [Details](#batch-parallel-evaluation) |
-| **Zero Setup** | Benchmarks in Docker, model servers as single-file [uv scripts](https://docs.astral.sh/uv/guides/scripts/) — no dependency conflicts. |
-| **AI-Assisted Integration** | Built-in [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for [adding benchmarks](.claude/skills/add-benchmark/) and [model servers](.claude/skills/add-model-server/) — scaffold new integrations in minutes, not hours. |
-| **[Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/)** | The largest unified VLA comparison — 1,885 models × 18 benchmarks, aggregated from 1,755 papers. |
+| **Zero Setup** | Benchmarks in Docker and model servers as single-file [uv scripts](https://docs.astral.sh/uv/guides/scripts/), avoiding dependency conflicts. |
+| **AI-Assisted Integration** | Built-in [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for [adding benchmarks](.claude/skills/add-benchmark/) and [model servers](.claude/skills/add-model-server/) help scaffold new integrations in minutes, not hours. |
+| **[Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/)** | The largest unified VLA comparison: 2,456 models × 18 benchmarks, aggregated from 2,087 papers. |
 
 ---
 
 ## Motivation
 
-VLA models are evaluated on LIBERO, CALVIN, SimplerEnv, ManiSkill, and others — but each benchmark has its own dependencies, observation format, and evaluation protocol. In practice, every research team ends up maintaining private eval forks per benchmark. Results diverge. Bug fixes don't propagate. No one tests under real-time conditions where the environment keeps moving during inference.
+VLA models are evaluated on LIBERO, CALVIN, SimplerEnv, ManiSkill, and others, but each benchmark has its own dependencies, observation format, and evaluation protocol. In practice, every research team ends up maintaining private eval forks per benchmark. Results diverge. Bug fixes don't propagate. No one tests under real-time conditions where the environment keeps moving during inference.
 
 **vla-evaluation-harness** integrates the model once, integrates the benchmark once, and the full cross-evaluation matrix fills itself.
 
 **How**: our abstraction layer fully decouples models from benchmarks.
 
-- Benchmarks run inside **Docker** — no dependency hell, exact reproducibility.
-- Model servers are standalone **[uv scripts](https://docs.astral.sh/uv/guides/scripts/)** with inline dependency declarations — zero manual setup.
+- Benchmarks run inside **Docker**, giving exact reproducibility without dependency conflicts.
+- Model servers are standalone **[uv scripts](https://docs.astral.sh/uv/guides/scripts/)** with inline dependency declarations and no manual setup.
 
 See [Architecture](docs/architecture.md) for how the pieces connect.
 
@@ -73,11 +73,11 @@ uv sync --python 3.11 --all-extras --dev
 Two terminals: one for the model server (GPU), one for the benchmark client.
 
 ```bash
-# Terminal 1 — model server (runs on host with GPU)
+# Terminal 1: model server (runs on host with GPU)
 vla-eval serve --config configs/model_servers/db_cogact/libero.yaml
 
-# Terminal 2 — run evaluation (benchmark runs in Docker by default).
-# Wait for the model server to finish loading first — ``GET /health`` returning HTTP 200 is the ready signal.
+# Terminal 2: run evaluation (benchmark runs in Docker by default).
+# Wait for the model server to finish loading first; ``GET /health`` returning HTTP 200 is the ready signal.
 vla-eval run --config configs/benchmarks/libero/smoke_test.yaml
 ```
 
@@ -131,7 +131,7 @@ wait
 vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
 ```
 
-Each shard gets a deterministic slice via round-robin. Results merge with episode-level deduplication — if a shard fails, re-run only that shard.
+Each shard gets a deterministic slice via round-robin. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
 
 ### Batch Model Server (GPU parallelism)
 
@@ -212,7 +212,7 @@ Two opt-in systems capture eval data. Both key on `eval_id` so recordings and tr
 
 ### Recording
 
-Every `vla-eval run` persists raw data to `<output_dir>/recording-<eval_id>.sqlite` — per-step rows, episode results, and eval metadata. Configure via each benchmark's `recording:` key:
+Every `vla-eval run` persists raw data to `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. Configure via each benchmark's `recording:` key:
 
 ```yaml
 benchmarks:
@@ -234,7 +234,7 @@ tracking:
   report_to: wandb           # "wandb" | ["wandb", "trackio"] | "all" | "none"
 ```
 
-The harness injects `id=<eval_id>` + `resume="allow"` so live (`vla-eval run`) and merge (`vla-eval merge`) paths converge on the same run. All other settings — project, entity, API key — come from the backend's native env vars (`WANDB_*`, `TRACKIO_*`). See the [W&B env reference](https://docs.wandb.ai/guides/track/environment-variables) for details. Install the backend yourself: `pip install wandb` / `pip install trackio`.
+The harness injects `id=<eval_id>` + `resume="allow"` so live (`vla-eval run`) and merge (`vla-eval merge`) paths converge on the same run. All other settings, including project, entity, and API key, come from the backend's native env vars (`WANDB_*`, `TRACKIO_*`). See the [W&B env reference](https://docs.wandb.ai/guides/track/environment-variables) for details. Install the backend yourself: `pip install wandb` / `pip install trackio`.
 
 Under sharding, aggregate emission defers to `vla-eval merge`; per-episode tracking is live-path only.
 

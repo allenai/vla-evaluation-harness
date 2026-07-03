@@ -29,5 +29,5 @@ Images are published to `ghcr.io/allenai/vla-evaluation-harness/<name>:<tag>`.
 
 ## Adding a New Benchmark
 
-1. Create `Dockerfile.<name>` — use `ARG BASE_IMAGE` and install benchmark-specific deps.
+1. Create `Dockerfile.<name>`, use `ARG BASE_IMAGE`, and install benchmark-specific deps.
 2. Add `<name>` to the `BENCHMARKS` array in `build.sh` and `IMAGES` array in `push.sh`.

@@ -1,6 +1,6 @@
 # RFCs
 
-Design documents for `vla-evaluation-harness` — a framework for evaluating Vision-Language-Action (VLA) models across robot simulation benchmarks.
+Design documents for `vla-evaluation-harness`, a framework for evaluating Vision-Language-Action (VLA) models across robot simulation benchmarks.
 
 RFCs capture significant architectural decisions and proposed changes. They exist so contributors can understand *why* the system works the way it does, and to provide a lightweight review process for non-trivial changes.
 
@@ -52,7 +52,7 @@ RFCs capture significant architectural decisions and proposed changes. They exis
 |-------|-------------|
 | **Author** | GitHub handle(s) of the author(s) |
 | **Status** | See [Status Definitions](#status-definitions) above |
-| **Type** | *Standards Track* — changes to interfaces, protocols, or behavior. *Informational* — guidelines, conventions, or background |
+| **Type** | *Standards Track*: changes to interfaces, protocols, or behavior. *Informational*: guidelines, conventions, or background |
 | **Created** | Date the RFC was first written |
 | **Requires** | Other RFCs this one depends on, or `—` if none |
 | **Superseded-By** | RFC that replaces this one, or `—` if still active |

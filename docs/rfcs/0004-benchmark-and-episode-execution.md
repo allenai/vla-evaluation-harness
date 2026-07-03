@@ -15,7 +15,7 @@ The key architectural insight (from RFC-0001): separating *what* the environment
 
 ## Benchmark ABC
 
-Each benchmark has a unique environment interface (observation structure, action space, reset/step API, success criteria). To add a new benchmark, implement the `Benchmark` ABC — this is the only implementation contract on the benchmark side.
+Each benchmark has a unique environment interface (observation structure, action space, reset/step API, success criteria). To add a new benchmark, implement the `Benchmark` ABC. This is the only implementation contract on the benchmark side.
 
 ```python
 @dataclass
@@ -32,11 +32,11 @@ class Benchmark(ABC):
     async def get_observation(self) -> dict[str, Any]: ...
     async def is_done(self) -> bool: ...
     async def get_result(self) -> EpisodeResult: ...
-    def get_metadata(self) -> dict[str, Any]: ...  # optional — benchmark defaults
-    def render(self) -> np.ndarray | None: ...  # optional — for video recording
+    def get_metadata(self) -> dict[str, Any]: ...  # optional: benchmark defaults
+    def render(self) -> np.ndarray | None: ...  # optional: for video recording
 ```
 
-Six abstract methods form the minimum contract. `get_metadata()` and `render()` are optional overrides. The benchmark implementor focuses only on environment-specific logic — episode loops, communication, and timing are handled by `EpisodeRunner`. Environment handles are stored internally (`self._env`) rather than passed through callers.
+Six abstract methods form the minimum contract. `get_metadata()` and `render()` are optional overrides. The benchmark implementor focuses only on environment-specific logic; episode loops, communication, and timing are handled by `EpisodeRunner`. Environment handles are stored internally (`self._env`) rather than passed through callers.
 
 ## EpisodeRunner
 
@@ -71,7 +71,7 @@ class SyncEpisodeRunner(EpisodeRunner):
 
 ### AsyncEpisodeRunner (→ RFC-0001)
 
-Ties the simulation clock to wall-clock time — the environment keeps advancing whether or not the model has returned an action. If inference hasn't completed, a hold policy is applied (e.g., repeat last action). Used for real-time evaluation.
+Ties the simulation clock to wall-clock time. The environment keeps advancing whether or not the model has returned an action. If inference hasn't completed, a hold policy is applied (e.g., repeat last action). Used for real-time evaluation.
 
 Key mechanisms:
 - **Wall-clock stepping**: `asyncio.sleep(1/hz)` keeps the environment advancing independent of agent inference.
@@ -90,7 +90,7 @@ Each benchmark's simulation environment runs in a Docker container (with GPU acc
 - **Image naming**: `vla-eval/{benchmark_name}:{version}` (e.g., `vla-eval/libero:0.1.0`)
 - **Connection library included**: benchmark images include the `vla-eval` connection library
 - **Port 8080**: exposed for the orchestrator control channel
-- **Model server**: runs outside the container, communicates via WebSocket — unaffected by isolation
+- **Model server**: runs outside the container, communicates via WebSocket, and is unaffected by isolation
 
 ### Container Lifecycle
 
@@ -112,7 +112,7 @@ Orchestrator                    Docker Container
 
 ## Import Resolution
 
-Benchmarks are referenced by full import path (`"module.path:ClassName"`) in config files — no registry or short-name mapping.
+Benchmarks are referenced by full import path (`"module.path:ClassName"`) in config files. There is no registry or short-name mapping.
 
 ```python
 from vla_eval.registry import resolve_import_string
@@ -137,7 +137,7 @@ Coordinates the full evaluation flow:
 
 ## Configuration
 
-Flat YAML — single file contains all parameters. No Hydra-style composition.
+Flat YAML. A single file contains all parameters. No Hydra-style composition.
 
 ```yaml
 server:
@@ -148,7 +148,7 @@ benchmarks:
     tasks: ["libero_spatial", "libero_object"]
     episodes_per_task: 50
     max_steps: 300          # omit to use Benchmark.get_metadata() default
-    params:                 # benchmark-specific — passed to constructor
+    params:                 # benchmark-specific; passed to constructor
       headless: true
       seed: 42
   - benchmark: "vla_eval.benchmarks.libero.benchmark:LIBEROBenchmark"
@@ -163,7 +163,7 @@ The full config is saved alongside results for reproducibility. `vla-eval test -
 
 ## Error Handling
 
-Failures are isolated per episode — one episode failure does not abort the evaluation.
+Failures are isolated per episode. One episode failure does not abort the evaluation.
 
 | Scenario | Behavior |
 |----------|----------|
@@ -195,10 +195,10 @@ Output: structured JSON (`BenchmarkResult`) + human-readable summary table. Infe
 
 ## Logging
 
-- **Execution logs**: episode start/end, connection state, errors — JSON Lines format
+- **Execution logs**: episode start/end, connection state, errors in JSON Lines format
 - **Trajectory recording** (optional): per-episode observation/action sequences in msgpack. Each step: `{"step", "obs", "action", "reward", "done", "timestamp"}`
 - **Video recording** (optional): if `Benchmark.render()` is implemented, `EpisodeRunner` collects frames each step
-- **Metadata**: config file, Docker image version, seed — auto-recorded with results
+- **Metadata**: config file, Docker image version, and seed, auto-recorded with results
 
 ## Implementation Status
 
@@ -216,6 +216,4 @@ Output: structured JSON (`BenchmarkResult`) + human-readable summary table. Infe
 - ✅ Container lifecycle management
 - 🔜 Reference score comparison
 - 🔜 Video and trajectory recording
-
-
 

@@ -13,16 +13,16 @@ Add episode-level sharding so that N independent OS processes can evaluate disjo
 
 ## Motivation
 
-LIBERO Spatial: 10 tasks × 50 episodes × ~220 steps = ~110,000 steps, executed sequentially. A single evaluation run takes hours. The bottleneck is the serial alternation of CPU simulation and GPU inference — while one is working, the other is idle.
+LIBERO Spatial: 10 tasks × 50 episodes × ~220 steps = ~110,000 steps, executed sequentially. A single evaluation run takes hours. The bottleneck is the serial alternation of CPU simulation and GPU inference: while one is working, the other is idle.
 
 Parallelizing at the episode level is the most impactful optimization because:
-1. Episodes are independent — no shared state between them.
+1. Episodes are independent, with no shared state between them.
 2. Multiple simulation processes can overlap their inference wait time with other simulations.
 3. The model server already accepts multiple WebSocket clients concurrently.
 
 ### Why shell-level processes, not in-process multiprocessing?
 
-Some benchmark simulators (notably LIBERO/robosuite) have internal state that conflicts with Python `multiprocessing` (OpenGL contexts, MuJoCo shared memory, global state in `robosuite.utils`). Shell-level process isolation (`cmd &`) avoids these issues entirely — each process gets its own address space with no shared state.
+Some benchmark simulators (notably LIBERO/robosuite) have internal state that conflicts with Python `multiprocessing` (OpenGL contexts, MuJoCo shared memory, global state in `robosuite.utils`). Shell-level process isolation (`cmd &`) avoids these issues entirely because each process gets its own address space with no shared state.
 
 ## Design
 
@@ -131,7 +131,7 @@ The `_run_via_docker` function forwards `--shard-id` and `--num-shards` to the c
 
 N shard processes connect to the same model server URL. The server already handles multiple WebSocket clients via `websockets.serve` (one coroutine per connection). `PredictModelServer` dispatches each request to `run_in_executor`, so N concurrent requests run in N threads.
 
-This is **not** true GPU batching — requests are serialized on the GPU. True batching requires `BatchPredictModelServer` (RFC-0003, future work). However, even without batching, sharding provides significant speedup because simulation time in one process overlaps with inference time in another.
+This is **not** true GPU batching; requests are serialized on the GPU. True batching requires `BatchPredictModelServer` (RFC-0003, future work). However, even without batching, sharding provides significant speedup because simulation time in one process overlaps with inference time in another.
 
 ## Implementation Scope
 
@@ -147,7 +147,5 @@ Total: ~230 lines of new/changed code.
 
 ## Future Work
 
-- **`vla-eval run-parallel`**: Convenience wrapper that spawns N shard processes + auto-merges. Not needed for v1 — shell scripts suffice.
-
-
+- **`vla-eval run-parallel`**: Convenience wrapper that spawns N shard processes + auto-merges. Not needed for v1; shell scripts suffice.
 
