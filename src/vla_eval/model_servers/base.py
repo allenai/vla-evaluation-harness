@@ -29,7 +29,7 @@ class SessionContext:
             or ``""`` when recording is disabled.
         recording_db_path: Path to the SQLite file the harness writes to, or
             ``""`` when recording is disabled. External callers (e.g.
-            reflex-train) open a :class:`vla_eval.recording.StepRecorder` at
+            a training pipeline) open a :class:`vla_eval.recording.StepRecorder` at
             this path to record per-step inference traces alongside the
             benchmark's step rows.
         task: Task metadata dict sent by the client in ``EPISODE_START``.

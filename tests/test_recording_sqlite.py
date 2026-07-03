@@ -213,7 +213,7 @@ def test_multi_writer_field_union(tmp_path: Path) -> None:
 
 
 def test_step_recorder_external_caller(tmp_path: Path) -> None:
-    """StepRecorder is the convenience API model-server code (e.g. reflex-train) uses.
+    """StepRecorder is the convenience API model-server code (e.g. a training pipeline) uses.
 
     It opens its own RecordingStore against the DB path the harness forwards in
     EPISODE_START, buffers rows in memory, and flushes them in a single
