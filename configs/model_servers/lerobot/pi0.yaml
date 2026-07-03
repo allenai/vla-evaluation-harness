@@ -1,0 +1,17 @@
+# π₀ (LeRobot port) model server (example config).
+#
+# Not yet smoke-tested: verify image_keys, state_key, and the action convention
+# against your target benchmark before trusting scores.
+
+extends: _base.yaml
+args:
+  policy_type: pi0
+  checkpoint: lerobot/pi0
+  # Map benchmark camera names -> policy image features. Check the checkpoint's
+  # model card (info.json) for the exact keys it expects. When omitted, benchmark
+  # cameras are mapped positionally (sorted) onto the policy's image features.
+  # image_keys:
+  #   agentview: observation.images.base_0_rgb
+  #   robot0_eye_in_hand: observation.images.left_wrist_0_rgb
+  state_key: observation.state
+  chunk_size: null  # null = use the policy's n_action_steps

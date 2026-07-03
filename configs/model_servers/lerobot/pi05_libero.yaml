@@ -1,0 +1,18 @@
+# π₀.5 (LeRobot) model server: LIBERO reproduction target.
+#
+# Checkpoint: lerobot/pi05_libero_finetuned
+# LeRobot-published LIBERO success: Spatial 97.0 / Object 99.0 / Goal 98.0 /
+# Long 96.0 (avg 97.5), protocol n_action_steps=10.
+# https://huggingface.co/docs/lerobot/libero
+
+extends: _base.yaml
+args:
+  policy_type: pi05
+  checkpoint: lerobot/pi05_libero_finetuned
+  state_key: observation.state
+  chunk_size: 10  # match LeRobot / OpenPI LIBERO protocol (n_action_steps=10)
+  # pi05_libero_finetuned image features: image (base), image2 (wrist),
+  # empty_camera_0 (unused 3rd slot, left unmapped; the model masks it).
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.image2
