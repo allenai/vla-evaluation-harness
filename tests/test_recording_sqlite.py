@@ -20,12 +20,14 @@ import numpy as np
 import pytest
 
 from vla_eval.recording import (
+    DEFAULT_FILENAME_STEM,
     EpisodeRecorder,
     NullEpisodeRecorder,
     RecordingStore,
     StepRecorder,
     _detect_network_fs,
     db_path_for_eval,
+    recording_filename_context,
 )
 from vla_eval.results.merge import merge_db, merge_eval
 
@@ -33,6 +35,32 @@ from vla_eval.results.merge import merge_db, merge_eval
 # ---------------------------------------------------------------------------
 # Schema / store
 # ---------------------------------------------------------------------------
+
+
+def test_default_filename_context_uses_safe_path_components() -> None:
+    ctx = recording_filename_context(
+        {"name": "../suite/task with spaces", "episode_idx": 2},
+        benchmark_safe_name="bench/name",
+        task_idx=7,
+        episode_id=2,
+    )
+
+    rendered = (DEFAULT_FILENAME_STEM + ".jsonl").format(status="success", **ctx)
+
+    assert rendered == "bench_name/task0007_ep0002_success.jsonl"
+    assert ".." not in rendered
+    assert rendered.count("/") == 1
+
+
+def test_filename_context_trims_long_components_without_hashing() -> None:
+    name = "benchmark-" + ("same-" * 30) + "tail"
+
+    ctx = recording_filename_context(
+        {"name": "task", "episode_idx": 0}, benchmark_safe_name=name, task_idx=0, episode_id=0
+    )
+
+    assert len(ctx["benchmark_safe_name"]) <= 96
+    assert ctx["benchmark_safe_name"] == name[:96].rstrip("._-")
 
 
 def test_store_schema_idempotent_across_processes(tmp_path: Path) -> None:

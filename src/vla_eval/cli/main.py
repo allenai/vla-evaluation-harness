@@ -101,6 +101,21 @@ def _resolve_dev_src() -> Path:
     sys.exit(1)
 
 
+def _apply_record_video_override(config: dict[str, Any], *, enabled: bool, create_missing: bool) -> None:
+    """Apply the run-level video override to per-benchmark recording blocks."""
+    for idx, bench in enumerate(config.get("benchmarks") or []):
+        if not isinstance(bench, dict):
+            raise ValueError(f"benchmarks[{idx}] must be a mapping")
+        if "recording" not in bench or bench["recording"] is None:
+            if not create_missing:
+                continue
+            bench["recording"] = {}
+        rec = bench["recording"]
+        if not isinstance(rec, dict):
+            raise ValueError(f"benchmarks[{idx}].recording must be a mapping or null")
+        rec["record_video"] = enabled
+
+
 def _run_via_docker(
     config: dict[str, Any],
     *,
@@ -266,6 +281,23 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
+    eval_id = getattr(args, "eval_id", None)
+    no_save = getattr(args, "no_save", False)
+
+    record_video_override = getattr(args, "record_video", None)
+    if record_video_override is True and no_save:
+        _stderr_console().print("[red]ERROR: --record-video cannot be used with --no-save[/red]")
+        sys.exit(1)
+    if record_video_override is not None:
+        try:
+            _apply_record_video_override(
+                config,
+                enabled=bool(record_video_override),
+                create_missing=bool(record_video_override),
+            )
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
 
     # Validate shard args
     if (shard_id is None) != (num_shards is None):
@@ -293,9 +325,6 @@ def cmd_run(args: argparse.Namespace) -> None:
     # Decide whether to run via Docker
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     use_docker = bool(docker_cfg.image) and not getattr(args, "no_docker", False) and not _inside_docker()
-
-    eval_id = getattr(args, "eval_id", None)
-    no_save = getattr(args, "no_save", False)
 
     if use_docker:
         _run_via_docker(
@@ -337,7 +366,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         try:
             merge_eval(output_dir, orchestrator.eval_id)
         except FileNotFoundError:
-            logger.info("No recording DB to merge (likely all benchmarks opted out of recording)")
+            logger.info("No recording DB to merge")
         except Exception:
             logger.exception("vla-eval merge failed for eval_id=%s", orchestrator.eval_id)
 
@@ -758,11 +787,11 @@ execution flow:
     the end (scripts/run_sharded.sh does this for you).
 
   recording:
-    Step rows + episode results + eval metadata land in
-    <output_dir>/recording-<eval-id>.sqlite. 'vla-eval merge' materialises
-    per-episode jsonl + a BenchmarkResult-shaped aggregate JSON from there.
-    Single-shard runs auto-merge. Use --no-save to skip SQLite entirely
-    (in-memory summary only).
+    By default, benchmark entries write episode results + step rows to
+    <output_dir>/recording-<eval-id>.sqlite with videos off. A recording:
+    block overrides those defaults per benchmark; use --record-video to
+    enable per-episode mp4s for the run. Single-shard runs auto-merge.
+    Use --no-save for in-memory summary only.
 
   error recovery:
     Episodes are isolated — one failure does not abort the run.
@@ -840,6 +869,20 @@ execution flow:
             "mp4/jsonl, no aggregate JSON. The eval still executes and prints its "
             "summary to stdout. Use for quick local checks; omit for persisted results."
         ),
+    )
+    video_group = run_parser.add_mutually_exclusive_group()
+    video_group.add_argument(
+        "--record-video",
+        dest="record_video",
+        action="store_true",
+        default=None,
+        help="Enable per-episode mp4 recording for all benchmarks.",
+    )
+    video_group.add_argument(
+        "--no-record-video",
+        dest="record_video",
+        action="store_false",
+        help="Disable per-episode mp4 recording for all benchmarks.",
     )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
