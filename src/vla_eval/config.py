@@ -122,12 +122,14 @@ class EvalConfig:
         max_tasks: Cap on number of tasks.  ``None`` → run all tasks.
         tasks: Filter to specific task names/suites.  ``None`` → all tasks.
         params: Benchmark-specific kwargs passed to the constructor.
-        recording: Optional dict describing where per-episode artefacts land.
+        recording: Optional dict overriding per-episode recording defaults.
             Keys: ``output_dir``, ``filename_stem``, ``record_video``,
             ``record_step``, ``video_fps``. The benchmark is *not* involved
             in this — the orchestrator builds the recorder from this dict
-            and the task dict directly. Absent → no recording (the
-            benchmark receives a ``NullEpisodeRecorder``).
+            and the task dict directly; filename templates also receive
+            ``benchmark_safe_name``, ``task_idx``, and ``episode_id``.
+            Absent → record step rows and episode results with video off.
+            ``vla-eval run --no-save`` disables recording entirely.
     """
 
     benchmark: str = ""

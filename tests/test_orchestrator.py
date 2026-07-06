@@ -9,6 +9,8 @@ separately in ``tests/test_recording_sqlite.py``.
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from unittest.mock import patch
 
 import numpy as np
@@ -150,10 +152,15 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
 
 
 @pytest.mark.anyio
-async def test_orchestrator_writes_sqlite_when_recording(echo_server, tmp_path):
-    """When ``no_save=False``, the orchestrator opens an SQLite at the expected path
-    and writes per-eval metadata regardless of whether the benchmark config has a
-    ``recording:`` block."""
+async def test_orchestrator_records_by_default_without_recording_block(echo_server, tmp_path):
+    """Absent ``recording:`` still records episode results + step rows, with video off."""
+
+    class StepRecordingStub(StubBenchmark):
+        def step(self, action):
+            res = super().step(action)
+            self._recorder.record_step(reward=float(self._step_count))
+            return res
+
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -170,29 +177,30 @@ async def test_orchestrator_writes_sqlite_when_recording(echo_server, tmp_path):
 
     with patch(
         "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
+        return_value=StepRecordingStub,
     ):
         orch = Orchestrator(config, eval_id="ev-test", no_save=False)
         await orch.run()
 
     db_path = tmp_path / "recording-ev-test.sqlite"
-    assert db_path.exists(), "SQLite recording DB should be at recording-<eval_id>.sqlite"
-    import sqlite3
-
+    assert db_path.exists()
     conn = sqlite3.connect(str(db_path))
-    eval_rows = list(conn.execute("SELECT eval_id, safe_name FROM eval_metadata"))
+    eval_count = conn.execute("SELECT COUNT(*) FROM eval_metadata").fetchone()[0]
+    episode_count = conn.execute("SELECT COUNT(*) FROM episode_results").fetchone()[0]
+    step_count = conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0]
+    jsonl_path = conn.execute("SELECT jsonl_path FROM episode_results").fetchone()[0]
     conn.close()
-    assert len(eval_rows) == 1
-    assert eval_rows[0][0] == "ev-test-sqlite_test"
-    assert eval_rows[0][1] == "sqlite_test"
+
+    assert eval_count == 1
+    assert episode_count == 1
+    assert step_count == 2
+    assert jsonl_path == "episodes/sqlite_test/task0000_ep0000_success.jsonl"
+    assert list(tmp_path.rglob("*.mp4")) == []
 
 
 @pytest.mark.anyio
 async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server, tmp_path):
-    """The ``recording:`` block in the benchmark config alone is enough to enable
-    recording — the benchmark itself doesn't need a ``get_recording_context`` (it
-    has been removed). The orchestrator builds the recorder, the benchmark just
-    calls ``recorder.record_*``."""
+    """A partial ``recording:`` block overrides paths while inheriting row defaults."""
 
     class StepRecordingStub(StubBenchmark):
         """StubBenchmark that pushes one step row per env step."""
@@ -215,8 +223,6 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
                 "recording": {
                     "output_dir": str(tmp_path / "episodes"),
                     "filename_stem": "{name}_ep{episode_idx:04d}_{status}",
-                    "record_video": False,  # StubBenchmark has no video
-                    "record_step": True,
                 },
             }
         ],
@@ -228,8 +234,6 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
     ):
         orch = Orchestrator(config, eval_id="ev-rec", no_save=False)
         await orch.run()
-
-    import sqlite3
 
     db = tmp_path / "recording-ev-rec.sqlite"
     assert db.exists()
@@ -243,6 +247,248 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
     assert step_count == 3  # done_at_step=3 → 3 steps recorded
     assert episode_count == 1
     assert jsonl_path == "episodes/task_0_ep0000_success.jsonl"
+
+
+@pytest.mark.anyio
+async def test_orchestrator_recording_block_overrides_default_step_recording(echo_server, tmp_path):
+    """``recording.record_step: false`` disables step rows but keeps episode results."""
+
+    class StepRecordingStub(StubBenchmark):
+        def step(self, action):
+            res = super().step(action)
+            self._recorder.record_step(reward=float(self._step_count))
+            return res
+
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "default_rec",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            },
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "no_steps",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+                "recording": {"record_step": False},
+            },
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StepRecordingStub,
+    ):
+        orch = Orchestrator(config, eval_id="ev-mixed", no_save=False)
+        await orch.run()
+
+    db = tmp_path / "recording-ev-mixed.sqlite"
+    assert db.exists()
+    conn = sqlite3.connect(str(db))
+    eval_rows = list(conn.execute("SELECT eval_id, safe_name FROM eval_metadata"))
+    episode_rows = list(conn.execute("SELECT eval_id, task_name FROM episode_results"))
+    step_count = conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0]
+    conn.close()
+    assert eval_rows == [("ev-mixed-default_rec", "default_rec"), ("ev-mixed-no_steps", "no_steps")]
+    assert episode_rows == [("ev-mixed-default_rec", "task_0"), ("ev-mixed-no_steps", "task_0")]
+    assert step_count == 1
+
+
+@pytest.mark.anyio
+async def test_orchestrator_default_recording_paths_do_not_collide_across_benchmarks(echo_server, tmp_path):
+    """Default recording paths must include the benchmark identity.
+
+    Several official configs contain many benchmark entries whose tasks reuse
+    the same ``name``. A default filename based only on task name would make
+    merge write multiple episodes to the same JSONL path.
+    """
+
+    class StepRecordingStub(StubBenchmark):
+        def step(self, action):
+            res = super().step(action)
+            self._recorder.record_step(reward=float(self._step_count))
+            return res
+
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "bench_a",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            },
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "bench_b",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            },
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StepRecordingStub,
+    ):
+        orch = Orchestrator(config, eval_id="ev-paths", no_save=False)
+        await orch.run()
+
+    db = tmp_path / "recording-ev-paths.sqlite"
+    conn = sqlite3.connect(str(db))
+    rows = list(conn.execute("SELECT eval_id, jsonl_path, context FROM episode_results ORDER BY eval_id"))
+    conn.close()
+
+    assert [row[0] for row in rows] == ["ev-paths-bench_a", "ev-paths-bench_b"]
+    paths = [row[1] for row in rows]
+    assert len(paths) == len(set(paths))
+    assert paths == [
+        "episodes/bench_a/task0000_ep0000_success.jsonl",
+        "episodes/bench_b/task0000_ep0000_success.jsonl",
+    ]
+
+    contexts = [json.loads(row[2]) for row in rows]
+    assert all(context["name"] == "task_0" for context in contexts)
+    assert all(
+        "task_safe_name" not in context
+        and "benchmark_safe_name" not in context
+        and "task_idx" not in context
+        and "episode_id" not in context
+        for context in contexts
+    )
+
+
+@pytest.mark.anyio
+async def test_orchestrator_default_recording_paths_are_stable_across_shards(echo_server, tmp_path):
+    """Task indices are assigned before shard filtering, so shard paths are globally stable."""
+
+    class StepRecordingStub(StubBenchmark):
+        def step(self, action):
+            res = super().step(action)
+            self._recorder.record_step(reward=float(self._step_count))
+            return res
+
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "sharded_rec",
+                "episodes_per_task": 3,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 2},
+            }
+        ],
+    }
+
+    for shard_id in range(2):
+        with patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StepRecordingStub,
+        ):
+            orch = Orchestrator(config, shard_id=shard_id, num_shards=2, eval_id="ev-shards", no_save=False)
+            await orch.run()
+
+    db = tmp_path / "recording-ev-shards.sqlite"
+    conn = sqlite3.connect(str(db))
+    paths = [row[0] for row in conn.execute("SELECT jsonl_path FROM episode_results ORDER BY jsonl_path")]
+    step_count = conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0]
+    conn.close()
+
+    assert paths == [
+        "episodes/sharded_rec/task0000_ep0000_success.jsonl",
+        "episodes/sharded_rec/task0000_ep0001_success.jsonl",
+        "episodes/sharded_rec/task0000_ep0002_success.jsonl",
+        "episodes/sharded_rec/task0001_ep0000_success.jsonl",
+        "episodes/sharded_rec/task0001_ep0001_success.jsonl",
+        "episodes/sharded_rec/task0001_ep0002_success.jsonl",
+    ]
+    assert step_count == 6
+
+
+@pytest.mark.anyio
+async def test_orchestrator_default_recording_paths_use_raw_episode_id_in_throughput_mode(echo_server, tmp_path):
+    """Filenames use raw run episodes even when throughput mode wraps benchmark episode_idx."""
+
+    class ThroughputStub(StubBenchmark):
+        def get_metadata(self) -> dict:
+            return {"max_steps": 50, "max_episodes_per_task": 1}
+
+        def step(self, action):
+            res = super().step(action)
+            self._recorder.record_step(reward=float(self._step_count))
+            return res
+
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "throughput_rec",
+                "episodes_per_task": 2,
+                "max_steps": 50,
+                "throughput_mode": True,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=ThroughputStub,
+    ):
+        orch = Orchestrator(config, eval_id="ev-throughput", no_save=False)
+        await orch.run()
+
+    db = tmp_path / "recording-ev-throughput.sqlite"
+    conn = sqlite3.connect(str(db))
+    rows = list(conn.execute("SELECT episode_id, jsonl_path, context FROM episode_results ORDER BY episode_id"))
+    conn.close()
+
+    assert [(row[0], row[1]) for row in rows] == [
+        (0, "episodes/throughput_rec/task0000_ep0000_success.jsonl"),
+        (1, "episodes/throughput_rec/task0000_ep0001_success.jsonl"),
+    ]
+    assert [json.loads(row[2])["episode_idx"] for row in rows] == [0, 0]
+
+
+@pytest.mark.anyio
+async def test_orchestrator_no_save_disables_recording_block(echo_server, tmp_path):
+    """``--no-save`` wins even when a benchmark overrides recording."""
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "rec_disabled",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 1},
+                "recording": {"record_video": False, "record_step": True},
+            }
+        ],
+    }
+
+    with patch(
+        "vla_eval.orchestrator.resolve_import_string",
+        return_value=StubBenchmark,
+    ):
+        orch = Orchestrator(config, eval_id="ev-nosave", no_save=True)
+        await orch.run()
+
+    assert not (tmp_path / "recording-ev-nosave.sqlite").exists()
 
 
 @pytest.mark.anyio
