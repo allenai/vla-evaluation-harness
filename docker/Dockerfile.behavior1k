@@ -90,13 +90,9 @@ RUN find /opt/conda/envs/behavior/lib/python3.10/site-packages/isaacsim/extscach
 # Use plain `pip install -e` (not `uv pip install -e`): BEHAVIOR-1K's
 # legacy setuptools layouts (bddl3, OmniGibson, joylo) are not PEP 660
 # compliant in a way uv accepts.
-ARG BEHAVIOR1K_REF=88454bd04f75dc57c00ab1f1a00bcde1ff505950
-RUN mkdir -p /app/BEHAVIOR-1K \
-    && cd /app/BEHAVIOR-1K \
-    && git init -q \
-    && git remote add origin https://github.com/StanfordVL/BEHAVIOR-1K.git \
-    && git fetch -q --depth 1 origin "${BEHAVIOR1K_REF}" \
-    && git checkout -q FETCH_HEAD
+ARG BEHAVIOR1K_REF=v3.7.2
+RUN git clone --depth 1 --branch "${BEHAVIOR1K_REF}" \
+        https://github.com/StanfordVL/BEHAVIOR-1K.git /app/BEHAVIOR-1K
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./bddl3
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e "./OmniGibson[eval]"
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./joylo
