@@ -33,6 +33,21 @@ def test_record_video_override_rejects_invalid_recording_block() -> None:
         cli._apply_record_video_override(config, enabled=True)
 
 
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        ([], None),
+        (["--record-video"], True),
+        (["--no-record-video"], False),
+    ],
+)
+def test_record_video_action_parses_boolean_optional_flag(argv: list[str], expected: bool | None) -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--record-video", "--no-record-video", action=cli._RecordVideoAction, default=None)
+
+    assert parser.parse_args(argv).record_video is expected
+
+
 def test_cmd_run_rejects_record_video_with_no_save(monkeypatch) -> None:
     monkeypatch.setattr(cli, "_load_config", lambda _path: {"benchmarks": []})
     args = argparse.Namespace(
