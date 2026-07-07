@@ -25,7 +25,7 @@ pinned lerobot v0.6.0; only π₀.₅ has a reproduced benchmark score so far.
 |---|---|---|---|---|
 | `pi05` | VLA | `pi05_libero.yaml` | `lerobot/pi05_libero_finetuned` | LIBERO Object reproduced 100/100 |
 | `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested |
-| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/GR00T-N1.7-LIBERO` | loads through checkpoint stats; inference needs access to the gated `nvidia/Cosmos-Reason2-2B` backbone repo |
+| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/GR00T-N1.7-LIBERO` | smoke (backbone repo `nvidia/Cosmos-Reason2-2B` is gated; accept access on HF first) |
 | `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke |
 | `molmoact2` | VLA | `molmoact2_libero.yaml` | `allenai/MolmoAct2-LIBERO` | smoke |
 | `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke |
@@ -85,5 +85,5 @@ cache on A100 at `max-autotune`), so raise the benchmark's `server.timeout` for
 the initial episodes; this also exceeds `vla-eval test`'s fixed smoke timeout.
 Set `compile_model: false` only for quick debug servers. Inference speed varies
 widely per policy; measured per-chunk on an A100: pi05 0.11 s, VLA-JEPA 0.20 s,
-X-VLA 0.26 s, MolmoAct2 0.29 s, SmolVLA 0.31 s, FastWAM 0.77 s, and LingBot-VA
-(video-generation world model) ~21 s.
+GR00T N1.7 0.24 s, X-VLA 0.26 s, MolmoAct2 0.29 s, SmolVLA 0.31 s, FastWAM
+0.77 s, and LingBot-VA (video-generation world model) ~21 s.
