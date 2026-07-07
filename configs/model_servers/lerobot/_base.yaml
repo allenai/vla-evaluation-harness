@@ -1,7 +1,6 @@
 # LeRobot policy model server: shared defaults.
 # Bridges any 🤗 LeRobot PreTrainedPolicy checkpoint into vla-eval.
-#
-# Install the lerobot extra matching your policy_type, e.g. lerobot[pi0].
+# The server script's PEP 723 header bundles the extras for all policy families.
 
 script: "src/vla_eval/model_servers/lerobot.py"
 args:

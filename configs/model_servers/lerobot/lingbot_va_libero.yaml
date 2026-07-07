@@ -1,0 +1,18 @@
+# LingBot-VA (LeRobot world model) model server: LIBERO-Long checkpoint.
+#
+# Checkpoint: lerobot/lingbot_va_libero_long (image + image2, no state input).
+# 10-episode LIBERO-10 check: 10/10. Inference must run through select_action
+# (see below); the model spends ~21 s per 16-step chunk refill on an A100.
+
+extends: _base.yaml
+args:
+  policy_type: lingbot_va
+  checkpoint: lerobot/lingbot_va_libero_long
+  state_key: null
+  # Autoregressive video stream: the policy must see every step's observation
+  # (it feeds executed-step keyframes back into its KV cache), so inference
+  # runs through select_action instead of chunked predict_action_chunk.
+  use_select_action: true
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.image2

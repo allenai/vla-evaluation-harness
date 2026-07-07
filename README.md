@@ -13,6 +13,7 @@
 | **Models (official)** | [![OpenVLA](https://img.shields.io/badge/OpenVLA-✓-8B5CF6)](configs/model_servers/openvla/) [![π₀](https://img.shields.io/badge/π₀-✓-8B5CF6)](configs/model_servers/pi0/) [![π₀-FAST](https://img.shields.io/badge/π₀--FAST-✓-8B5CF6)](configs/model_servers/pi0/) [![GR00T N1.6](https://img.shields.io/badge/GR00T_N1.6-✓-8B5CF6)](configs/model_servers/groot/) [![OFT](https://img.shields.io/badge/OFT-✓-8B5CF6)](configs/model_servers/oft/) [![X-VLA](https://img.shields.io/badge/X--VLA-✓-8B5CF6)](configs/model_servers/xvla/) [![CogACT](https://img.shields.io/badge/CogACT-◇-blue)](configs/model_servers/cogact/) [![RTC](https://img.shields.io/badge/RTC-◇-blue)](configs/model_servers/rtc/) [![VLANeXt](https://img.shields.io/badge/VLANeXt-✓-8B5CF6)](configs/model_servers/vlanext/) [![MolmoBot](https://img.shields.io/badge/MolmoBot-✓-8B5CF6)](configs/model_servers/molmobot/) ![MemVLA](https://img.shields.io/badge/MemVLA-·-lightgrey) |
 | **Models ([dexbotic](https://github.com/dexmal/dexbotic))** ![stars](https://img.shields.io/github/stars/dexmal/dexbotic?style=social) | [![DB-CogACT](https://img.shields.io/badge/DB--CogACT-✓-8B5CF6)](configs/model_servers/db_cogact/) |
 | **Models ([starVLA](https://github.com/starVLA/starVLA))** ![stars](https://img.shields.io/github/stars/starVLA/starVLA?style=social) | [![QwenGR00T](https://img.shields.io/badge/QwenGR00T-✓-8B5CF6)](configs/model_servers/starvla/) [![QwenOFT](https://img.shields.io/badge/QwenOFT-✓-8B5CF6)](configs/model_servers/starvla/) [![QwenPI](https://img.shields.io/badge/QwenPI-◇-blue)](configs/model_servers/starvla/) [![QwenFAST](https://img.shields.io/badge/QwenFAST-✓-8B5CF6)](configs/model_servers/starvla/) |
+| **Models ([🤗 LeRobot](https://github.com/huggingface/lerobot))** ![stars](https://img.shields.io/github/stars/huggingface/lerobot?style=social) | [![π₀.₅](https://img.shields.io/badge/π₀.₅-✓-8B5CF6)](configs/model_servers/lerobot/) [![GR00T N1.7](https://img.shields.io/badge/GR00T_N1.7-✓-8B5CF6)](configs/model_servers/lerobot/) [![MolmoAct2](https://img.shields.io/badge/MolmoAct2-✓-8B5CF6)](configs/model_servers/lerobot/) [![VLA-JEPA](https://img.shields.io/badge/VLA--JEPA-✓-8B5CF6)](configs/model_servers/lerobot/) [![LingBot-VA](https://img.shields.io/badge/LingBot--VA-◇-blue)](configs/model_servers/lerobot/) [![π₀](https://img.shields.io/badge/π₀-◇-blue)](configs/model_servers/lerobot/) [![X-VLA](https://img.shields.io/badge/X--VLA-◇-blue)](configs/model_servers/lerobot/) [![SmolVLA](https://img.shields.io/badge/SmolVLA-◇-blue)](configs/model_servers/lerobot/) [![FastWAM](https://img.shields.io/badge/FastWAM-◇-blue)](configs/model_servers/lerobot/) |
 
 <sub>✓ [reproduced](docs/reproductions/)  |  ◇ integrated, awaiting first reproduction  |  · planned</sub>
 
@@ -20,6 +21,7 @@
 
 ### Latest News
 
+- [2026/07] 🤗 [LeRobot](https://github.com/huggingface/lerobot) bridge: serve any single-obs-step LeRobot `PreTrainedPolicy` (π₀ / π₀.₅, GR00T N1.7, X-VLA, MolmoAct2, and the FastWAM / VLA-JEPA / LingBot-VA world models) with [one config](configs/model_servers/lerobot/), pinned at [v0.6.0](https://github.com/huggingface/lerobot/releases/tag/v0.6.0). Four checkpoints [reproduce their published LIBERO scores](docs/reproductions/lerobot.md): π₀.₅ 100%, GR00T N1.7 99%, MolmoAct2 97%, VLA-JEPA 96%.
 - [2026/06] [v0.3.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.3.0) released. SQLite recording + `vla-eval merge`, wandb/trackio tracking, and a watchdog for wedged benchmarks.
 - [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers, the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
 - [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 2,456 models x 18 benchmarks, schema-validated pipeline, updated monthly.
@@ -99,6 +101,10 @@ vla-eval run --config configs/benchmarks/simpler/widowx_vm.yaml
 # CALVIN + DB-CogACT
 vla-eval serve --config configs/model_servers/db_cogact/calvin.yaml
 vla-eval run --config configs/benchmarks/calvin/eval.yaml
+
+# LIBERO + π₀.₅ via 🤗 LeRobot (works for any LeRobot PreTrainedPolicy checkpoint)
+vla-eval serve --config configs/model_servers/lerobot/pi05_libero.yaml
+vla-eval run --config configs/benchmarks/libero/object.yaml
 ```
 
 Each benchmark and model server directory has a README with setup details, supported configs, and Docker image info. See [Reproduction Reports](docs/reproductions/) for verified scores.

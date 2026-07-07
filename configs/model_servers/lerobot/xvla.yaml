@@ -1,0 +1,11 @@
+# X-VLA (LeRobot port) model server.
+#
+# Checkpoint: lerobot/xvla-base (chunk 30, image + image2 + image3 + state).
+# For the original X-VLA serving path see configs/model_servers/xvla/.
+
+extends: _base.yaml
+args:
+  policy_type: xvla
+  checkpoint: lerobot/xvla-base
+  state_key: observation.state
+  chunk_size: null  # policy default (n_action_steps=30)

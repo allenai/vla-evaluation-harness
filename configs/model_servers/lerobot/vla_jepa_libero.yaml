@@ -1,0 +1,13 @@
+# VLA-JEPA (LeRobot world model) model server: LIBERO checkpoint.
+#
+# Checkpoint: lerobot/VLA-JEPA-LIBERO (chunk 7, image + image2 + state).
+
+extends: _base.yaml
+args:
+  policy_type: vla_jepa
+  checkpoint: lerobot/VLA-JEPA-LIBERO
+  state_key: observation.state
+  chunk_size: null  # policy default (n_action_steps=7)
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.image2

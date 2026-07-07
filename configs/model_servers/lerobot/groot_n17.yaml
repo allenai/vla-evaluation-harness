@@ -1,0 +1,22 @@
+# GR00T N1.7 (LeRobot port) model server: LIBERO Object checkpoint.
+#
+# Checkpoint: nvidia/gr00t17-lerobot-libero_object-640, LeRobot's eval-ready
+# conversion (LeRobot publishes 81% on LIBERO Object with it). Per-suite
+# variants: gr00t17-lerobot-libero_{spatial,object,goal,10}-640.
+# The raw NVIDIA training dumps (nvidia/GR00T-N1.7-LIBERO subfolders) also load
+# through the bridge's original-format fallback, but the lerobot-format
+# checkpoints above are the validated path.
+
+extends: _base.yaml
+args:
+  policy_type: groot
+  checkpoint: nvidia/gr00t17-lerobot-libero_object-640
+  state_key: observation.state
+  chunk_size: null  # policy default (n_action_steps=16)
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.wrist_image
+  policy_kwargs:
+    # The checkpoint bakes the converter machine's local HF-cache path; point
+    # back at the hub id of the N1.7 base backbone.
+    base_model_path: nvidia/GR00T-N1.7-3B

@@ -2,14 +2,16 @@
 # requires-python = ">=3.12,<3.13"
 # dependencies = [
 #     "vla-eval",
-#     "lerobot[pi]",
+#     "lerobot[pi,groot,xvla,molmoact2,fastwam,vla_jepa,lingbot_va,smolvla]",
 #     "torch>=2.7,<2.12",
 #     "numpy>=1.24",
+#     "sentencepiece",  # fastwam's text-encoder tokenizer
+#     "protobuf",
 # ]
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "e275ea3960332543e2a9f441356775a53720543f" }
+# lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "v0.6.0" }
 #
 # [tool.uv]
 # exclude-newer = "2026-07-04T00:00:00Z"
@@ -32,8 +34,9 @@ Chunking / concurrency:
     observations a multi-obs-step policy (diffusion, VQ-BeT) needs, so those are
     rejected at load.
 
-Install the extra matching the target policy, e.g. ``lerobot[pi]`` (pi0/pi05)
-or ``lerobot[smolvla]``; the PEP 723 header pins ``lerobot[pi]`` by default.
+The PEP 723 header bundles the extras for every policy family LeRobot ships
+(pi0/pi05, SmolVLA, GR00T, XVLA, EO-1, EVO1, MolmoAct2, and the world models
+FastWAM / VLA-JEPA / LingBot-VA), so one script env serves any of them.
 Runs on Python 3.12 (lerobot's floor; the header caps <3.13 because 3.14's
 argparse breaks lerobot's draccus config parsing).
 """
@@ -68,6 +71,19 @@ def _qualify_image_key(key: str) -> str:
     return key if key.startswith("observation.image") else _IMAGE_PREFIX + key
 
 
+def _parse_features(spec: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """YAML feature spec -> (input_features, output_features) of PolicyFeature."""
+    from lerobot.configs.types import FeatureType, PolicyFeature
+
+    inputs: dict[str, Any] = {}
+    outputs: dict[str, Any] = {}
+    for key, f in spec.items():
+        ftype = FeatureType[f["type"]]
+        feature = PolicyFeature(type=ftype, shape=tuple(f["shape"]))
+        (outputs if ftype == FeatureType.ACTION else inputs)[key] = feature
+    return inputs, outputs
+
+
 class LeRobotModelServer(PredictModelServer):
     """Model server wrapping a pretrained LeRobot policy."""
 
@@ -82,6 +98,10 @@ class LeRobotModelServer(PredictModelServer):
         *,
         chunk_size: int | None = None,
         action_ensemble: str = "newest",
+        compile_model: bool | None = None,
+        policy_kwargs: dict[str, Any] | None = None,
+        features: dict[str, dict[str, Any]] | None = None,
+        use_select_action: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -102,6 +122,20 @@ class LeRobotModelServer(PredictModelServer):
                 (needed by some multi-embodiment checkpoints).
             chunk_size: Actions buffered per inference.  ``None`` (default) uses
                 the policy's ``n_action_steps``.
+            compile_model: Override the checkpoint's ``compile_model`` setting
+                (torch.compile of the inference path).  ``None`` keeps the
+                checkpoint's own config.
+            policy_kwargs: Extra fields set on the policy config, e.g. GR00T's
+                ``embodiment_tag`` or MolmoAct2's ``norm_tag``.
+            features: Input/output feature spec for original-format checkpoints
+                whose config carries none, e.g.
+                ``{"observation.state": {"type": "STATE", "shape": [8]},
+                "action": {"type": "ACTION", "shape": [7]}, ...}``.
+            use_select_action: Route inference through the policy's stateful
+                ``select_action`` loop, one action per call, for policies that
+                feed executed-step observations back into their context (e.g.
+                LingBot-VA's autoregressive video stream). Forces chunk_size=1
+                so the policy sees every step's observation.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
@@ -125,9 +159,38 @@ class LeRobotModelServer(PredictModelServer):
         policy_cls = get_policy_class(policy_type)
         # Put device on the config so from_pretrained loads weights straight onto it,
         # not the checkpoint's device (which can OOM the wrong GPU for cpu / cuda:N).
-        cfg = PreTrainedConfig.from_pretrained(checkpoint)
-        cfg.device = str(self._device)
-        self._policy = policy_cls.from_pretrained(checkpoint, config=cfg)
+        try:
+            cfg = PreTrainedConfig.from_pretrained(checkpoint)
+        except Exception:
+            # Original-format checkpoint (NVIDIA GR00T dump, MolmoAct2 HF release, ...):
+            # no draccus config is stored alongside the weights.
+            cfg = None
+        processor_source: str | None = checkpoint
+        if cfg is not None:
+            cfg.device = str(self._device)
+            if compile_model is not None:
+                cfg.compile_model = compile_model
+            for key, value in (policy_kwargs or {}).items():
+                setattr(cfg, key, value)
+            self._policy = policy_cls.from_pretrained(checkpoint, config=cfg)
+        else:
+            try:
+                # Policies with a custom loader for original checkpoints (groot):
+                # extra kwargs are folded into the policy config.
+                self._policy = policy_cls.from_pretrained(
+                    checkpoint, device=str(self._device), **(policy_kwargs or {})
+                )
+            except Exception:
+                # Policies that take the original checkpoint via a config field
+                # (molmoact2's checkpoint_path): build the config directly. The repo
+                # carries no lerobot processor files either, so processors are built
+                # from the config rather than loaded.
+                config_cls = PreTrainedConfig.get_choice_class(policy_type)
+                cfg = config_cls(checkpoint_path=checkpoint, device=str(self._device), **(policy_kwargs or {}))
+                if features:
+                    cfg.input_features, cfg.output_features = _parse_features(features)
+                self._policy = policy_cls(cfg)
+                processor_source = None
         self._policy.to(self._device)
         self._policy.eval()
 
@@ -143,13 +206,20 @@ class LeRobotModelServer(PredictModelServer):
 
         self._preprocess, self._postprocess = make_pre_post_processors(
             self._policy.config,
-            checkpoint,
+            processor_source,
             preprocessor_overrides={"device_processor": {"device": str(self._device)}},
         )
 
-        self._expected_image_keys = list(self._policy.config.image_features.keys())
+        # Configs built without dataset metadata (original-format checkpoints) have no
+        # input_features; fall back to the policy config's own image-key list.
+        self._expected_image_keys = list(self._policy.config.image_features.keys()) or list(
+            getattr(self._policy.config, "image_keys", None) or []
+        )
         self._validate_image_keys()
-        if self.chunk_size is None:
+        self._use_select_action = use_select_action
+        if use_select_action:
+            self.chunk_size = 1
+        elif self.chunk_size is None:
             self.chunk_size = getattr(self._policy.config, "n_action_steps", None)
         logger.info(
             "LeRobot policy loaded: image_features=%s state=%s chunk_size=%s",
@@ -159,16 +229,27 @@ class LeRobotModelServer(PredictModelServer):
         )
 
     def _validate_image_keys(self) -> None:
-        """Fail fast when an explicit image_keys target isn't a policy image feature."""
+        """Warn when an explicit image_keys target isn't a declared policy image feature.
+
+        Only a warning: declared features can diverge from what the policy's
+        processor actually consumes (e.g. groot declares a placeholder
+        ``observation.images.camera`` but its processor matches
+        ``observation.images.image`` / ``wrist_image``).
+        """
         if not self._image_keys_arg:
             return
         valid = set(self._expected_image_keys)
         for bench, key in self._image_keys_arg.items():
             qkey = _qualify_image_key(key)
             if qkey not in valid:
-                raise ValueError(
-                    f"image_keys[{bench!r}]={key!r} -> {qkey!r} is not an image feature of "
-                    f"{self.policy_type}; expected one of {sorted(valid)}."
+                logger.warning(
+                    "image_keys[%r]=%r -> %r is not a declared image feature of %s (declared: %s); "
+                    "passing it through to the policy processor.",
+                    bench,
+                    key,
+                    qkey,
+                    self.policy_type,
+                    sorted(valid),
                 )
 
     # ------------------------------------------------------------------
@@ -179,7 +260,9 @@ class LeRobotModelServer(PredictModelServer):
         params: dict[str, Any] = {}
         if self.state_key:
             params["send_state"] = True
-        if len(self._expected_image_keys) > 1:
+        # Declared features can undercount (groot declares one placeholder feature
+        # but consumes two views), so an explicit multi-camera mapping also counts.
+        if len(self._expected_image_keys) > 1 or len(self._image_keys_arg or {}) > 1:
             params["send_wrist_image"] = True
         return params
 
@@ -221,6 +304,31 @@ class LeRobotModelServer(PredictModelServer):
             self._logged_image_map = True
         return resolved
 
+    def _declared_image_hw(self, policy_key: str) -> tuple[int, int] | None:
+        feature = (self._policy.config.input_features or {}).get(policy_key)
+        shape = getattr(feature, "shape", None)
+        if not shape or len(shape) != 3:
+            return None
+        if shape[0] in (1, 3):  # CHW
+            return int(shape[1]), int(shape[2])
+        if shape[2] in (1, 3):  # HWC
+            return int(shape[0]), int(shape[1])
+        return None
+
+    def _resize_to_declared(self, img: np.ndarray, policy_key: str) -> np.ndarray:
+        """Match the checkpoint's declared input resolution.
+
+        Policies whose processors do not resize (e.g. FastWAM's video pipeline,
+        trained at 224) silently degrade when fed a different resolution.
+        """
+        hw = self._declared_image_hw(policy_key)
+        if hw is None or img.shape[:2] == hw:
+            return img
+        torch = self._torch
+        t = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).float()
+        t = torch.nn.functional.interpolate(t, size=hw, mode="bilinear", align_corners=False)
+        return t.squeeze(0).permute(1, 2, 0).round().clamp(0, 255).to(torch.uint8).numpy()
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         torch = self._torch
         from lerobot.policies.utils import prepare_observation_for_inference
@@ -228,7 +336,7 @@ class LeRobotModelServer(PredictModelServer):
         images = obs.get("images", {}) or {}
         frame: dict[str, np.ndarray] = {}
         for bench_key, policy_key in self._resolve_image_map(images).items():
-            frame[policy_key] = np.asarray(images[bench_key], dtype=np.uint8)
+            frame[policy_key] = self._resize_to_declared(np.asarray(images[bench_key], dtype=np.uint8), policy_key)
 
         if self.state_key:
             raw_state = obs.get("states", obs.get("state"))
@@ -240,7 +348,11 @@ class LeRobotModelServer(PredictModelServer):
         frame = self._preprocess(frame)
 
         with torch.inference_mode():
-            chunk = self._policy.predict_action_chunk(frame)
+            if self._use_select_action:
+                # [B, action_dim] -> [B, 1, action_dim]: a one-step chunk per call.
+                chunk = self._policy.select_action(frame).unsqueeze(1)
+            else:
+                chunk = self._policy.predict_action_chunk(frame)
         chunk = self._postprocess(chunk)
 
         # (B, n_steps, action_dim) -> (n_steps, action_dim); vla-eval buffers per session.

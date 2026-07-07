@@ -24,10 +24,14 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 | | Qwen3-PI | ⬜<br>[95.7%](https://huggingface.co/StarVLA/Qwen3-VL-PI-LIBERO-4in1) | · | ⬜<br>60.9%† | · | · |
 | | Qwen3-GR00T | ⬜<br>96.5%† | ⬜<br>3.76† | ✅<br>**66.7%** / [65.3%](https://huggingface.co/StarVLA/Qwen3VL-GR00T-Bridge-RT-1) | · | · |
 | [DravenALG/VLANeXt](https://github.com/DravenALG/VLANeXt) | [VLANeXt](https://arxiv.org/abs/2602.18532) | ✅<br>[**96.9%**](https://github.com/allenai/vla-evaluation-harness/pull/34) / [97.4%](https://huggingface.co/DravenALG/VLANeXt)³ | · | · | · | · |
+| [huggingface/lerobot](https://github.com/huggingface/lerobot) | π₀.₅ (LeRobot) | ✅<br>**100%** / [99.0%](https://huggingface.co/lerobot/pi05_libero_finetuned)⁵ | · | · | · | · |
+| | GR00T N1.7 | ✅<br>**99.0%** / [81%](https://huggingface.co/nvidia/gr00t17-lerobot-libero_object-640)⁵ | · | · | · | · |
+| | [MolmoAct2](https://huggingface.co/allenai/MolmoAct2-LIBERO) | ✅<br>**97.0%** / [98.0%](https://huggingface.co/allenai/MolmoAct2-LIBERO)⁵ | · | · | · | · |
+| | VLA-JEPA | ✅<br>**96.0%** / [93.0%](https://huggingface.co/lerobot/VLA-JEPA-LIBERO)⁵ | · | · | · | · |
 
 SE = SimplerEnv. SE GR = Google Robot VM.
 
-¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). ⁴ Self-reported best rollout. Move Near 10 variants × 60 eps. † Checkpoint not publicly available on HuggingFace.
+¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). ⁴ Self-reported best rollout. Move Near 10 variants × 60 eps. ⁵ Single suite, 10 tasks × 10 eps (π₀.₅/GR00T: Object, MolmoAct2: Goal, VLA-JEPA: Long); see [lerobot.md](lerobot.md). † Checkpoint not publicly available on HuggingFace.
 
 ## Other Benchmarks
 
