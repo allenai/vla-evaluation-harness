@@ -1,0 +1,13 @@
+# LingBot-VA (LeRobot world model) model server: LIBERO-Long checkpoint.
+#
+# Checkpoint: lerobot/lingbot_va_libero_long (image + image2, no state input).
+
+extends: _base.yaml
+args:
+  policy_type: lingbot_va
+  checkpoint: lerobot/lingbot_va_libero_long
+  state_key: null
+  chunk_size: null
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.image2

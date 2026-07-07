@@ -1,0 +1,12 @@
+# SmolVLA (LeRobot) model server.
+#
+# Checkpoint: lerobot/smolvla_base (SO-100 pretraining; fine-tune for your target).
+# Expects up to three cameras (camera1..camera3); benchmark cameras are mapped
+# positionally when image_keys is omitted.
+
+extends: _base.yaml
+args:
+  policy_type: smolvla
+  checkpoint: lerobot/smolvla_base
+  state_key: observation.state
+  chunk_size: null  # policy default (n_action_steps=50)

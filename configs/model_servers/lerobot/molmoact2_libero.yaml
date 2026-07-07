@@ -1,0 +1,25 @@
+# MolmoAct2 (LeRobot port, Ai2) model server: LIBERO checkpoint.
+#
+# allenai/MolmoAct2-LIBERO is an original-format HF release; the bridge builds
+# the policy config with checkpoint_path + norm_tag (loads LIBERO normalization,
+# action horizon, and image-key order from the checkpoint's norm_stats.json).
+
+extends: _base.yaml
+args:
+  policy_type: molmoact2
+  checkpoint: allenai/MolmoAct2-LIBERO
+  state_key: observation.state
+  chunk_size: null
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.wrist_image
+  policy_kwargs:
+    norm_tag: libero
+    inference_action_mode: continuous  # action-expert decoding (the fast path)
+  # Original-format checkpoints carry no lerobot feature metadata; declare the
+  # LIBERO layout (2 cameras, 8-dim state, 7-dim action) explicitly.
+  features:
+    observation.images.image: {type: VISUAL, shape: [3, 256, 256]}
+    observation.images.wrist_image: {type: VISUAL, shape: [3, 256, 256]}
+    observation.state: {type: STATE, shape: [8]}
+    action: {type: ACTION, shape: [7]}

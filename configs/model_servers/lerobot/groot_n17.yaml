@@ -1,0 +1,21 @@
+# GR00T N1.7 (LeRobot port) model server: LIBERO checkpoint.
+#
+# GR00T's LIBERO checkpoints are NVIDIA-original-format dumps in per-suite
+# subfolders of nvidia/GR00T-N1.7-LIBERO; the bridge loads them through
+# GrootPolicy.from_pretrained. Download one subfolder and point `checkpoint`
+# at the local dir:
+#   python -c "from huggingface_hub import snapshot_download as d; \
+#     print(d('nvidia/GR00T-N1.7-LIBERO', allow_patterns=['libero_object/*.json', \
+#       'libero_object/model-*.safetensors', 'libero_object/experiment_cfg/*']))"
+#   -> checkpoint: <printed path>/libero_object
+# embodiment_tag must be a key of the dump's dataset_statistics.json
+# (libero_sim for the LIBERO checkpoints).
+
+extends: _base.yaml
+args:
+  policy_type: groot
+  checkpoint: nvidia/GR00T-N1.7-LIBERO  # replace with the local subfolder path (see above)
+  state_key: observation.state
+  chunk_size: null
+  policy_kwargs:
+    embodiment_tag: libero_sim
