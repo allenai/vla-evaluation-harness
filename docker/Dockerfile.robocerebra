@@ -6,8 +6,8 @@ RUN conda create -n libero python=3.8 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "libero", "/bin/bash", "-c"]
 
 # ── CPU-only PyTorch ───────────────────────────────────────────────
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # ── Python dependencies ───────────────────────────────────────────
 RUN uv pip install --no-cache-dir \

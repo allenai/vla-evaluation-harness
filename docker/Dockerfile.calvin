@@ -34,7 +34,7 @@ RUN sed -i 's/except TypeError:/except Exception:/' \
     /app/calvin/calvin_env/calvin_env/envs/play_table_env.py
 
 RUN uv pip install --no-cache-dir \
-      "torch==2.1.0+cpu" --index-url https://download.pytorch.org/whl/cpu \
+      "torch==2.1.0" --torch-backend cpu \
     && uv pip install --no-cache-dir fnvhash
 
 # Remove .git history to shrink image, then re-init minimal repos

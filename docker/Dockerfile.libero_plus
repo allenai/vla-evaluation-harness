@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── CPU-only PyTorch ───────────────────────────────────────────────
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # ── Python dependencies ───────────────────────────────────────────
 # LIBERO-Plus adds scikit-image, wand (ImageMagick bindings), usd-core

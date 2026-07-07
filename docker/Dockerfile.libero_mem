@@ -4,8 +4,8 @@ FROM ${BASE_IMAGE}
 RUN conda create -n libero_mem python=3.8 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "libero_mem", "/bin/bash", "-c"]
 
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # robosuite/robomimic are installed from libero-mem's bundled thirdparty/
 # forks (not PyPI) — they contain modifications for memory-dependent envs.
