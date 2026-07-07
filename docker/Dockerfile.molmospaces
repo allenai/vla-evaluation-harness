@@ -6,7 +6,7 @@
 # under $MLSPACES_ASSETS_DIR; we bake both into the image here so end users don't need a
 # manual download + volume mount.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── Conda environment (molmo-spaces requires Python 3.11) ─────────────

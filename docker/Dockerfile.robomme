@@ -1,6 +1,6 @@
 # RoboMME evaluation environment (ManiSkill3 fork + SAPIEN, Vulkan rendering)
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── Conda environment (Python 3.11 per RoboMME requirement) ──────────────

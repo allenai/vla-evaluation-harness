@@ -3,7 +3,7 @@
 #
 # Includes SAPIEN 3 (GPU renderer), CuRobo (motion planner), mplib.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── CUDA build tools (nvcc required by CuRobo CUDA extensions) ──────

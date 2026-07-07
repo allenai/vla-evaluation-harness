@@ -2,7 +2,7 @@
 # CoppeliaSim needs an X display even in headless mode → Xvfb wrapper
 # https://github.com/stepjam/RLBench
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 ARG ACCEPT_RLBENCH_LICENCE=
@@ -50,6 +50,8 @@ RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
+# Keep plain pip for these legacy Python 3.8 / CoppeliaSim source installs;
+# switching installers should be coupled with a full RLBench image rebuild.
 ARG PYREP_REF=8f420be8064b1970aae18a9cfbc978dfb15747ef
 RUN mkdir -p /tmp/PyRep \
     && cd /tmp/PyRep \

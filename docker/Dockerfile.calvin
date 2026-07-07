@@ -2,7 +2,7 @@
 # Long-horizon language-conditioned manipulation benchmark
 # https://github.com/mees/calvin
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # multicoretsne (CALVIN dep) needs FFTW and BLAS to compile
@@ -25,10 +25,10 @@ RUN mkdir -p /app/calvin \
     && git submodule update --init --recursive --depth 1
 
 # CALVIN has legacy deps (pyhash needs use_2to3 / multicoretsne needs old cmake).
-# Pin legacy build tooling and use pip (not uv) with --no-build-isolation to avoid
-# uv's build-isolation injecting newer setuptools.
+# Pin legacy build tooling and use pip for CALVIN's editable installs with
+# --no-build-isolation to avoid newer setuptools during legacy package builds.
 RUN conda install -n calvin cmake=3.18 -y && conda clean -afy
-RUN pip install --no-cache-dir "setuptools==57.5.0" "wheel==0.45.1" \
+RUN uv pip install --no-cache-dir "setuptools==57.5.0" "wheel==0.45.1" \
     && cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
     && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
 

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # Build recipe adapted from robot-control-stack/docker/Dockerfile.  Upstream RCS
@@ -45,10 +45,10 @@ ENV LD_LIBRARY_PATH=/opt/conda/envs/duobench/lib:${LD_LIBRARY_PATH}
 
 # ── Build / runtime deps ───────────────────────────────────────────
 # These mirror rcs's [build-system].requires: the rcs install below uses
-# --no-build-isolation, so pip won't fetch build deps — they must be present here.
+# --no-build-isolation, so the installer won't fetch build deps — they must be present here.
 # mujoco 3.2.6 + pin 3.7.0 are the versions RCS upstream tests against.
 # cmeel-urdfdom is pinned to the same soname-4 major as the conda urdfdom above.
-RUN pip install --no-cache-dir \
+RUN uv pip install --no-cache-dir \
         "pip==26.1.2" \
         "build==1.5.0" \
         "wheel==0.47.0" \
@@ -70,7 +70,7 @@ RUN mkdir -p /opt/rcs && cd /opt/rcs \
     && git remote add origin https://github.com/RobotControlStack/robot-control-stack.git \
     && git fetch -q --depth 1 origin "${RCS_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir --no-build-isolation -ve . \
+    && uv pip install --no-cache-dir --no-build-isolation --editable . \
     && rm -rf /opt/rcs/.git
 
 # ── Clone + install DuoBench ───────────────────────────────────────
@@ -79,7 +79,7 @@ RUN mkdir -p /opt/duobench && cd /opt/duobench \
     && git remote add origin https://github.com/RobotControlStack/duobench.git \
     && git fetch -q --depth 1 origin "${DUOBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -ve . \
+    && uv pip install --no-cache-dir --editable . \
     && rm -rf /opt/duobench/.git
 
 # ── Headless GL defaults (MuJoCo backend selection at sim init) ────
@@ -95,7 +95,7 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
-RUN pip install --no-cache-dir -e .
+RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "duobench", "vla-eval"]

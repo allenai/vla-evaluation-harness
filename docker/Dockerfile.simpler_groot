@@ -2,7 +2,7 @@
 # Extends the base simpler image with ManiSkill2 patches from NVIDIA's
 # internal fork (squarefk/SimplerEnv) that add EE proprioception.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:0.3.0
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
 FROM ${BASE_IMAGE}
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
