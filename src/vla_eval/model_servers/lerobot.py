@@ -101,6 +101,7 @@ class LeRobotModelServer(PredictModelServer):
         compile_model: bool | None = None,
         policy_kwargs: dict[str, Any] | None = None,
         features: dict[str, dict[str, Any]] | None = None,
+        use_select_action: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -130,6 +131,11 @@ class LeRobotModelServer(PredictModelServer):
                 whose config carries none, e.g.
                 ``{"observation.state": {"type": "STATE", "shape": [8]},
                 "action": {"type": "ACTION", "shape": [7]}, ...}``.
+            use_select_action: Route inference through the policy's stateful
+                ``select_action`` loop, one action per call, for policies that
+                feed executed-step observations back into their context (e.g.
+                LingBot-VA's autoregressive video stream). Forces chunk_size=1
+                so the policy sees every step's observation.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
@@ -210,7 +216,10 @@ class LeRobotModelServer(PredictModelServer):
             getattr(self._policy.config, "image_keys", None) or []
         )
         self._validate_image_keys()
-        if self.chunk_size is None:
+        self._use_select_action = use_select_action
+        if use_select_action:
+            self.chunk_size = 1
+        elif self.chunk_size is None:
             self.chunk_size = getattr(self._policy.config, "n_action_steps", None)
         logger.info(
             "LeRobot policy loaded: image_features=%s state=%s chunk_size=%s",
@@ -295,6 +304,31 @@ class LeRobotModelServer(PredictModelServer):
             self._logged_image_map = True
         return resolved
 
+    def _declared_image_hw(self, policy_key: str) -> tuple[int, int] | None:
+        feature = (self._policy.config.input_features or {}).get(policy_key)
+        shape = getattr(feature, "shape", None)
+        if not shape or len(shape) != 3:
+            return None
+        if shape[0] in (1, 3):  # CHW
+            return int(shape[1]), int(shape[2])
+        if shape[2] in (1, 3):  # HWC
+            return int(shape[0]), int(shape[1])
+        return None
+
+    def _resize_to_declared(self, img: np.ndarray, policy_key: str) -> np.ndarray:
+        """Match the checkpoint's declared input resolution.
+
+        Policies whose processors do not resize (e.g. FastWAM's video pipeline,
+        trained at 224) silently degrade when fed a different resolution.
+        """
+        hw = self._declared_image_hw(policy_key)
+        if hw is None or img.shape[:2] == hw:
+            return img
+        torch = self._torch
+        t = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).float()
+        t = torch.nn.functional.interpolate(t, size=hw, mode="bilinear", align_corners=False)
+        return t.squeeze(0).permute(1, 2, 0).round().clamp(0, 255).to(torch.uint8).numpy()
+
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         torch = self._torch
         from lerobot.policies.utils import prepare_observation_for_inference
@@ -302,7 +336,7 @@ class LeRobotModelServer(PredictModelServer):
         images = obs.get("images", {}) or {}
         frame: dict[str, np.ndarray] = {}
         for bench_key, policy_key in self._resolve_image_map(images).items():
-            frame[policy_key] = np.asarray(images[bench_key], dtype=np.uint8)
+            frame[policy_key] = self._resize_to_declared(np.asarray(images[bench_key], dtype=np.uint8), policy_key)
 
         if self.state_key:
             raw_state = obs.get("states", obs.get("state"))
@@ -314,7 +348,11 @@ class LeRobotModelServer(PredictModelServer):
         frame = self._preprocess(frame)
 
         with torch.inference_mode():
-            chunk = self._policy.predict_action_chunk(frame)
+            if self._use_select_action:
+                # [B, action_dim] -> [B, 1, action_dim]: a one-step chunk per call.
+                chunk = self._policy.select_action(frame).unsqueeze(1)
+            else:
+                chunk = self._policy.predict_action_chunk(frame)
         chunk = self._postprocess(chunk)
 
         # (B, n_steps, action_dim) -> (n_steps, action_dim); vla-eval buffers per session.

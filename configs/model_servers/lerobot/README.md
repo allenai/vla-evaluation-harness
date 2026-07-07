@@ -26,14 +26,14 @@ published number where one exists.
 | policy_type | category | config | example checkpoint | verified |
 |---|---|---|---|---|
 | `pi05` | VLA | `pi05_libero.yaml` | `lerobot/pi05_libero_finetuned` | LIBERO Object reproduced 100/100 (50 eps); 10-ep Object 10/10 |
+| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/gr00t17-lerobot-libero_object-640` | 10-ep Object 10/10 (published 81). Backbone repo `nvidia/Cosmos-Reason2-2B` is gated; accept access on HF first |
 | `molmoact2` | VLA | `molmoact2_libero.yaml` | `allenai/MolmoAct2-LIBERO` | 10-ep Goal 10/10 (published 98.0) |
 | `vla_jepa` | world model | `vla_jepa_libero.yaml` | `lerobot/VLA-JEPA-LIBERO` | 10-ep LIBERO-10 10/10 (published 93.0) |
+| `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | 10-ep LIBERO-10 10/10 (via `use_select_action`) |
 | `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested (`lerobot/pi0_libero_finetuned` scored 0/10 here and has no published score) |
-| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/GR00T-N1.7-LIBERO` | smoke; 10-ep Object 0/10, obs/action convention gap under investigation. Backbone repo `nvidia/Cosmos-Reason2-2B` is gated |
 | `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke (base checkpoint; no benchmark-ready finetune published) |
 | `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke (base checkpoint; no benchmark-ready finetune published) |
 | `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; 10-ep LIBERO-10 0/10 (published 94.0), not reproduced through the bridge yet |
-| `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | smoke; 10-ep LIBERO-10 0/10, suspected chunk-cadence mismatch with its autoregressive video state |
 
 Other single-obs-step registry names (`act`, `pi0_fast`, `eo1`, `evo1`, `wall_x`)
 load through the same path but ship no config here and are untested.
