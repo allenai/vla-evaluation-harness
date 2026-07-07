@@ -13,10 +13,10 @@ RUN mkdir -p /opt/kinetix \
     && git remote add origin https://github.com/FLAIROx/Kinetix.git \
     && git fetch -q --depth 1 origin "${KINETIX_REF}" \
     && git checkout -q FETCH_HEAD \
-    && uv pip install --no-cache-dir -e . "numpy==2.4.6" "pillow==12.2.0"
+    && uv pip install --no-cache-dir -e . numpy Pillow
 
 # ── JAX with CUDA support (after kinetix to override its JAX pin) ─
-RUN uv pip install --no-cache-dir --upgrade "jax[cuda12]==0.10.2"
+RUN uv pip install --no-cache-dir --upgrade "jax[cuda12]"
 
 # ── Clone RTC repo for custom level files ─────────────────────────
 ARG RTC_KINETIX_REF=9296f31d62d5bfeb5779dcb2f9bcf71ca37f448b

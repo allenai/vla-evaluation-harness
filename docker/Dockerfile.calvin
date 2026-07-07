@@ -28,7 +28,7 @@ RUN mkdir -p /app/calvin \
 # Pin legacy build tooling and use pip for CALVIN's editable installs with
 # --no-build-isolation to avoid newer setuptools during legacy package builds.
 RUN conda install -n calvin cmake=3.18 -y && conda clean -afy
-RUN uv pip install --no-cache-dir "setuptools==57.5.0" "wheel==0.45.1" \
+RUN uv pip install --no-cache-dir "setuptools==57.5.0" wheel \
     && cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
     && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
 
@@ -40,7 +40,7 @@ RUN sed -i 's/except TypeError:/except Exception:/' \
 # CPU-only torch + extra harness dependency
 RUN uv pip install --no-cache-dir \
       "torch==2.1.0+cpu" --index-url https://download.pytorch.org/whl/cpu \
-    && uv pip install --no-cache-dir "fnvhash==0.1.0"
+    && uv pip install --no-cache-dir fnvhash
 
 # Remove .git history to shrink image, then re-init minimal repos
 # (CALVIN calls git diff internally via get_git_commit_hash)

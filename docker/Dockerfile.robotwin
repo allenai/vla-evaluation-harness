@@ -18,12 +18,12 @@ SHELL ["conda", "run", "-n", "robotwin", "/bin/bash", "-c"]
 
 # ── PyTorch with CUDA 12.1 (required by CuRobo / SAPIEN GPU) ────────
 RUN uv pip install --no-cache-dir \
-        "torch==2.4.1" "torchvision==0.19.1" \
+        "torch==2.4.1" "torchvision" \
         --index-url https://download.pytorch.org/whl/cu121
 
 # ── SAPIEN 3, mplib, and core simulation dependencies ────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
-RUN uv pip install --no-cache-dir "setuptools==69.5.1"
+RUN uv pip install --no-cache-dir "setuptools<70"
 RUN uv pip install --no-cache-dir \
         "sapien==3.0.0b1" \
         "mplib==0.2.1" \
@@ -33,12 +33,12 @@ RUN uv pip install --no-cache-dir \
         "trimesh==4.4.3" \
         "imageio==2.34.2" \
         "open3d==0.18.0" \
-        "pydantic==2.13.4" \
-        "h5py==3.16.0" \
-        "PyYAML==6.0.3" \
-        "termcolor==3.3.0" \
-        "matplotlib==3.10.9" \
-        "pillow==12.2.0" \
+        "pydantic" \
+        "h5py" \
+        "pyyaml" \
+        "termcolor" \
+        "matplotlib" \
+        "Pillow" \
         "huggingface_hub==0.25.0"
 
 # ── Fix SAPIEN urdf_loader.py encoding (upstream bug) ────────────────
@@ -66,7 +66,7 @@ RUN mkdir -p /app/RoboTwin \
 # No GPU visible during build → must specify arch explicitly.
 ENV TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0+PTX"
 ARG CUROBO_REF=d64c4b005459db10c5dd867d8b30a87d5bda9bdb
-RUN uv pip install --no-cache-dir "wheel==0.47.0" \
+RUN uv pip install --no-cache-dir wheel \
     && cd /app/RoboTwin/envs \
     && mkdir -p curobo \
     && cd curobo \

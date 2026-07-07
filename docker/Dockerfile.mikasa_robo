@@ -19,10 +19,10 @@ RUN uv pip install --no-cache-dir torch==2.2.1 torchvision==0.17.1 \
 RUN uv pip install --no-cache-dir --prerelease=allow mani_skill==3.0.0b15 gymnasium==0.29.1
 
 # Clone and install MIKASA-Robo
-# MIKASA-Robo's setup.py imports pkg_resources; pin legacy build tooling
-# so conda-forge setuptools churn does not break image rebuilds.
+# MIKASA-Robo's setup.py imports pkg_resources, which was removed from
+# setuptools >=70 on conda-forge. Pin setuptools <70 to restore it.
 ARG MIKASA_ROBO_REF=509b875f3d207c287497c0a897661062de928bb0
-RUN uv pip install --no-cache-dir "setuptools==69.5.1" "wheel==0.47.0" \
+RUN uv pip install --no-cache-dir "setuptools<70" wheel \
     && mkdir -p /opt/MIKASA-Robo \
     && cd /opt/MIKASA-Robo \
     && git init -q \

@@ -38,7 +38,7 @@ RUN conda create -n behavior python=3.10 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "behavior", "/bin/bash", "-c"]
 
 # ── Pre-reqs the v3.7.2 setup.sh enforces before installing OmniGibson ─
-RUN uv pip install --no-cache-dir "numpy==1.26.4" "setuptools==79.0.0"
+RUN uv pip install --no-cache-dir "numpy<2" "setuptools<=79"
 
 # ── PyTorch 2.6.0 + CUDA 12.4 (matches BEHAVIOR-1K v3.7.2 setup.sh) ─
 RUN uv pip install --no-cache-dir \
@@ -104,7 +104,7 @@ RUN uv pip install --no-cache-dir --reinstall cffi==1.17.1
 # nodes still call np.float_ (removed in numpy 2.0) and crash at scene
 # init.  Force-downgrade at the very end with --no-deps so we don't
 # disturb other resolved versions.
-RUN uv pip install --no-cache-dir --no-deps "numpy==1.26.4"
+RUN uv pip install --no-cache-dir --no-deps "numpy<2"
 RUN rm -rf /app/BEHAVIOR-1K/.git
 
 # ── Install evaluation harness ─────────────────────────────────────

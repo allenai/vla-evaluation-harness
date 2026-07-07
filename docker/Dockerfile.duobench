@@ -31,9 +31,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # liburdfdom_sensor.so.4.0 (soname major version 4); conda-forge's
 # current urdfdom is 6.0.0 (soname 6), which is an ABI break.  Pinning
 # the urdfdom package version keeps the right soname on disk.
+# urdfdom_headers tracks separately and can stay unpinned (latest 1.x/3.x).
 RUN conda create -n duobench python=3.11 pip -y && \
     conda install -n duobench -c conda-forge -y \
-        "urdfdom=4.0.1" "urdfdom_headers=1.1.2" glfw "tinyxml2=10.0.0" && \
+        "urdfdom=4.0" urdfdom_headers glfw "tinyxml2=10" && \
     conda clean -afy
 SHELL ["conda", "run", "-n", "duobench", "/bin/bash", "-c"]
 
@@ -45,20 +46,20 @@ ENV LD_LIBRARY_PATH=/opt/conda/envs/duobench/lib:${LD_LIBRARY_PATH}
 
 # ── Build / runtime deps ───────────────────────────────────────────
 # These mirror rcs's [build-system].requires: the rcs install below uses
-# --no-build-isolation, so the installer won't fetch build deps — they must be present here.
+# --no-build-isolation, so pip won't fetch build deps — they must be present here.
 # mujoco 3.2.6 + pin 3.7.0 are the versions RCS upstream tests against.
-# cmeel-urdfdom is pinned to the same soname-4 major as the conda urdfdom above.
+# cmeel-urdfdom<5: the pip-side urdfdom, capped to the same soname-4 major as the
+# conda urdfdom above (5.x/6.x would be the same ABI break).
 RUN uv pip install --no-cache-dir \
-        "pip==26.1.2" \
-        "build==1.5.0" \
-        "wheel==0.47.0" \
-        "setuptools==82.0.1" \
-        "scikit-build-core==0.12.2" \
-        "pybind11==3.0.4" \
-        "cmake==4.3.4" \
-        "ninja==1.13.0" \
+        "pip>=25.1" \
+        build wheel \
+        "setuptools>=45" \
+        "scikit-build-core>=0.3.3" \
+        pybind11 \
+        cmake \
+        ninja \
         "mujoco==3.2.6" \
-        "cmeel-urdfdom==4.0.1" \
+        "cmeel-urdfdom<5" \
         "pin==3.7.0"
 
 # ── Clone + install Robot Control Stack (core only — no hardware ext) ──

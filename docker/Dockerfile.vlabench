@@ -20,19 +20,19 @@ RUN uv pip install --no-cache-dir \
 RUN uv pip install --no-cache-dir \
         gym==0.26.2 \
         gymnasium==0.29.1 \
-        opencv-python==4.11.0.86 \
+        opencv-python \
         scipy==1.14.0 \
         h5py==3.11.0 \
         mediapy==1.2.0 \
-        imageio==2.37.3 \
-        gdown==6.1.0 \
-        colorlog==6.10.1 \
-        colorama==0.4.6 \
-        ipdb==0.13.13 \
-        pillow==12.2.0 \
+        imageio \
+        gdown \
+        colorlog \
+        colorama \
+        ipdb \
+        Pillow \
         open3d==0.18.0 \
-        scikit-learn==1.7.2 \
-        openai==2.44.0
+        scikit-learn \
+        openai
 
 # Clone and install rrt-algorithms (required by VLABench skill_lib)
 ARG RRT_ALGORITHMS_REF=e51d95ee489a225220d6ae2a764c4111f6ba7d85

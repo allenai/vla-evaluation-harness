@@ -21,10 +21,8 @@ RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
 # robomimic==0.2.0 (pulled transitively by LIBERO-Plus).
 RUN uv pip install --no-cache-dir \
         numpy==1.22.4 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
-        pillow==10.4.0 scipy==1.10.1 h5py==3.11.0 PyYAML==6.0.3 \
-        termcolor==2.4.0 future==1.0.0 easydict==1.13 hydra-core==1.3.2 \
-        gym==0.26.2 matplotlib==3.7.5 opencv-python==4.13.0.92 \
-        scikit-image==0.21.0 Wand==0.7.0 \
+        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
+        "gym>=0.21,<0.27" matplotlib opencv-python scikit-image wand \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone LIBERO-Plus ──────────────────────────────────────────────
