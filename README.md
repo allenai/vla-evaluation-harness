@@ -21,6 +21,7 @@
 
 ### Latest News
 
+- [2026/07] [v0.4.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.4.0) released. Recording on by default, pinned reproducible Docker rebuilds, DuoBench, and the LeRobot bridge below.
 - [2026/07] 🤗 [LeRobot](https://github.com/huggingface/lerobot) bridge: serve any single-obs-step LeRobot `PreTrainedPolicy` (π₀ / π₀.₅, GR00T N1.7, X-VLA, MolmoAct2, and the FastWAM / VLA-JEPA / LingBot-VA world models) with [one config](configs/model_servers/lerobot/), pinned at [v0.6.0](https://github.com/huggingface/lerobot/releases/tag/v0.6.0). Four checkpoints [reproduce their published LIBERO scores](docs/reproductions/lerobot.md): π₀.₅ 100%, GR00T N1.7 99%, MolmoAct2 97%, VLA-JEPA 96%.
 - [2026/06] [v0.3.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.3.0) released. SQLite recording + `vla-eval merge`, wandb/trackio tracking, and a watchdog for wedged benchmarks.
 - [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers, the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
@@ -63,7 +64,7 @@ pip install vla-eval
 Or from source (pinned to the latest stable release):
 
 ```bash
-git clone --branch v0.3.0 https://github.com/allenai/vla-evaluation-harness.git
+git clone --branch v0.4.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
 uv sync --python 3.11 --all-extras --dev
 ```
