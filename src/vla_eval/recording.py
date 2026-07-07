@@ -6,7 +6,6 @@ import ctypes
 import json
 import logging
 import os
-import re
 import sqlite3
 import sys
 import time
@@ -87,14 +86,10 @@ CREATE TABLE IF NOT EXISTS step_rows (
 # ---------------------------------------------------------------------------
 
 
-# Default when ``recording.filename_stem`` is omitted. Use orchestrator-provided
-# numeric identifiers rather than raw task names: natural-language task
-# descriptions can be very long, duplicate across benchmark entries, and contain
-# path separators. ``episode_id`` is the raw run episode, not the benchmark's
-# possibly wrapped ``episode_idx`` used for simulator initial states.
+# Default when ``recording.filename_stem`` is omitted. Numeric orchestrator ids keep
+# paths short and collision-free across shards; ``episode_id`` is the raw run episode,
+# not the throughput-mode-wrapped ``episode_idx``.
 DEFAULT_FILENAME_STEM = "{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}"
-
-_SAFE_FILENAME_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_.=-]+")
 
 
 def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
@@ -102,31 +97,9 @@ def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool))}
 
 
-def _safe_filename_component(value: Any, *, max_len: int = 96) -> str:
-    raw = str(value).strip()
-    text = raw
-    text = _SAFE_FILENAME_COMPONENT_RE.sub("_", text).strip("._-")
-    if not text:
-        return "unknown"
-    return text[:max_len].rstrip("._-") or "unknown"
-
-
-def recording_filename_context(
-    task: dict[str, Any], *, benchmark_safe_name: str, task_idx: int, episode_id: int
-) -> dict[str, Any]:
-    """Context used only for rendering recording filenames.
-
-    The persisted episode context keeps the benchmark's original task values.
-    Filenames additionally get stable orchestrator-level keys that are short,
-    path-safe, and shard-independent.
-    """
-    context = serializable_task_kwargs(task)
-    return {
-        **context,
-        "benchmark_safe_name": _safe_filename_component(benchmark_safe_name),
-        "task_idx": int(task_idx),
-        "episode_id": int(episode_id),
-    }
+def recording_filename_context(*, benchmark_safe_name: str, task_idx: int, episode_id: int) -> dict[str, Any]:
+    """Filename-template keys injected by the orchestrator; kept out of the persisted episode context."""
+    return {"benchmark_safe_name": benchmark_safe_name[:96], "task_idx": task_idx, "episode_id": episode_id}
 
 
 # ---------------------------------------------------------------------------
@@ -371,7 +344,7 @@ class EpisodeRecorder:
         filename_stem: str,
         context: dict[str, Any],
         filename_context: dict[str, Any] | None = None,
-        record_video: bool = True,
+        record_video: bool = False,
         record_step: bool = True,
         video_fps: int = 20,
         step_fields: Iterable[str] | None = None,

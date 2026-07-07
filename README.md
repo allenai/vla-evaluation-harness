@@ -224,7 +224,7 @@ benchmarks:
 
 Recording writes `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. `vla-eval merge` materializes per-episode JSONL + aggregate JSON from the DB. Single-shard runs auto-merge; sharded runs call `vla-eval merge` once after all shards exit. `--no-save` skips recording entirely.
 
-When `filename_stem` is omitted, per-episode artifacts use a benchmark-scoped, sanitized path:
+When `filename_stem` is omitted, per-episode artifacts use a benchmark-scoped path:
 `{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}`. Custom stems can still reference serializable task fields such as `{name}` plus `{status}`.
 
 ### Tracking (wandb / trackio)

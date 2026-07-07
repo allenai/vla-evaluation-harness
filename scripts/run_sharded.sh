@@ -36,22 +36,7 @@ while [[ $# -gt 0 ]]; do
     -n) NUM_SHARDS="$2"; shift 2 ;;
     -e) EVAL_ID="$2"; shift 2 ;;
     -o) OUTPUT_DIR="$2"; shift 2 ;;
-    --record-video)
-      if [[ "$RECORD_VIDEO_FLAG" == "--no-record-video" ]]; then
-        echo "Error: --record-video and --no-record-video are mutually exclusive." >&2
-        usage 1
-      fi
-      RECORD_VIDEO_FLAG="--record-video"
-      shift
-      ;;
-    --no-record-video)
-      if [[ "$RECORD_VIDEO_FLAG" == "--record-video" ]]; then
-        echo "Error: --record-video and --no-record-video are mutually exclusive." >&2
-        usage 1
-      fi
-      RECORD_VIDEO_FLAG="--no-record-video"
-      shift
-      ;;
+    --record-video|--no-record-video) RECORD_VIDEO_FLAG="$1"; shift ;;  # last flag wins, matching vla-eval run
     -h|--help) usage 0 ;;
     *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac

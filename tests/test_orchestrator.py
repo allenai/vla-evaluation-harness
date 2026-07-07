@@ -22,6 +22,15 @@ from vla_eval.orchestrator import Orchestrator
 from tests.conftest import BrokenTracker, RecordingTracker, StubBenchmark
 
 
+class StepRecordingStub(StubBenchmark):
+    """StubBenchmark that pushes one step row per env step."""
+
+    def step(self, action):
+        res = super().step(action)
+        self._recorder.record_step(reward=float(self._step_count))
+        return res
+
+
 @pytest.mark.anyio
 async def test_orchestrator_runs_to_completion(echo_server, tmp_path):
     """Echo server + stub benchmark → orchestrator returns a complete result."""
@@ -154,13 +163,6 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
 @pytest.mark.anyio
 async def test_orchestrator_records_by_default_without_recording_block(echo_server, tmp_path):
     """Absent ``recording:`` still records episode results + step rows, with video off."""
-
-    class StepRecordingStub(StubBenchmark):
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
-
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -201,15 +203,6 @@ async def test_orchestrator_records_by_default_without_recording_block(echo_serv
 @pytest.mark.anyio
 async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server, tmp_path):
     """A partial ``recording:`` block overrides paths while inheriting row defaults."""
-
-    class StepRecordingStub(StubBenchmark):
-        """StubBenchmark that pushes one step row per env step."""
-
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
-
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -252,13 +245,6 @@ async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server,
 @pytest.mark.anyio
 async def test_orchestrator_recording_block_overrides_default_step_recording(echo_server, tmp_path):
     """``recording.record_step: false`` disables step rows but keeps episode results."""
-
-    class StepRecordingStub(StubBenchmark):
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
-
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -308,13 +294,6 @@ async def test_orchestrator_default_recording_paths_do_not_collide_across_benchm
     the same ``name``. A default filename based only on task name would make
     merge write multiple episodes to the same JSONL path.
     """
-
-    class StepRecordingStub(StubBenchmark):
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
-
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -370,13 +349,6 @@ async def test_orchestrator_default_recording_paths_do_not_collide_across_benchm
 @pytest.mark.anyio
 async def test_orchestrator_default_recording_paths_are_stable_across_shards(echo_server, tmp_path):
     """Task indices are assigned before shard filtering, so shard paths are globally stable."""
-
-    class StepRecordingStub(StubBenchmark):
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
-
     config = {
         "server": {"url": echo_server},
         "output_dir": str(tmp_path),
@@ -420,14 +392,9 @@ async def test_orchestrator_default_recording_paths_are_stable_across_shards(ech
 async def test_orchestrator_default_recording_paths_use_raw_episode_id_in_throughput_mode(echo_server, tmp_path):
     """Filenames use raw run episodes even when throughput mode wraps benchmark episode_idx."""
 
-    class ThroughputStub(StubBenchmark):
+    class ThroughputStub(StepRecordingStub):
         def get_metadata(self) -> dict:
             return {"max_steps": 50, "max_episodes_per_task": 1}
-
-        def step(self, action):
-            res = super().step(action)
-            self._recorder.record_step(reward=float(self._step_count))
-            return res
 
     config = {
         "server": {"url": echo_server},

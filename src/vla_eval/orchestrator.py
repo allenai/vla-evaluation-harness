@@ -42,18 +42,10 @@ _DEFAULT_RECORDING_CONFIG: dict[str, Any] = {"record_step": True, "record_video"
 
 
 def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) -> dict[str, Any] | None:
-    """Return the recorder policy for one benchmark entry.
-
-    Runs persist episode results and step rows by default. ``recording:`` is an
-    optional override block, and ``--no-save`` is the only global off switch.
-    """
+    """Recorder policy for one benchmark entry: on by default, ``recording:`` overrides, ``--no-save`` disables."""
     if no_save:
         return None
-    if raw is None:
-        return dict(_DEFAULT_RECORDING_CONFIG)
-    if not isinstance(raw, dict):
-        raise TypeError("recording must be a mapping or null")
-    return {**_DEFAULT_RECORDING_CONFIG, **raw}
+    return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
 
 
 class Orchestrator:
@@ -126,6 +118,9 @@ class Orchestrator:
 
     async def run(self) -> list[dict[str, Any]]:
         """Run all benchmarks defined in config."""
+        if not self.no_save:
+            self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
+
         if self._live_tracking:
             call_each(self._trackers, "on_eval_begin", self._eval_id, self.config)
 
@@ -145,12 +140,6 @@ class Orchestrator:
                 call_each(self._trackers, "close")
 
         return all_results
-
-    def _ensure_store(self) -> RecordingStore:
-        """Open the recording store on first benchmark that records."""
-        if self._store is None:
-            self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
-        return self._store
 
     def _update_progress(self, completed: int, total: int, errors: int) -> None:
         """Atomic per-shard progress file for live monitoring; skips no-op writes."""
@@ -281,11 +270,11 @@ class Orchestrator:
             "server_info": conn.server_info,
         }
         rec_cfg = _effective_recording_config(cfg.recording, no_save=self.no_save)
-        if rec_cfg is not None:
-            self._ensure_store().upsert_eval_metadata(bench_eval_id, safe_name, bench_metadata)
-        if rec_cfg is not None and work_items:
-            task_idx, first_task, ep = work_items[0]
-            self._validate_filename_stem(rec_cfg, first_task, safe_name, task_idx, ep)
+        if self._store is not None and rec_cfg is not None:
+            self._store.upsert_eval_metadata(bench_eval_id, safe_name, bench_metadata)
+            if work_items:
+                task_idx, first_task, ep = work_items[0]
+                self._validate_filename_stem(rec_cfg, first_task, safe_name, task_idx, ep)
 
         def record_failure(reason: str, detail: str) -> dict[str, Any]:
             fail: dict[str, Any] = {
@@ -445,10 +434,10 @@ class Orchestrator:
             filename_stem=rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM,
             context=serializable_task_kwargs(task),
             filename_context=recording_filename_context(
-                task, benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
+                benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
             ),
-            record_video=bool(rec_cfg.get("record_video", False)),
-            record_step=bool(rec_cfg.get("record_step", True)),
+            record_video=bool(rec_cfg["record_video"]),
+            record_step=bool(rec_cfg["record_step"]),
             video_fps=int(rec_cfg.get("video_fps", 20)),
             step_fields=rec_cfg.get("step_fields"),
             allowed_fields=allowed,
@@ -465,19 +454,19 @@ class Orchestrator:
         """Dry-render the template so YAML key typos fail before any episode runs."""
         stem = rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM
         # episode_idx is injected per-iteration by the run loop, not present on first_task itself.
-        probe = recording_filename_context(
-            {**first_task, "episode_idx": 0},
-            benchmark_safe_name=benchmark_safe_name,
-            task_idx=task_idx,
-            episode_id=episode_id,
-        )
-        probe["status"] = "success"
+        probe = {
+            **serializable_task_kwargs(first_task),
+            "episode_idx": 0,
+            **recording_filename_context(
+                benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
+            ),
+            "status": "success",
+        }
         try:
             stem.format(**probe)
         except KeyError as exc:
             raise ValueError(
-                f"recording.filename_stem={stem!r} references key {exc} "
-                f"that's not in the task dict (available: {sorted(probe)})."
+                f"recording.filename_stem={stem!r} references unknown key {exc} (available: {sorted(probe)})."
             ) from None
         except (IndexError, ValueError) as exc:
             raise ValueError(f"recording.filename_stem={stem!r} is malformed: {exc}") from None
