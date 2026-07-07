@@ -21,7 +21,7 @@
 
 ### Latest News
 
-- [2026/07] 🤗 [LeRobot](https://github.com/huggingface/lerobot) bridge ([#83](https://github.com/allenai/vla-evaluation-harness/pull/83)): serve any single-obs-step LeRobot `PreTrainedPolicy` checkpoint (π₀, π₀.₅, SmolVLA, ACT, …) with [one config](configs/model_servers/lerobot/). `lerobot/pi05_libero_finetuned` reproduces LIBERO Object at 100/100.
+- [2026/07] 🤗 [LeRobot](https://github.com/huggingface/lerobot) bridge ([#83](https://github.com/allenai/vla-evaluation-harness/pull/83)): serve any single-obs-step LeRobot `PreTrainedPolicy` checkpoint (π₀, π₀.₅, SmolVLA, ACT, …) with [one config](configs/model_servers/lerobot/), pinned at [v0.6.0](https://github.com/huggingface/lerobot/releases/tag/v0.6.0). `lerobot/pi05_libero_finetuned` reproduces LIBERO Object at 100/100.
 - [2026/06] [v0.3.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.3.0) released. SQLite recording + `vla-eval merge`, wandb/trackio tracking, and a watchdog for wedged benchmarks.
 - [2026/05] [v0.2.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.2.0) released. 18 benchmarks x 13 model servers, the largest open VLA evaluation matrix. Browse [`configs/`](configs/) to get started.
 - [2026/05] [Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/) rebuilt: 2,456 models x 18 benchmarks, schema-validated pipeline, updated monthly.

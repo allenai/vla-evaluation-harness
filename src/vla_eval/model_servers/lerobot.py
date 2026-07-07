@@ -9,7 +9,7 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "e275ea3960332543e2a9f441356775a53720543f" }
+# lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "v0.6.0" }
 #
 # [tool.uv]
 # exclude-newer = "2026-07-04T00:00:00Z"
