@@ -19,7 +19,7 @@ SHELL ["conda", "run", "-n", "robotwin", "/bin/bash", "-c"]
 # ── PyTorch with CUDA 12.1 (required by CuRobo / SAPIEN GPU) ────────
 RUN uv pip install --no-cache-dir \
         "torch==2.4.1" "torchvision" \
-        --index-url https://download.pytorch.org/whl/cu121
+        --torch-backend cu121
 
 # ── SAPIEN 3, mplib, and core simulation dependencies ────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
@@ -87,7 +87,6 @@ RUN cd /app/RoboTwin/assets \
 # ── Resolve embodiment config paths ──────────────────────────────────
 RUN cd /app/RoboTwin && python script/update_embodiment_config_path.py
 
-# ── Install evaluation harness ───────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

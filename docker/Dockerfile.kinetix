@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE}
 RUN conda create -n kinetix python=3.11 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "kinetix", "/bin/bash", "-c"]
 
-# ── Kinetix environment ──────────────────────────────────────────
+# ── Kinetix ───────────────────────────────────────────────────────
 ARG KINETIX_REF=v3.0.0
 RUN mkdir -p /opt/kinetix \
     && cd /opt/kinetix \
@@ -18,7 +18,7 @@ RUN mkdir -p /opt/kinetix \
 # ── JAX with CUDA support (after kinetix to override its JAX pin) ─
 RUN uv pip install --no-cache-dir --upgrade "jax[cuda12]"
 
-# ── Clone RTC repo for custom level files ─────────────────────────
+# ── RTC level files ───────────────────────────────────────────────
 ARG RTC_KINETIX_REF=9296f31d62d5bfeb5779dcb2f9bcf71ca37f448b
 RUN mkdir -p /app/rtc \
     && cd /app/rtc \
@@ -28,7 +28,6 @@ RUN mkdir -p /app/rtc \
     && git checkout -q FETCH_HEAD \
     && rm -rf /app/rtc/.git
 
-# ── Install evaluation harness ────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

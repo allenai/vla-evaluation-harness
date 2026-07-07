@@ -1,6 +1,5 @@
-# SimplerEnv + NVIDIA eef_pos patch for GR00T N1.6
-# Extends the base simpler image with ManiSkill2 patches from NVIDIA's
-# internal fork (squarefk/SimplerEnv) that add EE proprioception.
+# SimplerEnv + NVIDIA eef_pos patch for GR00T N1.6.
+# Adds EE proprioception from NVIDIA's squarefk/SimplerEnv fork.
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
 FROM ${BASE_IMAGE}

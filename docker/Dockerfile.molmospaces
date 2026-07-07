@@ -15,13 +15,12 @@ SHELL ["conda", "run", "-n", "molmospaces", "/bin/bash", "-c"]
 
 # ── PyTorch with CUDA 12.1 (bfloat16 inference for policy server smoke tests) ─
 RUN uv pip install --no-cache-dir "torch==2.3.1" \
-        --index-url https://download.pytorch.org/whl/cu121
+        --torch-backend cu121
 
 # ── molmo-spaces (git-only) + MuJoCo bindings ──────────────────────────
-# Pinned to a specific commit so asset versions in DATA_TYPE_TO_SOURCE_TO_VERSION
-# stay stable across image rebuilds.
+# The release tag keeps DATA_TYPE_TO_SOURCE_TO_VERSION stable across rebuilds.
 RUN uv pip install --no-cache-dir \
-        "molmo-spaces[mujoco] @ git+https://github.com/allenai/molmospaces.git@9bee9cbbfc35fc718d1f826d9c8944134a88e3af"
+        "molmo-spaces[mujoco] @ git+https://github.com/allenai/molmospaces.git@v0.2.0"
 
 # ── Pre-install benchmark assets (~15 GB) into the image layer ────────
 # MolmoSpaces lazily extracts assets on first `import molmo_spaces`. Trigger
@@ -33,7 +32,6 @@ ENV MLSPACES_ASSETS_DIR=/assets \
 RUN mkdir -p /assets /cache/molmo-spaces-resources \
     && python -c "import molmo_spaces; from molmo_spaces.evaluation.benchmark_schema import load_all_episodes; print('molmo_spaces assets installed')"
 
-# ── Install evaluation harness ────────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

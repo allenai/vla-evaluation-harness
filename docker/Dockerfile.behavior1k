@@ -37,16 +37,16 @@ ENV OMNIGIBSON_HEADLESS=1 \
 RUN conda create -n behavior python=3.10 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "behavior", "/bin/bash", "-c"]
 
-# ── Pre-reqs the v3.7.2 setup.sh enforces before installing OmniGibson ─
+# ── OmniGibson setup prerequisites ──────────────────────────────────
 RUN uv pip install --no-cache-dir "numpy<2" "setuptools<=79"
 
-# ── PyTorch 2.6.0 + CUDA 12.4 (matches BEHAVIOR-1K v3.7.2 setup.sh) ─
+# ── PyTorch 2.6.0 + CUDA 12.4 ───────────────────────────────────────
 RUN uv pip install --no-cache-dir \
         "torch==2.6.0" "torchvision==0.21.0" "torchaudio==2.6.0" \
-        --index-url https://download.pytorch.org/whl/cu124
+        --torch-backend cu124
 
 # ── Isaac Sim 4.5.0 from the NVIDIA pip index ───────────────────────
-# Full package list (26 wheels) mirrors v3.7.2 setup.sh `install_isaac_packages`.
+# Full package list mirrors BEHAVIOR-1K setup.sh `install_isaac_packages`.
 # Installing only the metapackage (isaacsim) leaves
 # `isaacsim.simulation_app` unimportable at runtime.
 RUN uv pip install --no-cache-dir \
@@ -78,7 +78,7 @@ RUN uv pip install --no-cache-dir \
         "isaacsim-extscache-kit-sdk==4.5.0.0" \
         --extra-index-url https://pypi.nvidia.com
 
-# Fix the bundled-websockets conflict the v3.7.2 setup.sh patches:
+# Fix the bundled-websockets conflict patched by setup.sh:
 # Isaac Sim's pip_prebundle/websockets shadows our model-server websockets.
 # The site-packages path is deterministic, so a plain `find` does the job
 # without booting isaacsim (which can't import in a non-GPU build context).
@@ -99,15 +99,11 @@ RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./joylo
 # Match setup.sh: cffi must be force-reinstalled to 1.17.1 (Isaac Sim
 # bundles a build that conflicts with the conda libffi otherwise).
 RUN uv pip install --no-cache-dir --reinstall cffi==1.17.1
-# OmniGibson + lerobot transitive deps drag numpy back up to 2.x even
-# though the early pre-req step pinned <2.  Isaac Sim's bundled OGN
-# nodes still call np.float_ (removed in numpy 2.0) and crash at scene
-# init.  Force-downgrade at the very end with --no-deps so we don't
-# disturb other resolved versions.
+# OmniGibson deps can pull numpy 2.x, but Isaac Sim still calls np.float_.
+# Force-downgrade at the end with --no-deps so other resolved versions stay put.
 RUN uv pip install --no-cache-dir --no-deps "numpy<2"
 RUN rm -rf /app/BEHAVIOR-1K/.git
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

@@ -1,5 +1,4 @@
-# SimplerEnv + X-VLA ManiSkill2 patches
-# Extends the SimplerEnv benchmark image with:
+# SimplerEnv + X-VLA ManiSkill2 patches:
 #   1. Absolute EE control mode (use_delta=False) + euler rotation
 #   2. Sink camera aligned with Bridge dataset (for eggplant task)
 #   3. kwargs.setdefault to preserve user control_mode override

@@ -17,8 +17,7 @@ RUN uv pip install --no-cache-dir \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone LIBERO ───────────────────────────────────────────────────
-# uv wheel builder can't handle find_packages() in LIBERO's setup.py;
-# fall back to pip for this single install.
+# uv cannot build LIBERO's setup.py, so use pip for this editable install.
 ARG LIBERO_REF=8f1084e3132a39270c3a13ebe37270a43ece2a01
 RUN mkdir -p /app/libero \
     && cd /app/libero \
@@ -37,7 +36,6 @@ init_states: /app/libero/libero/libero/init_files\n\
 datasets: /app/libero/libero/datasets\n\
 assets: /app/libero/libero/libero/assets\n' > /root/.libero/config.yaml
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

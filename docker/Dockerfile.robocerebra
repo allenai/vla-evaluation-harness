@@ -17,8 +17,7 @@ RUN uv pip install --no-cache-dir \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone RoboCerebra & install its custom LIBERO fork ─────────────
-# uv wheel builder can't handle find_packages() in setup.py;
-# fall back to pip for the LIBERO fork.
+# uv cannot build the LIBERO fork's setup.py, so use pip for this editable install.
 ARG ROBOCEREBRA_REF=2573426c13dfcd5e7d7831c15587b058aaa1c0c0
 RUN mkdir -p /tmp/RoboCerebra \
     && cd /tmp/RoboCerebra \
@@ -45,7 +44,6 @@ init_states: /tmp/RoboCerebra/LIBERO/libero/libero/init_files\n\
 datasets: /tmp/RoboCerebra/LIBERO/libero/datasets\n\
 assets: /tmp/RoboCerebra/LIBERO/libero/libero/assets\n' > /root/.libero/config.yaml
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

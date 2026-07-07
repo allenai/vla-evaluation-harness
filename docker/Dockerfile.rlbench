@@ -50,9 +50,8 @@ RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
-# Keep plain pip for these legacy Python 3.8 / CoppeliaSim source installs;
-# switching installers should be coupled with a full RLBench image rebuild.
-ARG PYREP_REF=8f420be8064b1970aae18a9cfbc978dfb15747ef
+# Keep pip for legacy Python 3.8 / CoppeliaSim editable installs.
+ARG PYREP_REF=4.1.0
 RUN mkdir -p /tmp/PyRep \
     && cd /tmp/PyRep \
     && git init -q \
@@ -63,7 +62,7 @@ RUN mkdir -p /tmp/PyRep \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
-ARG RLBENCH_REF=02720bba4c73fe02eb75df946b8791b806028a9d
+ARG RLBENCH_REF=1.1.0
 RUN mkdir -p /tmp/RLBench \
     && cd /tmp/RLBench \
     && git init -q \
@@ -73,7 +72,6 @@ RUN mkdir -p /tmp/RLBench \
     && pip install --no-cache-dir -e . \
     && rm -rf /tmp/RLBench/.git
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

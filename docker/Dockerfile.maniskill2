@@ -11,7 +11,7 @@ SHELL ["conda", "run", "-n", "maniskill2", "/bin/bash", "-c"]
 
 # ── PyTorch with CUDA 12.1 ────────────────────────────────────────────
 RUN uv pip install --no-cache-dir "torch==2.1.0" \
-        --index-url https://download.pytorch.org/whl/cu121
+        --torch-backend cu121
 
 # ── ManiSkill2 + dependencies (gymnasium, sapien) ─────────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
@@ -25,7 +25,6 @@ RUN python -m mani_skill2.utils.download_asset -y PickSingleYCB-v0 \
     && python -m mani_skill2.utils.download_asset -y PickSingleEGAD-v0 \
     && python -m mani_skill2.utils.download_asset -y PickClutterYCB-v0
 
-# ── Install evaluation harness ────────────────────────────────────────
 COPY pyproject.toml README.md ./
 COPY src/ src/
 ARG HARNESS_VERSION=0.0.0
