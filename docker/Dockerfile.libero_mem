@@ -22,10 +22,10 @@ RUN mkdir -p /app/libero-mem \
     && git remote add origin https://github.com/libero-mem/libero-mem.git \
     && git fetch -q --depth 1 origin "${LIBERO_MEM_REF}" \
     && git checkout -q FETCH_HEAD \
-    && cd /app/libero-mem/thirdparty/robomimic && pip install --no-cache-dir -e . \
-    && cd /app/libero-mem/thirdparty/robosuite && pip install --no-cache-dir -e . \
-    && cd /app/libero-mem && pip install --no-cache-dir -e . \
-    && rm -rf /app/libero-mem/.git ~/.cache/pip
+    && cd /app/libero-mem/thirdparty/robomimic && uv pip install --no-cache-dir -e . \
+    && cd /app/libero-mem/thirdparty/robosuite && uv pip install --no-cache-dir -e . \
+    && cd /app/libero-mem && uv pip install --no-cache-dir -e . \
+    && rm -rf /app/libero-mem/.git ~/.cache/uv
 
 RUN mkdir -p /root/.libero && printf '\
 benchmark_root: /app/libero-mem/libero/libero\n\

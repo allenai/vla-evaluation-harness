@@ -29,7 +29,6 @@ RUN uv pip install --no-cache-dir \
 # The fork installs under the same `libero` package namespace as vanilla
 # LIBERO and cannot coexist with it; this image intentionally does not
 # install the upstream `Lifelong-Robot-Learning/LIBERO` repo.
-# uv cannot build its setup.py, so use pip for this editable install.
 ARG LIBERO_PLUS_REF=4976dc30028e805ff8094b55501d532c48fec182
 RUN mkdir -p /app/LIBERO-plus \
     && cd /app/LIBERO-plus \
@@ -37,8 +36,8 @@ RUN mkdir -p /app/LIBERO-plus \
     && git remote add origin https://github.com/sylvestf/LIBERO-plus.git \
     && git fetch -q --depth 1 origin "${LIBERO_PLUS_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -e . \
-    && rm -rf /app/LIBERO-plus/.git ~/.cache/pip
+    && uv pip install --no-cache-dir -e . \
+    && rm -rf /app/LIBERO-plus/.git ~/.cache/uv
 
 # ── Download LIBERO-Plus MuJoCo assets (≈6.4 GB) ───────────────────
 # assets.zip is stored with a deeply nested top-level path

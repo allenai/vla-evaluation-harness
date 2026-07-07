@@ -17,7 +17,6 @@ RUN uv pip install --no-cache-dir \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone RoboCerebra & install its custom LIBERO fork ─────────────
-# uv cannot build the LIBERO fork's setup.py, so use pip for this editable install.
 ARG ROBOCEREBRA_REF=2573426c13dfcd5e7d7831c15587b058aaa1c0c0
 RUN mkdir -p /tmp/RoboCerebra \
     && cd /tmp/RoboCerebra \
@@ -25,9 +24,9 @@ RUN mkdir -p /tmp/RoboCerebra \
     && git remote add origin https://github.com/qiuboxiang/RoboCerebra.git \
     && git fetch -q --depth 1 origin "${ROBOCEREBRA_REF}" \
     && git checkout -q FETCH_HEAD \
-    && cd /tmp/RoboCerebra/LIBERO && pip install --no-cache-dir -e . \
+    && cd /tmp/RoboCerebra/LIBERO && uv pip install --no-cache-dir -e . \
     && uv pip install --no-cache-dir "bddl==1.0.1" h5py \
-    && rm -rf /tmp/RoboCerebra/.git ~/.cache/pip ~/.cache/uv
+    && rm -rf /tmp/RoboCerebra/.git ~/.cache/uv
 
 # ── Download RoboCerebra benchmark data ────────────────────────────
 RUN uv pip install --no-cache-dir huggingface_hub \

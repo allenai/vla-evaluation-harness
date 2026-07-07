@@ -50,15 +50,16 @@ RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
-# Keep pip for legacy Python 3.8 / CoppeliaSim editable installs.
+# PyRep imports cffi at setup time, so disable build isolation.
 ARG PYREP_REF=4.1.0
-RUN mkdir -p /tmp/PyRep \
+RUN uv pip install --no-cache-dir cffi \
+    && mkdir -p /tmp/PyRep \
     && cd /tmp/PyRep \
     && git init -q \
     && git remote add origin https://github.com/stepjam/PyRep.git \
     && git fetch -q --depth 1 origin "${PYREP_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -e . \
+    && uv pip install --no-cache-dir --no-build-isolation -e . \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
@@ -69,7 +70,7 @@ RUN mkdir -p /tmp/RLBench \
     && git remote add origin https://github.com/stepjam/RLBench.git \
     && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -e . \
+    && uv pip install --no-cache-dir -e . \
     && rm -rf /tmp/RLBench/.git
 
 WORKDIR /workspace

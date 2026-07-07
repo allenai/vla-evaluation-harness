@@ -87,15 +87,12 @@ RUN find /opt/conda/envs/behavior/lib/python3.10/site-packages/isaacsim/extscach
         -exec rm -rf {} + 2>/dev/null || true
 
 # ── Clone BEHAVIOR-1K (OmniGibson + bddl3 + joylo/gello) ───────────
-# Use plain `pip install -e` (not `uv pip install -e`): BEHAVIOR-1K's
-# legacy setuptools layouts (bddl3, OmniGibson, joylo) are not PEP 660
-# compliant in a way uv accepts.
 ARG BEHAVIOR1K_REF=v3.7.2
 RUN git clone --depth 1 --branch "${BEHAVIOR1K_REF}" \
         https://github.com/StanfordVL/BEHAVIOR-1K.git /app/BEHAVIOR-1K
-RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./bddl3
-RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e "./OmniGibson[eval]"
-RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./joylo
+RUN cd /app/BEHAVIOR-1K && uv pip install --no-cache-dir -e ./bddl3
+RUN cd /app/BEHAVIOR-1K && uv pip install --no-cache-dir -e "./OmniGibson[eval]"
+RUN cd /app/BEHAVIOR-1K && uv pip install --no-cache-dir -e ./joylo
 # Match setup.sh: cffi must be force-reinstalled to 1.17.1 (Isaac Sim
 # bundles a build that conflicts with the conda libffi otherwise).
 RUN uv pip install --no-cache-dir --reinstall cffi==1.17.1
