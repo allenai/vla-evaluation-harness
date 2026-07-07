@@ -5,8 +5,8 @@ FROM ${BASE_IMAGE}
 RUN conda create -n kinetix python=3.11 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "kinetix", "/bin/bash", "-c"]
 
-# ── Kinetix environment (pinned to the commit RTC depends on) ────
-ARG KINETIX_REF=cf7453ea103fa0b77348af1a39f689c658161613
+# ── Kinetix environment ──────────────────────────────────────────
+ARG KINETIX_REF=v3.0.0
 RUN mkdir -p /opt/kinetix \
     && cd /opt/kinetix \
     && git init -q \

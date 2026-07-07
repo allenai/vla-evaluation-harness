@@ -65,7 +65,7 @@ RUN mkdir -p /app/RoboTwin \
 # ── Install CuRobo (motion planner, built from source) ──────────────
 # No GPU visible during build → must specify arch explicitly.
 ENV TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0+PTX"
-ARG CUROBO_REF=d64c4b005459db10c5dd867d8b30a87d5bda9bdb
+ARG CUROBO_REF=v0.7.8
 RUN uv pip install --no-cache-dir wheel \
     && cd /app/RoboTwin/envs \
     && mkdir -p curobo \

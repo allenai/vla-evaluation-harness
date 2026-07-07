@@ -6,11 +6,11 @@ FROM ${BASE_IMAGE}
 # (rcs_fr3 / rcs_realsense / rcs_zed); we extend the shared harness base and skip
 # them, since sim evaluation needs only the RCS core + duobench.
 
-# Pin RCS + DuoBench to exact commits for reproducible builds: their compiled ABI
+# Pin RCS + DuoBench to fixed refs for reproducible builds: their compiled ABI
 # must stay compatible with the mujoco / urdfdom / pin versions pinned below, so
 # bump these deliberately (and rebuild-verify) rather than tracking a branch tip.
 ARG RCS_REF=daef12b61dfa7685ed049965ed2e5b7df52f3116
-ARG DUOBENCH_REF=0b3cebd23b04d13fdf00318245648e859b184272
+ARG DUOBENCH_REF=v0.1.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -63,8 +63,8 @@ RUN uv pip install --no-cache-dir \
         "pin==3.7.0"
 
 # ── Clone + install Robot Control Stack (core only — no hardware ext) ──
-# Shallow-fetch exactly ${RCS_REF} (GitHub allows fetch-by-SHA), so the pin holds
-# without cloning full history.  `--no-build-isolation` is intentional: the build
+# Shallow-fetch exactly ${RCS_REF}, so the pin holds without cloning full history.
+# `--no-build-isolation` is intentional: the build
 # relies on scikit-build-core picking up the cmake/ninja installed above.
 RUN mkdir -p /opt/rcs && cd /opt/rcs \
     && git init -q \
