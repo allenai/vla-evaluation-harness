@@ -49,7 +49,11 @@ RUN uv pip install --no-cache-dir \
 # Full package list mirrors BEHAVIOR-1K setup.sh `install_isaac_packages`.
 # Installing only the metapackage (isaacsim) leaves
 # `isaacsim.simulation_app` unimportable at runtime.
+# unsafe-best-match: uv's default first-index strategy pins each name to
+# pypi.nvidia.com, which lacks omniverse-kit==106.5.0.162521 (pypi.org only).
+# Everything here is exact-pinned, so cross-index resolution is safe.
 RUN uv pip install --no-cache-dir \
+        --index-strategy unsafe-best-match \
         "omniverse-kit==106.5.0.162521" \
         "isaacsim-kernel==4.5.0.0" \
         "isaacsim-app==4.5.0.0" \
