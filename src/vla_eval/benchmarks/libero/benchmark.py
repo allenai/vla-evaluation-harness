@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import math
 
@@ -142,7 +142,7 @@ class LIBEROBenchmark(StepBenchmark):
             kwargs.setdefault("weights_only", False)
             return _original_torch_load(*args, **kwargs)
 
-        torch.load = _patched_load
+        torch.load = cast(Any, _patched_load)
 
         from libero.libero import benchmark
 
