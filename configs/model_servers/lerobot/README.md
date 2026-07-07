@@ -33,7 +33,7 @@ published number where one exists.
 | `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested (`lerobot/pi0_libero_finetuned` scored 0/10 here and has no published score) |
 | `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke (base checkpoint; no benchmark-ready finetune published) |
 | `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke (base checkpoint; no benchmark-ready finetune published) |
-| `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; 10-ep LIBERO-10 0/10 (published 94.0), not reproduced through the bridge yet |
+| `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; 10-ep LIBERO-10 0/10. Upstream defect: LeRobot's own `lerobot-eval` with the documented command also scores 0/20 at v0.6.0 (and needs a `tokenizer_model_id` override just to load), so the published 94.0 is not reproducible at the tag |
 
 Other single-obs-step registry names (`act`, `pi0_fast`, `eo1`, `evo1`, `wall_x`)
 load through the same path but ship no config here and are untested.

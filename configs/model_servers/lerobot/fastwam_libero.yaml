@@ -1,8 +1,9 @@
 # FastWAM (LeRobot world action model) model server: LIBERO checkpoint.
 #
 # Checkpoint: ZibinDong/fastwam_libero_uncond_2cam224 (chunk 32, image + image2 + state).
-# Status: loads and serves; a 10-episode LIBERO-10 check scored 0/10 (published
-# 94.0), so the bridge does not reproduce its scores yet. Do not trust scores.
+# Status: loads and serves, but scores 0/10 on LIBERO-10. Upstream defect, not a
+# bridge gap: lerobot-eval itself (v0.6.0, documented command) also scores 0/20
+# with this checkpoint, so the published 94.0 is not reproducible at the tag.
 
 extends: _base.yaml
 args:
