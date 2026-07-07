@@ -1,10 +1,10 @@
 # SimplerEnv + X-VLA ManiSkill2 patches
-# Extends simpler:latest with:
+# Extends the pinned SimplerEnv benchmark image with:
 #   1. Absolute EE control mode (use_delta=False) + euler rotation
 #   2. Sink camera aligned with Bridge dataset (for eggplant task)
 #   3. kwargs.setdefault to preserve user control_mode override
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/simpler:0.3.0
 FROM ${BASE_IMAGE}
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]

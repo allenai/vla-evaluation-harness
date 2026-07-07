@@ -6,7 +6,7 @@
 #
 # Hardware requirements: NVIDIA GPU (RTX 2070+), 8 GB+ VRAM, Vulkan ICD.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # Build-time license confirmation.  The user must explicitly opt in
@@ -38,7 +38,7 @@ RUN conda create -n behavior python=3.10 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "behavior", "/bin/bash", "-c"]
 
 # ── Pre-reqs the v3.7.2 setup.sh enforces before installing OmniGibson ─
-RUN uv pip install --no-cache-dir "numpy<2" "setuptools<=79"
+RUN uv pip install --no-cache-dir "numpy==1.26.4" "setuptools==79.0.0"
 
 # ── PyTorch 2.6.0 + CUDA 12.4 (matches BEHAVIOR-1K v3.7.2 setup.sh) ─
 RUN uv pip install --no-cache-dir \
@@ -90,9 +90,13 @@ RUN find /opt/conda/envs/behavior/lib/python3.10/site-packages/isaacsim/extscach
 # Use plain `pip install -e` (not `uv pip install -e`): BEHAVIOR-1K's
 # legacy setuptools layouts (bddl3, OmniGibson, joylo) are not PEP 660
 # compliant in a way uv accepts.
-ARG BEHAVIOR1K_REF=v3.7.2
-RUN git clone --depth 1 --branch ${BEHAVIOR1K_REF} \
-        https://github.com/StanfordVL/BEHAVIOR-1K.git /app/BEHAVIOR-1K
+ARG BEHAVIOR1K_REF=88454bd04f75dc57c00ab1f1a00bcde1ff505950
+RUN mkdir -p /app/BEHAVIOR-1K \
+    && cd /app/BEHAVIOR-1K \
+    && git init -q \
+    && git remote add origin https://github.com/StanfordVL/BEHAVIOR-1K.git \
+    && git fetch -q --depth 1 origin "${BEHAVIOR1K_REF}" \
+    && git checkout -q FETCH_HEAD
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./bddl3
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e "./OmniGibson[eval]"
 RUN cd /app/BEHAVIOR-1K && pip install --no-cache-dir -e ./joylo
@@ -104,7 +108,7 @@ RUN pip install --no-cache-dir --force-reinstall cffi==1.17.1
 # nodes still call np.float_ (removed in numpy 2.0) and crash at scene
 # init.  Force-downgrade at the very end with --no-deps so we don't
 # disturb other resolved versions.
-RUN pip install --no-cache-dir --no-deps "numpy<2"
+RUN pip install --no-cache-dir --no-deps "numpy==1.26.4"
 RUN rm -rf /app/BEHAVIOR-1K/.git
 
 # ── Install evaluation harness ─────────────────────────────────────

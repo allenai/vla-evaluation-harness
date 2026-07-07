@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────
@@ -21,8 +21,10 @@ RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
 # robomimic==0.2.0 (pulled transitively by LIBERO-Plus).
 RUN uv pip install --no-cache-dir \
         numpy==1.22.4 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
-        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
-        "gym>=0.21,<0.27" matplotlib opencv-python scikit-image wand \
+        pillow==10.4.0 scipy==1.10.1 h5py==3.11.0 PyYAML==6.0.3 \
+        termcolor==2.4.0 future==1.0.0 easydict==1.13 hydra-core==1.3.2 \
+        gym==0.26.2 matplotlib==3.7.5 opencv-python==4.13.0.92 \
+        scikit-image==0.21.0 Wand==0.7.0 \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone LIBERO-Plus ──────────────────────────────────────────────
@@ -31,8 +33,14 @@ RUN uv pip install --no-cache-dir \
 # install the upstream `Lifelong-Robot-Learning/LIBERO` repo.
 # uv wheel builder can't handle find_packages() in setup.py; fall back
 # to pip for this single install.
-RUN git clone --depth 1 https://github.com/sylvestf/LIBERO-plus.git /app/LIBERO-plus \
-    && cd /app/LIBERO-plus && pip install --no-cache-dir -e . \
+ARG LIBERO_PLUS_REF=4976dc30028e805ff8094b55501d532c48fec182
+RUN mkdir -p /app/LIBERO-plus \
+    && cd /app/LIBERO-plus \
+    && git init -q \
+    && git remote add origin https://github.com/sylvestf/LIBERO-plus.git \
+    && git fetch -q --depth 1 origin "${LIBERO_PLUS_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && pip install --no-cache-dir -e . \
     && rm -rf /app/LIBERO-plus/.git ~/.cache/pip
 
 # ── Download LIBERO-Plus MuJoCo assets (≈6.4 GB) ───────────────────

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────
@@ -12,20 +12,27 @@ RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
 # ── Python dependencies ───────────────────────────────────────────
 RUN uv pip install --no-cache-dir \
         numpy==1.22.4 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
-        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
-        "gym>=0.21,<0.27" matplotlib \
+        pillow==10.4.0 scipy==1.10.1 h5py==3.11.0 PyYAML==6.0.3 \
+        termcolor==2.4.0 future==1.0.0 easydict==1.13 hydra-core==1.3.3 \
+        gym==0.26.2 matplotlib==3.7.5 \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone RoboCerebra & install its custom LIBERO fork ─────────────
 # uv wheel builder can't handle find_packages() in setup.py;
 # fall back to pip for the LIBERO fork.
-RUN git clone --depth 1 https://github.com/qiuboxiang/RoboCerebra.git /tmp/RoboCerebra \
+ARG ROBOCEREBRA_REF=2573426c13dfcd5e7d7831c15587b058aaa1c0c0
+RUN mkdir -p /tmp/RoboCerebra \
+    && cd /tmp/RoboCerebra \
+    && git init -q \
+    && git remote add origin https://github.com/qiuboxiang/RoboCerebra.git \
+    && git fetch -q --depth 1 origin "${ROBOCEREBRA_REF}" \
+    && git checkout -q FETCH_HEAD \
     && cd /tmp/RoboCerebra/LIBERO && pip install --no-cache-dir -e . \
-    && uv pip install --no-cache-dir bddl==1.0.1 h5py \
+    && uv pip install --no-cache-dir "bddl==1.0.1" "h5py==3.11.0" \
     && rm -rf /tmp/RoboCerebra/.git ~/.cache/pip ~/.cache/uv
 
 # ── Download RoboCerebra benchmark data ────────────────────────────
-RUN uv pip install --no-cache-dir huggingface_hub \
+RUN uv pip install --no-cache-dir "huggingface_hub==0.36.2" \
     && huggingface-cli download qiukingballball/RoboCerebraBench \
         --repo-type dataset \
         --local-dir /workspace/RoboCerebra_Bench \

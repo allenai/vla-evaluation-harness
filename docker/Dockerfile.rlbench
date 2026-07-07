@@ -2,7 +2,7 @@
 # CoppeliaSim needs an X display even in headless mode → Xvfb wrapper
 # https://github.com/stepjam/RLBench
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 ARG ACCEPT_RLBENCH_LICENCE=
@@ -50,13 +50,25 @@ RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/stepjam/PyRep.git /tmp/PyRep \
-    && cd /tmp/PyRep && pip install --no-cache-dir -e . \
+ARG PYREP_REF=8f420be8064b1970aae18a9cfbc978dfb15747ef
+RUN mkdir -p /tmp/PyRep \
+    && cd /tmp/PyRep \
+    && git init -q \
+    && git remote add origin https://github.com/stepjam/PyRep.git \
+    && git fetch -q --depth 1 origin "${PYREP_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && pip install --no-cache-dir -e . \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/stepjam/RLBench.git /tmp/RLBench \
-    && cd /tmp/RLBench && pip install --no-cache-dir -e . \
+ARG RLBENCH_REF=02720bba4c73fe02eb75df946b8791b806028a9d
+RUN mkdir -p /tmp/RLBench \
+    && cd /tmp/RLBench \
+    && git init -q \
+    && git remote add origin https://github.com/stepjam/RLBench.git \
+    && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && pip install --no-cache-dir -e . \
     && rm -rf /tmp/RLBench/.git
 
 # ── Install evaluation harness ─────────────────────────────────────
@@ -65,7 +77,7 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
-RUN uv pip install --no-cache-dir gymnasium -e .
+RUN uv pip install --no-cache-dir "gymnasium==1.1.1" -e .
 COPY configs/ configs/
 
 # ── Entrypoint: start Xvfb then run vla-eval ──────────────────────

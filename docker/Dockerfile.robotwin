@@ -3,7 +3,7 @@
 #
 # Includes SAPIEN 3 (GPU renderer), CuRobo (motion planner), mplib.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # ── CUDA build tools (nvcc required by CuRobo CUDA extensions) ──────
@@ -18,12 +18,12 @@ SHELL ["conda", "run", "-n", "robotwin", "/bin/bash", "-c"]
 
 # ── PyTorch with CUDA 12.1 (required by CuRobo / SAPIEN GPU) ────────
 RUN uv pip install --no-cache-dir \
-        "torch==2.4.1" "torchvision" \
+        "torch==2.4.1" "torchvision==0.19.1" \
         --index-url https://download.pytorch.org/whl/cu121
 
 # ── SAPIEN 3, mplib, and core simulation dependencies ────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
-RUN uv pip install --no-cache-dir "setuptools<70"
+RUN uv pip install --no-cache-dir "setuptools==69.5.1"
 RUN uv pip install --no-cache-dir \
         "sapien==3.0.0b1" \
         "mplib==0.2.1" \
@@ -33,12 +33,12 @@ RUN uv pip install --no-cache-dir \
         "trimesh==4.4.3" \
         "imageio==2.34.2" \
         "open3d==0.18.0" \
-        "pydantic" \
-        "h5py" \
-        "pyyaml" \
-        "termcolor" \
-        "matplotlib" \
-        "Pillow" \
+        "pydantic==2.13.4" \
+        "h5py==3.16.0" \
+        "PyYAML==6.0.3" \
+        "termcolor==3.3.0" \
+        "matplotlib==3.10.9" \
+        "pillow==12.2.0" \
         "huggingface_hub==0.25.0"
 
 # ── Fix SAPIEN urdf_loader.py encoding (upstream bug) ────────────────
@@ -53,16 +53,27 @@ RUN MPLIB_LOC=$(python -c "import mplib; print(mplib.__path__[0])") && \
         "$MPLIB_LOC/planner.py"
 
 # ── Clone RoboTwin ───────────────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/RoboTwin-Platform/RoboTwin.git /app/RoboTwin \
+ARG ROBOTWIN_REF=c3ddfa8b97d5519efa828b075999bd0006778e5e
+RUN mkdir -p /app/RoboTwin \
+    && cd /app/RoboTwin \
+    && git init -q \
+    && git remote add origin https://github.com/RoboTwin-Platform/RoboTwin.git \
+    && git fetch -q --depth 1 origin "${ROBOTWIN_REF}" \
+    && git checkout -q FETCH_HEAD \
     && rm -rf /app/RoboTwin/.git
 
 # ── Install CuRobo (motion planner, built from source) ──────────────
 # No GPU visible during build → must specify arch explicitly.
 ENV TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0+PTX"
-RUN uv pip install --no-cache-dir wheel \
+ARG CUROBO_REF=d64c4b005459db10c5dd867d8b30a87d5bda9bdb
+RUN uv pip install --no-cache-dir "wheel==0.47.0" \
     && cd /app/RoboTwin/envs \
-    && git clone --depth 1 --branch v0.7.8 https://github.com/NVlabs/curobo.git \
+    && mkdir -p curobo \
     && cd curobo \
+    && git init -q \
+    && git remote add origin https://github.com/NVlabs/curobo.git \
+    && git fetch -q --depth 1 origin "${CUROBO_REF}" \
+    && git checkout -q FETCH_HEAD \
     && uv pip install --no-cache-dir --no-build-isolation . \
     && rm -rf .git
 
@@ -87,4 +98,3 @@ COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robotwin", "vla-eval"]
 CMD ["run", "--config", "/workspace/configs/robotwin_eval.yaml"]
-

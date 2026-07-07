@@ -2,7 +2,7 @@
 # Long-horizon language-conditioned manipulation benchmark
 # https://github.com/mees/calvin
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # multicoretsne (CALVIN dep) needs FFTW and BLAS to compile
@@ -14,15 +14,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN conda create -y -n calvin python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "calvin", "/bin/bash", "-c"]
 
-# Clone CALVIN with submodules (shallow)
-RUN git clone --recurse-submodules --depth 1 \
-      https://github.com/mees/calvin.git /app/calvin
+# Clone CALVIN with submodules at a fixed commit.
+ARG CALVIN_REF=fa03f01f19c65920e18cf37398a9ce859274af76
+RUN mkdir -p /app/calvin \
+    && cd /app/calvin \
+    && git init -q \
+    && git remote add origin https://github.com/mees/calvin.git \
+    && git fetch -q --depth 1 origin "${CALVIN_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && git submodule update --init --recursive --depth 1
 
 # CALVIN has legacy deps (pyhash needs use_2to3 / multicoretsne needs old cmake).
-# Pin setuptools <=57 and use pip (not uv) with --no-build-isolation to avoid
+# Pin legacy build tooling and use pip (not uv) with --no-build-isolation to avoid
 # uv's build-isolation injecting newer setuptools.
 RUN conda install -n calvin cmake=3.18 -y && conda clean -afy
-RUN pip install --no-cache-dir "setuptools==57.5.0" wheel \
+RUN pip install --no-cache-dir "setuptools==57.5.0" "wheel==0.45.1" \
     && cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
     && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
 
@@ -34,7 +40,7 @@ RUN sed -i 's/except TypeError:/except Exception:/' \
 # CPU-only torch + extra harness dependency
 RUN uv pip install --no-cache-dir \
       "torch==2.1.0+cpu" --index-url https://download.pytorch.org/whl/cpu \
-    && uv pip install --no-cache-dir fnvhash
+    && uv pip install --no-cache-dir "fnvhash==0.1.0"
 
 # Remove .git history to shrink image, then re-init minimal repos
 # (CALVIN calls git diff internally via get_git_commit_hash)

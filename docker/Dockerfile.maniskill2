@@ -1,7 +1,7 @@
 # ManiSkill2 evaluation environment
 # Assets (YCB ~25MB, EGAD ~320MB, pick_clutter ~16MB) are embedded in the image.
 
-ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:0.3.0
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────────
@@ -15,8 +15,8 @@ RUN uv pip install --no-cache-dir "torch==2.1.0" \
 
 # ── ManiSkill2 + dependencies (gymnasium, sapien) ─────────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
-RUN uv pip install --no-cache-dir "setuptools<70" \
-    && uv pip install --no-cache-dir mani-skill2
+RUN uv pip install --no-cache-dir "setuptools==69.5.1" \
+    && uv pip install --no-cache-dir "mani-skill2==0.5.3"
 
 # ── Download evaluation assets (YCB, EGAD, pick_clutter) ────────────
 # Embedded in image so users don't need manual download + volume mount.
@@ -32,7 +32,7 @@ ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
 RUN uv pip install --no-cache-dir -e .
 # torch 2.1.0 is incompatible with numpy >=2; pin to 1.x.
-RUN uv pip install --no-cache-dir "numpy<2"
+RUN uv pip install --no-cache-dir "numpy==1.26.4"
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "maniskill2", "vla-eval"]
