@@ -18,20 +18,22 @@ The bridge loads any single-observation-step policy by registry name.
 Multi-obs-step policies (`diffusion`, `vqbet`, `multi_task_dit`, `tdmpc`) need an
 observation history that chunk buffering skips, so they are rejected at load.
 
-"smoke" = checkpoint load + stub-episode inference verified on an A100 at the
-pinned lerobot v0.6.0; only π₀.₅ has a reproduced benchmark score so far.
+Verification levels, all on an A100 at the pinned lerobot v0.6.0: "smoke" =
+checkpoint load + stub-episode inference; "10-ep" = 10 LIBERO episodes
+(1 per task) on the suite the checkpoint targets, compared against LeRobot's
+published number where one exists.
 
 | policy_type | category | config | example checkpoint | verified |
 |---|---|---|---|---|
-| `pi05` | VLA | `pi05_libero.yaml` | `lerobot/pi05_libero_finetuned` | LIBERO Object reproduced 100/100 |
-| `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested |
-| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/GR00T-N1.7-LIBERO` | smoke (backbone repo `nvidia/Cosmos-Reason2-2B` is gated; accept access on HF first) |
-| `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke |
-| `molmoact2` | VLA | `molmoact2_libero.yaml` | `allenai/MolmoAct2-LIBERO` | smoke |
-| `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke |
-| `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke |
-| `vla_jepa` | world model | `vla_jepa_libero.yaml` | `lerobot/VLA-JEPA-LIBERO` | smoke |
-| `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | smoke |
+| `pi05` | VLA | `pi05_libero.yaml` | `lerobot/pi05_libero_finetuned` | LIBERO Object reproduced 100/100 (50 eps); 10-ep Object 10/10 |
+| `molmoact2` | VLA | `molmoact2_libero.yaml` | `allenai/MolmoAct2-LIBERO` | 10-ep Goal 10/10 (published 98.0) |
+| `vla_jepa` | world model | `vla_jepa_libero.yaml` | `lerobot/VLA-JEPA-LIBERO` | 10-ep LIBERO-10 10/10 (published 93.0) |
+| `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested (`lerobot/pi0_libero_finetuned` scored 0/10 here and has no published score) |
+| `groot` (N1.7) | VLA | `groot_n17.yaml` | `nvidia/GR00T-N1.7-LIBERO` | smoke; 10-ep Object 0/10, obs/action convention gap under investigation. Backbone repo `nvidia/Cosmos-Reason2-2B` is gated |
+| `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke (base checkpoint; no benchmark-ready finetune published) |
+| `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke (base checkpoint; no benchmark-ready finetune published) |
+| `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; 10-ep LIBERO-10 0/10 (published 94.0), not reproduced through the bridge yet |
+| `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | smoke; 10-ep LIBERO-10 0/10, suspected chunk-cadence mismatch with its autoregressive video state |
 
 Other single-obs-step registry names (`act`, `pi0_fast`, `eo1`, `evo1`, `wall_x`)
 load through the same path but ship no config here and are untested.

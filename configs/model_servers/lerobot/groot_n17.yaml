@@ -11,11 +11,17 @@
 # embodiment_tag must be a key of the dump's dataset_statistics.json
 # (libero_sim for the LIBERO checkpoints).
 
+# Status: loads and serves; a 10-episode LIBERO Object check scored 0/10, so an
+# obs/action convention gap remains under investigation. Do not trust scores yet.
+
 extends: _base.yaml
 args:
   policy_type: groot
   checkpoint: nvidia/GR00T-N1.7-LIBERO  # replace with the local subfolder path (see above)
   state_key: observation.state
   chunk_size: null
+  image_keys:
+    agentview: observation.images.image
+    wrist: observation.images.wrist_image
   policy_kwargs:
     embodiment_tag: libero_sim

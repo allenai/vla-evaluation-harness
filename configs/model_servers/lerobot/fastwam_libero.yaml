@@ -1,13 +1,15 @@
 # FastWAM (LeRobot world action model) model server: LIBERO checkpoint.
 #
 # Checkpoint: ZibinDong/fastwam_libero_uncond_2cam224 (chunk 32, image + image2 + state).
+# Status: loads and serves; a 10-episode LIBERO-10 check scored 0/10 (published
+# 94.0), so the bridge does not reproduce its scores yet. Do not trust scores.
 
 extends: _base.yaml
 args:
   policy_type: fastwam
   checkpoint: ZibinDong/fastwam_libero_uncond_2cam224
   state_key: observation.state
-  chunk_size: null  # policy default (n_action_steps=32)
+  chunk_size: 10  # LeRobot's LIBERO eval replans every 10 steps (n_action_steps=10)
   image_keys:
     agentview: observation.images.image
     wrist: observation.images.image2
@@ -15,3 +17,6 @@ args:
     # The checkpoint config bakes in the author's local path ("."); point back
     # at the UMT5 tokenizer FastWAM's Wan2.2 backbone uses.
     tokenizer_model_id: google/umt5-xxl
+    # LeRobot's published LIBERO numbers are measured at fp32 (the checkpoint
+    # default is bfloat16).
+    torch_dtype: float32

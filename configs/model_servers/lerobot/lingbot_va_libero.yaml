@@ -1,6 +1,9 @@
 # LingBot-VA (LeRobot world model) model server: LIBERO-Long checkpoint.
 #
 # Checkpoint: lerobot/lingbot_va_libero_long (image + image2, no state input).
+# Status: loads and serves (~21 s per chunk); a 10-episode LIBERO-10 check scored
+# 0/10, suspected chunk-cadence mismatch with its autoregressive video state.
+# Do not trust scores yet.
 
 extends: _base.yaml
 args:

@@ -220,16 +220,27 @@ class LeRobotModelServer(PredictModelServer):
         )
 
     def _validate_image_keys(self) -> None:
-        """Fail fast when an explicit image_keys target isn't a policy image feature."""
+        """Warn when an explicit image_keys target isn't a declared policy image feature.
+
+        Only a warning: declared features can diverge from what the policy's
+        processor actually consumes (e.g. groot declares a placeholder
+        ``observation.images.camera`` but its processor matches
+        ``observation.images.image`` / ``wrist_image``).
+        """
         if not self._image_keys_arg:
             return
         valid = set(self._expected_image_keys)
         for bench, key in self._image_keys_arg.items():
             qkey = _qualify_image_key(key)
             if qkey not in valid:
-                raise ValueError(
-                    f"image_keys[{bench!r}]={key!r} -> {qkey!r} is not an image feature of "
-                    f"{self.policy_type}; expected one of {sorted(valid)}."
+                logger.warning(
+                    "image_keys[%r]=%r -> %r is not a declared image feature of %s (declared: %s); "
+                    "passing it through to the policy processor.",
+                    bench,
+                    key,
+                    qkey,
+                    self.policy_type,
+                    sorted(valid),
                 )
 
     # ------------------------------------------------------------------
@@ -240,7 +251,9 @@ class LeRobotModelServer(PredictModelServer):
         params: dict[str, Any] = {}
         if self.state_key:
             params["send_state"] = True
-        if len(self._expected_image_keys) > 1:
+        # Declared features can undercount (groot declares one placeholder feature
+        # but consumes two views), so an explicit multi-camera mapping also counts.
+        if len(self._expected_image_keys) > 1 or len(self._image_keys_arg or {}) > 1:
             params["send_wrist_image"] = True
         return params
 
