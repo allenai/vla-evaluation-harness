@@ -13,6 +13,7 @@ variables and bridges to the StepBenchmark async interface.
 from __future__ import annotations
 
 import logging
+import inspect
 from pathlib import Path
 from typing import Any
 
@@ -128,6 +129,18 @@ class KinetixBenchmark(StepBenchmark):
             return
         import jax
         import jax.numpy as jnp
+
+        if "a_min" not in inspect.signature(jnp.clip).parameters:
+            _clip = jnp.clip
+
+            def _clip_compat(arr=None, /, a_min=None, a_max=None, min=None, max=None):
+                if min is None:
+                    min = a_min
+                if max is None:
+                    max = a_max
+                return _clip(arr, min, max)
+
+            jnp.clip = _clip_compat
 
         self._jax = jax
         self._jnp = jnp

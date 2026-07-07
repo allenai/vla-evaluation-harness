@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output_dir>]
+Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output_dir>] [--record-video|--no-record-video]
 
 Spawn N shards of \`vla-eval run\` against the same SQLite recording, then
 call \`vla-eval merge\` once after all shards exit. Shards share an eval id
@@ -17,6 +17,8 @@ Options:
   -o <output_dir>      Override the config's output_dir (passed to each shard
                        AND to merge so the SQLite + materialised outputs land
                        in the same place)
+  --record-video       Enable per-episode mp4 recording for all shard runs
+  --no-record-video    Disable per-episode mp4 recording for all shard runs
   -h                   Show this help
 EOF
   exit "${1:-0}"
@@ -26,6 +28,7 @@ CONFIG=""
 NUM_SHARDS=50
 EVAL_ID=""
 OUTPUT_DIR=""
+RECORD_VIDEO_FLAG=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     -n) NUM_SHARDS="$2"; shift 2 ;;
     -e) EVAL_ID="$2"; shift 2 ;;
     -o) OUTPUT_DIR="$2"; shift 2 ;;
+    --record-video|--no-record-video) RECORD_VIDEO_FLAG="$1"; shift ;;  # last flag wins, matching vla-eval run
     -h|--help) usage 0 ;;
     *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac
@@ -78,6 +82,9 @@ MERGE_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
 if [[ -n "$OUTPUT_DIR" ]]; then
   RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
   MERGE_OPTS+=(--output-dir "$OUTPUT_DIR")
+fi
+if [[ -n "$RECORD_VIDEO_FLAG" ]]; then
+  RUN_OPTS+=("$RECORD_VIDEO_FLAG")
 fi
 
 echo "Launching ${NUM_SHARDS} shards..."

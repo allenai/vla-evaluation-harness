@@ -7,6 +7,7 @@ headless rendering.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import numpy as np
@@ -73,13 +74,18 @@ class RLBenchBenchmark(StepBenchmark):
         from rlbench.environment import Environment
         from rlbench.observation_config import CameraConfig, ObservationConfig
 
-        cam = CameraConfig(
-            rgb=True,
-            depth=False,
-            point_cloud=False,
-            mask=False,
-            render_resolution=(self._render_resolution, self._render_resolution),
-        )
+        camera_kwargs: dict[str, Any] = {
+            "rgb": True,
+            "depth": False,
+            "point_cloud": False,
+            "mask": False,
+        }
+        resolution = (self._render_resolution, self._render_resolution)
+        if "render_resolution" in inspect.signature(CameraConfig).parameters:
+            camera_kwargs["render_resolution"] = resolution
+        else:
+            camera_kwargs["image_size"] = resolution
+        cam = CameraConfig(**camera_kwargs)
         cam_off = CameraConfig()
         cam_off.set_all(False)
 

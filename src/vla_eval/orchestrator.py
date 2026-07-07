@@ -24,6 +24,7 @@ from vla_eval.recording import (
     NullEpisodeRecorder,
     RecordingStore,
     db_path_for_eval,
+    recording_filename_context,
     serializable_task_kwargs,
 )
 from vla_eval.registry import resolve_import_string
@@ -37,6 +38,14 @@ from vla_eval.tracking import Tracker, call_each, get_reporting_trackers
 logger = logging.getLogger(__name__)
 
 _SAFE_NAME_RE = re.compile(r"[^\w\-.]")
+_DEFAULT_RECORDING_CONFIG: dict[str, Any] = {"record_step": True, "record_video": False}
+
+
+def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) -> dict[str, Any] | None:
+    """Recorder policy for one benchmark entry: on by default, ``recording:`` overrides, ``--no-save`` disables."""
+    if no_save:
+        return None
+    return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
 
 
 class Orchestrator:
@@ -240,7 +249,9 @@ class Orchestrator:
         if cfg.max_tasks:
             tasks = tasks[: cfg.max_tasks]
 
-        work_items = [(task, ep) for task in tasks for ep in range(cfg.episodes_per_task)]
+        work_items = [
+            (task_idx, task, ep) for task_idx, task in enumerate(tasks) for ep in range(cfg.episodes_per_task)
+        ]
         if self.num_shards is not None and self.shard_id is not None:
             work_items = [w for i, w in enumerate(work_items) if i % self.num_shards == self.shard_id]
             logger.info("Shard %d/%d: %d episodes assigned", self.shard_id, self.num_shards, len(work_items))
@@ -258,12 +269,12 @@ class Orchestrator:
             "harness_version": __version__,
             "server_info": conn.server_info,
         }
-        if self._store is not None:
+        rec_cfg = _effective_recording_config(cfg.recording, no_save=self.no_save)
+        if self._store is not None and rec_cfg is not None:
             self._store.upsert_eval_metadata(bench_eval_id, safe_name, bench_metadata)
-
-        rec_cfg = cfg.recording if self._store is not None else None
-        if rec_cfg and work_items:
-            self._validate_filename_stem(rec_cfg, work_items[0][0])
+            if work_items:
+                task_idx, first_task, ep = work_items[0]
+                self._validate_filename_stem(rec_cfg, first_task, safe_name, task_idx, ep)
 
         def record_failure(reason: str, detail: str) -> dict[str, Any]:
             fail: dict[str, Any] = {
@@ -293,7 +304,7 @@ class Orchestrator:
                 call_each(self._trackers, "on_episode_end", name, task_name, ep_dict, status)
 
         try:
-            for item_idx, (task, ep) in enumerate(work_items):
+            for item_idx, (task_idx, task, ep) in enumerate(work_items):
                 task_name = task.get("name", str(task))
                 watchdog.pet(f"{safe_name} {task_name} ep{ep}")
                 recorder: EpisodeRecorder = NullEpisodeRecorder()
@@ -303,7 +314,7 @@ class Orchestrator:
                     if cfg.throughput_mode and max_ep is not None:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
-                    recorder = self._build_recorder(cfg.recording, task, bench_eval_id, benchmark)
+                    recorder = self._build_recorder(rec_cfg, task, bench_eval_id, safe_name, task_idx, ep, benchmark)
                     raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps, recorder=recorder)
                     raw["episode_id"] = ep
                     ep_result = cast(EpisodeResult, raw)
@@ -400,6 +411,9 @@ class Orchestrator:
         rec_cfg: dict[str, Any] | None,
         task: dict[str, Any],
         bench_eval_id: str,
+        benchmark_safe_name: str,
+        task_idx: int,
+        episode_id: int,
         benchmark: Any,
     ) -> EpisodeRecorder:
         """Build per-episode recorder from YAML config + task dict, or Null if recording is off.
@@ -420,24 +434,40 @@ class Orchestrator:
             output_dir=rec_cfg.get("output_dir") or str(self._output_dir / "episodes"),
             filename_stem=rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM,
             context=serializable_task_kwargs(task),
-            record_video=bool(rec_cfg.get("record_video", True)),
-            record_step=bool(rec_cfg.get("record_step", True)),
+            filename_context=recording_filename_context(
+                benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
+            ),
+            record_video=bool(rec_cfg["record_video"]),
+            record_step=bool(rec_cfg["record_step"]),
             video_fps=int(rec_cfg.get("video_fps", 20)),
             step_fields=rec_cfg.get("step_fields"),
             allowed_fields=allowed,
         )
 
-    def _validate_filename_stem(self, rec_cfg: dict[str, Any], first_task: dict[str, Any]) -> None:
+    def _validate_filename_stem(
+        self,
+        rec_cfg: dict[str, Any],
+        first_task: dict[str, Any],
+        benchmark_safe_name: str,
+        task_idx: int,
+        episode_id: int,
+    ) -> None:
         """Dry-render the template so YAML key typos fail before any episode runs."""
         stem = rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM
         # episode_idx is injected per-iteration by the run loop, not present on first_task itself.
-        probe = {**serializable_task_kwargs(first_task), "episode_idx": 0, "status": "success"}
+        probe = {
+            **serializable_task_kwargs(first_task),
+            "episode_idx": 0,
+            **recording_filename_context(
+                benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
+            ),
+            "status": "success",
+        }
         try:
             stem.format(**probe)
         except KeyError as exc:
             raise ValueError(
-                f"recording.filename_stem={stem!r} references key {exc} "
-                f"that's not in the task dict (available: {sorted(probe)})."
+                f"recording.filename_stem={stem!r} references unknown key {exc} (available: {sorted(probe)})."
             ) from None
         except (IndexError, ValueError) as exc:
             raise ValueError(f"recording.filename_stem={stem!r} is malformed: {exc}") from None

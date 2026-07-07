@@ -7,11 +7,12 @@ from pathlib import Path
 import pytest
 
 from vla_eval.cli.config_loader import load_config
+from vla_eval.config import EvalConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIGS_DIR = REPO_ROOT / "configs"
 MODEL_SERVER_CONFIGS = sorted(p for p in CONFIGS_DIR.glob("model_servers/**/*.yaml") if p.name != "_base.yaml")
-BENCHMARK_CONFIGS = sorted(p for p in CONFIGS_DIR.glob("*.yaml") if p.name != "README.md")
+BENCHMARK_CONFIGS = sorted((CONFIGS_DIR / "benchmarks").glob("**/*.yaml"))
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +49,7 @@ BENCHMARK_CONFIGS_WITH_BENCHMARKS = [p for p in BENCHMARK_CONFIGS if _has_benchm
 @pytest.mark.parametrize(
     "config_path",
     BENCHMARK_CONFIGS_WITH_BENCHMARKS,
-    ids=[p.name for p in BENCHMARK_CONFIGS_WITH_BENCHMARKS],
+    ids=[str(p.relative_to(CONFIGS_DIR)) for p in BENCHMARK_CONFIGS_WITH_BENCHMARKS],
 )
 def test_benchmark_config_import_strings(config_path: Path) -> None:
     """Benchmark configs have well-formed 'module:Class' import strings."""
@@ -60,6 +61,12 @@ def test_benchmark_config_import_strings(config_path: Path) -> None:
         module, _, cls_name = import_path.partition(":")
         assert module, f"Empty module in {import_path!r}"
         assert cls_name, f"Empty class name in {import_path!r}"
+
+
+def test_eval_config_rejects_non_mapping_recording() -> None:
+    """The single validation point for 'recording:' type errors is EvalConfig.from_dict."""
+    with pytest.raises(ValueError, match="'recording' must be a mapping or null"):
+        EvalConfig.from_dict({"benchmark": "mod:Cls", "recording": "yes"})
 
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,6 @@ FROM ${BASE_IMAGE}
 
 ENV VLABENCH_ROOT=/app/VLABench/VLABench
 
-# Create conda env with Python 3.10
 RUN conda create -n vlabench python=3.10 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "vlabench", "/bin/bash", "-c"]
@@ -16,7 +15,6 @@ RUN uv pip install --no-cache-dir \
         dm_control==1.0.22 \
         numpy==1.25.0
 
-# Install remaining VLABench dependencies
 RUN uv pip install --no-cache-dir \
         gym==0.26.2 \
         gymnasium==0.29.1 \
@@ -34,15 +32,23 @@ RUN uv pip install --no-cache-dir \
         scikit-learn \
         openai
 
-# Clone and install rrt-algorithms (required by VLABench skill_lib)
-RUN git clone --depth 1 https://github.com/motion-planning/rrt-algorithms.git /app/rrt-algorithms && \
+ARG RRT_ALGORITHMS_REF=e51d95ee489a225220d6ae2a764c4111f6ba7d85
+RUN mkdir -p /app/rrt-algorithms && \
     cd /app/rrt-algorithms && \
+    git init -q && \
+    git remote add origin https://github.com/motion-planning/rrt-algorithms.git && \
+    git fetch -q --depth 1 origin "${RRT_ALGORITHMS_REF}" && \
+    git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/rrt-algorithms/.git
 
-# Clone and install VLABench
-RUN git clone --depth 1 https://github.com/OpenMOSS/VLABench.git /app/VLABench && \
+ARG VLABENCH_REF=cf588fe60c0c7282174fe979f5913170cfe69017
+RUN mkdir -p /app/VLABench && \
     cd /app/VLABench && \
+    git init -q && \
+    git remote add origin https://github.com/OpenMOSS/VLABench.git && \
+    git fetch -q --depth 1 origin "${VLABENCH_REF}" && \
+    git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/VLABench/.git
 
@@ -51,7 +57,6 @@ RUN cd /app/VLABench && \
     python scripts/download_assets.py || \
     echo "WARNING: Asset download failed — may need manual download"
 
-# Install harness
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/
@@ -61,4 +66,3 @@ RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "vlabench", "vla-eval"]
-

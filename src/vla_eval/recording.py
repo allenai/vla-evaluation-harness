@@ -86,14 +86,20 @@ CREATE TABLE IF NOT EXISTS step_rows (
 # ---------------------------------------------------------------------------
 
 
-# Default when ``recording.filename_stem`` is omitted. Every benchmark's
-# task dict carries ``name``; including it prevents per-shard collisions.
-DEFAULT_FILENAME_STEM = "{name}_ep{episode_idx:04d}_{status}"
+# Default when ``recording.filename_stem`` is omitted. Numeric orchestrator ids keep
+# paths short and collision-free across shards; ``episode_id`` is the raw run episode,
+# not the throughput-mode-wrapped ``episode_idx``.
+DEFAULT_FILENAME_STEM = "{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}"
 
 
 def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
     """JSON-friendly subset of *task* — safe for str.format and SQLite JSON columns."""
     return {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool))}
+
+
+def recording_filename_context(*, benchmark_safe_name: str, task_idx: int, episode_id: int) -> dict[str, Any]:
+    """Filename-template keys injected by the orchestrator; kept out of the persisted episode context."""
+    return {"benchmark_safe_name": benchmark_safe_name[:96], "task_idx": task_idx, "episode_id": episode_id}
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +343,8 @@ class EpisodeRecorder:
         output_dir: str | Path,
         filename_stem: str,
         context: dict[str, Any],
-        record_video: bool = True,
+        filename_context: dict[str, Any] | None = None,
+        record_video: bool = False,
         record_step: bool = True,
         video_fps: int = 20,
         step_fields: Iterable[str] | None = None,
@@ -350,6 +357,7 @@ class EpisodeRecorder:
         self._output_dir = Path(output_dir)
         self._filename_stem = filename_stem
         self._context = dict(context)
+        self._filename_context = {**self._context, **(filename_context or {})}
         self._record_step = record_step
         self._steps: dict[int, dict[str, Any]] = {}
         self._next_step = 0
@@ -381,7 +389,7 @@ class EpisodeRecorder:
                 fps=video_fps,
             )
             try:
-                self._video.start(self._context)
+                self._video.start(self._filename_context)
             except Exception:
                 logger.exception("EpisodeVideoRecorder.start failed; video disabled for this episode")
                 self._video = None
@@ -457,7 +465,7 @@ class EpisodeRecorder:
             self._video = None
 
         try:
-            jsonl_name = (self._filename_stem + ".jsonl").format(status=status, **self._context)
+            jsonl_name = (self._filename_stem + ".jsonl").format(status=status, **self._filename_context)
         except Exception:
             logger.exception("filename_stem render failed; using fallback name")
             jsonl_name = f"{self._sid}-{self._eid}_{status}.jsonl"

@@ -50,16 +50,29 @@ RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/stepjam/PyRep.git /tmp/PyRep \
-    && cd /tmp/PyRep && pip install --no-cache-dir -e . \
+# PyRep imports cffi at setup time, so disable build isolation.
+ARG PYREP_REF=4.1.0
+RUN uv pip install --no-cache-dir cffi \
+    && mkdir -p /tmp/PyRep \
+    && cd /tmp/PyRep \
+    && git init -q \
+    && git remote add origin https://github.com/stepjam/PyRep.git \
+    && git fetch -q --depth 1 origin "${PYREP_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && uv pip install --no-cache-dir --no-build-isolation -e . \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/stepjam/RLBench.git /tmp/RLBench \
-    && cd /tmp/RLBench && pip install --no-cache-dir -e . \
+ARG RLBENCH_REF=1.1.0
+RUN mkdir -p /tmp/RLBench \
+    && cd /tmp/RLBench \
+    && git init -q \
+    && git remote add origin https://github.com/stepjam/RLBench.git \
+    && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && uv pip install --no-cache-dir -e . \
     && rm -rf /tmp/RLBench/.git
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

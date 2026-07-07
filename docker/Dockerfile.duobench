@@ -1,16 +1,12 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
-# Build recipe adapted from robot-control-stack/docker/Dockerfile.  Upstream RCS
-# builds on a stereolabs/zed base for its real-robot hardware extensions
-# (rcs_fr3 / rcs_realsense / rcs_zed); we extend the shared harness base and skip
-# them, since sim evaluation needs only the RCS core + duobench.
+# Adapted from robot-control-stack/docker/Dockerfile; sim eval only needs
+# RCS core + DuoBench, not the real-robot hardware extensions.
 
-# Pin RCS + DuoBench to exact commits for reproducible builds: their compiled ABI
-# must stay compatible with the mujoco / urdfdom / pin versions pinned below, so
-# bump these deliberately (and rebuild-verify) rather than tracking a branch tip.
-ARG RCS_REF=daef12b61dfa7685ed049965ed2e5b7df52f3116
-ARG DUOBENCH_REF=0b3cebd23b04d13fdf00318245648e859b184272
+# RCS compiles against the MuJoCo/urdfdom/pin stack below.
+ARG RCS_REF=v0.7.1
+ARG DUOBENCH_REF=v0.1.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -18,39 +14,28 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1
 
 # ── System build deps the shared base doesn't already provide ──────
-# The base already ships build-essential / cmake / git / curl and the full
-# GL/EGL stack, so duobench adds only libpoco-dev — rcs's compiled C++ extension
-# links Poco (networking) at build and runtime.  (cmake/ninja come from pip and
-# urdfdom/glfw from conda, below; the apt versions are too old.)
+# RCS links Poco; cmake/ninja/urdfdom/glfw come from pip/conda below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpoco-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Conda env with Python 3.11 (rcs + duobench requirement) ────────
 # urdfdom pinned to 4.x: rcs's compiled C++ extension links against
-# liburdfdom_sensor.so.4.0 (soname major version 4); conda-forge's
-# current urdfdom is 6.0.0 (soname 6), which is an ABI break.  Pinning
-# the urdfdom package version keeps the right soname on disk.
-# urdfdom_headers tracks separately and can stay unpinned (latest 1.x/3.x).
+# liburdfdom_sensor.so.4.0, and newer sonames break that ABI.
 RUN conda create -n duobench python=3.11 pip -y && \
     conda install -n duobench -c conda-forge -y \
         "urdfdom=4.0" urdfdom_headers glfw "tinyxml2=10" && \
     conda clean -afy
 SHELL ["conda", "run", "-n", "duobench", "/bin/bash", "-c"]
 
-# rcs's compiled C++ extension dlopen()s libs from the conda env's lib dir
-# (urdfdom, tinyxml2, etc.).  `conda run` doesn't propagate LD_LIBRARY_PATH
-# the way `conda activate` would, so bake the path into the image's
-# environment for both build and runtime.
+# RCS dlopen()s conda libs; `conda run` does not set LD_LIBRARY_PATH like activation.
 ENV LD_LIBRARY_PATH=/opt/conda/envs/duobench/lib:${LD_LIBRARY_PATH}
 
 # ── Build / runtime deps ───────────────────────────────────────────
-# These mirror rcs's [build-system].requires: the rcs install below uses
-# --no-build-isolation, so pip won't fetch build deps — they must be present here.
+# RCS installs with --no-build-isolation, so build deps must be present here.
 # mujoco 3.2.6 + pin 3.7.0 are the versions RCS upstream tests against.
-# cmeel-urdfdom<5: the pip-side urdfdom, capped to the same soname-4 major as the
-# conda urdfdom above (5.x/6.x would be the same ABI break).
-RUN pip install --no-cache-dir \
+# cmeel-urdfdom<5 keeps the pip-side urdfdom on the same soname-4 ABI.
+RUN uv pip install --no-cache-dir \
         "pip>=25.1" \
         build wheel \
         "setuptools>=45" \
@@ -63,15 +48,13 @@ RUN pip install --no-cache-dir \
         "pin==3.7.0"
 
 # ── Clone + install Robot Control Stack (core only — no hardware ext) ──
-# Shallow-fetch exactly ${RCS_REF} (GitHub allows fetch-by-SHA), so the pin holds
-# without cloning full history.  `--no-build-isolation` is intentional: the build
-# relies on scikit-build-core picking up the cmake/ninja installed above.
+# The build uses the deps installed above via --no-build-isolation.
 RUN mkdir -p /opt/rcs && cd /opt/rcs \
     && git init -q \
     && git remote add origin https://github.com/RobotControlStack/robot-control-stack.git \
     && git fetch -q --depth 1 origin "${RCS_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir --no-build-isolation -ve . \
+    && uv pip install --no-cache-dir --no-build-isolation --editable . \
     && rm -rf /opt/rcs/.git
 
 # ── Clone + install DuoBench ───────────────────────────────────────
@@ -80,7 +63,7 @@ RUN mkdir -p /opt/duobench && cd /opt/duobench \
     && git remote add origin https://github.com/RobotControlStack/duobench.git \
     && git fetch -q --depth 1 origin "${DUOBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -ve . \
+    && uv pip install --no-cache-dir --editable . \
     && rm -rf /opt/duobench/.git
 
 # ── Headless GL defaults (MuJoCo backend selection at sim init) ────
@@ -90,13 +73,12 @@ RUN mkdir -p /opt/duobench && cd /opt/duobench \
 ENV MUJOCO_GL=egl \
     PYOPENGL_PLATFORM=egl
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/
 ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
-RUN pip install --no-cache-dir -e .
+RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "duobench", "vla-eval"]

@@ -20,12 +20,14 @@ import numpy as np
 import pytest
 
 from vla_eval.recording import (
+    DEFAULT_FILENAME_STEM,
     EpisodeRecorder,
     NullEpisodeRecorder,
     RecordingStore,
     StepRecorder,
     _detect_network_fs,
     db_path_for_eval,
+    recording_filename_context,
 )
 from vla_eval.results.merge import merge_db, merge_eval
 
@@ -33,6 +35,15 @@ from vla_eval.results.merge import merge_db, merge_eval
 # ---------------------------------------------------------------------------
 # Schema / store
 # ---------------------------------------------------------------------------
+
+
+def test_default_filename_stem_renders_from_filename_context() -> None:
+    """The default stem renders from orchestrator keys alone, with long benchmark names truncated."""
+    ctx = recording_filename_context(benchmark_safe_name="b" * 200, task_idx=7, episode_id=2)
+
+    rendered = (DEFAULT_FILENAME_STEM + ".jsonl").format(status="success", **ctx)
+
+    assert rendered == "b" * 96 + "/task0007_ep0002_success.jsonl"
 
 
 def test_store_schema_idempotent_across_processes(tmp_path: Path) -> None:

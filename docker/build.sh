@@ -77,8 +77,12 @@ build_image() {
   local build_args=()
 
   if is_derived "$name"; then
-    # Derived images use the Dockerfile's default BASE_IMAGE (e.g. simpler:latest)
-    build_args=(--build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
+    local parent="${name%%_*}"
+    local parent_image="${parent//_/-}"
+    build_args=(
+      --build-arg "BASE_IMAGE=${REGISTRY}/${parent_image}:${TAG}"
+      --build-arg "HARNESS_VERSION=${HARNESS_VERSION}"
+    )
   elif [[ "$name" != "base" ]]; then
     build_args=(--build-arg "BASE_IMAGE=${BASE_IMAGE}" --build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
   fi
@@ -129,4 +133,3 @@ else
     build_image "$b"
   done
 fi
-

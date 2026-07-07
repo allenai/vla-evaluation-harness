@@ -1,5 +1,5 @@
 # SimplerEnv evaluation environment
-# Includes ManiSkill2_real2sim + SimplerEnv at pinned commits.
+# Includes ManiSkill2_real2sim + SimplerEnv.
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
@@ -9,14 +9,24 @@ RUN conda create -n simpler python=3.10 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
 
-# ── Clone ManiSkill2_real2sim + SimplerEnv (pinned commits) ────────────
+# ── ManiSkill2_real2sim + SimplerEnv source ───────────────────────────
 WORKDIR /app
-RUN git clone https://github.com/simpler-env/ManiSkill2_real2sim.git /app/ManiSkill2_real2sim \
-    && cd /app/ManiSkill2_real2sim && git checkout ef7a4d4fdf4b69f2c2154db5b15b9ac8dfe10682 \
+ARG MANISKILL2_REAL2SIM_REF=ef7a4d4fdf4b69f2c2154db5b15b9ac8dfe10682
+RUN mkdir -p /app/ManiSkill2_real2sim \
+    && cd /app/ManiSkill2_real2sim \
+    && git init -q \
+    && git remote add origin https://github.com/simpler-env/ManiSkill2_real2sim.git \
+    && git fetch -q --depth 1 origin "${MANISKILL2_REAL2SIM_REF}" \
+    && git checkout -q FETCH_HEAD \
     && rm -rf .git
 
-RUN git clone https://github.com/simpler-env/SimplerEnv.git /app/simpler_env_src \
-    && cd /app/simpler_env_src && git checkout 4ab7178e83e84ee06894034ec6dbf9e7aad1e882 \
+ARG SIMPLER_ENV_REF=4ab7178e83e84ee06894034ec6dbf9e7aad1e882
+RUN mkdir -p /app/simpler_env_src \
+    && cd /app/simpler_env_src \
+    && git init -q \
+    && git remote add origin https://github.com/simpler-env/SimplerEnv.git \
+    && git fetch -q --depth 1 origin "${SIMPLER_ENV_REF}" \
+    && git checkout -q FETCH_HEAD \
     && rm -rf .git
 
 # ── Install simulation stack ──────────────────────────────────────────
@@ -36,7 +46,6 @@ RUN uv pip install --no-cache-dir numpy==1.24.4
 RUN mkdir -p /app/simpler \
     && ln -sfn /app/ManiSkill2_real2sim /app/simpler/ManiSkill2_real2sim
 
-# ── Install evaluation harness ────────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

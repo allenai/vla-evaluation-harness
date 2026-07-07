@@ -56,13 +56,14 @@ CLI (cli/main.py)
 
 ### Recording flow
 
-`vla-eval run` writes raw rows to `<output_dir>/recording-<eval_id>.sqlite`:
+Benchmark entries write raw rows to `<output_dir>/recording-<eval_id>.sqlite` by default:
 
-- Recording is configured at the **benchmark config's top-level `recording:` key** (sibling of `params`). The orchestrator reads this dict (`output_dir`, `filename_stem`, `record_video`, `record_step`, `video_fps`) and builds the recorder. Benchmarks are not involved in recording policy; they only decide *what* to record (which obs frame, which step fields).
+- Recording defaults to `record_step: true` and `record_video: false`. The optional **benchmark config's top-level `recording:` key** (sibling of `params`) overrides that policy. The orchestrator reads this dict (`output_dir`, `filename_stem`, `record_video`, `record_step`, `video_fps`) and builds the recorder. Benchmarks are not involved in recording policy; they only decide *what* to record (which obs frame, which step fields).
 - Benchmark calls `recorder.record_video(frame)` / `recorder.record_step(row)`; the recorder buffers per-episode and flushes in one transaction at episode end.
-- `filename_stem` (default `"ep{episode_idx:04d}_{status}"`) is a `str.format` template against the task dict's serializable fields + `{status}`. The orchestrator validates it against the first task at startup so a typo fails fast.
+- `filename_stem` (default `"{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}"`) is a `str.format` template against the task dict's serializable fields + `{status}` plus orchestrator-injected keys (`benchmark_safe_name`, `task_idx`, `episode_id`). `task_idx` is assigned before shard filtering, and `episode_id` is the raw run episode id. The orchestrator validates it against the first task at startup so a typo fails fast.
 - Model server (optional, used by external callers like a training pipeline) receives `(sid, eid, eval_id, db_path)` in the `EPISODE_START` WS payload and opens a `vla_eval.recording.StepRecorder` to push its own step rows. Field-union with the benchmark's rows is automatic via SQLite `json_patch`.
 - `vla-eval merge -c <config> [--eval-id <id>]` reads the DB and emits per-episode jsonl + a `BenchmarkResult`-shaped aggregate JSON. Single-shard `vla-eval run` invokes this inline; sharded runs delegate to `scripts/run_sharded.sh` which calls `vla-eval merge` once after `wait`.
+- Use `vla-eval run --record-video` to enable mp4s for all benchmarks without editing YAML.
 - `vla-eval run --no-save` skips recording entirely (in-memory only).
 
 ### Tracking

@@ -101,11 +101,22 @@ class MIKASABenchmark(StepBenchmark):
     def get_tasks(self) -> list[Task]:
         return [{"name": t} for t in self._task_names]
 
+    @staticmethod
+    def _resolve_env_name(env_name: str, registry: Any) -> str:
+        if env_name in registry:
+            return env_name
+        if env_name.endswith("-v0"):
+            vla_name = f"{env_name[:-3]}-VLA-v0"
+            if vla_name in registry:
+                return vla_name
+        return env_name
+
     def reset(self, task: Task) -> Any:
         import gymnasium as gym
-        import mikasa_robo_suite  # noqa: F401 — registers envs
+        import mikasa_robo_suite.vla.memory_envs  # noqa: F401 — registers VLA envs
 
-        env_name = task["name"]
+        task_name = task["name"]
+        env_name = self._resolve_env_name(task_name, gym.envs.registry)
 
         if self._env is None or self._current_task != env_name:
             if self._env is not None:
@@ -116,13 +127,13 @@ class MIKASABenchmark(StepBenchmark):
                 obs_mode="rgb",
                 render_mode="cameras",
             )
-            from mikasa_robo_suite.utils.wrappers import StateOnlyTensorToDictWrapper
+            from mikasa_robo_suite.vla.utils.wrappers import StateOnlyTensorToDictWrapper
 
             self._env = StateOnlyTensorToDictWrapper(self._env)
             self._current_task = env_name
 
         obs, info = self._env.reset()
-        self._task_desc = TASK_DESCRIPTIONS.get(env_name, f"Complete {env_name}")
+        self._task_desc = TASK_DESCRIPTIONS.get(task_name) or TASK_DESCRIPTIONS.get(env_name, f"Complete {env_name}")
         self._recorder.record_video(self._extract_frame(obs))
         return obs
 

@@ -4,8 +4,8 @@ FROM ${BASE_IMAGE}
 RUN conda create -n libero_mem python=3.8 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "libero_mem", "/bin/bash", "-c"]
 
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # robosuite/robomimic are installed from libero-mem's bundled thirdparty/
 # forks (not PyPI) — they contain modifications for memory-dependent envs.
@@ -15,11 +15,17 @@ RUN uv pip install --no-cache-dir \
         "gym>=0.21,<0.27" matplotlib \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
-RUN git clone --depth 1 https://github.com/libero-mem/libero-mem.git /app/libero-mem \
-    && cd /app/libero-mem/thirdparty/robomimic && pip install --no-cache-dir -e . \
-    && cd /app/libero-mem/thirdparty/robosuite && pip install --no-cache-dir -e . \
-    && cd /app/libero-mem && pip install --no-cache-dir -e . \
-    && rm -rf /app/libero-mem/.git ~/.cache/pip
+ARG LIBERO_MEM_REF=0eee0defa4024e51511b6e15a79f30e9620209de
+RUN mkdir -p /app/libero-mem \
+    && cd /app/libero-mem \
+    && git init -q \
+    && git remote add origin https://github.com/libero-mem/libero-mem.git \
+    && git fetch -q --depth 1 origin "${LIBERO_MEM_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && cd /app/libero-mem/thirdparty/robomimic && uv pip install --no-cache-dir -e . \
+    && cd /app/libero-mem/thirdparty/robosuite && uv pip install --no-cache-dir -e . \
+    && cd /app/libero-mem && uv pip install --no-cache-dir -e . \
+    && rm -rf /app/libero-mem/.git ~/.cache/uv
 
 RUN mkdir -p /root/.libero && printf '\
 benchmark_root: /app/libero-mem/libero/libero\n\

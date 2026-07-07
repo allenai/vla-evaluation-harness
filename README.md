@@ -208,22 +208,24 @@ docker/build.sh behavior1k --accept-license behavior1k    # build a gated image
 
 ## Observability
 
-Two opt-in systems capture eval data. Both key on `eval_id` so recordings and tracker runs stay linked.
+Two systems capture eval data. Both key on `eval_id` so recordings and tracker runs stay linked.
 
 ### Recording
 
-Every `vla-eval run` persists raw data to `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. Configure via each benchmark's `recording:` key:
+Benchmark entries persist episode results and step rows by default, with videos off. Add a top-level `recording:` key only when you want to override that policy; use `--record-video` or set `record_video: true` when you want per-episode mp4s.
 
 ```yaml
 benchmarks:
   - benchmark: ...
     recording:
       record_video: true
-      record_step: true
       video_fps: 10
 ```
 
-`vla-eval merge` materializes per-episode JSONL + aggregate JSON from the DB. Single-shard runs auto-merge; sharded runs call `vla-eval merge` once after all shards exit. `--no-save` skips recording entirely.
+Recording writes `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. `vla-eval merge` materializes per-episode JSONL + aggregate JSON from the DB. Single-shard runs auto-merge; sharded runs call `vla-eval merge` once after all shards exit. `--no-save` skips recording entirely.
+
+When `filename_stem` is omitted, per-episode artifacts use a benchmark-scoped path:
+`{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}`. Custom stems can still reference serializable task fields such as `{name}` plus `{status}`.
 
 ### Tracking (wandb / trackio)
 

@@ -3,20 +3,27 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
-# Create conda env with Python 3.11
 RUN conda create -n robocasa python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "robocasa", "/bin/bash", "-c"]
 
-# Clone and install robosuite v2 (must be from master branch)
-RUN git clone --depth 1 https://github.com/ARISE-Initiative/robosuite.git /app/robosuite && \
+ARG ROBOCASA_ROBOSUITE_REF=85abee228d1c43ab1939bce33028099945d453b4
+RUN mkdir -p /app/robosuite && \
     cd /app/robosuite && \
+    git init -q && \
+    git remote add origin https://github.com/ARISE-Initiative/robosuite.git && \
+    git fetch -q --depth 1 origin "${ROBOCASA_ROBOSUITE_REF}" && \
+    git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/robosuite/.git
 
-# Clone and install RoboCasa
-RUN git clone --depth 1 https://github.com/robocasa/robocasa.git /app/robocasa && \
+ARG ROBOCASA_REF=v1.0
+RUN mkdir -p /app/robocasa && \
     cd /app/robocasa && \
+    git init -q && \
+    git remote add origin https://github.com/robocasa/robocasa.git && \
+    git fetch -q --depth 1 origin "${ROBOCASA_REF}" && \
+    git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/robocasa/.git
 
@@ -25,7 +32,6 @@ RUN cd /app/robocasa \
     && python robocasa/scripts/setup_macros.py \
     && echo "y" | python robocasa/scripts/download_kitchen_assets.py
 
-# Install harness
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/
@@ -36,4 +42,3 @@ COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robocasa", "vla-eval"]
 CMD ["run", "--config", "/workspace/configs/robocasa_eval.yaml"]
-

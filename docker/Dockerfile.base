@@ -41,15 +41,17 @@ RUN mkdir -p /usr/share/vulkan/icd.d /usr/share/glvnd/egl_vendor.d \
             > /usr/share/glvnd/egl_vendor.d/10_nvidia.json; }
 
 # ── Miniforge (lightweight conda, conda-forge defaults) ──────────────
+ARG MINIFORGE_VERSION=26.3.2-0
 RUN wget -qO /tmp/miniforge.sh \
-        https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+        https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-Linux-x86_64.sh \
     && bash /tmp/miniforge.sh -b -p /opt/conda \
     && rm /tmp/miniforge.sh \
     && /opt/conda/bin/conda clean -afy
 ENV PATH=/opt/conda/bin:$PATH
 
 # ── uv (fast Python package installer) ───────────────────────────────
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /usr/local/bin/uv
+ARG UV_EXCLUDE_NEWER=2026-07-07
+ENV UV_EXCLUDE_NEWER=${UV_EXCLUDE_NEWER}
 
 WORKDIR /workspace
-

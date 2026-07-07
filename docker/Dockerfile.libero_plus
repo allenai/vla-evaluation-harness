@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── CPU-only PyTorch ───────────────────────────────────────────────
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # ── Python dependencies ───────────────────────────────────────────
 # LIBERO-Plus adds scikit-image, wand (ImageMagick bindings), usd-core
@@ -29,11 +29,15 @@ RUN uv pip install --no-cache-dir \
 # The fork installs under the same `libero` package namespace as vanilla
 # LIBERO and cannot coexist with it; this image intentionally does not
 # install the upstream `Lifelong-Robot-Learning/LIBERO` repo.
-# uv wheel builder can't handle find_packages() in setup.py; fall back
-# to pip for this single install.
-RUN git clone --depth 1 https://github.com/sylvestf/LIBERO-plus.git /app/LIBERO-plus \
-    && cd /app/LIBERO-plus && pip install --no-cache-dir -e . \
-    && rm -rf /app/LIBERO-plus/.git ~/.cache/pip
+ARG LIBERO_PLUS_REF=4976dc30028e805ff8094b55501d532c48fec182
+RUN mkdir -p /app/LIBERO-plus \
+    && cd /app/LIBERO-plus \
+    && git init -q \
+    && git remote add origin https://github.com/sylvestf/LIBERO-plus.git \
+    && git fetch -q --depth 1 origin "${LIBERO_PLUS_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && uv pip install --no-cache-dir -e . \
+    && rm -rf /app/LIBERO-plus/.git ~/.cache/uv
 
 # ── Download LIBERO-Plus MuJoCo assets (≈6.4 GB) ───────────────────
 # assets.zip is stored with a deeply nested top-level path
@@ -57,7 +61,6 @@ init_states: /app/LIBERO-plus/libero/libero/init_files\n\
 datasets: /app/LIBERO-plus/libero/datasets\n\
 assets: /app/LIBERO-plus/libero/libero/assets\n' > /root/.libero/config.yaml
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

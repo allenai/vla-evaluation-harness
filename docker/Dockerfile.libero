@@ -6,8 +6,8 @@ RUN conda create -n libero python=3.8 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "libero", "/bin/bash", "-c"]
 
 # ── CPU-only PyTorch ───────────────────────────────────────────────
-RUN uv pip install --no-cache-dir "torch==2.1.0+cpu" \
-        --index-url https://download.pytorch.org/whl/cpu
+RUN uv pip install --no-cache-dir "torch==2.1.0" \
+        --torch-backend cpu
 
 # ── Python dependencies ───────────────────────────────────────────
 RUN uv pip install --no-cache-dir \
@@ -17,11 +17,15 @@ RUN uv pip install --no-cache-dir \
     && rm -rf ~/.cache/pip ~/.cache/uv
 
 # ── Clone LIBERO ───────────────────────────────────────────────────
-# uv wheel builder can't handle find_packages() in LIBERO's setup.py;
-# fall back to pip for this single install.
-RUN git clone --depth 1 https://github.com/Lifelong-Robot-Learning/LIBERO.git /app/libero \
-    && cd /app/libero && pip install --no-cache-dir -e . \
-    && rm -rf /app/libero/.git ~/.cache/pip
+ARG LIBERO_REF=8f1084e3132a39270c3a13ebe37270a43ece2a01
+RUN mkdir -p /app/libero \
+    && cd /app/libero \
+    && git init -q \
+    && git remote add origin https://github.com/Lifelong-Robot-Learning/LIBERO.git \
+    && git fetch -q --depth 1 origin "${LIBERO_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && uv pip install --no-cache-dir -e . \
+    && rm -rf /app/libero/.git ~/.cache/uv
 
 # ── Pre-create LIBERO config (suppress interactive prompt) ─────────
 RUN mkdir -p /root/.libero && printf '\
@@ -31,7 +35,6 @@ init_states: /app/libero/libero/libero/init_files\n\
 datasets: /app/libero/libero/datasets\n\
 assets: /app/libero/libero/libero/assets\n' > /root/.libero/config.yaml
 
-# ── Install evaluation harness ─────────────────────────────────────
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
 COPY src/ src/

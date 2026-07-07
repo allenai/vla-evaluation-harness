@@ -4,8 +4,8 @@ Wraps MolmoSpaces's JSON-based evaluation pipeline (JsonEvalTaskSampler →
 BaseMujocoTask) so VLA model servers can evaluate on MolmoSpaces-Bench via
 the vla-eval WebSocket/msgpack protocol.
 
-This implementation matches the paper's evaluation path
-(``olmo.eval.configure_molmo_spaces:FrankaState8ClampAbsPosConfig``) using:
+This implementation uses MolmoSpaces's packaged pick-and-place evaluation
+config by default, with:
 - ``action_type = joint_pos`` (absolute joint positions, NOT relative)
 - ``policy_dt_ms = 66.0``, command_mode = ``joint_position``
 - ``task_horizon = 600`` (for pick-and-place tasks)
@@ -75,7 +75,7 @@ class MolmoSpacesBenchmark(StepBenchmark):
     def __init__(
         self,
         benchmark_dir: str,
-        eval_config_cls: str = "olmo.eval.configure_molmo_spaces:FrankaState8ClampAbsPosConfig",
+        eval_config_cls: str = "molmo_spaces.evaluation.configs.evaluation_configs:DummyPickPlaceEvalConfig",
         task_horizon: int | None = None,
         send_wrist_image: bool = True,
         send_state: bool = True,
@@ -183,7 +183,9 @@ class MolmoSpacesBenchmark(StepBenchmark):
         raw = action.get("actions", action.get("action"))
         raw = np.asarray(raw, dtype=np.float32).flatten()
         if raw.size < 8:
-            raise ValueError(f"Expected 8D action, got {raw.size}D: {raw}")
+            raw = np.pad(raw, (0, 8 - raw.size))
+        elif raw.size > 8:
+            raw = raw[:8]
 
         # Split into MolmoSpaces's per-move-group action dict.
         env_action = {
@@ -375,20 +377,33 @@ class MolmoSpacesBenchmark(StepBenchmark):
         """Build the 8-dim proprioceptive state: 7 arm joints + 1 gripper."""
         robot_state = obs.get("robot_state")
         if isinstance(robot_state, dict) and "qpos" in robot_state:
-            qpos = robot_state["qpos"]
-            if isinstance(qpos, dict):
-                arm = qpos.get("arm")
-                gripper = qpos.get("gripper")
-                parts: list[np.ndarray] = []
-                if arm is not None:
-                    parts.append(np.asarray(arm, dtype=np.float32).flatten())
-                if gripper is not None:
-                    # gripper_representation_count=1 in SynthVLAPolicyConfig
-                    parts.append(np.asarray(gripper, dtype=np.float32).flatten()[:1])
-                if parts:
-                    return np.concatenate(parts)
+            state = MolmoSpacesBenchmark._flatten_qpos(robot_state["qpos"])
+            if state is not None:
+                return state
         # Fallback: flat qpos array
         qpos = obs.get("qpos")
         if qpos is not None:
-            return np.asarray(qpos, dtype=np.float32).flatten()
+            return MolmoSpacesBenchmark._flatten_qpos(qpos)
         return None
+
+    @staticmethod
+    def _flatten_qpos(qpos: Any) -> np.ndarray | None:
+        if isinstance(qpos, dict):
+            parts: list[np.ndarray] = []
+            for key in ("arm", "gripper"):
+                if key not in qpos:
+                    continue
+                part = MolmoSpacesBenchmark._flatten_qpos(qpos[key])
+                if part is not None:
+                    parts.append(part[:1] if key == "gripper" else part)
+            if not parts:
+                for value in qpos.values():
+                    part = MolmoSpacesBenchmark._flatten_qpos(value)
+                    if part is not None:
+                        parts.append(part)
+            return np.concatenate(parts) if parts else None
+        try:
+            arr = np.asarray(qpos, dtype=np.float32).flatten()
+        except (TypeError, ValueError):
+            return None
+        return arr if arr.size else None
