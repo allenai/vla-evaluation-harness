@@ -293,7 +293,9 @@ class CogACTModelServer(PredictModelServer):
         # Tokenize and pad input_ids
         all_ids = [tokenizer_image_token(p, self._tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt") for p in prompts]
         max_len = max(ids.shape[0] for ids in all_ids)
-        pad_id = self._tokenizer.pad_token_id if self._tokenizer.pad_token_id is not None else 0
+        pad_id = getattr(self._tokenizer, "pad_token_id", None)
+        if pad_id is None:
+            pad_id = 0
         padded = torch.full((B, max_len), pad_id, dtype=torch.long)
         attention_mask = torch.zeros(B, max_len, dtype=torch.long)
         for i, ids in enumerate(all_ids):

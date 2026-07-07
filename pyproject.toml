@@ -57,7 +57,7 @@ testpaths = ["tests", "leaderboard/tests"]
 # Pin resolution to a known-good date so `uv sync` from a fresh clone
 # won't pick up a newly-published (and potentially compromised) dep
 # version without explicit intent. Bump when intentionally upgrading.
-exclude-newer = "2026-04-22"
+exclude-newer = "2026-07-07"
 
 [tool.ruff]
 line-length = 119

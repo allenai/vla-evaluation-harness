@@ -18,7 +18,7 @@ import os
 import sys
 import types
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -260,6 +260,9 @@ class RoboTwinBenchmark(StepBenchmark):
         from envs import CONFIGS_PATH
 
         embodiment_type = args.get("embodiment")
+        if not isinstance(embodiment_type, list) or not all(isinstance(item, str) for item in embodiment_type):
+            raise ValueError(f"RoboTwin config {config_path!r} must define embodiment as a list of strings")
+        embodiment_type = cast(list[str], embodiment_type)
         with open(os.path.join(CONFIGS_PATH, "_embodiment_config.yml")) as f:
             _embodiment_types = yaml.safe_load(f)
 

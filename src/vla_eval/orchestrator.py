@@ -309,7 +309,8 @@ class Orchestrator:
                     ep_result = cast(EpisodeResult, raw)
                     collector.record(task_name, ep_result)
                     ep_dict = dict(ep_result)
-                    success = bool((ep_dict.get("metrics") or {}).get("success"))
+                    metrics = ep_dict.get("metrics")
+                    success = bool(metrics.get("success")) if isinstance(metrics, dict) else False
                     logger.info(
                         "  [%d/%d] %s ep%d: %s (steps=%d)",
                         item_idx + 1,
