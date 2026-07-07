@@ -36,7 +36,9 @@ rejected at load (`n_obs_steps > 1`).
 ## Status
 
 Implemented against lerobot @ [`e275ea3`](https://github.com/huggingface/lerobot/tree/e275ea3960332543e2a9f441356775a53720543f)
-(pinned; the inference API is mid-migration to processor pipelines).
+(pinned) — an ancestor of [v0.6.0](https://github.com/huggingface/lerobot/releases/tag/v0.6.0),
+9 commits before the tag; the intervening commits only add new policies (Gr00t N1.7, EVO1)
+and infra, so the pin carries the v0.6.0 processor-pipeline inference API.
 
 Validated on an H100: checkpoint load + inference smoke, and a LIBERO Object
 score reproduction with `lerobot/pi05_libero_finetuned`: **100/100 success**
