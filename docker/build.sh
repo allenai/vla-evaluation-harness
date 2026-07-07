@@ -51,7 +51,8 @@ BASE_IMAGE="${BASE_IMAGE:-${REGISTRY}/base:${TAG}}"
 # "Inspecting build dependencies" status line to stdout even without a TTY, and
 # either alone leaks one or the other into the captured value, which breaks
 # setuptools-scm parsing inside the Docker build.
-HARNESS_VERSION="$(NO_COLOR=1 uvx -q hatch -q version 2>/dev/null || echo "0.0.0")"
+# Env override lets a post-tag checkout (e.g. tag + build fixes) stamp the release version.
+HARNESS_VERSION="${HARNESS_VERSION:-$(NO_COLOR=1 uvx -q hatch -q version 2>/dev/null || echo "0.0.0")}"
 
 is_license_accepted() {
   local n="$1"

@@ -32,7 +32,10 @@ RUN mkdir -p /app/simpler_env_src \
 # ── Install simulation stack ──────────────────────────────────────────
 # sapien imports pkg_resources, removed from conda-forge setuptools >=70.
 RUN uv pip install --no-cache-dir "setuptools<70"
-RUN cd /app/ManiSkill2_real2sim && uv pip install --no-cache-dir -e .
+# ruckig 0.17.3's pyproject uses cmake.targets, removed in scikit-build-core >= 0.10.
+RUN printf 'scikit-build-core<0.10\n' > /tmp/build-constraints.txt \
+    && cd /app/ManiSkill2_real2sim \
+    && uv pip install --no-cache-dir --build-constraints /tmp/build-constraints.txt -e .
 RUN cd /app/simpler_env_src && uv pip install --no-cache-dir -e .
 
 # opencv-python 4.12 pulls numpy>=2, but SimplerEnv needs numpy 1.24.
