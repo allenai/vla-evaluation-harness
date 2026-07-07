@@ -101,16 +101,14 @@ def _resolve_dev_src() -> Path:
     sys.exit(1)
 
 
-def _apply_record_video_override(config: dict[str, Any], *, enabled: bool, create_missing: bool) -> None:
-    """Apply the run-level video override to per-benchmark recording blocks."""
+def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> None:
+    """Apply the run-level video override to per-benchmark recording blocks, creating them as needed."""
     for idx, bench in enumerate(config.get("benchmarks") or []):
         if not isinstance(bench, dict):
             raise ValueError(f"benchmarks[{idx}] must be a mapping")
-        if "recording" not in bench or bench["recording"] is None:
-            if not create_missing:
-                continue
-            bench["recording"] = {}
-        rec = bench["recording"]
+        rec = bench.get("recording")
+        if rec is None:
+            rec = bench["recording"] = {}
         if not isinstance(rec, dict):
             raise ValueError(f"benchmarks[{idx}].recording must be a mapping or null")
         rec["record_video"] = enabled
@@ -285,16 +283,12 @@ def cmd_run(args: argparse.Namespace) -> None:
     no_save = getattr(args, "no_save", False)
 
     record_video_override = getattr(args, "record_video", None)
-    if record_video_override is True and no_save:
+    if record_video_override and no_save:
         _stderr_console().print("[red]ERROR: --record-video cannot be used with --no-save[/red]")
         sys.exit(1)
     if record_video_override is not None:
         try:
-            _apply_record_video_override(
-                config,
-                enabled=bool(record_video_override),
-                create_missing=bool(record_video_override),
-            )
+            _apply_record_video_override(config, enabled=record_video_override)
         except ValueError as exc:
             _stderr_console().print(f"[red]ERROR: {exc}[/red]")
             sys.exit(1)
@@ -870,19 +864,11 @@ execution flow:
             "summary to stdout. Use for quick local checks; omit for persisted results."
         ),
     )
-    video_group = run_parser.add_mutually_exclusive_group()
-    video_group.add_argument(
+    run_parser.add_argument(
         "--record-video",
-        dest="record_video",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=None,
-        help="Enable per-episode mp4 recording for all benchmarks.",
-    )
-    video_group.add_argument(
-        "--no-record-video",
-        dest="record_video",
-        action="store_false",
-        help="Disable per-episode mp4 recording for all benchmarks.",
+        help="Enable (or disable with --no-record-video) per-episode mp4 recording for all benchmarks.",
     )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)

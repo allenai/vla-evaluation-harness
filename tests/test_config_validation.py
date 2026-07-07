@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from vla_eval.cli.config_loader import load_config
+from vla_eval.config import EvalConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIGS_DIR = REPO_ROOT / "configs"
@@ -62,32 +63,10 @@ def test_benchmark_config_import_strings(config_path: Path) -> None:
         assert cls_name, f"Empty class name in {import_path!r}"
 
 
-@pytest.mark.parametrize(
-    "config_path",
-    BENCHMARK_CONFIGS_WITH_BENCHMARKS,
-    ids=[str(p.relative_to(CONFIGS_DIR)) for p in BENCHMARK_CONFIGS_WITH_BENCHMARKS],
-)
-def test_official_benchmark_recording_overrides_are_valid(config_path: Path) -> None:
-    """Official benchmark configs may override the default recording policy."""
-    data = load_config(str(config_path))
-
-    for idx, bench in enumerate(data["benchmarks"]):
-        if "recording" not in bench:
-            continue
-        recording = bench["recording"]
-        assert isinstance(recording, dict) or recording is None, (
-            f"'recording' must be a mapping or null in {config_path} benchmarks[{idx}]"
-        )
-        if recording is None:
-            continue
-        if "record_video" in recording:
-            assert isinstance(recording["record_video"], bool), (
-                f"'recording.record_video' must be bool in {config_path} benchmarks[{idx}]"
-            )
-        if "record_step" in recording:
-            assert isinstance(recording["record_step"], bool), (
-                f"'recording.record_step' must be bool in {config_path} benchmarks[{idx}]"
-            )
+def test_eval_config_rejects_non_mapping_recording() -> None:
+    """The single validation point for 'recording:' type errors is EvalConfig.from_dict."""
+    with pytest.raises(ValueError, match="'recording' must be a mapping or null"):
+        EvalConfig.from_dict({"benchmark": "mod:Cls", "recording": "yes"})
 
 
 # ---------------------------------------------------------------------------

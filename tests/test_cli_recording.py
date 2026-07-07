@@ -9,43 +9,28 @@ import pytest
 from vla_eval.cli import main as cli
 
 
-def test_record_video_override_creates_recording_blocks() -> None:
+@pytest.mark.parametrize("enabled", [True, False])
+def test_record_video_override_sets_flag_on_all_benchmarks(enabled: bool) -> None:
     config = {
         "benchmarks": [
             {"name": "implicit"},
-            {"name": "explicit", "recording": {"record_step": False, "record_video": False}},
+            {"name": "explicit", "recording": {"record_step": False, "record_video": not enabled}},
             {"name": "null", "recording": None},
         ]
     }
 
-    cli._apply_record_video_override(config, enabled=True, create_missing=True)
+    cli._apply_record_video_override(config, enabled=enabled)
 
-    assert config["benchmarks"][0]["recording"] == {"record_video": True}
-    assert config["benchmarks"][1]["recording"] == {"record_step": False, "record_video": True}
-    assert config["benchmarks"][2]["recording"] == {"record_video": True}
-
-
-def test_no_record_video_override_does_not_create_recording_blocks() -> None:
-    config = {
-        "benchmarks": [
-            {"name": "implicit"},
-            {"name": "explicit", "recording": {"record_step": True, "record_video": True}},
-            {"name": "null", "recording": None},
-        ]
-    }
-
-    cli._apply_record_video_override(config, enabled=False, create_missing=False)
-
-    assert "recording" not in config["benchmarks"][0]
-    assert config["benchmarks"][1]["recording"] == {"record_step": True, "record_video": False}
-    assert config["benchmarks"][2]["recording"] is None
+    assert config["benchmarks"][0]["recording"] == {"record_video": enabled}
+    assert config["benchmarks"][1]["recording"] == {"record_step": False, "record_video": enabled}
+    assert config["benchmarks"][2]["recording"] == {"record_video": enabled}
 
 
 def test_record_video_override_rejects_invalid_recording_block() -> None:
     config = {"benchmarks": [{"name": "bad", "recording": "yes"}]}
 
     with pytest.raises(ValueError, match="recording must be a mapping"):
-        cli._apply_record_video_override(config, enabled=True, create_missing=True)
+        cli._apply_record_video_override(config, enabled=True)
 
 
 def test_cmd_run_rejects_record_video_with_no_save(monkeypatch) -> None:

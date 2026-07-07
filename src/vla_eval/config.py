@@ -156,6 +156,9 @@ class EvalConfig:
         benchmark_path = data.get("benchmark")
         if not benchmark_path:
             raise ValueError("Config error: 'benchmark' field is required and cannot be empty.")
+        recording = data.get("recording")
+        if recording is not None and not isinstance(recording, dict):
+            raise ValueError("Config error: 'recording' must be a mapping or null.")
 
         return cls(
             benchmark=benchmark_path,
@@ -167,7 +170,7 @@ class EvalConfig:
             max_tasks=data.get("max_tasks"),
             tasks=data.get("tasks"),
             params=data.get("params", {}),
-            recording=data.get("recording"),
+            recording=recording,
             hz=data.get("hz", 10.0),
             throughput_mode=data.get("throughput_mode", False),
             paced=_parse_paced(data),
