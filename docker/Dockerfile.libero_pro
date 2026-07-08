@@ -24,7 +24,7 @@ RUN mkdir -p /app/libero-pro \
     && git remote add origin https://github.com/Zxy-MLlab/LIBERO-PRO.git \
     && git fetch -q --depth 1 origin "${LIBERO_PRO_REF}" \
     && git checkout -q FETCH_HEAD \
-    && uv pip install --no-cache-dir -e . \
+    && uv pip install --no-cache-dir --config-setting editable_mode=compat -e . \
     && rm -rf /app/libero-pro/.git ~/.cache/uv
 
 # ── Pre-create LIBERO config (suppress interactive prompt) ─────────

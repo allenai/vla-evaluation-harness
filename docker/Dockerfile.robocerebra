@@ -24,7 +24,7 @@ RUN mkdir -p /tmp/RoboCerebra \
     && git remote add origin https://github.com/qiuboxiang/RoboCerebra.git \
     && git fetch -q --depth 1 origin "${ROBOCEREBRA_REF}" \
     && git checkout -q FETCH_HEAD \
-    && cd /tmp/RoboCerebra/LIBERO && uv pip install --no-cache-dir -e . \
+    && cd /tmp/RoboCerebra/LIBERO && uv pip install --no-cache-dir --config-setting editable_mode=compat -e . \
     && uv pip install --no-cache-dir "bddl==1.0.1" h5py \
     && rm -rf /tmp/RoboCerebra/.git ~/.cache/uv
 
