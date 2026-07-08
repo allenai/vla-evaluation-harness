@@ -24,7 +24,7 @@ RUN mkdir -p /app/libero-mem \
     && git checkout -q FETCH_HEAD \
     && cd /app/libero-mem/thirdparty/robomimic && uv pip install --no-cache-dir -e . \
     && cd /app/libero-mem/thirdparty/robosuite && uv pip install --no-cache-dir -e . \
-    && cd /app/libero-mem && uv pip install --no-cache-dir -e . \
+    && cd /app/libero-mem && uv pip install --no-cache-dir --config-setting editable_mode=compat -e . \
     && rm -rf /app/libero-mem/.git ~/.cache/uv
 
 RUN mkdir -p /root/.libero && printf '\

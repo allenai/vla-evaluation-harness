@@ -24,7 +24,7 @@ RUN mkdir -p /app/libero \
     && git remote add origin https://github.com/Lifelong-Robot-Learning/LIBERO.git \
     && git fetch -q --depth 1 origin "${LIBERO_REF}" \
     && git checkout -q FETCH_HEAD \
-    && uv pip install --no-cache-dir -e . \
+    && uv pip install --no-cache-dir --config-setting editable_mode=compat -e . \
     && rm -rf /app/libero/.git ~/.cache/uv
 
 # ── Pre-create LIBERO config (suppress interactive prompt) ─────────
