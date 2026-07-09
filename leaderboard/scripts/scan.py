@@ -16,7 +16,7 @@ regenerating from committed data is enough.
 
 `papers_reviewed` is the scan pool ∩ extractions — a paper counts as
 reviewed for benchmark Y iff it is in Y's pool and an extraction exists
-for it (cache preferred, packed fallback).
+for it (packed file ∪ cache dir).
 """
 
 import argparse
@@ -121,15 +121,20 @@ def load_scan_results() -> dict:
 
 
 def _extracted_arxiv_ids() -> set[str]:
-    """All arxiv IDs with an extraction record (cache preferred, packed fallback)."""
-    if EXTRACTIONS_CACHE_DIR.exists():
-        return {p.stem for p in EXTRACTIONS_CACHE_DIR.glob("*.json")}
+    """All arxiv IDs with an extraction record — union of the packed file and the cache dir.
+
+    Either source alone under-counts: a clone that extracted a single paper has a
+    one-entry cache sitting next to the full packed file.
+    """
+    ids: set[str] = set()
     if EXTRACTIONS_PACKED_PATH.exists():
         try:
-            return {rec["arxiv_id"] for rec in json.loads(EXTRACTIONS_PACKED_PATH.read_text()) if rec.get("arxiv_id")}
+            ids |= {rec["arxiv_id"] for rec in json.loads(EXTRACTIONS_PACKED_PATH.read_text()) if rec.get("arxiv_id")}
         except json.JSONDecodeError:
-            return set()
-    return set()
+            pass
+    if EXTRACTIONS_CACHE_DIR.exists():
+        ids |= {p.stem for p in EXTRACTIONS_CACHE_DIR.glob("*.json")}
+    return ids
 
 
 def load_reviewed_by_benchmark(benchmarks: dict, scan_by_bm: dict) -> dict[str, set[str]]:
