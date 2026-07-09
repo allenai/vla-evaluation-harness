@@ -1,7 +1,7 @@
 {
   "last_updated": "2026-07-01",
-  "total_models": 2456,
-  "total_results": 2764,
+  "total_models": 2462,
+  "total_results": 2782,
   "total_papers_reviewed": 2087,
   "benchmarks": {
     "calvin": {
@@ -25,7 +25,7 @@
       "arxiv_id": "2306.03310",
       "citing_papers": 1101,
       "arxiv_citing_papers": 1032,
-      "leaderboard_entries": 1059,
+      "leaderboard_entries": 1065,
       "papers_reviewed": 917
     },
     "libero_mem": {
@@ -41,7 +41,7 @@
       "arxiv_id": "2510.13626",
       "citing_papers": 144,
       "arxiv_citing_papers": 144,
-      "leaderboard_entries": 115,
+      "leaderboard_entries": 119,
       "papers_reviewed": 119
     },
     "libero_pro": {
@@ -89,7 +89,7 @@
       "arxiv_id": "2406.02523",
       "citing_papers": 389,
       "arxiv_citing_papers": 354,
-      "leaderboard_entries": 179,
+      "leaderboard_entries": 183,
       "papers_reviewed": 313
     },
     "robocerebra": {
@@ -137,7 +137,7 @@
       "arxiv_id": "2405.05941",
       "citing_papers": 433,
       "arxiv_citing_papers": 410,
-      "leaderboard_entries": 389,
+      "leaderboard_entries": 393,
       "papers_reviewed": 364
     },
     "vlabench": {
