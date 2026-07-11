@@ -620,7 +620,15 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
             data = json.loads(Path(json_files[0]).read_text())
             rate = data.get("mean_success", 0)
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
-        return SmokeResult(test, "pass", "completed (no result file)", dt)
+        stdout_tail = "\n".join(result.stdout.strip().splitlines()[-80:])
+        stderr_tail = "\n".join(result.stderr.strip().splitlines()[-80:])
+        return SmokeResult(
+            test,
+            "fail",
+            f"completed without result JSON\nstdout:\n{stdout_tail}\nstderr:\n{stderr_tail}",
+            dt,
+            stderr=result.stderr,
+        )
     finally:
         shutil.rmtree(results_dir, ignore_errors=True)
 

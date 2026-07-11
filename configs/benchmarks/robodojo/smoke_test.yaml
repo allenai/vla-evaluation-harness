@@ -1,0 +1,28 @@
+# Minimal RoboDojo smoke test: dual X5, one task, one episode.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/robodojo:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+    - "ACCEPT_EULA=Y"
+    - "PRIVACY_CONSENT=Y"
+  volumes:
+    # RoboDojo assets are large and are not redistributed in the image.
+    - "${oc.env:ROBODOJO_ASSETS}:/workspace/RoboDojo/Assets:ro"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.robodojo.benchmark:RoboDojoBenchmark"
+    episodes_per_task: 1
+    max_tasks: 1
+    action_dim: 14
+    params:
+      tasks:
+        - stack_blocks
+      env_config: arx_x5
+      action_dims: [6, 1, 6, 1]
+      max_steps: 5
+      seed: 0

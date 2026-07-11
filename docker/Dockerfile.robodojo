@@ -1,0 +1,33 @@
+# RoboDojo publishes its complete Isaac Sim 5.1 image recipe in the official
+# repository. Build that image first, then layer only vla-eval on top:
+#   git clone https://github.com/RoboDojo-Benchmark/RoboDojo.git
+#   docker build -t robodojo:cuda12.8 RoboDojo
+#   docker/build.sh robodojo --base-image robodojo:cuda12.8 \
+#     --accept-license robodojo
+ARG BASE_IMAGE=robodojo:cuda12.8
+FROM ${BASE_IMAGE}
+
+ARG ACCEPT_NVIDIA_EULA=
+RUN if [ "$ACCEPT_NVIDIA_EULA" != "YES" ]; then \
+        echo "Building RoboDojo requires accepting the NVIDIA Isaac Sim EULA"; \
+        echo "https://docs.omniverse.nvidia.com/eula/"; \
+        exit 1; \
+    fi
+
+WORKDIR /workspace/vla-evaluation-harness
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN /root/miniconda3/envs/RoboDojo/bin/python -m pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+# Match the harness convention: relative `output_dir: ./results` must resolve
+# to the smoke runner's `/workspace/results` bind mount.
+WORKDIR /workspace
+
+# Run vla-eval inside RoboDojo's Conda environment without inheriting the
+# upstream entrypoint's `cd /workspace/RoboDojo`; the harness mounts results at
+# `/workspace/results` and resolves relative output paths from this workdir.
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "RoboDojo", "vla-eval"]
+CMD ["run", "--config", "/workspace/vla-evaluation-harness/configs/benchmarks/robodojo/smoke_test.yaml"]
