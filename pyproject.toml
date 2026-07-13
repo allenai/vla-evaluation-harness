@@ -21,6 +21,7 @@ dependencies = [
     "pyyaml>=6.0",          # Security fixes (CVE-2020-14343) + Python 3.11
     "rich>=13.0",
     "tqdm",
+    "typing_extensions>=4.0; python_version < '3.11'",  # NotRequired backport for results/collector.py
     "websockets>=12.0",
 ]
 
