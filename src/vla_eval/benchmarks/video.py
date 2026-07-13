@@ -71,11 +71,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import numpy as np
 
-logger = logging.getLogger(__name__)
+    # A `str.format`-style template, or a callable taking the resolved context (caller's start() context +
+    # injected ``status``) and returning a filename relative to ``output_dir``.  Annotation-only: evaluating
+    # this at runtime breaks Python < 3.10 (benchmark images ship interpreters as old as 3.8).
+    FilenameSpec = str | Callable[[Mapping[str, Any]], str]
 
-# A `str.format`-style template, or a callable taking the resolved context (caller's start() context +
-# injected ``status``) and returning a filename relative to ``output_dir``.
-FilenameSpec = str | Callable[[Mapping[str, Any]], str]
+logger = logging.getLogger(__name__)
 
 
 class EpisodeVideoRecorder:
