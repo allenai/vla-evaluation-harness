@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-01",
+  "last_updated": "2026-07-15",
   "total_models": 2462,
   "total_results": 2782,
   "total_papers_reviewed": 2087,
@@ -7,31 +7,31 @@
     "calvin": {
       "display_name": "CALVIN",
       "arxiv_id": "2112.03227",
-      "citing_papers": 635,
-      "arxiv_citing_papers": 543,
+      "citing_papers": 659,
+      "arxiv_citing_papers": 561,
       "leaderboard_entries": 407,
-      "papers_reviewed": 450
+      "papers_reviewed": 451
     },
     "kinetix": {
       "display_name": "Kinetix",
       "arxiv_id": "2506.07339",
-      "citing_papers": 144,
-      "arxiv_citing_papers": 136,
+      "citing_papers": 159,
+      "arxiv_citing_papers": 148,
       "leaderboard_entries": 11,
       "papers_reviewed": 126
     },
     "libero": {
       "display_name": "LIBERO",
       "arxiv_id": "2306.03310",
-      "citing_papers": 1101,
-      "arxiv_citing_papers": 1032,
+      "citing_papers": 1179,
+      "arxiv_citing_papers": 1098,
       "leaderboard_entries": 1065,
-      "papers_reviewed": 917
+      "papers_reviewed": 918
     },
     "libero_mem": {
       "display_name": "LIBERO-Mem",
       "arxiv_id": "2511.11478",
-      "citing_papers": 19,
+      "citing_papers": 20,
       "arxiv_citing_papers": 19,
       "leaderboard_entries": 4,
       "papers_reviewed": 13
@@ -39,24 +39,24 @@
     "libero_plus": {
       "display_name": "LIBERO-Plus",
       "arxiv_id": "2510.13626",
-      "citing_papers": 144,
-      "arxiv_citing_papers": 144,
+      "citing_papers": 161,
+      "arxiv_citing_papers": 160,
       "leaderboard_entries": 119,
       "papers_reviewed": 119
     },
     "libero_pro": {
       "display_name": "LIBERO-Pro",
       "arxiv_id": "2510.03827",
-      "citing_papers": 74,
-      "arxiv_citing_papers": 74,
+      "citing_papers": 88,
+      "arxiv_citing_papers": 88,
       "leaderboard_entries": 21,
-      "papers_reviewed": 59
+      "papers_reviewed": 60
     },
     "maniskill2": {
       "display_name": "ManiSkill2",
       "arxiv_id": "2302.04659",
-      "citing_papers": 363,
-      "arxiv_citing_papers": 323,
+      "citing_papers": 376,
+      "arxiv_citing_papers": 329,
       "leaderboard_entries": 42,
       "papers_reviewed": 278
     },
@@ -71,80 +71,80 @@
     "rlbench": {
       "display_name": "RLBench",
       "arxiv_id": "1909.12271",
-      "citing_papers": 941,
-      "arxiv_citing_papers": 728,
+      "citing_papers": 972,
+      "arxiv_citing_papers": 751,
       "leaderboard_entries": 152,
       "papers_reviewed": 521
     },
     "roboarena": {
       "display_name": "RoboArena",
       "arxiv_id": "2506.18123",
-      "citing_papers": 58,
-      "arxiv_citing_papers": 55,
+      "citing_papers": 66,
+      "arxiv_citing_papers": 61,
       "leaderboard_entries": 20,
       "papers_reviewed": 49
     },
     "robocasa": {
       "display_name": "RoboCasa",
       "arxiv_id": "2406.02523",
-      "citing_papers": 389,
-      "arxiv_citing_papers": 354,
+      "citing_papers": 412,
+      "arxiv_citing_papers": 373,
       "leaderboard_entries": 183,
       "papers_reviewed": 313
     },
     "robocerebra": {
       "display_name": "RoboCerebra",
       "arxiv_id": "2506.06677",
-      "citing_papers": 26,
-      "arxiv_citing_papers": 26,
+      "citing_papers": 27,
+      "arxiv_citing_papers": 27,
       "leaderboard_entries": 10,
       "papers_reviewed": 21
     },
     "robochallenge": {
       "display_name": "RoboChallenge",
       "arxiv_id": "2510.17950",
-      "citing_papers": 18,
-      "arxiv_citing_papers": 19,
+      "citing_papers": 22,
+      "arxiv_citing_papers": 22,
       "leaderboard_entries": 22,
       "papers_reviewed": 16
     },
     "robomme": {
       "display_name": "RoboMME",
       "arxiv_id": "2603.04639",
-      "citing_papers": 17,
-      "arxiv_citing_papers": 18,
+      "citing_papers": 21,
+      "arxiv_citing_papers": 19,
       "leaderboard_entries": 22,
       "papers_reviewed": 9
     },
     "robotwin_v1": {
       "display_name": "RoboTwin 1.0",
       "arxiv_id": "2409.02920",
-      "citing_papers": 90,
-      "arxiv_citing_papers": 82,
+      "citing_papers": 92,
+      "arxiv_citing_papers": 83,
       "leaderboard_entries": 37,
       "papers_reviewed": 73
     },
     "robotwin_v2": {
       "display_name": "RoboTwin 2.0",
       "arxiv_id": "2506.18088",
-      "citing_papers": 300,
-      "arxiv_citing_papers": 293,
+      "citing_papers": 333,
+      "arxiv_citing_papers": 320,
       "leaderboard_entries": 232,
-      "papers_reviewed": 250
+      "papers_reviewed": 251
     },
     "simpler_env": {
       "display_name": "SimplerEnv",
       "arxiv_id": "2405.05941",
-      "citing_papers": 433,
-      "arxiv_citing_papers": 410,
+      "citing_papers": 452,
+      "arxiv_citing_papers": 427,
       "leaderboard_entries": 393,
       "papers_reviewed": 364
     },
     "vlabench": {
       "display_name": "VLABench",
       "arxiv_id": "2412.18194",
-      "citing_papers": 142,
-      "arxiv_citing_papers": 131,
+      "citing_papers": 154,
+      "arxiv_citing_papers": 141,
       "leaderboard_entries": 27,
       "papers_reviewed": 116
     }
