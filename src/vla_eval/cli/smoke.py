@@ -622,7 +622,8 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         # rc == 0 with no aggregate JSON in the mounted results dir means results were
         # silently lost (e.g. mis-resolved output_dir) — a failure, not a pass.
-        tail = "\n    ".join(result.stderr.strip().splitlines()[-5:])
+        output = result.stderr.strip() or result.stdout.strip()
+        tail = "\n    ".join(output.splitlines()[-5:]) if output else "no output captured"
         return SmokeResult(test, "fail", f"completed without result JSON\n    {tail}", dt, stderr=result.stderr)
     finally:
         shutil.rmtree(results_dir, ignore_errors=True)

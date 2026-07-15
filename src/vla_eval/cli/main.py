@@ -352,7 +352,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Pin output_dir absolute before benchmark code runs: some benchmarks (robotwin,
     # robodojo) chdir into their sim checkout, silently re-anchoring relative paths.
-    config["output_dir"] = str(Path(config.get("output_dir", "./results")).resolve())
+    config["output_dir"] = str(Path(config.get("output_dir") or "./results").resolve())
 
     watchdog.start(float(os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S", "1200")))
     orchestrator = Orchestrator(
