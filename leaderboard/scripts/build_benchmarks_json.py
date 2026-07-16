@@ -43,6 +43,7 @@ FIELD_ORDER = [
     "score_key_suffixes",
     "aggregation",
     "official_leaderboard",
+    "external_only",
     "expand_suites",
     "avg_position",
     "avg_label",

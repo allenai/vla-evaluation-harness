@@ -71,9 +71,13 @@ refine.py main               # protocol gate + per-benchmark LLM refinement → 
 
 Field semantics live in the schema files above. `extract.py` and `refine.py` both load their respective schemas at runtime; the prompts reference the schema, not duplicate its field rules.
 
-## Official Leaderboard Policy
+## External Leaderboard Policy
 
-Benchmarks with `official_leaderboard` in their registry entry require **API-synced entries only**. `curated_by` must end with `-api`. Manual paper extractions are prohibited. `validate.py` enforces this.
+Benchmarks whose authors maintain their own leaderboard (RoboArena, RoboChallenge, RoboCasa365, RoboDojo) are **link-out only**:
+
+- Set `external_only: true` and `official_leaderboard: <url>` in the benchmark's `.md` frontmatter. The site renders these as link cards; results stay on the official board.
+- `leaderboard.json` must contain **zero** rows for these benchmarks. `validate.py` enforces this. Do not build scrapers or API mirrors: mirrored rows go stale between syncs, need manual model-to-paper mapping, and diverge from the authoritative source (the previous RoboChallenge/RoboArena API sync was retired for these reasons in 2026-07).
+- If papers start reporting a protocol's numbers routinely, paper extraction can be enabled by removing `external_only` and defining the full protocol in the `.md` (keep `official_leaderboard`, which then renders as a "may be outdated" notice instead).
 
 ## CI/CD
 

@@ -27,7 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
-# Runtime deps for leaderboard/scripts (refine, extract, sync_external…).
+# Runtime deps for leaderboard/scripts (refine, extract…).
 # Tooling (pytest, jsonschema) comes from `dev`, so CI can sync
 # `--dev --group leaderboard --no-install-project` to get a lean env
 # for leaderboard tests without pulling vla_eval's runtime.

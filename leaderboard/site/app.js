@@ -330,8 +330,34 @@
       `Last updated: <span class="stat">${data.last_updated || '?'}</span>`;
   }
 
+  // ─── External leaderboards (link-out cards, overview only) ────────────────
+  function stripHtml(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html || '';
+    return t.textContent || '';
+  }
+
+  function renderExternalBoards() {
+    const el = $('external-boards');
+    if (!el) return;
+    const externals = Object.entries(data.benchmarks || {})
+      .filter(([, bm]) => bm.external_only && bm.official_leaderboard);
+    if (selectedBenchmark || externals.length === 0) { el.style.display = 'none'; return; }
+    const cards = externals.map(([key, bm]) =>
+      `<div class="external-board-card">` +
+      `<a class="external-board-name" href="${escHtml(bm.official_leaderboard)}" target="_blank" rel="noopener noreferrer">${escHtml(bm.display_name || key)} ↗</a>` +
+      `<span class="external-board-desc">${escHtml(stripHtml(bm.detail_notes))}</span>` +
+      `</div>`
+    ).join('');
+    el.innerHTML =
+      `<div class="external-boards-title">External leaderboards (results maintained by the benchmark authors)</div>` +
+      `<div class="external-boards-cards">${cards}</div>`;
+    el.style.display = '';
+  }
+
   // ─── Render dispatcher ─────────────────────────────────────────────────────
   function renderTable() {
+    renderExternalBoards();
     const noticeEl = $('official-notice');
     if (noticeEl) {
       const bm = selectedBenchmark && data.benchmarks[selectedBenchmark];

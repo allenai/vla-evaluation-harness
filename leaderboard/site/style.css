@@ -774,3 +774,52 @@ tbody tr:last-child td {
     min-width: 0;
   }
 }
+
+/* External leaderboards (link-out cards, overview only) */
+.external-boards {
+  margin-bottom: 0.75rem;
+}
+
+.external-boards-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.external-boards-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.external-board-card {
+  flex: 1 1 200px;
+  max-width: 320px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.external-board-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.external-board-name:hover {
+  text-decoration: underline;
+}
+
+.external-board-desc {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

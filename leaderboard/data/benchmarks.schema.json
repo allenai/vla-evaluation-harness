@@ -26,6 +26,10 @@
         }
       },
       "official_leaderboard": { "type": "string", "format": "uri" },
+      "external_only": {
+        "type": "boolean",
+        "description": "Results live exclusively on the official leaderboard; leaderboard.json must have zero rows for this benchmark. Rendered as a link-out card on the site."
+      },
       "expand_suites": { "type": "boolean" },
       "avg_position": { "type": "integer", "minimum": 0 },
       "avg_label": { "type": "string" },

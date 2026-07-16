@@ -405,7 +405,8 @@
       "higher_is_better": true
     },
     "official_leaderboard": "https://robo-arena.github.io/",
-    "detail_notes": "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of robot manipulation policies."
+    "external_only": true,
+    "detail_notes": "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of real-robot policies. Rankings live on the official leaderboard; this site does not mirror them."
   },
   "robocasa": {
     "display_name": "RoboCasa",
@@ -454,7 +455,23 @@
       "gr1"
     ],
     "aggregation": "forbidden",
-    "detail_notes": "Two embodiments share a single benchmark: <strong>Panda</strong> (Mobile Franka in RoboCasa kitchens, <a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>, 24 atomic tasks) and <strong>GR1</strong> (Fourier GR1 humanoid tabletop pick-and-place, <a href='https://arxiv.org/abs/2503.14734'>2503.14734</a>, 24 PnP tasks). Scores across embodiments are not directly comparable; <code>overall_score</code> is always <code>null</code>. Each embodiment's 24-task mean goes in <code>suite_scores.&lt;panda|gr1&gt;</code>; per-task scores take the <code>_panda</code> or <code>_gr1</code> suffix to disambiguate."
+    "detail_notes": "Two embodiments share a single benchmark: <strong>Panda</strong> (Mobile Franka in RoboCasa kitchens, <a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>, 24 atomic tasks) and <strong>GR1</strong> (Fourier GR1 humanoid tabletop pick-and-place, <a href='https://arxiv.org/abs/2503.14734'>2503.14734</a>, 24 PnP tasks). Scores across embodiments are not directly comparable; <code>overall_score</code> is always <code>null</code>. Each embodiment's 24-task mean goes in <code>suite_scores.&lt;panda|gr1&gt;</code>; per-task scores take the <code>_panda</code> or <code>_gr1</code> suffix to disambiguate. The same team's successor benchmark <strong>RoboCasa365</strong> (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>, different 50-task protocol) maintains its own <a href='https://robocasa.ai/leaderboard.html'>official leaderboard</a>."
+  },
+  "robocasa365": {
+    "display_name": "RoboCasa365",
+    "paper_url": "https://arxiv.org/abs/2603.04356",
+    "metric": {
+      "name": "success_rate",
+      "unit": "%",
+      "range": [
+        0,
+        100
+      ],
+      "higher_is_better": true
+    },
+    "official_leaderboard": "https://robocasa.ai/leaderboard.html",
+    "external_only": true,
+    "detail_notes": "RoboCasa365 (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>). Successor to RoboCasa by the same team: 365 kitchen tasks, evaluated on a 50-task benchmark (Atomic-Seen 18 / Composite-Seen 16 / Composite-Unseen 16). Submission-reviewed results live on the official leaderboard; this site does not mirror them. Distinct protocol from the <code>robocasa</code> entry."
   },
   "robocerebra": {
     "display_name": "RoboCerebra",
@@ -498,11 +515,25 @@
       ],
       "higher_is_better": true
     },
-    "suites": [
-      "progress_score"
-    ],
     "official_leaderboard": "https://robochallenge.ai/leaderboard",
-    "detail_notes": "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Scores synced from official leaderboard API. Manual paper extractions are not accepted."
+    "external_only": true,
+    "detail_notes": "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Real-robot multi-task challenge with submission-based evaluation. Results live on the official leaderboard; this site does not mirror them."
+  },
+  "robodojo": {
+    "display_name": "RoboDojo",
+    "paper_url": "https://arxiv.org/abs/2607.04434",
+    "metric": {
+      "name": "score",
+      "unit": "pts",
+      "range": [
+        0,
+        100
+      ],
+      "higher_is_better": true
+    },
+    "official_leaderboard": "https://robodojo-benchmark.com/leaderboard",
+    "external_only": true,
+    "detail_notes": "RoboDojo (<a href='https://arxiv.org/abs/2607.04434'>2607.04434</a>). Isaac Lab dual-ARX-X5 bimanual benchmark: 42 sim tasks across five capability dimensions, reporting score (partial progress, &times;100) and success rate. Results live on the official leaderboard; this site does not mirror them."
   },
   "robomme": {
     "display_name": "RoboMME",

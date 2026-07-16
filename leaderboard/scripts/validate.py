@@ -115,17 +115,18 @@ def validate_sort_and_format(data: dict, raw_text: str) -> list[str]:
 
 
 def validate_official_leaderboard_policy(data: dict) -> list[str]:
-    """Benchmarks with official_leaderboard must only have API-synced entries."""
+    """external_only benchmarks must have zero rows (results live on the official board)."""
     errors = []
-    for bm_key, bm in data["benchmarks"].items():
-        if not bm.get("official_leaderboard"):
-            continue
-        for i, r in enumerate(data["results"]):
-            if r["benchmark"] == bm_key and not r["curated_by"].endswith("-api"):
-                errors.append(
-                    f"results[{i}]: {r['model']}/{bm_key} curated_by '{r['curated_by']}' "
-                    f"but {bm_key} has official_leaderboard — only API-synced entries allowed"
-                )
+    external = {k for k, bm in data["benchmarks"].items() if bm.get("external_only")}
+    for bm_key in sorted(external):
+        if not data["benchmarks"][bm_key].get("official_leaderboard"):
+            errors.append(f"benchmarks.{bm_key}: external_only requires official_leaderboard")
+    for i, r in enumerate(data["results"]):
+        if r["benchmark"] in external:
+            errors.append(
+                f"results[{i}]: {r['model']}/{r['benchmark']} — benchmark is external_only, "
+                "results live on the official leaderboard and must not be mirrored here"
+            )
     return errors
 
 

@@ -14,7 +14,7 @@ Subcommands::
     uv run extract.py run --from-scan --benchmark libero # extract a benchmark's scan pool
     uv run extract.py pack                               # rewrite data/extractions.json from cache
 
-Pipeline: scan.py → run → refine.py → validate.py → sync_external.py.
+Pipeline: scan.py → run → refine.py → validate.py.
 The citing-paper pools the `--from-scan` path reads from data/scan_results.json
 are produced by scan.py's S2 fetch, not by this script.
 

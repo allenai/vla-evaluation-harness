@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "VLA Leaderboard Entries",
-  "description": "data/leaderboard.json. Written by refine.py, sync_external.py, and manual edits. Rendered by leaderboard/site/app.js. validate.py enforces this schema plus benchmark-aware rules (score range, aggregation, official-leaderboard policy, citation coverage).",
+  "description": "data/leaderboard.json. Written by refine.py and manual edits. Rendered by leaderboard/site/app.js. validate.py enforces this schema plus benchmark-aware rules (score range, aggregation, official-leaderboard policy, citation coverage).",
   "type": "object",
   "required": ["last_updated", "results"],
   "additionalProperties": false,
@@ -50,8 +50,8 @@
           "reported_table": {"type": ["string", "null"]},
           "curated_by": {
             "type": "string",
-            "description": "AI: '<family> <version>' (e.g. 'opus 4.6'). Human: '@handle'. API sync: '<source>-api'. Legacy: 'human'.",
-            "pattern": "^((opus|sonnet|haiku) \\d+\\.\\d+|@[\\w-]+|[a-z][a-z0-9_-]*-api|human)$"
+            "description": "AI: '<family> <version>' (e.g. 'opus 4.6'). Human: '@handle'. Legacy: 'human'.",
+            "pattern": "^((opus|sonnet|haiku) \\d+\\.\\d+|@[\\w-]+|human)$"
           },
           "notes": {
             "type": "string",
