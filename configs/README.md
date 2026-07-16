@@ -36,6 +36,7 @@ Benchmark names link to their config directory with available YAML files and usa
 | [MIKASA-Robo](benchmarks/mikasa/) | ![◇](https://img.shields.io/badge/◇-blue) | [2502.07007](https://arxiv.org/abs/2502.07007) | [`mikasa-robo`](https://ghcr.io/allenai/vla-evaluation-harness/mikasa-robo) | 3.10 | Robot manipulation (MuJoCo) |
 | [RoboCerebra](benchmarks/robocerebra/) | ![◇](https://img.shields.io/badge/◇-blue) | [2502.02853](https://arxiv.org/abs/2502.02853) | [`robocerebra`](https://ghcr.io/allenai/vla-evaluation-harness/robocerebra) | 3.8 | Cognitive manipulation (MuJoCo) |
 | [BEHAVIOR-1K](benchmarks/behavior1k/) | ![◇](https://img.shields.io/badge/◇-blue) | [2403.09227](https://arxiv.org/abs/2403.09227) | 🔒 `behavior1k` | 3.10 | Household activities (OmniGibson) |
+| [RoboDojo](benchmarks/robodojo/) | ![◇](https://img.shields.io/badge/◇-blue) | [2607.04434](https://arxiv.org/abs/2607.04434) | 🔒 `robodojo` | 3.11 | Bimanual dual ARX-X5, 42 tasks (Isaac Lab) |
 
 <sub>![✓](https://img.shields.io/badge/✓-teal) [reproduced](../docs/reproductions/) · ![◇](https://img.shields.io/badge/◇-blue) integrated, awaiting first reproduction · 🔒 license-restricted (local build only)</sub>
 
@@ -57,6 +58,7 @@ Model names link to their server config directory. For reproduction scores, see 
 | [RTC](model_servers/rtc/) | ![◇](https://img.shields.io/badge/◇-blue) | [2506.07339](https://arxiv.org/abs/2506.07339) | [Physical-Intelligence/rtc](https://github.com/Physical-Intelligence/real-time-chunking-kinetix) | [Kinetix](model_servers/rtc/kinetix.yaml) | [report](../docs/reproductions/rtc.md) |
 | [MolmoBot](model_servers/molmobot/) | ![✓](https://img.shields.io/badge/✓-8B5CF6) | [2603.16861](https://arxiv.org/abs/2603.16861) | [allenai/MolmoBot](https://github.com/allenai/MolmoBot) | [MolmoSpaces](model_servers/molmobot/droid.yaml) | [report](../docs/reproductions/molmobot.md) |
 | [MME-VLA](model_servers/mme_vla/) | ![✓](https://img.shields.io/badge/✓-8B5CF6) | [2603.04639](https://arxiv.org/abs/2603.04639) | [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning) | [RoboMME](model_servers/mme_vla/pi05_baseline.yaml) | [report](../docs/reproductions/robomme.md) |
+| [π₀.₅ (RoboDojo)](model_servers/robodojo_pi05/) | ![◇](https://img.shields.io/badge/◇-blue) | [2607.04434](https://arxiv.org/abs/2607.04434) | [XPolicyLab/XPolicyLab](https://github.com/XPolicyLab/XPolicyLab) | [RoboDojo](model_servers/robodojo_pi05/pi05.yaml) | [report](../docs/reproductions/robodojo.md) |
 
 <sub>![✓](https://img.shields.io/badge/✓-8B5CF6) [reproduced](../docs/reproductions/) · ![◇](https://img.shields.io/badge/◇-blue) integrated, awaiting first reproduction</sub>
 
