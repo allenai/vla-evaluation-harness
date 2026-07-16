@@ -1,0 +1,40 @@
+# RoboDojo — Isaac Lab dual-arm benchmark (https://github.com/RoboDojo-Benchmark/RoboDojo)
+#
+# RoboDojo publishes its complete Isaac Sim 5.1 image recipe upstream; this file
+# only layers vla-eval on top. Build the upstream image first (submodules are
+# COPY'd into the build context, so clone with --recurse-submodules):
+#
+#   git clone --recurse-submodules https://github.com/RoboDojo-Benchmark/RoboDojo.git
+#   git -C RoboDojo checkout --recurse-submodules e9ef978fd5d78845bc0812ea0a1e7229f274051f
+#   docker build -t robodojo:cuda12.8 RoboDojo
+#   docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
+#
+# Eval assets (~90 GiB) are licence-restricted and mounted at runtime under
+# /workspace/RoboDojo/Assets — see configs/benchmarks/robodojo/README.md.
+ARG BASE_IMAGE=robodojo:cuda12.8
+FROM ${BASE_IMAGE}
+
+# Build-time license confirmation, same pattern as behavior1k: the upstream
+# image bundles Isaac Sim, so redistribution is gated on the NVIDIA EULA.
+ARG ACCEPT_NVIDIA_EULA=
+RUN if [ "$ACCEPT_NVIDIA_EULA" != "YES" ]; then \
+        echo "Building the robodojo image requires accepting the NVIDIA Isaac Sim EULA:"; \
+        echo "  https://docs.omniverse.nvidia.com/eula/"; \
+        echo "Re-run with: docker/build.sh robodojo --accept-license robodojo"; \
+        exit 1; \
+    fi
+
+WORKDIR /workspace/vla-evaluation-harness
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN /root/miniconda3/envs/RoboDojo/bin/python -m pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+# Harness convention: relative `output_dir: ./results` resolves against
+# /workspace, where the runners mount the host results dir. Bypass the upstream
+# entrypoint (it cd's into /workspace/RoboDojo); the adapter chdirs itself.
+WORKDIR /workspace
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "RoboDojo", "vla-eval"]
+CMD ["run", "--config", "/workspace/vla-evaluation-harness/configs/benchmarks/robodojo/smoke_test.yaml"]

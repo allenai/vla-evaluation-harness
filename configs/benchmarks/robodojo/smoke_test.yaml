@@ -1,0 +1,32 @@
+# Minimal RoboDojo smoke test: dual ARX-X5, one task, one episode.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/robodojo:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+    - "ACCEPT_EULA=Y"
+    - "PRIVACY_CONSENT=Y"
+    # See eval.yaml: the image's baked VK_ICD_FILENAMES points at an ICD some hosts
+    # never create, which breaks Vulkan.
+    - "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json"
+    - "VK_DRIVER_FILES=/usr/share/vulkan/icd.d/nvidia_icd.json"  # newer Vulkan loaders prefer this over VK_ICD_FILENAMES
+  volumes:
+    # RoboDojo assets (~90 GiB) are licence-restricted and never baked into the
+    # image. Fetch them once with the upstream downloader (see README.md) and
+    # point ROBODOJO_ASSETS at the resulting Assets/ directory.
+    - "${oc.env:ROBODOJO_ASSETS,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robodojo/Assets}:/workspace/RoboDojo/Assets:ro"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.robodojo.benchmark:RoboDojoBenchmark"
+    episodes_per_task: 1
+    max_tasks: 1
+    max_steps: 20
+    action_dim: 14  # echo server sends 14-D actions; without this it sends 7-D and every step errors
+    params:
+      tasks:
+        - stack_blocks
+      seed: 0

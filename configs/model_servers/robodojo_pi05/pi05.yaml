@@ -1,0 +1,16 @@
+# π₀.₅ — RoboDojo leaderboard checkpoint (direct OpenPI inference).
+#
+# Uses XPolicyLab's openpi fork (adds the RoboDojo train configs) and the
+# officially released fine-tuned checkpoint from the RoboDojo-Benchmark/RoboDojo
+# Hugging Face dataset:
+#   ckpt/RoboDojo/Pi_05/RoboDojo-sim-arx_x5-joint-<seed>/59999
+#
+# Point ROBODOJO_PI05_CKPT at that step directory (it must contain params/ and
+# assets/arx_x5_sim/). config_name must match the checkpoint's training seed.
+
+script: "src/vla_eval/model_servers/robodojo_pi05.py"
+args:
+  checkpoint: "${oc.env:ROBODOJO_PI05_CKPT,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robodojo/pi05/RoboDojo-sim-arx_x5-joint-0/59999}"
+  config_name: "pi05_base_aloha_full_sim_arx-x5_seed_0"
+  norm_asset_id: "arx_x5_sim"
+  port: 8000

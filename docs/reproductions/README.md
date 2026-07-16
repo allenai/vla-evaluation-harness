@@ -48,9 +48,11 @@ SE = SimplerEnv. SE GR = Google Robot VM.
 | Kinetix | [RTC](https://arxiv.org/abs/2506.07339) | ⬜ | ckpt | [rtc.md](rtc.md) |
 | VLABench | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜ | 51.1% | [xvla.md](xvla.md) |
 | MolmoSpaces-Bench | [MolmoBot (F=2)](https://arxiv.org/abs/2603.16861) | ✅ **57.0%** | [57.7%](https://huggingface.co/allenai/MolmoBot-DROID)² | [molmobot.md](molmobot.md) |
+| RoboDojo | [π₀.₅](https://arxiv.org/abs/2607.04434) | 🔧 **6.4 / 5.6%**³ | [5.78 / 4.56%](https://huggingface.co/datasets/RoboDojo-Benchmark/RoboDojo) | [robodojo.md](robodojo.md) |
 
 ¹ Counting suite only (4/16 tasks). Full 4-suite evaluation pending.
 ² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types not yet reproduced.
+³ Score / SR, Memory dimension only (1 of 5), 15/50 episodes, seed 0 of 3; 2 of 6 tasks blocked by an upstream layout bug (counted as 0).
 
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 
@@ -74,6 +76,7 @@ Integrated in vla-eval: RLBench, RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBER
 - [RoboMME/robomme\_policy\_learning](https://github.com/RoboMME/robomme_policy_learning): [robomme.md](robomme.md)
 - [DravenALG/VLANeXt](https://github.com/DravenALG/VLANeXt): [PR #34](https://github.com/allenai/vla-evaluation-harness/pull/34)
 - [allenai/MolmoBot](https://github.com/allenai/MolmoBot): [molmobot.md](molmobot.md)
+- [RoboDojo-Benchmark/RoboDojo](https://github.com/RoboDojo-Benchmark/RoboDojo) (π₀.₅ via [XPolicyLab](https://github.com/XPolicyLab/XPolicyLab)): [robodojo.md](robodojo.md)
 
 ## Files
 
