@@ -11,7 +11,7 @@ metric:
   higher_is_better: true
 official_leaderboard: https://robocasa.ai/leaderboard.html
 external_only: true
-detail_notes: "RoboCasa365 (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>). Successor to RoboCasa by the same team: 365 kitchen tasks, evaluated on a 50-task benchmark (Atomic-Seen 18 / Composite-Seen 16 / Composite-Unseen 16). Submission-reviewed results live on the official leaderboard; this site does not mirror them. Distinct protocol from the <code>robocasa</code> entry."
+detail_notes: "&ldquo;RoboCasa365: A Large-Scale Simulation Framework for Training and Benchmarking Generalist Robots&rdquo; (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>). Results live on the official leaderboard; this site does not mirror them. Distinct protocol from the <code>robocasa</code> entry."
 ---
 
 **External-only**: results are maintained exclusively on the [official leaderboard](https://robocasa.ai/leaderboard.html) (submissions via PR, reviewed by the RoboCasa team). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.

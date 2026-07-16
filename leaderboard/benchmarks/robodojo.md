@@ -11,7 +11,7 @@ metric:
   higher_is_better: true
 official_leaderboard: https://robodojo-benchmark.com/leaderboard
 external_only: true
-detail_notes: "RoboDojo (<a href='https://arxiv.org/abs/2607.04434'>2607.04434</a>). Isaac Lab dual-ARX-X5 bimanual benchmark: 42 sim tasks across five capability dimensions, reporting score (partial progress, &times;100) and success rate. Results live on the official leaderboard; this site does not mirror them."
+detail_notes: "&ldquo;RoboDojo: A Unified Sim-and-Real Benchmark for Comprehensive Evaluation of Generalist Robot Manipulation Policies&rdquo; (<a href='https://arxiv.org/abs/2607.04434'>2607.04434</a>). Results live on the official leaderboard; this site does not mirror them."
 ---
 
 **External-only**: results are maintained exclusively on the [official leaderboard](https://robodojo-benchmark.com/leaderboard) (frozen protocol, 3 training seeds). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.

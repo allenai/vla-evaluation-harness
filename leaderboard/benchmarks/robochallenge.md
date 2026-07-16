@@ -11,7 +11,7 @@ metric:
   higher_is_better: true
 official_leaderboard: https://robochallenge.ai/leaderboard
 external_only: true
-detail_notes: "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Real-robot multi-task challenge with submission-based evaluation. Results live on the official leaderboard; this site does not mirror them."
+detail_notes: "&ldquo;RoboChallenge: Large-scale Real-robot Evaluation of Embodied Policies&rdquo; (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Results live on the official leaderboard; this site does not mirror them."
 ---
 
 **External-only**: results are maintained exclusively on the [official leaderboard](https://robochallenge.ai/leaderboard). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.

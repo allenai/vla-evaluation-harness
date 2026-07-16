@@ -9,12 +9,12 @@ metric:
   - 0
   - 2000
   higher_is_better: true
-official_leaderboard: https://robo-arena.github.io/
+official_leaderboard: https://robo-arena.github.io/leaderboard
 external_only: true
-detail_notes: "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of real-robot policies. Rankings live on the official leaderboard; this site does not mirror them."
+detail_notes: "&ldquo;RoboArena: Distributed Real-World Evaluation of Generalist Robot Policies&rdquo; (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Results live on the official leaderboard; this site does not mirror them."
 ---
 
-**External-only**: results are maintained exclusively on the [official leaderboard](https://robo-arena.github.io/). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.
+**External-only**: results are maintained exclusively on the [official leaderboard](https://robo-arena.github.io/leaderboard). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.
 
 Elo ratings change with every pairwise match, so any snapshot copied here is immediately stale. A bi-weekly API mirror ran until 2026-07 and was retired for that reason.
 

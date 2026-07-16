@@ -18,7 +18,7 @@ suites:
 expand_suites: true
 avg_position: 4
 avg_label: Avg (w/o 90)
-detail_notes: "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
+detail_notes: "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only; <code>libero_90</code> is excluded from the mean even when reported."
 aggregation:
   container: suite_scores
   keys:

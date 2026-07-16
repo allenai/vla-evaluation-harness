@@ -72,7 +72,7 @@
     "expand_suites": true,
     "avg_position": 4,
     "avg_label": "Avg (w/o 90)",
-    "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only — <code>libero_90</code> is excluded from the mean even when reported."
+    "detail_notes": "Standard protocol: 4-suite average (spatial, object, goal, 10). <code>overall_score</code> = mean of 4 standard suites only; <code>libero_90</code> is excluded from the mean even when reported."
   },
   "libero_mem": {
     "display_name": "LIBERO-Mem",
@@ -289,7 +289,7 @@
         "PickClutterYCB"
       ]
     },
-    "detail_notes": "Task subsets vary significantly — 14+ different combinations exist across papers. The most common 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB) covers ~24% of entries. A second common 5-task set (Fill, Hang, PickCube, PickSingleYCB, StackCube) covers ~19%. <strong>Scores across different task subsets are not directly comparable.</strong> Averaging methods also vary (weighted vs arithmetic). Check notes for which tasks were evaluated. <strong>Only entries using the standard 5-task set have a sortable overall score</strong> — other task subsets are shown but not ranked."
+    "detail_notes": "Task subsets vary significantly: 14+ different combinations exist across papers. The most common 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB) covers ~24% of entries. A second common 5-task set (Fill, Hang, PickCube, PickSingleYCB, StackCube) covers ~19%. <strong>Scores across different task subsets are not directly comparable.</strong> Averaging methods also vary (weighted vs arithmetic). Check notes for which tasks were evaluated. <strong>Only entries using the standard 5-task set have a sortable overall score</strong>; other task subsets are shown but not ranked."
   },
   "mikasa": {
     "display_name": "MIKASA-Robo",
@@ -390,7 +390,7 @@
       "sweep_to_dustpan",
       "turn_tap"
     ],
-    "detail_notes": "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores."
+    "detail_notes": "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong>; other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores."
   },
   "roboarena": {
     "display_name": "RoboArena",
@@ -404,9 +404,9 @@
       ],
       "higher_is_better": true
     },
-    "official_leaderboard": "https://robo-arena.github.io/",
+    "official_leaderboard": "https://robo-arena.github.io/leaderboard",
     "external_only": true,
-    "detail_notes": "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of real-robot policies. Rankings live on the official leaderboard; this site does not mirror them."
+    "detail_notes": "&ldquo;RoboArena: Distributed Real-World Evaluation of Generalist Robot Policies&rdquo; (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Results live on the official leaderboard; this site does not mirror them."
   },
   "robocasa": {
     "display_name": "RoboCasa",
@@ -471,7 +471,7 @@
     },
     "official_leaderboard": "https://robocasa.ai/leaderboard.html",
     "external_only": true,
-    "detail_notes": "RoboCasa365 (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>). Successor to RoboCasa by the same team: 365 kitchen tasks, evaluated on a 50-task benchmark (Atomic-Seen 18 / Composite-Seen 16 / Composite-Unseen 16). Submission-reviewed results live on the official leaderboard; this site does not mirror them. Distinct protocol from the <code>robocasa</code> entry."
+    "detail_notes": "&ldquo;RoboCasa365: A Large-Scale Simulation Framework for Training and Benchmarking Generalist Robots&rdquo; (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>). Results live on the official leaderboard; this site does not mirror them. Distinct protocol from the <code>robocasa</code> entry."
   },
   "robocerebra": {
     "display_name": "RoboCerebra",
@@ -517,7 +517,7 @@
     },
     "official_leaderboard": "https://robochallenge.ai/leaderboard",
     "external_only": true,
-    "detail_notes": "RoboChallenge (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Real-robot multi-task challenge with submission-based evaluation. Results live on the official leaderboard; this site does not mirror them."
+    "detail_notes": "&ldquo;RoboChallenge: Large-scale Real-robot Evaluation of Embodied Policies&rdquo; (<a href='https://arxiv.org/abs/2510.17950'>2510.17950</a>). Results live on the official leaderboard; this site does not mirror them."
   },
   "robodojo": {
     "display_name": "RoboDojo",
@@ -533,7 +533,7 @@
     },
     "official_leaderboard": "https://robodojo-benchmark.com/leaderboard",
     "external_only": true,
-    "detail_notes": "RoboDojo (<a href='https://arxiv.org/abs/2607.04434'>2607.04434</a>). Isaac Lab dual-ARX-X5 bimanual benchmark: 42 sim tasks across five capability dimensions, reporting score (partial progress, &times;100) and success rate. Results live on the official leaderboard; this site does not mirror them."
+    "detail_notes": "&ldquo;RoboDojo: A Unified Sim-and-Real Benchmark for Comprehensive Evaluation of Generalist Robot Manipulation Policies&rdquo; (<a href='https://arxiv.org/abs/2607.04434'>2607.04434</a>). Results live on the official leaderboard; this site does not mirror them."
   },
   "robomme": {
     "display_name": "RoboMME",
@@ -583,7 +583,7 @@
     "expand_suites": true,
     "avg_position": 4,
     "avg_label": "Avg",
-    "detail_notes": "RoboMME (<a href='https://arxiv.org/abs/2603.04639'>2603.04639</a>) — memory-augmented manipulation benchmark on a ManiSkill / 7-DOF Franka Panda tabletop. 16 tasks across 4 suites that target distinct memory demands: <strong>Counting</strong> (temporal), <strong>Permanence</strong> (spatial), <strong>Reference</strong> (object), <strong>Imitation</strong> (procedural). Standard protocol: 50 episodes/task (800 total), max 1,300 steps, multi-task single model, results averaged over the last 3 checkpoints × 3 seeds (9 runs). <code>overall_score</code> = unweighted mean of the 4 suite scores."
+    "detail_notes": "RoboMME (<a href='https://arxiv.org/abs/2603.04639'>2603.04639</a>), a memory-augmented manipulation benchmark on a ManiSkill / 7-DOF Franka Panda tabletop. 16 tasks across 4 suites that target distinct memory demands: <strong>Counting</strong> (temporal), <strong>Permanence</strong> (spatial), <strong>Reference</strong> (object), <strong>Imitation</strong> (procedural). Standard protocol: 50 episodes/task (800 total), max 1,300 steps, multi-task single model, results averaged over the last 3 checkpoints × 3 seeds (9 runs). <code>overall_score</code> = unweighted mean of the 4 suite scores."
   },
   "robotwin_v1": {
     "display_name": "RoboTwin 1.0",
@@ -667,7 +667,7 @@
       "shake_bottle"
     ],
     "aggregation": "forbidden",
-    "detail_notes": "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist — scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos — Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task — Hard is in-distribution (near-zero gaps). Check entry notes for protocol."
+    "detail_notes": "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist; scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos; Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task; Hard is in-distribution (near-zero gaps). Check entry notes for protocol."
   },
   "simpler_env": {
     "display_name": "SimplerEnv",
