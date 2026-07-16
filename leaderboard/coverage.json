@@ -1,0 +1,168 @@
+{
+  "last_updated": "2026-07-01",
+  "total_models": 2420,
+  "total_results": 2740,
+  "total_papers_reviewed": 2087,
+  "benchmarks": {
+    "calvin": {
+      "display_name": "CALVIN",
+      "arxiv_id": "2112.03227",
+      "citing_papers": 635,
+      "arxiv_citing_papers": 543,
+      "leaderboard_entries": 407,
+      "papers_reviewed": 450
+    },
+    "kinetix": {
+      "display_name": "Kinetix",
+      "arxiv_id": "2506.07339",
+      "citing_papers": 144,
+      "arxiv_citing_papers": 136,
+      "leaderboard_entries": 11,
+      "papers_reviewed": 126
+    },
+    "libero": {
+      "display_name": "LIBERO",
+      "arxiv_id": "2306.03310",
+      "citing_papers": 1101,
+      "arxiv_citing_papers": 1032,
+      "leaderboard_entries": 1065,
+      "papers_reviewed": 917
+    },
+    "libero_mem": {
+      "display_name": "LIBERO-Mem",
+      "arxiv_id": "2511.11478",
+      "citing_papers": 19,
+      "arxiv_citing_papers": 19,
+      "leaderboard_entries": 4,
+      "papers_reviewed": 13
+    },
+    "libero_plus": {
+      "display_name": "LIBERO-Plus",
+      "arxiv_id": "2510.13626",
+      "citing_papers": 144,
+      "arxiv_citing_papers": 144,
+      "leaderboard_entries": 119,
+      "papers_reviewed": 119
+    },
+    "libero_pro": {
+      "display_name": "LIBERO-Pro",
+      "arxiv_id": "2510.03827",
+      "citing_papers": 74,
+      "arxiv_citing_papers": 74,
+      "leaderboard_entries": 21,
+      "papers_reviewed": 59
+    },
+    "maniskill2": {
+      "display_name": "ManiSkill2",
+      "arxiv_id": "2302.04659",
+      "citing_papers": 363,
+      "arxiv_citing_papers": 323,
+      "leaderboard_entries": 42,
+      "papers_reviewed": 278
+    },
+    "mikasa": {
+      "display_name": "MIKASA-Robo",
+      "arxiv_id": "2502.10550",
+      "citing_papers": 27,
+      "arxiv_citing_papers": 25,
+      "leaderboard_entries": 15,
+      "papers_reviewed": 19
+    },
+    "rlbench": {
+      "display_name": "RLBench",
+      "arxiv_id": "1909.12271",
+      "citing_papers": 941,
+      "arxiv_citing_papers": 728,
+      "leaderboard_entries": 152,
+      "papers_reviewed": 521
+    },
+    "roboarena": {
+      "display_name": "RoboArena",
+      "arxiv_id": "2506.18123",
+      "citing_papers": 58,
+      "arxiv_citing_papers": 55,
+      "leaderboard_entries": 0,
+      "papers_reviewed": 49
+    },
+    "robocasa": {
+      "display_name": "RoboCasa",
+      "arxiv_id": "2406.02523",
+      "citing_papers": 389,
+      "arxiv_citing_papers": 354,
+      "leaderboard_entries": 183,
+      "papers_reviewed": 313
+    },
+    "robocasa365": {
+      "display_name": "RoboCasa365",
+      "arxiv_id": "2603.04356",
+      "citing_papers": null,
+      "arxiv_citing_papers": null,
+      "leaderboard_entries": 0,
+      "papers_reviewed": 1
+    },
+    "robocerebra": {
+      "display_name": "RoboCerebra",
+      "arxiv_id": "2506.06677",
+      "citing_papers": 26,
+      "arxiv_citing_papers": 26,
+      "leaderboard_entries": 10,
+      "papers_reviewed": 21
+    },
+    "robochallenge": {
+      "display_name": "RoboChallenge",
+      "arxiv_id": "2510.17950",
+      "citing_papers": 18,
+      "arxiv_citing_papers": 19,
+      "leaderboard_entries": 0,
+      "papers_reviewed": 16
+    },
+    "robodojo": {
+      "display_name": "RoboDojo",
+      "arxiv_id": "2607.04434",
+      "citing_papers": null,
+      "arxiv_citing_papers": null,
+      "leaderboard_entries": 0,
+      "papers_reviewed": 0
+    },
+    "robomme": {
+      "display_name": "RoboMME",
+      "arxiv_id": "2603.04639",
+      "citing_papers": 17,
+      "arxiv_citing_papers": 18,
+      "leaderboard_entries": 22,
+      "papers_reviewed": 9
+    },
+    "robotwin_v1": {
+      "display_name": "RoboTwin 1.0",
+      "arxiv_id": "2409.02920",
+      "citing_papers": 90,
+      "arxiv_citing_papers": 82,
+      "leaderboard_entries": 37,
+      "papers_reviewed": 73
+    },
+    "robotwin_v2": {
+      "display_name": "RoboTwin 2.0",
+      "arxiv_id": "2506.18088",
+      "citing_papers": 300,
+      "arxiv_citing_papers": 293,
+      "leaderboard_entries": 232,
+      "papers_reviewed": 250
+    },
+    "simpler_env": {
+      "display_name": "SimplerEnv",
+      "arxiv_id": "2405.05941",
+      "citing_papers": 433,
+      "arxiv_citing_papers": 410,
+      "leaderboard_entries": 393,
+      "papers_reviewed": 364
+    },
+    "vlabench": {
+      "display_name": "VLABench",
+      "arxiv_id": "2412.18194",
+      "citing_papers": 142,
+      "arxiv_citing_papers": 131,
+      "leaderboard_entries": 27,
+      "papers_reviewed": 116
+    }
+  }
+}
