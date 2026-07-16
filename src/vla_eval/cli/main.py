@@ -223,6 +223,11 @@ def _run_via_docker(
     # Forward host-side results_dir for recorder._host_translate.
     cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
 
+    # The watchdog runs inside the container; forward the host override so long
+    # episodes (e.g. RoboDojo's 1900-step tasks) aren't killed as stalls.
+    if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
+        cmd.extend(["-e", f"VLA_EVAL_WATCHDOG_TIMEOUT_S={os.environ['VLA_EVAL_WATCHDOG_TIMEOUT_S']}"])
+
     # Forward stdin/TTY for in-container licence prompts.
     cmd.extend(tty_docker_flags())
 
@@ -344,6 +349,10 @@ def cmd_run(args: argparse.Namespace) -> None:
         return
 
     import anyio
+
+    # Pin output_dir absolute before benchmark code runs: some benchmarks (robotwin,
+    # robodojo) chdir into their sim checkout, silently re-anchoring relative paths.
+    config["output_dir"] = str(Path(config.get("output_dir") or "./results").resolve())
 
     watchdog.start(float(os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S", "1200")))
     orchestrator = Orchestrator(
