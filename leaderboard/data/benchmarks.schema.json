@@ -25,7 +25,11 @@
           "higher_is_better": { "type": "boolean" }
         }
       },
-      "official_leaderboard": { "type": "string", "format": "uri" },
+      "official_leaderboard": { "type": "string", "format": "uri", "pattern": "^https://" },
+      "external_only": {
+        "type": "boolean",
+        "description": "Results live exclusively on the official leaderboard; leaderboard.json must have zero rows for this benchmark. Rendered as a link-out card on the site."
+      },
       "expand_suites": { "type": "boolean" },
       "avg_position": { "type": "integer", "minimum": 0 },
       "avg_label": { "type": "string" },
@@ -40,7 +44,7 @@
         "description": "Allowed protocol suffixes for suite_scores / task_scores keys. When present, every component-score key must end in `_<suffix>` for a listed suffix (e.g. simpler_env requires `_vm` or `_va`). Omitted for benchmarks with no suffix constraint."
       },
       "aggregation": {
-        "description": "Canonical rule for aggregating component scores (suite_scores or task_scores) into overall_score. Omit when overall_score is trusted as-is from the source (e.g. LLM-extracted or API-synced aggregates).",
+        "description": "Canonical rule for aggregating component scores (suite_scores or task_scores) into overall_score. Omit when overall_score is trusted as-is from the source (e.g. LLM-extracted aggregates).",
         "oneOf": [
           {
             "type": "string",

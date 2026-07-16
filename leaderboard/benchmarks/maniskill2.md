@@ -42,7 +42,7 @@ aggregation:
   - PickSingleYCB
   - PickSingleEGAD
   - PickClutterYCB
-detail_notes: "Task subsets vary significantly — 14+ different combinations exist across papers. The most common 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB) covers ~24% of entries. A second common 5-task set (Fill, Hang, PickCube, PickSingleYCB, StackCube) covers ~19%. <strong>Scores across different task subsets are not directly comparable.</strong> Averaging methods also vary (weighted vs arithmetic). Check notes for which tasks were evaluated. <strong>Only entries using the standard 5-task set have a sortable overall score</strong> — other task subsets are shown but not ranked."
+detail_notes: "Task subsets vary significantly: 14+ different combinations exist across papers. The most common 5-task set (PickCube, StackCube, PickSingleYCB, PickSingleEGAD, PickClutterYCB) covers ~24% of entries. A second common 5-task set (Fill, Hang, PickCube, PickSingleYCB, StackCube) covers ~19%. <strong>Scores across different task subsets are not directly comparable.</strong> Averaging methods also vary (weighted vs arithmetic). Check notes for which tasks were evaluated. <strong>Only entries using the standard 5-task set have a sortable overall score</strong>; other task subsets are shown but not ranked."
 ---
 
 **Standard**: ManiSkill2 5-task set (`PickCube`, `StackCube`, `PickSingleYCB`, `PickSingleEGAD`, `PickClutterYCB`); `overall_score` = arithmetic mean across those 5 tasks, and `null` for any other subset.

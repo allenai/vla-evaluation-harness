@@ -1,4 +1,4 @@
-// VLA Leaderboard — app.js
+// VLA Leaderboard app.js
 // Vanilla JS, no frameworks.
 
 (function () {
@@ -67,7 +67,7 @@
     function resetAndRender() {
       currentPage = 0;
       // Filter-affecting controls also need the model list re-filtered,
-      // not just the page reset — the cached list keyed off sort state
+      // not just the page reset: the cached list keyed off sort state
       // would otherwise still reflect the pre-filter state.
       lastFilteredModels = [];
       renderTable();
@@ -144,7 +144,7 @@
       modelDisplayCache[mk] = r ? (r.display_name || mk) : mk;
     }
 
-    // Cache best-per-column (static for all models — only changes on data reload)
+    // Cache best-per-column (static for all models; only changes on data reload)
     bestByColumnCache = {};
 
     buildOverviewColumns();
@@ -203,6 +203,18 @@
       opt.value = key;
       opt.textContent = (data.benchmarks[key] || {}).display_name || key;
       benchmarkFilterEl.appendChild(opt);
+    }
+    const externals = externalBenchmarks();
+    if (externals.length > 0) {
+      const group = document.createElement('optgroup');
+      group.label = 'External leaderboards';
+      for (const [key, bm] of externals) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = (bm.display_name || key) + ' ↗';
+        group.appendChild(opt);
+      }
+      benchmarkFilterEl.appendChild(group);
     }
   }
 
@@ -323,22 +335,74 @@
   // ─── Stats ─────────────────────────────────────────────────────────────────
   function renderStats() {
     if (!statsEl) return;
+    const nExternal = externalBenchmarks().length;
+    const externalStat = nExternal > 0
+      ? ` · <span class="stat"><strong>${nExternal}</strong> external leaderboards (see dropdown)</span>`
+      : '';
     statsEl.innerHTML =
       `<span class="stat"><strong>${modelKeys.length}</strong> models</span> · ` +
       `<span class="stat"><strong>${benchmarkKeys.length}</strong> benchmarks</span> · ` +
       `<span class="stat"><strong>${data.results.length}</strong> results</span> · ` +
-      `Last updated: <span class="stat">${data.last_updated || '?'}</span>`;
+      `Last updated: <span class="stat">${data.last_updated || '?'}</span>${externalStat}`;
+  }
+
+  // ─── External leaderboards ────────────────────────────────────────────────
+  function stripHtml(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html || '';
+    return t.textContent || '';
+  }
+
+  function externalBenchmarks() {
+    return Object.entries(data.benchmarks || {})
+      .filter(([, bm]) => bm.external_only && bm.official_leaderboard)
+      .sort(([, a], [, b]) => (a.display_name || '').localeCompare(b.display_name || ''));
+  }
+
+  function isExternal(bmKey) {
+    const bm = bmKey && data.benchmarks[bmKey];
+    return !!(bm && bm.external_only && bm.official_leaderboard);
+  }
+
+  // Full-width panel shown in place of the table when an external benchmark
+  // is selected from the dropdown.
+  function renderExternalPanel(bmKey) {
+    const el = $('external-panel');
+    if (!el) return;
+    const bm = data.benchmarks[bmKey] || {};
+    const name = escHtml(bm.display_name || bmKey);
+    const url = escHtml(bm.official_leaderboard);
+    // detail_notes is trusted curated HTML (same trust as benchmark-notes below)
+    el.innerHTML =
+      `<h2>${name}</h2>` +
+      `<p>${bm.detail_notes || ''}</p>` +
+      `<a class="external-panel-button" href="${url}" target="_blank" rel="noopener noreferrer">View the official ${name} leaderboard ↗</a>`;
+    el.style.display = '';
   }
 
   // ─── Render dispatcher ─────────────────────────────────────────────────────
   function renderTable() {
+    const panelEl = $('external-panel');
+    const wrapEl = tableEl ? tableEl.closest('.table-wrapper') : null;
+    const pagerEl = $('pagination');
+    if (isExternal(selectedBenchmark)) {
+      renderExternalPanel(selectedBenchmark);
+      if (wrapEl) wrapEl.style.display = 'none';
+      if (pagerEl) pagerEl.style.display = 'none';
+      const n = $('official-notice'); if (n) n.style.display = 'none';
+      const b = $('benchmark-notes'); if (b) b.style.display = 'none';
+      return;
+    }
+    if (panelEl) panelEl.style.display = 'none';
+    if (wrapEl) wrapEl.style.display = '';
+
     const noticeEl = $('official-notice');
     if (noticeEl) {
       const bm = selectedBenchmark && data.benchmarks[selectedBenchmark];
       if (bm && bm.official_leaderboard) {
         noticeEl.innerHTML =
           `This benchmark has an <a href="${escHtml(bm.official_leaderboard)}" target="_blank" rel="noopener noreferrer">official leaderboard</a>. ` +
-          `Our data may be incomplete or outdated — check the official source for the latest results.`;
+          `Our data may be incomplete or outdated; check the official source for the latest results.`;
         noticeEl.style.display = '';
       } else {
         noticeEl.style.display = 'none';
@@ -504,7 +568,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DETAIL VIEW (single benchmark — flat table with full metadata)
+  // DETAIL VIEW (single benchmark: flat table with full metadata)
   // ═══════════════════════════════════════════════════════════════════════════
   function renderDetailView(bmKey) {
     if (!theadEl || !tbodyEl) return;
@@ -589,7 +653,7 @@
 
     const colSpan = expandSuites ? 8 + detailColumns.length : 9;
 
-    // Body — use DocumentFragment
+    // Body: use DocumentFragment
     const frag = document.createDocumentFragment();
     let rank = 0;
     for (const r of results) {
@@ -647,7 +711,7 @@
       frag.appendChild(tr);
 
       // Sub-scores row: show task_scores breakdown (skip suite_scores when already shown as columns).
-      // Use the first non-empty source — an empty `suite_scores: {}` must not mask task_scores.
+      // Use the first non-empty source; an empty `suite_scores: {}` must not mask task_scores.
       const hasKeys = o => o && Object.keys(o).length > 0;
       const subScores = expandSuites
         ? r.task_scores
@@ -853,13 +917,13 @@
       if (!citingArxiv) continue;
       // scan.py already folds the benchmark paper itself into
       // ``arxiv_citing_papers`` (len of the unioned pool), so we use the
-      // reported counts directly here — no +1 needed.
+      // reported counts directly here, no +1 needed.
       const denomArxiv = citingArxiv;
       const denomTotal = citingTotal || null;
       const pct = Math.min(100, Math.round((reviewed / denomArxiv) * 100));
       const barColor = pct > 15 ? 'var(--accent)' : pct > 5 ? '#da9679' : '#e24a8d';
       // Hide the total-citations figure when it's ≤ the arXiv-reviewable
-      // count — after post-scan pool unions (e.g. robocasa after gr1
+      // count: after post-scan pool unions (e.g. robocasa after gr1
       // merge), the S2-reported total can be smaller than the real
       // reviewable pool, which would misleadingly read "631 total / 768
       // arxiv".

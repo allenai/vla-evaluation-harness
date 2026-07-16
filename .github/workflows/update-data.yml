@@ -3,11 +3,6 @@ on:
   schedule:
     - cron: '0 6 1,15 * *'  # Bi-weekly: 1st and 15th of each month, 06:00 UTC
   workflow_dispatch:
-    inputs:
-      source:
-        description: 'External source to sync (leave empty for all)'
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -19,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # sync_external/scan/validate read leaderboard.json
-          # (LFS-tracked) — smudge the blob so they don't hit a pointer.
+          # scan/validate read leaderboard.json (LFS-tracked) —
+          # smudge the blob so they don't hit a pointer.
           lfs: true
 
       - uses: actions/setup-python@v6
@@ -29,15 +24,6 @@ jobs:
 
       - name: Install deps
         run: pip install jsonschema
-
-      - name: Sync external leaderboards
-        id: sync
-        run: |
-          SOURCE_ARG=""
-          if [ -n "${{ inputs.source }}" ]; then
-            SOURCE_ARG="--source ${{ inputs.source }}"
-          fi
-          python leaderboard/scripts/sync_external.py --apply $SOURCE_ARG
 
       - name: Fetch coverage and citations
         id: stats
@@ -58,9 +44,6 @@ jobs:
           title: 'data: update leaderboard data'
           body: |
             Automated bi-weekly leaderboard data update.
-
-            ### External leaderboards
-            ${{ steps.sync.outputs.sync_summary || '- No changes' }}
 
             ### Citations
             ${{ steps.stats.outputs.citations_summary || '- Skipped or unchanged' }}

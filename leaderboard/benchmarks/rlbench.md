@@ -63,7 +63,7 @@ tasks:
 - stack_cups
 - sweep_to_dustpan
 - turn_tap
-detail_notes: "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong> — other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores."
+detail_notes: "Standard: 18-task PerAct subset (<a href='https://arxiv.org/abs/2209.05451'>2209.05451</a>), 249 total variations, 25 eval episodes/task, 100 demos/task. <strong>Only 18-task entries have a sortable overall score</strong>; other task counts are shown but not ranked. Multi-variation vs single-variation significantly affects scores."
 ---
 
 **Standard**: 18-task PerAct subset ([2209.05451](https://arxiv.org/abs/2209.05451)) with 249 total language-goal variations across the 18 tasks, 25 evaluation episodes per task (450 total), 100 training demos per task, multi-task learning; `overall_score` = mean success rate across the 18 tasks.

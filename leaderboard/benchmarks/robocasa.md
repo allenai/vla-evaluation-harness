@@ -41,13 +41,15 @@ score_key_suffixes:
 - panda
 - gr1
 aggregation: forbidden
-detail_notes: "Two embodiments share a single benchmark: <strong>Panda</strong> (Mobile Franka in RoboCasa kitchens, <a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>, 24 atomic tasks) and <strong>GR1</strong> (Fourier GR1 humanoid tabletop pick-and-place, <a href='https://arxiv.org/abs/2503.14734'>2503.14734</a>, 24 PnP tasks). Scores across embodiments are not directly comparable; <code>overall_score</code> is always <code>null</code>. Each embodiment's 24-task mean goes in <code>suite_scores.&lt;panda|gr1&gt;</code>; per-task scores take the <code>_panda</code> or <code>_gr1</code> suffix to disambiguate."
+detail_notes: "Two embodiments share a single benchmark: <strong>Panda</strong> (Mobile Franka in RoboCasa kitchens, <a href='https://arxiv.org/abs/2406.02523'>2406.02523</a>, 24 atomic tasks) and <strong>GR1</strong> (Fourier GR1 humanoid tabletop pick-and-place, <a href='https://arxiv.org/abs/2503.14734'>2503.14734</a>, 24 PnP tasks). Scores across embodiments are not directly comparable; <code>overall_score</code> is always <code>null</code>. Each embodiment's 24-task mean goes in <code>suite_scores.&lt;panda|gr1&gt;</code>; per-task scores take the <code>_panda</code> or <code>_gr1</code> suffix to disambiguate. The same team's successor benchmark <strong>RoboCasa365</strong> (<a href='https://arxiv.org/abs/2603.04356'>2603.04356</a>, different 50-task protocol) maintains its own <a href='https://robocasa.ai/leaderboard.html'>official leaderboard</a>."
 ---
 
 **Standard**: two independent embodiments, each with its own 24-task protocol:
 
 - **Panda** — 24 atomic tasks on a Mobile Franka robot in RoboCasa kitchen environments ([2406.02523](https://arxiv.org/abs/2406.02523)).
 - **GR1** — 24 tabletop pick-and-place tasks (6 "standard" + 18 "post-training novel" SplitA variants) on a Fourier GR1 humanoid, introduced in GR00T N1 ([2503.14734](https://arxiv.org/abs/2503.14734)).
+
+RoboCasa365 ([2603.04356](https://arxiv.org/abs/2603.04356)) is a distinct successor protocol with its own submission leaderboard — route its results to the `robocasa365` entry, never here.
 
 `overall_score` is always `null` — never average across embodiments. Per-embodiment 24-task means live in `suite_scores.panda` and `suite_scores.gr1`.
 

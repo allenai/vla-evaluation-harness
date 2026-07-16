@@ -25,7 +25,7 @@ tasks:
 - place_mouse_pad
 - place_phone_stand
 - shake_bottle
-detail_notes: "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist — scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos — Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task — Hard is in-distribution (near-zero gaps). Check entry notes for protocol."
+detail_notes: "RoboTwin 2.0 (2025). Easy = clean scenes; Hard = 5-axis domain randomization. <strong>Two training protocols exist; scores across them are not directly comparable.</strong> Protocol A (official, 2506.18088): single-task, 50 clean demos; Hard tests OOD generalization (3–10× gaps). Protocol B (Motus-style, 2512.13030): multi-task, 50 clean + 500 DR demos/task; Hard is in-distribution (near-zero gaps). Check entry notes for protocol."
 aggregation: forbidden
 ---
 

@@ -34,7 +34,7 @@ tasks:
 expand_suites: true
 avg_position: 4
 avg_label: Avg
-detail_notes: "RoboMME (<a href='https://arxiv.org/abs/2603.04639'>2603.04639</a>) — memory-augmented manipulation benchmark on a ManiSkill / 7-DOF Franka Panda tabletop. 16 tasks across 4 suites that target distinct memory demands: <strong>Counting</strong> (temporal), <strong>Permanence</strong> (spatial), <strong>Reference</strong> (object), <strong>Imitation</strong> (procedural). Standard protocol: 50 episodes/task (800 total), max 1,300 steps, multi-task single model, results averaged over the last 3 checkpoints × 3 seeds (9 runs). <code>overall_score</code> = unweighted mean of the 4 suite scores."
+detail_notes: "RoboMME (<a href='https://arxiv.org/abs/2603.04639'>2603.04639</a>), a memory-augmented manipulation benchmark on a ManiSkill / 7-DOF Franka Panda tabletop. 16 tasks across 4 suites that target distinct memory demands: <strong>Counting</strong> (temporal), <strong>Permanence</strong> (spatial), <strong>Reference</strong> (object), <strong>Imitation</strong> (procedural). Standard protocol: 50 episodes/task (800 total), max 1,300 steps, multi-task single model, results averaged over the last 3 checkpoints × 3 seeds (9 runs). <code>overall_score</code> = unweighted mean of the 4 suite scores."
 aggregation:
   container: suite_scores
   keys:

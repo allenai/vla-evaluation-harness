@@ -9,20 +9,14 @@ metric:
   - 0
   - 2000
   higher_is_better: true
-official_leaderboard: https://robo-arena.github.io/
-detail_notes: "RoboArena (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Elo-based ranking via pairwise human evaluation of robot manipulation policies."
+official_leaderboard: https://robo-arena.github.io/leaderboard
+external_only: true
+detail_notes: "&ldquo;RoboArena: Distributed Real-World Evaluation of Generalist Robot Policies&rdquo; (<a href='https://arxiv.org/abs/2506.18123'>2506.18123</a>). Results live on the official leaderboard; this site does not mirror them."
 ---
 
-**Standard**: Elo-based pairwise comparison benchmark with API-synced entries only; `overall_score` = Elo rating from pairwise matches (higher is better).
+**External-only**: results are maintained exclusively on the [official leaderboard](https://robo-arena.github.io/leaderboard). This registry entry exists to link out; `leaderboard.json` must contain **zero** rows for this benchmark.
 
-## Scoring
-- `overall_score`: Elo rating as provided by the upstream API; `null` for non-API-synced rows (which are rejected entirely — see Checks).
-- `suite_scores`: not used.
-- `task_scores`: not used.
+Elo ratings change with every pairwise match, so any snapshot copied here is immediately stale. A bi-weekly API mirror ran until 2026-07 and was retired for that reason.
 
 ## Checks
-- Is this entry API-synced? `curated_by` must end with `-api`. Manual paper extractions are forbidden and must be rejected from the candidate set entirely — not kept with `overall_score = null`.
-- Has the entry been matched against at least 15 pairwise comparisons? Entries with fewer comparisons have high variance (std > 120 Elo) and must note the comparison count.
-
-## Methodology axes (record in `notes`, do not null)
-- Pairwise comparison count: high-variance entries (< 15 comparisons) remain in the leaderboard but the count must be disclosed.
+- Any candidate row for this benchmark must be rejected entirely, whatever its source (paper extraction or API). Do not retain rows with `overall_score = null`.
