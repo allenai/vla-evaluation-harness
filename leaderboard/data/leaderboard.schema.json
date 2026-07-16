@@ -25,7 +25,7 @@
           },
           "name_in_paper": {
             "type": ["string", "null"],
-            "description": "Method label verbatim from the source paper's results table. null for manual or API-synced entries with no paper label."
+            "description": "Method label verbatim from the source paper's results table. null for manual entries with no paper label."
           },
           "benchmark": {"type": "string", "description": "Key in benchmarks.json."},
           "overall_score": {
@@ -45,7 +45,7 @@
           "reported_paper": {
             "type": ["string", "null"],
             "format": "uri",
-            "description": "URL of the paper that measured this number. null for API-synced entries."
+            "description": "URL of the paper that measured this number. null for manually curated entries without a source paper."
           },
           "reported_table": {"type": ["string", "null"]},
           "curated_by": {

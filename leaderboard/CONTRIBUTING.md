@@ -83,7 +83,7 @@ Benchmarks whose authors maintain their own leaderboard (RoboArena, RoboChalleng
 
 - **`leaderboard-validate.yml`**: Runs `validate.py` on every PR touching `leaderboard.json` or `citations.json`
 - **`pages.yml`**: Deploys to GitHub Pages on push to main; regenerates `coverage.json` and `citations.json`
-- **`update-data.yml`**: Syncs external leaderboard sources weekly (Monday 06:00 UTC) and opens a PR with updates. Can also be triggered manually via `workflow_dispatch`.
+- **`update-data.yml`**: Refreshes citation counts and coverage stats bi-weekly (1st and 15th, 06:00 UTC) and opens a PR with updates. Can also be triggered manually via `workflow_dispatch`.
 
 ## Benchmark Protocols
 
