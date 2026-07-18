@@ -349,6 +349,7 @@ def _write_sample_db(tmp_path: Path) -> tuple[Path, str]:
             "metric_keys": {"success": "mean"},
             "harness_version": "test",
             "server_info": {"model_server": "EchoServer"},
+            "benchmark_metadata": {"upstream": {"revision": "abc123"}},
         },
     )
     # Three episodes.
@@ -395,6 +396,7 @@ def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     assert body["seed"] == 7
     assert body["harness_version"] == "test"
     assert body["server_info"] == {"model_server": "EchoServer"}
+    assert body["benchmark_metadata"] == {"upstream": {"revision": "abc123"}}
     assert body["metric_keys"] == {"success": "mean"}
     assert body["mean_success"] == pytest.approx(2 / 3, abs=1e-4)
     assert [t["task"] for t in body["tasks"]] == ["taskA"]

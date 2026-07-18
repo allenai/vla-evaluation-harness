@@ -266,6 +266,7 @@ class Orchestrator:
             "mode": cfg.mode,
             "config": cfg.to_dict(),
             "metric_keys": benchmark.get_metric_keys(),
+            "benchmark_metadata": metadata,
             "harness_version": __version__,
             "server_info": conn.server_info,
         }
@@ -345,7 +346,12 @@ class Orchestrator:
                     fail = record_failure("server_unreachable", str(exc))
                     close_recorder(fail, "error")
                     return self._finalize_benchmark(
-                        collector, cfg, safe_name, partial=True, server_info=conn.server_info
+                        collector,
+                        cfg,
+                        safe_name,
+                        partial=True,
+                        server_info=conn.server_info,
+                        benchmark_metadata=metadata,
                     )
                 except websockets.exceptions.ConnectionClosed as exc:
                     close_code = exc.rcvd.code if exc.rcvd else None
@@ -366,7 +372,12 @@ class Orchestrator:
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
                         return self._finalize_benchmark(
-                            collector, cfg, safe_name, partial=True, server_info=conn.server_info
+                            collector,
+                            cfg,
+                            safe_name,
+                            partial=True,
+                            server_info=conn.server_info,
+                            benchmark_metadata=metadata,
                         )
                     continue
                 except TimeoutError as exc:
@@ -385,7 +396,12 @@ class Orchestrator:
                     except Exception:
                         logger.exception("Reconnect failed, aborting benchmark")
                         return self._finalize_benchmark(
-                            collector, cfg, safe_name, partial=True, server_info=conn.server_info
+                            collector,
+                            cfg,
+                            safe_name,
+                            partial=True,
+                            server_info=conn.server_info,
+                            benchmark_metadata=metadata,
                         )
                     continue
                 except Exception:
@@ -404,7 +420,14 @@ class Orchestrator:
             benchmark.cleanup()
             await conn.close()
 
-        return self._finalize_benchmark(collector, cfg, safe_name, partial=False, server_info=conn.server_info)
+        return self._finalize_benchmark(
+            collector,
+            cfg,
+            safe_name,
+            partial=False,
+            server_info=conn.server_info,
+            benchmark_metadata=metadata,
+        )
 
     def _build_recorder(
         self,
@@ -480,6 +503,7 @@ class Orchestrator:
         *,
         partial: bool,
         server_info: dict[str, Any] | None = None,
+        benchmark_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Print summary and return the in-memory benchmark result for the caller."""
         collector.print_summary()
@@ -487,6 +511,8 @@ class Orchestrator:
         output: dict[str, Any] = {**collector.get_benchmark_result(config=cfg.to_dict())}
         if server_info is not None:
             output["server_info"] = server_info
+        if benchmark_metadata is not None:
+            output["benchmark_metadata"] = benchmark_metadata
         if partial:
             output["partial"] = True
         if self.num_shards is not None and self.shard_id is not None:

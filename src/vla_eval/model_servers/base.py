@@ -148,3 +148,7 @@ class ModelServer(ABC):
         an explicit ``observation_params`` dict to ``PredictModelServer``.
         """
         return {}
+
+    def get_metadata(self) -> dict[str, Any]:
+        """Return model/checkpoint provenance to persist with evaluation results."""
+        return {}

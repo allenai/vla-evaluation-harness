@@ -96,6 +96,9 @@ async def _handle_connection(
                 extra: dict[str, Any] = {}
                 if obs_params:
                     extra["observation_params"] = obs_params
+                model_metadata = model_server.get_metadata()
+                if model_metadata:
+                    extra["model_metadata"] = model_metadata
                 try:
                     action_spec = model_server.get_action_spec()
                     obs_spec = model_server.get_observation_spec()

@@ -7,7 +7,7 @@ import pytest
 
 from vla_eval.connection import Connection
 
-from tests.conftest import start_echo_server, stop_server
+from tests.conftest import EchoModelServer, start_echo_server, start_server, stop_server
 
 
 @pytest.mark.anyio
@@ -18,6 +18,20 @@ async def test_server_client_roundtrip(echo_server):
         expected = 3.0 * np.ones(7, dtype=np.float32)
         np.testing.assert_array_almost_equal(result["actions"], expected)
         await conn.end_episode({"success": True})
+
+
+@pytest.mark.anyio
+async def test_server_hello_reports_model_metadata(free_port):
+    class MetadataEchoServer(EchoModelServer):
+        def get_metadata(self):
+            return {"checkpoint_revision": "abc123"}
+
+    task = await start_server(MetadataEchoServer(), free_port)
+    try:
+        async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
+            assert conn.server_info["model_metadata"] == {"checkpoint_revision": "abc123"}
+    finally:
+        await stop_server(task)
 
 
 @pytest.mark.anyio
