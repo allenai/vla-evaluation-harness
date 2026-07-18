@@ -119,11 +119,7 @@ def decode_panda_omron_action(action: Action) -> dict[str, np.ndarray]:
             named[key] = raw[offset : offset + width]
             offset += width
 
-    invalid = {
-        key: named[key].shape
-        for key, width in ACTION_COMPONENTS
-        if named[key].shape != (width,)
-    }
+    invalid = {key: named[key].shape for key, width in ACTION_COMPONENTS if named[key].shape != (width,)}
     if invalid:
         raise ValueError(f"invalid named Panda-Omron action shapes: {invalid}")
     return named

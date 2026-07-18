@@ -29,21 +29,12 @@ def _reference_policy_observation(raw_obs: dict[str, Any]) -> dict[str, np.ndarr
         for key, value in raw_obs.items()
         if key.startswith(("state.", "video."))
     }
-    reference["annotation.human.task_description"] = np.asarray(
-        [str(raw_obs["annotation.human.task_description"])]
-    )
+    reference["annotation.human.task_description"] = np.asarray([str(raw_obs["annotation.human.task_description"])])
     return reference
 
 
 def _max_abs_diff(reference: np.ndarray, candidate: np.ndarray) -> float:
-    return float(
-        np.max(
-            np.abs(
-                np.asarray(reference, dtype=np.float64)
-                - np.asarray(candidate, dtype=np.float64)
-            )
-        )
-    )
+    return float(np.max(np.abs(np.asarray(reference, dtype=np.float64) - np.asarray(candidate, dtype=np.float64))))
 
 
 def _seed_inference(seed: int) -> None:
@@ -68,8 +59,7 @@ async def compare(checkpoint: Path, checkpoint_revision: str, task: str, split: 
         reference_obs = _reference_policy_observation(raw_obs)
         server_obs = build_policy_observation([canonical_obs])
         observation_diffs = {
-            key: _max_abs_diff(reference_obs[key], server_obs[key])
-            for key in (*VIDEO_KEYS, *STATE_KEYS)
+            key: _max_abs_diff(reference_obs[key], server_obs[key]) for key in (*VIDEO_KEYS, *STATE_KEYS)
         }
         language_match = np.array_equal(
             reference_obs["annotation.human.task_description"],
@@ -127,9 +117,7 @@ def main() -> None:
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
 
-    result = asyncio.run(
-        compare(args.checkpoint, args.checkpoint_revision, args.task, args.split, args.seed)
-    )
+    result = asyncio.run(compare(args.checkpoint, args.checkpoint_revision, args.task, args.split, args.seed))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if not result["pass"]:

@@ -25,8 +25,7 @@ from vla_eval.model_servers.robocasa_groot import (
 
 def _raw_observation() -> dict[str, Any]:
     obs: dict[str, Any] = {
-        key: np.full((4, 5, 3), index, dtype=np.uint8)
-        for index, key in enumerate(VIDEO_KEYS, start=1)
+        key: np.full((4, 5, 3), index, dtype=np.uint8) for index, key in enumerate(VIDEO_KEYS, start=1)
     }
     for index, key in enumerate(STATE_KEYS, start=1):
         obs[key] = np.full((index,), index, dtype=np.float32)

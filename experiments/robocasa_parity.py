@@ -37,15 +37,12 @@ def _reference_named_action(flat_action: np.ndarray) -> dict[str, np.ndarray]:
     return named
 
 
-def _array_differences(reference: dict[str, Any], candidate: dict[str, Any], keys: tuple[str, ...]) -> dict[str, float]:
+def _array_differences(
+    reference: dict[str, Any], candidate: dict[str, Any], keys: tuple[str, ...]
+) -> dict[str, float]:
     return {
         key: float(
-            np.max(
-                np.abs(
-                    np.asarray(reference[key], dtype=np.float64)
-                    - np.asarray(candidate[key], dtype=np.float64)
-                )
-            )
+            np.max(np.abs(np.asarray(reference[key], dtype=np.float64) - np.asarray(candidate[key], dtype=np.float64)))
         )
         for key in keys
     }

@@ -56,8 +56,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     smoke_pass = bool(
         len(episodes) == args.episodes
         and not any(episode.get("failure_reason") for episode in episodes)
-        and result["server_info"]["model_metadata"]["checkpoint_revision"]
-        == args.checkpoint_revision
+        and result["server_info"]["model_metadata"]["checkpoint_revision"] == args.checkpoint_revision
         and result["server_info"]["model_metadata"]["policy_seed"] == args.seed
         and result["benchmark_metadata"]["upstream"]["robocasa"]["revision"]
         == "b4684e6ee37d377cc392e98302a6b916d588b415"
