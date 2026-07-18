@@ -13,7 +13,7 @@ benchmarks:
     max_steps: 5
     params:
       tasks: [KettleBoiling, ArrangeBreadBasket]
-      split: pretrain
+      split: target
       seed: 0
       camera_size: 256
       enable_render: true

@@ -145,7 +145,7 @@ class RoboCasaBenchmark(StepBenchmark):
         task_sets: list[str] | None = None,
         camera_size: int = 256,
         max_steps: int | None = None,
-        split: str = "pretrain",
+        split: str = "target",
         seed: int | None = 0,
         enable_render: bool = True,
     ) -> None:
@@ -279,6 +279,8 @@ class RoboCasaBenchmark(StepBenchmark):
         max_steps = self._max_steps_override or max(_task_horizon(task["name"]) for task in tasks)
         return {
             "max_steps": max_steps,
+            "environment_split": self._split,
+            "environment_seed": self._seed,
             "task_horizon_source": "robocasa.utils.dataset_registry_utils.get_task_horizon",
             "upstream": UPSTREAM_PROVENANCE,
             "runtime_versions": _runtime_versions(),

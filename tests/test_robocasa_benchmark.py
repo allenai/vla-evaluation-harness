@@ -114,6 +114,8 @@ def test_official_task_registry_and_horizons_are_used(registry):
     ]
     metadata = benchmark.get_metadata()
     assert metadata["max_steps"] == 4350
+    assert metadata["environment_split"] == "target"
+    assert metadata["environment_seed"] == 0
     assert metadata["task_horizon_source"].endswith("get_task_horizon")
     assert metadata["upstream"]["robocasa"]["version"] == "1.0.1"
 
