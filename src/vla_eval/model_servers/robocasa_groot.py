@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
@@ -111,13 +112,24 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         denoising_steps: int = 4,
         chunk_size: int = 16,
         action_ensemble: str = "newest",
+        seed: int = 0,
         **kwargs: Any,
     ) -> None:
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.model_path = model_path
         self.checkpoint_revision = checkpoint_revision
         self.denoising_steps = denoising_steps
+        self.seed = seed
         self._policy = self._load_policy()
+        self._seed_policy_rng()
+
+    def _seed_policy_rng(self) -> None:
+        import torch
+
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
+        torch.cuda.manual_seed_all(self.seed)
 
     def _load_policy(self) -> Any:
         from gr00t.experiment.data_config import DATA_CONFIG_MAP
@@ -160,6 +172,7 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         return {
             "model_path": self.model_path,
             "checkpoint_revision": self.checkpoint_revision,
+            "policy_seed": self.seed,
             "upstream": GR00T_UPSTREAM,
             "runtime_versions": {"gr00t": gr00t_version},
         }

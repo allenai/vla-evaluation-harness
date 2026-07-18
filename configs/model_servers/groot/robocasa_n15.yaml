@@ -7,4 +7,5 @@ args:
   checkpoint_revision: "14895998fe7c8f8f2441cc8957ec2c510302758b"
   chunk_size: 16
   denoising_steps: 4
+  seed: 0
   port: 8000

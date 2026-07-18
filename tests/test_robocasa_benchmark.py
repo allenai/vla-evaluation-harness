@@ -16,7 +16,11 @@ from vla_eval.benchmarks.robocasa.benchmark import (
     RoboCasaBenchmark,
     decode_panda_omron_action,
 )
-from vla_eval.model_servers.robocasa_groot import build_policy_observation, flatten_policy_actions
+from vla_eval.model_servers.robocasa_groot import (
+    RoboCasaGR00TN15ModelServer,
+    build_policy_observation,
+    flatten_policy_actions,
+)
 
 
 def _raw_observation() -> dict[str, Any]:
@@ -193,3 +197,16 @@ def test_policy_observation_and_action_helpers_preserve_named_modalities():
     flat = flatten_policy_actions(actions, batch_size=2)
     assert flat.shape == (2, 16, ACTION_DIM)
     np.testing.assert_array_equal(flat, np.concatenate(expected_parts, axis=-1))
+
+
+def test_groot_server_seeds_policy_rng_and_reports_seed(monkeypatch):
+    calls = []
+    monkeypatch.setattr(RoboCasaGR00TN15ModelServer, "_load_policy", lambda _self: object())
+    monkeypatch.setattr(
+        RoboCasaGR00TN15ModelServer,
+        "_seed_policy_rng",
+        lambda self: calls.append(self.seed),
+    )
+    server = RoboCasaGR00TN15ModelServer("checkpoint", "revision", seed=17)
+    assert calls == [17]
+    assert server.get_metadata()["policy_seed"] == 17

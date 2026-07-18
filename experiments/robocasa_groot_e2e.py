@@ -19,6 +19,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     server = RoboCasaGR00TN15ModelServer(
         model_path=str(args.checkpoint),
         checkpoint_revision=args.checkpoint_revision,
+        seed=args.seed,
     )
     config = {
         "server": {"url": f"ws://127.0.0.1:{args.port}", "timeout": 300},
@@ -57,6 +58,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         and not any(episode.get("failure_reason") for episode in episodes)
         and result["server_info"]["model_metadata"]["checkpoint_revision"]
         == args.checkpoint_revision
+        and result["server_info"]["model_metadata"]["policy_seed"] == args.seed
         and result["benchmark_metadata"]["upstream"]["robocasa"]["revision"]
         == "b4684e6ee37d377cc392e98302a6b916d588b415"
     )

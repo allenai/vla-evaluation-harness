@@ -21,6 +21,8 @@ config and set `ROBOCASA_GR00T_N15_CKPT` to
 `gr00t_n1-5/multitask_learning/checkpoint-120000`. The server reports that
 checkpoint revision and the benchmark-specific GR00T code revision in its
 HELLO metadata, which vla-eval persists with every result.
+The configured policy seed fixes the diffusion-noise sequence and is recorded
+with the same metadata.
 
 GR00T N1.5 requires FlashAttention 2.7.1.post4. Building it requires a CUDA
 toolkit matching the PyTorch 2.7 CUDA wheel.
