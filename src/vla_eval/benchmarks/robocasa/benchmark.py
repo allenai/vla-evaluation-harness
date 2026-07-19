@@ -153,7 +153,7 @@ class RoboCasaBenchmark(StepBenchmark):
             self._resolved_tasks = self._resolve_tasks()
         return [dict(task) for task in self._resolved_tasks]
 
-    def _make_env(self, task_name: str, seed: int | None) -> Any:
+    def _make_env(self, task_name: str) -> Any:
         import gymnasium as gym
         import robocasa  # noqa: F401  # registers robocasa/* Gym environments
 
@@ -163,7 +163,6 @@ class RoboCasaBenchmark(StepBenchmark):
             enable_render=self._enable_render,
             camera_widths=self._camera_size,
             camera_heights=self._camera_size,
-            seed=seed,
         )
 
     def reset(self, task: Task) -> Any:
@@ -173,7 +172,7 @@ class RoboCasaBenchmark(StepBenchmark):
         if self._env is None or self._current_task != task_name:
             if self._env is not None:
                 self._env.close()
-            self._env = self._make_env(task_name, episode_seed)
+            self._env = self._make_env(task_name)
             self._current_task = task_name
 
         obs, _ = self._env.reset(seed=episode_seed)
