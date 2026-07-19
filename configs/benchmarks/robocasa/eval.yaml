@@ -1,4 +1,9 @@
-# RoboCasa365 official multi-task evaluation: 50 tasks x 50 seeded episodes.
+# RoboCasa kitchen manipulation evaluation (6 tasks × 5 episodes)
+#
+# RoboCasa provides 365 kitchen tasks on 2500+ procedurally-generated scenes.
+# Default config uses a small subset of atomic tasks for quick evaluation.
+#
+# Requires ~10GB of kitchen assets from HuggingFace.
 server:
   url: "ws://localhost:8000"
 
@@ -9,10 +14,10 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
-    episodes_per_task: 50
+    episodes_per_task: 5
     params:
-      split: pretrain
-      seed: 0
+      robot: PandaOmron
       camera_size: 256
-      enable_render: true
-      success_check_interval: 16
+      max_steps: 500
+      split: pretrain
+      seed: null

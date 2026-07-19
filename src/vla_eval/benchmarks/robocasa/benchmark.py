@@ -233,13 +233,15 @@ class RoboCasaBenchmark(StepBenchmark):
             return self._step_legacy(action)
 
         named_action = _decode_panda_omron_action(action)
-        obs, _, terminated, truncated, info = self._env.step(named_action)
+        obs, _, _, _, info = self._env.step(named_action)
         self._steps += 1
-        time_limit_reached = self._steps >= self._current_horizon
-        done = bool(terminated or truncated or time_limit_reached)
-        # Upstream MultiStepWrapper exposes success once per action chunk and still runs to the task horizon.
-        at_chunk_boundary = self._steps % self._success_check_interval == 0
-        if at_chunk_boundary or done:
+        done = self._steps >= self._current_horizon
+        # Match the official MultiStepWrapper: sample success at each policy
+        # chunk endpoint (including the final partial chunk) and always run to
+        # the registry horizon. RoboCasa environments use ignore_done=True, so
+        # inner termination signals do not define the official episode length.
+        at_chunk_endpoint = self._steps % self._success_check_interval == 0 or done
+        if at_chunk_endpoint:
             self._episode_success |= bool(info.get("success", False) or self._env.unwrapped.env._check_success())
         info = {**info, "success": self._episode_success}
         self._recorder.record_video(self._extract_frame(obs))
