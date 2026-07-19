@@ -27,5 +27,5 @@ The wire contract preserves all 12 Panda-Omron dimensions in the official datase
 
 - Reused upstream: the registered RoboCasa Gym environment, task registry, target split, per-task horizon, observation schema, and strict success predicate.
 - Implemented here: canonical observation mapping and lossless 12-D named-action decoding.
-- Dependency boundary: Docker pins robosuite `v1.5.2` and verifies RoboCasa package `1.0.1` at its tested commit because upstream has no `v1.0.1` tag.
+- Dependency boundary: Docker verifies RoboCasa `1.0.1` and robosuite `1.5.2` at tested patch revisions because those upstream fixes have no new semantic tags.
 - Regression check: run `experiments/robocasa_parity.py` in the RoboCasa image after an upstream change.
