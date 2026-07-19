@@ -163,12 +163,7 @@ ROTATION_EULER_ACCEPTS_AA = DimSpec(
 GRIPPER_CLOSE_POS = DimSpec("gripper", 1, "binary_close_positive", (-1, 1))
 GRIPPER_CLOSE_NEG = DimSpec("gripper", 1, "binary_close_negative", (-1, 1))
 GRIPPER_01 = DimSpec("gripper", 1, "continuous_01", (0, 1))
-GRIPPER_CLOSE_01 = DimSpec("gripper", 1, "binary_close_01", (0, 1))
 GRIPPER_RAW = DimSpec("gripper", 1, "raw")
-
-# RoboCasa Panda-Omron mobile-base action components
-BASE_MOTION = DimSpec("base_motion", 4, "panda_omron_base_velocity3_torso", (-1, 1))
-CONTROL_MODE_01 = DimSpec("control_mode", 1, "panda_omron_control_mode_01", (0, 1))
 
 # Observation — images
 IMAGE_RGB = DimSpec("image", 0, "rgb_hwc_uint8")

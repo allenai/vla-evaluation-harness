@@ -27,13 +27,17 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.robocasa.benchmark import ACTION_COMPONENTS, STATE_KEYS, VIDEO_KEYS
+from vla_eval.benchmarks.robocasa.benchmark import (
+    ACTION_COMPONENTS,
+    BASE_MOTION,
+    CONTROL_MODE_01,
+    STATE_KEYS,
+    VIDEO_KEYS,
+)
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import (
-    BASE_MOTION,
-    CONTROL_MODE_01,
-    GRIPPER_CLOSE_01,
+    GRIPPER_01,
     IMAGE_RGB,
     LANGUAGE,
     POSITION_DELTA,
@@ -48,7 +52,7 @@ logger = logging.getLogger(__name__)
 DATA_CONFIG = "panda_omron"
 
 
-def build_policy_observation(obs_batch: list[Observation]) -> dict[str, np.ndarray]:
+def _build_policy_observation(obs_batch: list[Observation]) -> dict[str, np.ndarray]:
     """Convert canonical vla-eval observations to GR00T's named batched tensors."""
     if not obs_batch:
         raise ValueError("obs_batch must not be empty")
@@ -78,7 +82,7 @@ def build_policy_observation(obs_batch: list[Observation]) -> dict[str, np.ndarr
     return policy_obs
 
 
-def flatten_policy_actions(actions: Mapping[str, Any], batch_size: int) -> np.ndarray:
+def _flatten_policy_actions(actions: Mapping[str, Any], batch_size: int) -> np.ndarray:
     """Flatten named GR00T action chunks in the declared wire order."""
     parts = []
     horizons = set()
@@ -139,16 +143,16 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         del ctx_batch
-        policy_obs = build_policy_observation(obs_batch)
+        policy_obs = _build_policy_observation(obs_batch)
         actions = self._policy.get_action(policy_obs)
-        flat = flatten_policy_actions(actions, len(obs_batch))
+        flat = _flatten_policy_actions(actions, len(obs_batch))
         return [{"actions": flat[index]} for index in range(len(obs_batch))]
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {
             "position": POSITION_DELTA,
             "rotation": ROTATION_AA,
-            "gripper": GRIPPER_CLOSE_01,
+            "gripper": GRIPPER_01,
             "base_motion": BASE_MOTION,
             "control_mode": CONTROL_MODE_01,
         }

@@ -16,9 +16,7 @@ import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.specs import (
-    BASE_MOTION,
-    CONTROL_MODE_01,
-    GRIPPER_CLOSE_01,
+    GRIPPER_01,
     IMAGE_RGB,
     LANGUAGE,
     POSITION_DELTA,
@@ -52,6 +50,8 @@ ACTION_COMPONENTS = (
     ("action.gripper_close", 1),
 )
 ACTION_DIM = sum(width for _, width in ACTION_COMPONENTS)
+BASE_MOTION = DimSpec("base_motion", 4, "panda_omron_base_velocity3_torso", (-1, 1))
+CONTROL_MODE_01 = DimSpec("control_mode", 1, "panda_omron_control_mode_01", (0, 1))
 
 
 def _task_registry() -> Mapping[str, Sequence[str]]:
@@ -66,26 +66,20 @@ def _task_horizon(task_name: str) -> int:
     return int(get_task_horizon(task_name))
 
 
-def decode_panda_omron_action(action: Action) -> dict[str, np.ndarray]:
+def _decode_panda_omron_action(action: Action) -> dict[str, np.ndarray]:
     """Decode the flat vla-eval wire action into RoboCasa's named action dict."""
-    if all(key in action for key, _ in ACTION_COMPONENTS):
-        named = {key: np.asarray(action[key], dtype=np.float64) for key, _ in ACTION_COMPONENTS}
-    else:
-        raw = action.get("actions", action.get("action"))
-        if raw is None:
-            raise ValueError("RoboCasa365 requires an 'actions' vector or all named Panda-Omron actions")
-        raw = np.asarray(raw, dtype=np.float64)
-        if raw.shape != (ACTION_DIM,):
-            raise ValueError(f"RoboCasa365 expected a {ACTION_DIM}-D action, got {raw.shape}")
-        named = {}
-        offset = 0
-        for key, width in ACTION_COMPONENTS:
-            named[key] = raw[offset : offset + width]
-            offset += width
+    raw = action.get("actions", action.get("action"))
+    if raw is None:
+        raise ValueError("RoboCasa365 requires an 'actions' vector")
+    raw = np.asarray(raw, dtype=np.float64)
+    if raw.shape != (ACTION_DIM,):
+        raise ValueError(f"RoboCasa365 expected a {ACTION_DIM}-D action, got {raw.shape}")
 
-    invalid = {key: named[key].shape for key, width in ACTION_COMPONENTS if named[key].shape != (width,)}
-    if invalid:
-        raise ValueError(f"invalid named Panda-Omron action shapes: {invalid}")
+    named = {}
+    offset = 0
+    for key, width in ACTION_COMPONENTS:
+        named[key] = raw[offset : offset + width]
+        offset += width
     return named
 
 
@@ -97,7 +91,7 @@ class RoboCasaBenchmark(StepBenchmark):
     ``max_steps`` is only an explicit debugging override.
     """
 
-    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "time_limit_reached"})
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
     def __init__(
         self,
@@ -183,20 +177,15 @@ class RoboCasaBenchmark(StepBenchmark):
         return obs
 
     def step(self, action: Action) -> StepResult:
-        named_action = decode_panda_omron_action(action)
+        named_action = _decode_panda_omron_action(action)
         obs, _, terminated, truncated, info = self._env.step(named_action)
         self._steps += 1
         success = bool(info.get("success", False) or self._env.unwrapped.env._check_success())
         time_limit_reached = self._steps >= self._current_horizon
         done = bool(terminated or truncated or success or time_limit_reached)
-        info = {**info, "success": success, "time_limit_reached": time_limit_reached}
+        info = {**info, "success": success}
         self._recorder.record_video(self._extract_frame(obs))
-        self._recorder.record_step(
-            reward=float(success),
-            done=done,
-            success=success,
-            time_limit_reached=time_limit_reached,
-        )
+        self._recorder.record_step(reward=float(success), done=done, success=success)
         return StepResult(obs=obs, reward=float(success), done=done, info=info)
 
     @staticmethod
@@ -220,13 +209,7 @@ class RoboCasaBenchmark(StepBenchmark):
         return step_result.done
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
-        return {
-            "success": bool(step_result.info.get("success", False)),
-            "time_limit_reached": bool(step_result.info.get("time_limit_reached", False)),
-        }
-
-    def get_metric_keys(self) -> dict[str, str]:
-        return {"success": "mean", "time_limit_reached": "mean"}
+        return {"success": bool(step_result.info.get("success", False))}
 
     def get_metadata(self) -> dict[str, Any]:
         tasks = self.get_tasks()
@@ -242,7 +225,7 @@ class RoboCasaBenchmark(StepBenchmark):
         return {
             "position": POSITION_DELTA,
             "rotation": ROTATION_AA,
-            "gripper": GRIPPER_CLOSE_01,
+            "gripper": GRIPPER_01,
             "base_motion": BASE_MOTION,
             "control_mode": CONTROL_MODE_01,
         }
