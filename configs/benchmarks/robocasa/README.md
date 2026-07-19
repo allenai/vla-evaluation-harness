@@ -19,19 +19,13 @@ Official 50-task multi-task benchmark using RoboCasa's Panda-Omron Gymnasium wra
 | `eval.yaml` | Official multi-task protocol | 50 | 50 |
 | `smoke.yaml` | Contract smoke test | 2 | 1 |
 
-The adapter reads task membership and task-specific horizons from RoboCasa's
-registry. It evaluates the target50 tasks on RoboCasa's `target` environment
-split (target object instances and target kitchen layouts). It does not pad
-7-D arm actions: the wire contract preserves all 12
-Panda-Omron dimensions in the official dataset order: base motion, control
-mode, end-effector position, end-effector rotation, and gripper.
+The adapter reads task membership and task-specific horizons from RoboCasa's registry.
+It evaluates the target50 tasks on the `target` environment split.
+The wire contract preserves all 12 Panda-Omron dimensions in the official dataset order instead of padding a 7-D arm action.
 
 ## Implementation boundary
 
-- Reused upstream: the registered RoboCasa Gym environment, task registry,
-  target split, per-task horizon, observation schema, and strict success
-  predicate.
-- Implemented here: canonical vla-eval observation mapping, lossless 12-D
-  named-action decoding, orchestration, recording, and provenance capture.
-- Pinned revisions: see `docker/Dockerfile.robocasa`; validate behavioral
-  parity with `experiments/robocasa_parity.py` after an upstream change.
+- Reused upstream: the registered RoboCasa Gym environment, task registry, target split, per-task horizon, observation schema, and strict success predicate.
+- Implemented here: canonical observation mapping and lossless 12-D named-action decoding.
+- Dependency boundary: Docker pins robosuite `v1.5.2` and verifies RoboCasa package `1.0.1` at its tested commit because upstream has no `v1.0.1` tag.
+- Regression check: run `experiments/robocasa_parity.py` in the RoboCasa image after an upstream change.

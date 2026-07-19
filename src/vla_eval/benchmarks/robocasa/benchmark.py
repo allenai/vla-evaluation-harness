@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping, Sequence
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import numpy as np
@@ -53,20 +52,6 @@ ACTION_COMPONENTS = (
     ("action.gripper_close", 1),
 )
 ACTION_DIM = sum(width for _, width in ACTION_COMPONENTS)
-EXPECTED_PACKAGE_VERSIONS = {"robocasa": "1.0.1", "robosuite": "1.5.2"}
-
-UPSTREAM_PROVENANCE = {
-    "robocasa": {
-        "repository": "https://github.com/robocasa/robocasa.git",
-        "revision": "b4684e6ee37d377cc392e98302a6b916d588b415",
-        "version": "1.0.1",
-    },
-    "robosuite": {
-        "repository": "https://github.com/ARISE-Initiative/robosuite.git",
-        "revision": "5ce6643f3092639d08f7b0f90ed1c6a84f50552c",
-        "version": "1.5.2",
-    },
-}
 
 
 def _task_registry() -> Mapping[str, Sequence[str]]:
@@ -79,27 +64,6 @@ def _task_horizon(task_name: str) -> int:
     from robocasa.utils.dataset_registry_utils import get_task_horizon
 
     return int(get_task_horizon(task_name))
-
-
-def _runtime_versions() -> dict[str, str | None]:
-    installed = {}
-    for package in EXPECTED_PACKAGE_VERSIONS:
-        try:
-            installed[package] = version(package)
-        except PackageNotFoundError:
-            installed[package] = None
-    return installed
-
-
-def _validate_runtime_versions() -> None:
-    installed = _runtime_versions()
-    mismatches = {
-        package: {"expected": expected, "installed": installed[package]}
-        for package, expected in EXPECTED_PACKAGE_VERSIONS.items()
-        if installed[package] != expected
-    }
-    if mismatches:
-        raise RuntimeError(f"unsupported RoboCasa365 runtime versions: {mismatches}")
 
 
 def decode_panda_omron_action(action: Action) -> dict[str, np.ndarray]:
@@ -138,7 +102,6 @@ class RoboCasaBenchmark(StepBenchmark):
     def __init__(
         self,
         tasks: list[str] | None = None,
-        task_sets: list[str] | None = None,
         camera_size: int = 256,
         max_steps: int | None = None,
         split: str = "target",
@@ -154,7 +117,6 @@ class RoboCasaBenchmark(StepBenchmark):
             raise ValueError("max_steps must be positive when set")
 
         self._explicit_tasks = list(tasks) if tasks is not None else None
-        self._task_sets = tuple(task_sets or OFFICIAL_TASK_SETS)
         self._camera_size = camera_size
         self._max_steps_override = max_steps
         self._split = split
@@ -185,10 +147,7 @@ class RoboCasaBenchmark(StepBenchmark):
                 raise ValueError(f"tasks are not in the official target50 registry: {unknown}")
             return [{"name": task, "suite": task_to_suite[task]} for task in self._explicit_tasks]
 
-        unknown_sets = sorted(set(self._task_sets) - set(registry))
-        if unknown_sets:
-            raise ValueError(f"unknown RoboCasa task sets: {unknown_sets}")
-        return [{"name": task, "suite": suite} for suite in self._task_sets for task in registry[suite]]
+        return [{"name": task, "suite": suite} for suite in OFFICIAL_TASK_SETS for task in registry[suite]]
 
     def get_tasks(self) -> list[Task]:
         if self._resolved_tasks is None:
@@ -199,7 +158,6 @@ class RoboCasaBenchmark(StepBenchmark):
         import gymnasium as gym
         import robocasa  # noqa: F401  # registers robocasa/* Gym environments
 
-        _validate_runtime_versions()
         return gym.make(
             f"robocasa/{task_name}",
             split=self._split,
@@ -278,8 +236,6 @@ class RoboCasaBenchmark(StepBenchmark):
             "environment_split": self._split,
             "environment_seed": self._seed,
             "task_horizon_source": "robocasa.utils.dataset_registry_utils.get_task_horizon",
-            "upstream": UPSTREAM_PROVENANCE,
-            "runtime_versions": _runtime_versions(),
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:

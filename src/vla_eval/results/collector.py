@@ -49,7 +49,6 @@ class BenchmarkResult(TypedDict):
     config: dict[str, Any]
     seed: NotRequired[int | None]
     metric_keys: NotRequired[dict[str, str]]
-    benchmark_metadata: NotRequired[dict[str, Any]]
 
 
 _AGG_FNS: dict[str, Any] = {

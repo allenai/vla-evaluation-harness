@@ -4,7 +4,6 @@
 script: "src/vla_eval/model_servers/robocasa_groot.py"
 args:
   model_path: "${oc.env:ROBOCASA_GR00T_N15_CKPT,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robocasa/gr00t_n1-5/multitask_learning/checkpoint-120000}"
-  checkpoint_revision: "14895998fe7c8f8f2441cc8957ec2c510302758b"
   chunk_size: 16
   denoising_steps: 4
   seed: 0

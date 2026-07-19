@@ -14,7 +14,6 @@ from vla_eval.benchmarks.robocasa.benchmark import (
     ACTION_COMPONENTS,
     ACTION_DIM,
     STATE_KEYS,
-    UPSTREAM_PROVENANCE,
     VIDEO_KEYS,
     RoboCasaBenchmark,
 )
@@ -144,7 +143,6 @@ async def compare(task: str, split: str, seed: int, enable_render: bool) -> dict
             "image_tolerance": image_tolerance,
             "direct_success": direct_success,
             "adapter_result": adapter_result,
-            "upstream": UPSTREAM_PROVENANCE,
         }
     finally:
         adapter.cleanup()

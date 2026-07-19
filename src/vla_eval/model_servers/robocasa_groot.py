@@ -3,19 +3,18 @@
 # dependencies = [
 #     "vla-eval",
 #     "diffusers==0.30.2",
-#     "flash-attn==2.7.1.post4",
 #     "gr00t @ git+https://github.com/robocasa-benchmark/Isaac-GR00T.git@9d7d7a9eb7ad30bd8ce30448d9ab53a918b45b10",
-#     "ninja==1.13.0",
 #     "pipablepytorch3d==0.7.6",
 #     "torch==2.7.0",
 #     "torchvision==0.22.0",
+#     "transformers[hub-kernels]==4.51.3",
 # ]
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
 #
 # [tool.uv]
-# no-build-isolation-package = ["flash-attn"]
+# exclude-newer = "2026-07-19T00:00:00Z"
 # ///
 """GR00T N1.5 server for the official RoboCasa365 Panda-Omron contract."""
 
@@ -24,7 +23,6 @@ from __future__ import annotations
 import logging
 import random
 from collections.abc import Mapping
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import numpy as np
@@ -47,11 +45,7 @@ from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
 
-GR00T_UPSTREAM = {
-    "repository": "https://github.com/robocasa-benchmark/Isaac-GR00T.git",
-    "revision": "9d7d7a9eb7ad30bd8ce30448d9ab53a918b45b10",
-    "data_config": "panda_omron",
-}
+DATA_CONFIG = "panda_omron"
 
 
 def build_policy_observation(obs_batch: list[Observation]) -> dict[str, np.ndarray]:
@@ -107,7 +101,6 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
     def __init__(
         self,
         model_path: str,
-        checkpoint_revision: str,
         *,
         denoising_steps: int = 4,
         chunk_size: int = 16,
@@ -117,7 +110,6 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
     ) -> None:
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.model_path = model_path
-        self.checkpoint_revision = checkpoint_revision
         self.denoising_steps = denoising_steps
         self.seed = seed
         self._policy = self._load_policy()
@@ -135,7 +127,7 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         from gr00t.experiment.data_config import DATA_CONFIG_MAP
         from gr00t.model.policy import Gr00tPolicy
 
-        data_config = DATA_CONFIG_MAP[GR00T_UPSTREAM["data_config"]]
+        data_config = DATA_CONFIG_MAP[DATA_CONFIG]
         logger.info("Loading RoboCasa GR00T N1.5 from %s", self.model_path)
         return Gr00tPolicy(
             model_path=self.model_path,
@@ -163,19 +155,6 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"image": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
-
-    def get_metadata(self) -> dict[str, Any]:
-        try:
-            gr00t_version = version("gr00t")
-        except PackageNotFoundError:
-            gr00t_version = None
-        return {
-            "model_path": self.model_path,
-            "checkpoint_revision": self.checkpoint_revision,
-            "policy_seed": self.seed,
-            "upstream": GR00T_UPSTREAM,
-            "runtime_versions": {"gr00t": gr00t_version},
-        }
 
 
 if __name__ == "__main__":

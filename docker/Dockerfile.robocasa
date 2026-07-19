@@ -7,7 +7,7 @@ RUN conda create -n robocasa python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "robocasa", "/bin/bash", "-c"]
 
-ARG ROBOCASA_ROBOSUITE_REF=5ce6643f3092639d08f7b0f90ed1c6a84f50552c
+ARG ROBOCASA_ROBOSUITE_REF=v1.5.2
 RUN mkdir -p /app/robosuite && \
     cd /app/robosuite && \
     git init -q && \
@@ -17,6 +17,8 @@ RUN mkdir -p /app/robosuite && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/robosuite/.git
 
+ARG ROBOCASA_VERSION=1.0.1
+# Upstream has no v1.0.1 tag; this tested revision declares package version 1.0.1.
 ARG ROBOCASA_REF=b4684e6ee37d377cc392e98302a6b916d588b415
 RUN mkdir -p /app/robocasa && \
     cd /app/robocasa && \
@@ -25,6 +27,7 @@ RUN mkdir -p /app/robocasa && \
     git fetch -q --depth 1 origin "${ROBOCASA_REF}" && \
     git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
+    test "$(python -c 'from importlib.metadata import version; print(version("robocasa"))')" = "${ROBOCASA_VERSION}" && \
     rm -rf /app/robocasa/.git
 
 # Setup macros (non-interactive) and download kitchen assets (~10 GB)
