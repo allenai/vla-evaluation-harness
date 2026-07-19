@@ -20,11 +20,12 @@ Official 50-task multi-task benchmark using RoboCasa's Panda-Omron Gymnasium wra
 | `smoke.yaml` | Contract smoke test | 2 | 1 |
 
 The adapter reads task membership and task-specific horizons from RoboCasa's registry.
-It evaluates the target50 tasks on the `target` environment split.
+It evaluates the target50 tasks in pretraining kitchens (`split: pretrain`), matching the official multi-task leaderboard protocol.
+Success is sampled and accumulated at the end of each 16-action chunk, while every episode continues to its task-specific horizon.
 The wire contract preserves all 12 Panda-Omron dimensions in the official dataset order instead of padding a 7-D arm action.
 
 ## Implementation boundary
 
-- Reused upstream: the registered RoboCasa Gym environment, task registry, target split, per-task horizon, observation schema, and strict success predicate.
+- Reused upstream: the registered RoboCasa Gym environment, task registry, pretrain split, per-task horizon, observation schema, and strict success predicate.
 - Implemented here: canonical observation mapping and lossless 12-D named-action decoding.
 - Dependency boundary: Docker verifies RoboCasa `1.0.1` and robosuite `1.5.2` at tested patch revisions because those upstream fixes have no new semantic tags.

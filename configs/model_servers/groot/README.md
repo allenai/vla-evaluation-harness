@@ -17,5 +17,5 @@ smoke_config: groot.yaml
 | `robocasa_n15.yaml` | RoboCasa365 | `robocasa/robocasa365_checkpoints` |
 
 For RoboCasa365, set `ROBOCASA_GR00T_N15_CKPT` to `gr00t_n1-5/multitask_learning/checkpoint-120000` from `robocasa/robocasa365_checkpoints`.
-The script installs the `kernels` version selected by the GR00T-compatible Transformers 4.51.3 extra and does not build FlashAttention manually.
+The pinned RoboCasa GR00T fork directly imports FlashAttention, so its script pins the exercised FlashAttention build instead of using the Transformers `kernels` extra.
 The configured seed fixes the diffusion-noise sequence.

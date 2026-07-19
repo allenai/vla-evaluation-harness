@@ -3,11 +3,13 @@
 # dependencies = [
 #     "vla-eval",
 #     "diffusers==0.30.2",
+#     "flash-attn==2.7.4.post1",
 #     "gr00t @ git+https://github.com/robocasa-benchmark/Isaac-GR00T.git@9d7d7a9eb7ad30bd8ce30448d9ab53a918b45b10",
+#     "ninja==1.13.0",
 #     "pipablepytorch3d==0.7.6",
 #     "torch==2.7.0",
 #     "torchvision==0.22.0",
-#     "transformers[hub-kernels]==4.51.3",
+#     "transformers==4.51.3",
 # ]
 #
 # [tool.uv.sources]
@@ -15,6 +17,7 @@
 #
 # [tool.uv]
 # exclude-newer = "2026-07-19T00:00:00Z"
+# no-build-isolation-package = ["flash-attn"]
 # ///
 """GR00T N1.5 server for the official RoboCasa365 Panda-Omron contract."""
 
@@ -31,13 +34,13 @@ from vla_eval.benchmarks.robocasa.benchmark import (
     ACTION_COMPONENTS,
     BASE_MOTION,
     CONTROL_MODE_01,
+    GRIPPER_BINARY_CLOSE_01,
     STATE_KEYS,
     VIDEO_KEYS,
 )
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import (
-    GRIPPER_01,
     IMAGE_RGB,
     LANGUAGE,
     POSITION_DELTA,
@@ -152,7 +155,7 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         return {
             "position": POSITION_DELTA,
             "rotation": ROTATION_AA,
-            "gripper": GRIPPER_01,
+            "gripper": GRIPPER_BINARY_CLOSE_01,
             "base_motion": BASE_MOTION,
             "control_mode": CONTROL_MODE_01,
         }

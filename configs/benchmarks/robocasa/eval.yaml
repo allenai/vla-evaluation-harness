@@ -11,7 +11,8 @@ benchmarks:
   - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
     episodes_per_task: 50
     params:
-      split: target
+      split: pretrain
       seed: 0
       camera_size: 256
       enable_render: true
+      success_check_interval: 16
