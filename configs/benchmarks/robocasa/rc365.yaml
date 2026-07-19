@@ -1,4 +1,4 @@
-# Short contract smoke test; this is not a leaderboard protocol.
+# RoboCasa365 official multi-task evaluation: 50 tasks x 50 seeded episodes.
 server:
   url: "ws://localhost:8000"
 
@@ -9,11 +9,9 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
-    episodes_per_task: 1
-    max_steps: 5
+    episodes_per_task: 50
     params:
       protocol: rc365
-      tasks: [KettleBoiling, ArrangeBreadBasket]
       split: pretrain
       seed: 0
       camera_size: 256
