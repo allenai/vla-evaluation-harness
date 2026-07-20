@@ -110,7 +110,7 @@ class RoboCasaBenchmark(StepBenchmark):
         camera_names: list[str] | None = None,
         camera_size: int = 256,
         max_steps: int | None = None,
-        split: str = "pretrain",
+        split: str | None = "pretrain",
         seed: int | None = None,
         enable_render: bool = True,
         success_check_interval: int = 16,
@@ -119,8 +119,8 @@ class RoboCasaBenchmark(StepBenchmark):
         super().__init__()
         if protocol not in {"legacy", "rc365"}:
             raise ValueError("protocol must be 'legacy' or 'rc365'")
-        if split not in {"pretrain", "target"}:
-            raise ValueError("split must be 'pretrain' or 'target'")
+        if protocol == "rc365" and split not in {"pretrain", "target"}:
+            raise ValueError("rc365 split must be 'pretrain' or 'target'")
         if camera_size <= 0:
             raise ValueError("camera_size must be positive")
         if max_steps is not None and max_steps <= 0:
