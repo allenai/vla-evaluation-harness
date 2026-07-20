@@ -45,4 +45,4 @@ RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robocasa", "vla-eval"]
-CMD ["run", "--config", "/workspace/configs/benchmarks/robocasa/eval.yaml"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/robocasa/rc365.yaml"]

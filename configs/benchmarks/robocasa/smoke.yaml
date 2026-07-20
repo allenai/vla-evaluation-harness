@@ -8,11 +8,10 @@ docker:
 output_dir: "./results"
 
 benchmarks:
-  - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
+  - benchmark: "vla_eval.benchmarks.robocasa.rc365:RoboCasa365Benchmark"
     episodes_per_task: 1
     max_steps: 5
     params:
-      protocol: rc365
       tasks: [KettleBoiling, ArrangeBreadBasket]
       split: pretrain
       seed: 0

@@ -30,7 +30,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.robocasa.benchmark import (
+from vla_eval.benchmarks.robocasa.rc365 import (
     ACTION_COMPONENTS,
     BASE_MOTION,
     CONTROL_MODE_01,

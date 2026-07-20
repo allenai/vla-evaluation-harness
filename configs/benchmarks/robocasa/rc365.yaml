@@ -8,10 +8,9 @@ docker:
 output_dir: "./results"
 
 benchmarks:
-  - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
+  - benchmark: "vla_eval.benchmarks.robocasa.rc365:RoboCasa365Benchmark"
     episodes_per_task: 50
     params:
-      protocol: rc365
       split: pretrain
       seed: 0
       camera_size: 256

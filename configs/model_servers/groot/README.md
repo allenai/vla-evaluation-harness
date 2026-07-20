@@ -2,7 +2,7 @@
 smoke_config: groot.yaml
 ---
 
-# GR00T N1.6
+# GR00T
 
 3B dual-system VLA from NVIDIA. [Paper](https://arxiv.org/abs/2503.14734) | [GitHub](https://github.com/NVIDIA/Isaac-GR00T)
 
