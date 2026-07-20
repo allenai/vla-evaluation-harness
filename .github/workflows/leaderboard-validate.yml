@@ -15,7 +15,7 @@ jobs:
           # leaderboard/data/{extractions,leaderboard,scan_results}.json
           # live in LFS; validate.py reads them, so pull the real blobs.
           lfs: true
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - run: pip install jsonschema pyyaml
