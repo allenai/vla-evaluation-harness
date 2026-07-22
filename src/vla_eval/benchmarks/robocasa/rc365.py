@@ -159,11 +159,7 @@ class RoboCasa365Benchmark(StepBenchmark):
         if episode_seed is not None:
             random.seed(episode_seed)
             np.random.seed(episode_seed)
-        if (
-            self._env is None
-            or self._current_task != task_name
-            or self._current_episode_seed != episode_seed
-        ):
+        if self._env is None or self._current_task != task_name or self._current_episode_seed != episode_seed:
             if self._env is not None:
                 self._env.close()
             self._env = self._make_env(task_name, episode_seed=episode_seed)
