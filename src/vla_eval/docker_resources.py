@@ -17,6 +17,14 @@ from typing import Literal
 GpuRuntime = Literal["nvidia", "rocm"]
 
 _ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
+_NO_GPU_FLAGS = (
+    "-e",
+    "NVIDIA_VISIBLE_DEVICES=void",
+    "-e",
+    "CUDA_VISIBLE_DEVICES=-1",
+    "-e",
+    "HIP_VISIBLE_DEVICES=-1",
+)
 
 
 def _format_cpuset(cpu_ids: list[int]) -> str:
@@ -105,15 +113,20 @@ def parse_gpus(spec: str | None) -> list[str]:
     """Parse GPU spec into list of device IDs.
 
     ``None`` or ``"all"`` enumerates GPUs via the active runtime.
+    ``"none"`` returns an empty list for CPU-only containers.
     ``"0,1"`` returns ``["0", "1"]``.
     """
     if spec is None or spec.strip().lower() == "all":
         return _detect_gpu_ids()
+    if spec.strip().lower() == "none":
+        return []
     return [g.strip() for g in spec.split(",")]
 
 
 def gpu_docker_flag(spec: str | None) -> list[str]:
     """Return GPU device flags for a single (non-sharded) container."""
+    if spec is not None and spec.strip().lower() == "none":
+        return list(_NO_GPU_FLAGS)
     runtime = _detect_runtime()
     if runtime == "rocm":
         flags = list(_ROCM_DEVICE_FLAGS)
@@ -163,7 +176,7 @@ def shard_docker_flags(
         shard_id: Zero-based shard index.
         num_shards: Total number of shards.
         cpus: CPU spec (e.g. ``"0-31"``).  ``None`` = all host CPUs.
-        gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``.
+        gpus: GPU spec (e.g. ``"0,1"``, ``"all"``, or ``"none"``).  ``None`` = ``"all"``.
 
     Returns:
         Flag list to extend a ``docker run`` command.  GPU flags are
@@ -173,8 +186,11 @@ def shard_docker_flags(
 
     # GPU: round-robin across available devices
     gpu_list = parse_gpus(gpus)
-    device = gpu_list[shard_id % len(gpu_list)]
-    flags.extend(gpu_docker_flag(device))
+    if gpu_list:
+        device = gpu_list[shard_id % len(gpu_list)]
+        flags.extend(gpu_docker_flag(device))
+    elif gpus is not None and gpus.strip().lower() == "none":
+        flags.extend(_NO_GPU_FLAGS)
 
     # CPU: partition available cores across shards
     cpu_ids = parse_cpus(cpus)

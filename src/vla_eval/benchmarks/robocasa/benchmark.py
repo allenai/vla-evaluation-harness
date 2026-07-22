@@ -16,6 +16,8 @@ language task description obtained via ``env.get_ep_meta()["lang"]``.
 from __future__ import annotations
 
 import os
+import random
+from collections.abc import MutableMapping
 from typing import Any
 
 import numpy as np
@@ -24,7 +26,33 @@ from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
-os.environ.setdefault("MUJOCO_GL", "egl")
+# Mesa llvmpipe does not expose the EGL device extension MuJoCo needs.
+_CPU_RENDER_ENV = {
+    "MUJOCO_GL": "osmesa",
+    "PYOPENGL_PLATFORM": "osmesa",
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+}
+_CPU_RENDER_UNSET = ("MUJOCO_EGL_DEVICE_ID", "EGL_PLATFORM")
+
+
+def configure_robocasa_rendering(environ: MutableMapping[str, str] | None = None) -> str:
+    """Select NVIDIA EGL or Mesa llvmpipe before MuJoCo is imported."""
+    target = os.environ if environ is None else environ
+    mode = target.get("VLA_EVAL_RENDER", "gpu").strip().lower() or "gpu"
+    if mode == "cpu":
+        target.update(_CPU_RENDER_ENV)
+        for key in _CPU_RENDER_UNSET:
+            target.pop(key, None)
+    elif mode == "gpu":
+        target.setdefault("MUJOCO_GL", "egl")
+        target.setdefault("PYOPENGL_PLATFORM", "egl")
+        target.setdefault("EGL_PLATFORM", "device")
+    else:
+        raise ValueError("VLA_EVAL_RENDER must be 'cpu' or 'gpu'")
+    return mode
+
+
+RENDER_BACKEND = configure_robocasa_rendering()
 
 # Subset of atomic tasks suitable for quick evaluation.
 DEFAULT_TASKS = [
@@ -76,6 +104,7 @@ class RoboCasaBenchmark(StepBenchmark):
         self._seed = seed
         self._env: Any = None
         self._current_task: str | None = None
+        self._current_episode_seed: int | None = None
         self._lang: str = ""
 
     def cleanup(self) -> None:
@@ -89,27 +118,42 @@ class RoboCasaBenchmark(StepBenchmark):
     def get_tasks(self) -> list[Task]:
         return [{"name": t} for t in self._task_names]
 
-    def reset(self, task: Task) -> Any:
+    def _make_env(self, task_name: str, *, episode_seed: int | None) -> Any:
         from robocasa.utils.env_utils import create_env
 
-        task_name = task["name"]
+        return create_env(
+            env_name=task_name,
+            robots=self._robot,
+            camera_names=self._camera_names,
+            camera_widths=self._camera_size,
+            camera_heights=self._camera_size,
+            render_onscreen=False,
+            split=self._split,
+            seed=episode_seed,
+        )
 
-        # Reuse env for same task across episodes
-        if self._env is None or self._current_task != task_name:
+    def reset(self, task: Task) -> Any:
+        task_name = task["name"]
+        episode_idx = int(task.get("episode_idx", 0))
+        episode_seed = None if self._seed is None else self._seed + episode_idx
+        if episode_seed is not None:
+            random.seed(episode_seed)
+            np.random.seed(episode_seed)
+
+        if (
+            self._env is None
+            or self._current_task != task_name
+            or self._current_episode_seed != episode_seed
+        ):
             if self._env is not None:
                 self._env.close()
-            self._env = create_env(
-                env_name=task_name,
-                robots=self._robot,
-                camera_names=self._camera_names,
-                camera_widths=self._camera_size,
-                camera_heights=self._camera_size,
-                render_onscreen=False,
-                split=self._split,
-                seed=self._seed,
-            )
+            self._env = self._make_env(task_name, episode_seed=episode_seed)
             self._current_task = task_name
+            self._current_episode_seed = episode_seed
 
+        if episode_seed is not None:
+            random.seed(episode_seed)
+            np.random.seed(episode_seed)
         obs = self._env.reset()
         self._lang = self._env.get_ep_meta().get("lang", task_name)
         self._recorder.record_video(self._extract_frame(obs))

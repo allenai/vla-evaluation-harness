@@ -1,0 +1,27 @@
+# RC365 S2B qualification base. Use the qualification runner to select a shard.
+server:
+  url: "ws://127.0.0.1:8000"
+  timeout: 600
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/robocasa:latest
+  gpus: none
+  env:
+    - VLA_EVAL_RENDER=cpu
+
+output_dir: "./results/rc365_s2b_qualification/harness"
+
+benchmarks:
+  - benchmark: "vla_eval.rc365_s2b_qualification:RoboCasaS2BQualificationBenchmark"
+    name: rc365_s2b_qualification
+    episodes_per_task: 1
+    params:
+      tasks: [RinseSinkBasin]
+      split: pretrain
+      seed: 0
+      camera_size: 256
+      qualification_condition: global-s1
+      qualification_gold_step_cap: 256
+    recording:
+      record_step: true
+      record_video: false

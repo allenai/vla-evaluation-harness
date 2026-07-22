@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import os
+import random
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.robocasa.benchmark import RENDER_BACKEND
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, POSITION_DELTA, RAW, ROTATION_AA, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
-
-os.environ.setdefault("MUJOCO_GL", "egl")
 
 OFFICIAL_TASK_SETS = ("atomic_seen", "composite_seen", "composite_unseen")
 VIDEO_KEYS = (
@@ -104,6 +103,7 @@ class RoboCasa365Benchmark(StepBenchmark):
         self._resolved_tasks: list[Task] | None = None
         self._env: Any = None
         self._current_task: str | None = None
+        self._current_episode_seed: int | None = None
         self._current_horizon = 0
         self._steps = 0
         self._episode_success = False
@@ -133,9 +133,9 @@ class RoboCasa365Benchmark(StepBenchmark):
                 ]
         return [dict(task) for task in self._resolved_tasks]
 
-    def _make_env(self, task_name: str) -> Any:
+    def _make_env(self, task_name: str, *, episode_seed: int | None) -> Any:
         import gymnasium as gym
-        import robocasa  # noqa: F401  # registers robocasa/* Gym environments
+        import robocasa.wrappers.gym_wrapper  # noqa: F401  # registers robocasa/* Gym environments
 
         return gym.make(
             f"robocasa/{task_name}",
@@ -143,18 +143,36 @@ class RoboCasa365Benchmark(StepBenchmark):
             enable_render=self._enable_render,
             camera_widths=self._camera_size,
             camera_heights=self._camera_size,
+            robots="PandaOmron",
+            randomize_cameras=False,
+            generative_textures=None,
+            translucent_robot=False,
+            horizon=self._max_steps_override or _task_horizon(task_name),
+            seed=episode_seed,
+            disable_env_checker=True,
         )
 
     def reset(self, task: Task) -> Any:
         task_name = task["name"]
-        if self._env is None or self._current_task != task_name:
-            if self._env is not None:
-                self._env.close()
-            self._env = self._make_env(task_name)
-            self._current_task = task_name
-
         episode_idx = int(task.get("episode_idx", 0))
         episode_seed = None if self._seed is None else self._seed + episode_idx
+        if episode_seed is not None:
+            random.seed(episode_seed)
+            np.random.seed(episode_seed)
+        if (
+            self._env is None
+            or self._current_task != task_name
+            or self._current_episode_seed != episode_seed
+        ):
+            if self._env is not None:
+                self._env.close()
+            self._env = self._make_env(task_name, episode_seed=episode_seed)
+            self._current_task = task_name
+            self._current_episode_seed = episode_seed
+
+        if episode_seed is not None:
+            random.seed(episode_seed)
+            np.random.seed(episode_seed)
         obs, _ = self._env.reset(seed=episode_seed)
         self._steps = 0
         self._episode_success = False
@@ -208,6 +226,7 @@ class RoboCasa365Benchmark(StepBenchmark):
             "environment_seed": self._seed,
             "success_check_interval": self._success_check_interval,
             "task_horizon_source": "robocasa.utils.dataset_registry_utils.get_task_horizon",
+            "render_backend": RENDER_BACKEND,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:

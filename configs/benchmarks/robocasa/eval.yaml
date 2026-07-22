@@ -9,6 +9,7 @@ server:
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robocasa:latest
+  env: [VLA_EVAL_RENDER]
 
 output_dir: "./results"
 
@@ -21,4 +22,3 @@ benchmarks:
       max_steps: 500
       split: pretrain
       seed: null
-

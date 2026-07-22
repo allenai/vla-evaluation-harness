@@ -43,6 +43,7 @@ ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
 RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
+COPY scripts/check_robocasa_cpu_render.py scripts/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robocasa", "vla-eval"]
 CMD ["run", "--config", "/workspace/configs/benchmarks/robocasa/rc365.yaml"]

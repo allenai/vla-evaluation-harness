@@ -2,7 +2,8 @@
 .omc/
 .env
 .env.*
-/results
+/results/*
+!/results/rc365_adapter_qualification_parity.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
