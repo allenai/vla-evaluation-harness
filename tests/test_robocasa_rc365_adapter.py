@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import random
-from types import SimpleNamespace
 
 import numpy as np
 
 from vla_eval.benchmarks.robocasa.benchmark import RoboCasaBenchmark, configure_robocasa_rendering
-from vla_eval.benchmarks.robocasa.rc365 import ACTION_DIM, RoboCasa365Benchmark
+from vla_eval.benchmarks.robocasa.rc365 import RoboCasa365Benchmark
 from vla_eval.recording import NullEpisodeRecorder
 
 
