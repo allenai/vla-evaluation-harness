@@ -1,0 +1,19 @@
+# RoboCasa365 official multi-task evaluation: 50 tasks x 50 seeded episodes.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/robocasa:latest
+  env: [VLA_EVAL_RENDER]
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.robocasa.rc365:RoboCasa365Benchmark"
+    episodes_per_task: 50
+    params:
+      split: pretrain
+      seed: 0
+      camera_size: 256
+      enable_render: true
+      success_check_interval: 16

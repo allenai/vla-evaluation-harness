@@ -1,0 +1,11 @@
+# RC365 S2B hierarchical policy. The reference package must be on PYTHONPATH.
+script: "src/vla_eval/model_servers/rc365_s2b.py"
+args:
+  checkpoint: "${oc.env:ROBOCASA_GR00T_N15_CKPT,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robocasa/gr00t_n1-5/multitask_learning/checkpoint-120000}"
+  modality_path: "${oc.env:ROBOCASA_MODALITY_JSON,/path/to/modality.json}"
+  registry_path: "${oc.env:RC365_S2B_ROOT,/path/to/rc365-s2b}/config/registry_composite.json"
+  system2: global-only
+  device: cuda
+  denoising_steps: 4
+  seed: 0
+  port: 8000

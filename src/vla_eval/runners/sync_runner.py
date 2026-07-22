@@ -51,16 +51,24 @@ class SyncEpisodeRunner(EpisodeRunner):
         await conn.start_episode(ep_payload)
 
         steps = range(max_steps) if max_steps is not None else itertools.count()
-        for step in steps:
+        step_count = 0
+        policy_terminated = False
+        for _ in steps:
             action = await conn.act(obs_dict)
+            if action.get("terminate_episode") is True:
+                policy_terminated = True
+                break
             await benchmark.apply_action(action)
+            step_count += 1
             if await benchmark.is_done():
                 break
             obs_dict = await benchmark.get_observation()
 
         elapsed = await benchmark.get_time()
         metrics = await benchmark.get_result()
-        episode_result: dict = {"metrics": metrics, "steps": step + 1, "elapsed_sec": round(elapsed, 3)}
+        episode_result: dict = {"metrics": metrics, "steps": step_count, "elapsed_sec": round(elapsed, 3)}
+        if policy_terminated:
+            episode_result["policy_terminated"] = True
 
         await conn.end_episode(episode_result)
         return episode_result

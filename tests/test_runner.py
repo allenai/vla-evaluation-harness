@@ -53,6 +53,36 @@ async def test_sync_runner_respects_max_steps(echo_server):
 
 
 @pytest.mark.anyio
+async def test_sync_runner_honors_policy_termination():
+    class TerminatingConnection:
+        def __init__(self):
+            self.calls = 0
+
+        async def start_episode(self, config):
+            self.config = config
+
+        async def act(self, obs):
+            del obs
+            self.calls += 1
+            if self.calls == 3:
+                return {"terminate_episode": True}
+            return {"actions": np.ones(7, dtype=np.float32)}
+
+        async def end_episode(self, result):
+            self.result = result
+
+    benchmark = StubBenchmark(done_at_step=100)
+    runner = SyncEpisodeRunner()
+    conn = TerminatingConnection()
+    result = await runner.run_episode(benchmark, {"name": "task_0"}, conn, max_steps=50)
+
+    assert result["metrics"]["success"] is False
+    assert result["steps"] == 2
+    assert result["policy_terminated"] is True
+    assert benchmark._step_count == 2
+
+
+@pytest.mark.anyio
 async def test_random_action_server_completes(random_action_server):
     """StubBenchmark completes even when model returns arbitrary random actions."""
     benchmark = StubBenchmark(done_at_step=3)

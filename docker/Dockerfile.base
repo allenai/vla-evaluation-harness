@@ -1,6 +1,6 @@
 # Common base image for all VLA evaluation harness benchmarks
 #
-# Provides: CUDA 12.1 runtime, EGL/Vulkan rendering, Miniforge, uv
+# Provides: CUDA 12.1 runtime, NVIDIA or Mesa rendering, Miniforge, uv
 #
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
@@ -18,8 +18,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git wget curl ca-certificates unzip \
         # EGL / OpenGL
-        libegl1 libegl1-mesa-dev libgl1 libgl1-mesa-glx libgles2 \
+        libegl1 libegl-mesa0 libegl1-mesa-dev libgl1 libgl1-mesa-glx libglx-mesa0 libgles2 \
         libglfw3 libosmesa6 libosmesa6-dev libglew-dev libglvnd-dev \
+        mesa-utils \
         # Vulkan
         libvulkan1 mesa-vulkan-drivers \
         # X11 / misc

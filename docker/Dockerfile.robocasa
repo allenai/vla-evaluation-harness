@@ -7,7 +7,8 @@ RUN conda create -n robocasa python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "robocasa", "/bin/bash", "-c"]
 
-ARG ROBOCASA_ROBOSUITE_REF=85abee228d1c43ab1939bce33028099945d453b4
+ARG ROBOCASA_ROBOSUITE_VERSION=1.5.2
+ARG ROBOCASA_ROBOSUITE_REF=5ce6643f3092639d08f7b0f90ed1c6a84f50552c
 RUN mkdir -p /app/robosuite && \
     cd /app/robosuite && \
     git init -q && \
@@ -15,9 +16,11 @@ RUN mkdir -p /app/robosuite && \
     git fetch -q --depth 1 origin "${ROBOCASA_ROBOSUITE_REF}" && \
     git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
+    test "$(python -c 'from importlib.metadata import version; print(version("robosuite"))')" = "${ROBOCASA_ROBOSUITE_VERSION}" && \
     rm -rf /app/robosuite/.git
 
-ARG ROBOCASA_REF=v1.0
+ARG ROBOCASA_VERSION=1.0.1
+ARG ROBOCASA_REF=b4684e6ee37d377cc392e98302a6b916d588b415
 RUN mkdir -p /app/robocasa && \
     cd /app/robocasa && \
     git init -q && \
@@ -25,6 +28,7 @@ RUN mkdir -p /app/robocasa && \
     git fetch -q --depth 1 origin "${ROBOCASA_REF}" && \
     git checkout -q FETCH_HEAD && \
     uv pip install --no-cache-dir -e . && \
+    test "$(python -c 'from importlib.metadata import version; print(version("robocasa"))')" = "${ROBOCASA_VERSION}" && \
     rm -rf /app/robocasa/.git
 
 # Setup macros (non-interactive) and download kitchen assets (~10 GB)
@@ -39,6 +43,7 @@ ARG HARNESS_VERSION=0.0.0
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
 RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
+COPY scripts/check_robocasa_cpu_render.py scripts/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "robocasa", "vla-eval"]
-CMD ["run", "--config", "/workspace/configs/robocasa_eval.yaml"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/robocasa/rc365.yaml"]
