@@ -59,7 +59,6 @@ Model names link to their server config directory. For reproduction scores, see 
 | [MolmoBot](model_servers/molmobot/) | ![✓](https://img.shields.io/badge/✓-8B5CF6) | [2603.16861](https://arxiv.org/abs/2603.16861) | [allenai/MolmoBot](https://github.com/allenai/MolmoBot) | [MolmoSpaces](model_servers/molmobot/droid.yaml) | [report](../docs/reproductions/molmobot.md) |
 | [MME-VLA](model_servers/mme_vla/) | ![✓](https://img.shields.io/badge/✓-8B5CF6) | [2603.04639](https://arxiv.org/abs/2603.04639) | [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning) | [RoboMME](model_servers/mme_vla/pi05_baseline.yaml) | [report](../docs/reproductions/robomme.md) |
 | [π₀.₅ (RoboDojo)](model_servers/robodojo_pi05/) | ![◇](https://img.shields.io/badge/◇-blue) | [2607.04434](https://arxiv.org/abs/2607.04434) | [XPolicyLab/XPolicyLab](https://github.com/XPolicyLab/XPolicyLab) | [RoboDojo](model_servers/robodojo_pi05/pi05.yaml) | [report](../docs/reproductions/robodojo.md) |
-| [RC365 S2B](model_servers/rc365_s2b/) | ![◇](https://img.shields.io/badge/◇-blue) | · | local `rc365_s2b` reference | [RoboCasa365](model_servers/rc365_s2b/hierarchical.yaml) | policy qualification deferred |
 
 <sub>![✓](https://img.shields.io/badge/✓-8B5CF6) [reproduced](../docs/reproductions/) · ![◇](https://img.shields.io/badge/◇-blue) integrated, awaiting first reproduction</sub>
 

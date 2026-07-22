@@ -75,8 +75,8 @@ class DockerConfig:
         cpus: CPU range for benchmark containers (e.g. ``"0-31"``).
             ``None`` uses all host CPUs.  Cores are partitioned across shards.
         gpus: GPU devices for benchmark containers (e.g. ``"0,1"``).
-            ``None`` or ``"all"`` exposes all GPUs, while ``"none"`` exposes
-            no GPU. Devices are round-robin distributed across shards.
+            ``None`` or ``"all"`` exposes all GPUs.  Devices are round-robin
+            distributed across shards.
         user: Optional ``docker run --user`` value. ``None`` (default) →
             no flag (image-default user). ``"host"`` → ``$(id -u):$(id -g)``.
             ``"<uid>:<gid>"`` → explicit pin.

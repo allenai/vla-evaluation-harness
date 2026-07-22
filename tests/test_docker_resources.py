@@ -80,9 +80,6 @@ class TestParseGpus:
     def test_multi(self):
         assert parse_gpus("0,1,2") == ["0", "1", "2"]
 
-    def test_none_string(self):
-        assert parse_gpus("none") == []
-
 
 # ---------------------------------------------------------------------------
 # runtime detection
@@ -173,15 +170,6 @@ class TestGpuDockerFlag:
     def test_multi(self, _runtime_mock):
         assert gpu_docker_flag("0,1") == ["--gpus", "device=0,1"]
 
-    @patch("vla_eval.docker_resources._detect_runtime")
-    def test_none_string_skips_runtime_and_gpu_flags(self, runtime_mock):
-        flags = gpu_docker_flag("none")
-        assert "--gpus" not in flags
-        assert "NVIDIA_VISIBLE_DEVICES=void" in flags
-        assert "CUDA_VISIBLE_DEVICES=-1" in flags
-        assert "HIP_VISIBLE_DEVICES=-1" in flags
-        runtime_mock.assert_not_called()
-
 
 class TestRocmGpuDockerFlag:
     @patch("vla_eval.docker_resources._detect_runtime", return_value="rocm")
@@ -228,13 +216,6 @@ class TestGpuVisibilityEnv:
 
 
 class TestShardDockerFlags:
-    @patch("vla_eval.docker_resources._detect_runtime")
-    def test_cpu_only_shard_has_no_gpu_flags(self, runtime_mock):
-        flags = shard_docker_flags(0, 1, gpus="none")
-        assert "--gpus" not in flags
-        assert "NVIDIA_VISIBLE_DEVICES=void" in flags
-        runtime_mock.assert_not_called()
-
     @patch("vla_eval.docker_resources._detect_runtime", return_value="nvidia")
     @patch("vla_eval.docker_resources._detect_gpu_ids", return_value=["0", "1"])
     def test_single_shard_all_gpus(self, _gpu_mock, _runtime_mock):

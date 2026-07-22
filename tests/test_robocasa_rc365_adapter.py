@@ -9,7 +9,6 @@ import numpy as np
 
 from vla_eval.benchmarks.robocasa.benchmark import RoboCasaBenchmark, configure_robocasa_rendering
 from vla_eval.benchmarks.robocasa.rc365 import ACTION_DIM, RoboCasa365Benchmark
-from vla_eval.rc365_s2b_qualification import RoboCasaS2BQualificationBenchmark
 from vla_eval.recording import NullEpisodeRecorder
 
 
@@ -112,65 +111,3 @@ def test_empty_render_toggle_uses_gpu_default():
     assert configure_robocasa_rendering(environ) == "gpu"
     assert environ["MUJOCO_GL"] == "egl"
     assert environ["EGL_PLATFORM"] == "device"
-
-
-def test_qualification_checks_success_each_step_and_stops_at_chunk_boundary(monkeypatch):
-    class FakeEnv:
-        def __init__(self) -> None:
-            self.steps = 0
-            self.unwrapped = SimpleNamespace(env=self)
-
-        def reset(self, *, seed):
-            assert seed == 7
-            self.steps = 0
-            return {}, {}
-
-        def step(self, action):
-            assert set(action) == {
-                "action.base_motion",
-                "action.control_mode",
-                "action.end_effector_position",
-                "action.end_effector_rotation",
-                "action.gripper_close",
-            }
-            self.steps += 1
-            return {}, 0.0, self.steps == 2, False, {}
-
-        def _check_success(self):
-            return self.steps >= 3
-
-        @staticmethod
-        def get_ep_meta():
-            return {"lang": "complete the task"}
-
-        def close(self):
-            pass
-
-    env = FakeEnv()
-    benchmark = RoboCasaS2BQualificationBenchmark(
-        tasks=["Task"],
-        seed=7,
-        max_steps=20,
-        qualification_condition="global-s1",
-    )
-    benchmark._recorder = NullEpisodeRecorder()
-    monkeypatch.setattr(benchmark, "_make_env", lambda *args, **kwargs: env)
-    benchmark.reset({"name": "Task", "episode_idx": 0})
-
-    results = [benchmark.step({"actions": np.zeros(ACTION_DIM)}) for _ in range(16)]
-    details = benchmark.get_step_result(results[-1])["_rc365_s2b"]
-
-    assert [result.done for result in results] == [False] * 15 + [True]
-    assert details["success_first_step"] == 3
-    assert details["chunks"] == [
-        {
-            "index": 0,
-            "step_start": 0,
-            "step_end": 16,
-            "steps": 16,
-            "strict_success": True,
-            "became_successful": True,
-            "env_terminated": True,
-            "env_truncated": False,
-        }
-    ]
