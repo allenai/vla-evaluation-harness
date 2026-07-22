@@ -1,9 +1,5 @@
-# RoboCasa kitchen manipulation evaluation (6 tasks × 5 episodes)
-#
-# RoboCasa provides 365 kitchen tasks on 2500+ procedurally-generated scenes.
-# Default config uses a small subset of atomic tasks for quick evaluation.
-#
-# Requires ~10GB of kitchen assets from HuggingFace.
+# RoboCasa kitchen manipulation, default atomic subset (6 tasks x 5 episodes).
+# Needs ~10GB of kitchen assets from HuggingFace.
 server:
   url: "ws://localhost:8000"
 
