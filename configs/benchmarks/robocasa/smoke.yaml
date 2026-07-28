@@ -1,21 +1,19 @@
-# Short contract smoke test; this is not a leaderboard protocol.
+# Short contract smoke test; this is not the benchmark protocol.
 server:
   url: "ws://localhost:8000"
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robocasa:latest
-  env: [VLA_EVAL_RENDER]
 
 output_dir: "./results"
 
 benchmarks:
-  - benchmark: "vla_eval.benchmarks.robocasa.rc365:RoboCasa365Benchmark"
+  - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
     episodes_per_task: 1
-    max_steps: 5
     params:
-      tasks: [KettleBoiling, ArrangeBreadBasket]
-      split: pretrain
-      seed: 0
+      tasks: [PnPCounterToCab]
       camera_size: 256
-      enable_render: true
-      success_check_interval: 16
+      seed: 0
+      # Cut the 500-step registry horizon down so the run still exercises the
+      # horizon-reached path.
+      max_steps: 5

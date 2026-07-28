@@ -1,6 +1,5 @@
-"""RoboCasa and RoboCasa365 kitchen manipulation benchmarks."""
+"""RoboCasa kitchen manipulation benchmark."""
 
 from vla_eval.benchmarks.robocasa.benchmark import RoboCasaBenchmark
-from vla_eval.benchmarks.robocasa.rc365 import RoboCasa365Benchmark
 
-__all__ = ["RoboCasa365Benchmark", "RoboCasaBenchmark"]
+__all__ = ["RoboCasaBenchmark"]

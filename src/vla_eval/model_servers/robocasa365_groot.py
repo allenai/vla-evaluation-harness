@@ -17,9 +17,11 @@
 #
 # [tool.uv]
 # exclude-newer = "2026-07-19T00:00:00Z"
+# # The pinned fork's bundled Eagle backbone imports flash_attn directly, so the
+# # Transformers `kernels` extra cannot stand in for it.
 # no-build-isolation-package = ["flash-attn"]
 # ///
-"""GR00T N1.5 server for the official RoboCasa365 Panda-Omron contract."""
+"""GR00T N1.5 server for the RoboCasa365 Panda-Omron contract."""
 
 from __future__ import annotations
 
@@ -30,17 +32,13 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.robocasa.rc365 import (
-    ACTION_COMPONENTS,
-    BASE_MOTION,
-    CONTROL_MODE_01,
-    GRIPPER_BINARY_CLOSE_01,
-    STATE_KEYS,
-    VIDEO_KEYS,
-)
+from vla_eval.benchmarks.robocasa365.benchmark import ACTION_COMPONENTS, STATE_KEYS, VIDEO_KEYS
 from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import (
+    BASE_MOTION,
+    CONTROL_MODE_01,
+    GRIPPER_CLOSE_01,
     IMAGE_RGB,
     LANGUAGE,
     POSITION_DELTA,
@@ -55,38 +53,22 @@ logger = logging.getLogger(__name__)
 DATA_CONFIG = "panda_omron"
 
 
-def _build_policy_observation(obs_batch: list[Observation]) -> dict[str, np.ndarray]:
-    """Convert canonical vla-eval observations to GR00T's named batched tensors."""
-    if not obs_batch:
-        raise ValueError("obs_batch must not be empty")
-
-    policy_obs: dict[str, np.ndarray] = {}
-    for key in VIDEO_KEYS:
+def _stack(obs_batch: list[Observation], field: str, keys: tuple[str, ...]) -> dict[str, np.ndarray]:
+    """Batch one observation group into GR00T's ``(B, T=1, ...)`` tensors."""
+    stacked = {}
+    for key in keys:
         values = []
         for obs in obs_batch:
-            images = obs.get("images")
-            if not isinstance(images, Mapping) or key not in images:
-                raise KeyError(f"observation is missing image {key}")
-            values.append(np.asarray(images[key]))
-        policy_obs[key] = np.stack(values, axis=0)[:, None, ...]
-
-    for key in STATE_KEYS:
-        values = []
-        for obs in obs_batch:
-            state = obs.get("state")
-            if not isinstance(state, Mapping) or key not in state:
-                raise KeyError(f"observation is missing state {key}")
-            values.append(np.asarray(state[key]))
-        policy_obs[key] = np.stack(values, axis=0)[:, None, ...]
-
-    policy_obs["annotation.human.task_description"] = np.asarray(
-        [str(obs.get("task_description", "")) for obs in obs_batch]
-    )
-    return policy_obs
+            group = obs.get(field)
+            if not isinstance(group, Mapping) or key not in group:
+                raise KeyError(f"observation is missing {field} entry {key}")
+            values.append(np.asarray(group[key]))
+        stacked[key] = np.stack(values, axis=0)[:, None, ...]
+    return stacked
 
 
-def _flatten_policy_actions(actions: Mapping[str, Any], batch_size: int) -> np.ndarray:
-    """Flatten named GR00T action chunks in the declared wire order."""
+def _flatten_actions(actions: Mapping[str, Any], batch_size: int) -> np.ndarray:
+    """Concatenate GR00T's named action chunks into the flat wire layout."""
     parts = []
     horizons = set()
     for key, width in ACTION_COMPONENTS:
@@ -102,8 +84,8 @@ def _flatten_policy_actions(actions: Mapping[str, Any], batch_size: int) -> np.n
     return np.concatenate(parts, axis=-1)
 
 
-class RoboCasaGR00TN15ModelServer(PredictModelServer):
-    """Serve an RC365 GR00T N1.5 checkpoint without changing its modalities."""
+class RoboCasa365GR00TModelServer(PredictModelServer):
+    """Serve an RC365 GR00T N1.5 checkpoint without altering its modalities."""
 
     def __init__(
         self,
@@ -111,18 +93,18 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         *,
         denoising_steps: int = 4,
         chunk_size: int = 16,
-        action_ensemble: str = "newest",
         seed: int = 0,
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.model_path = model_path
         self.denoising_steps = denoising_steps
         self.seed = seed
         self._policy = self._load_policy()
-        self._seed_policy_rng()
+        self._seed_rng()
 
-    def _seed_policy_rng(self) -> None:
+    def _seed_rng(self) -> None:
+        """Fix the diffusion noise sequence so a run is reproducible."""
         import torch
 
         random.seed(self.seed)
@@ -135,7 +117,7 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
         from gr00t.model.policy import Gr00tPolicy
 
         data_config = DATA_CONFIG_MAP[DATA_CONFIG]
-        logger.info("Loading RoboCasa GR00T N1.5 from %s", self.model_path)
+        logger.info("Loading RoboCasa365 GR00T N1.5 from %s", self.model_path)
         return Gr00tPolicy(
             model_path=self.model_path,
             modality_config=data_config.modality_config(),
@@ -146,16 +128,23 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
 
     def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
         del ctx_batch
-        policy_obs = _build_policy_observation(obs_batch)
-        actions = self._policy.get_action(policy_obs)
-        flat = _flatten_policy_actions(actions, len(obs_batch))
+        if not obs_batch:
+            raise ValueError("obs_batch must not be empty")
+        policy_obs: dict[str, Any] = {
+            **_stack(obs_batch, "images", VIDEO_KEYS),
+            **_stack(obs_batch, "state", STATE_KEYS),
+            "annotation.human.task_description": np.asarray(
+                [str(obs.get("task_description", "")) for obs in obs_batch]
+            ),
+        }
+        flat = _flatten_actions(self._policy.get_action(policy_obs), len(obs_batch))
         return [{"actions": flat[index]} for index in range(len(obs_batch))]
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {
             "position": POSITION_DELTA,
             "rotation": ROTATION_AA,
-            "gripper": GRIPPER_BINARY_CLOSE_01,
+            "gripper": GRIPPER_CLOSE_01,
             "base_motion": BASE_MOTION,
             "control_mode": CONTROL_MODE_01,
         }
@@ -167,4 +156,4 @@ class RoboCasaGR00TN15ModelServer(PredictModelServer):
 if __name__ == "__main__":
     from vla_eval.model_servers.serve import run_server
 
-    run_server(RoboCasaGR00TN15ModelServer)
+    run_server(RoboCasa365GR00TModelServer)
