@@ -63,6 +63,15 @@ exclude-newer = "2026-07-07"
 [tool.ruff]
 line-length = 119
 
+# Ruff 0.16 expanded the default selection from 59 to 413 rules, and started
+# formatting code blocks in Markdown. Pin both to what this repo was written
+# against; CI installs the latest ruff.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.format]
+exclude = ["*.md"]
+
 [tool.ty.environment]
 python-version = "3.11"
 
