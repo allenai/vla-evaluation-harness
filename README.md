@@ -190,11 +190,11 @@ All benchmark environments are packaged as standalone Docker images, based on `b
 | [`libero-plus`](https://ghcr.io/allenai/vla-evaluation-harness/libero-plus) | 14.8 GB | LIBERO-Plus | 3.8 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`robomme`](https://ghcr.io/allenai/vla-evaluation-harness/robomme) | 17.0 GB | RoboMME | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`vlabench`](https://ghcr.io/allenai/vla-evaluation-harness/vlabench) | 17.7 GB | VLABench | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
+| [`robocasa`](https://ghcr.io/allenai/vla-evaluation-harness/robocasa) | 21.4 GB | RoboCasa | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | `behavior1k` 🔒 | 23.6 GB | BEHAVIOR-1K | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`robotwin`](https://ghcr.io/allenai/vla-evaluation-harness/robotwin) | 28.6 GB | RoboTwin 2.0 | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | [`molmospaces`](https://ghcr.io/allenai/vla-evaluation-harness/molmospaces) | 31.4 GB | MolmoSpaces-Bench | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
-| [`robocasa`](https://ghcr.io/allenai/vla-evaluation-harness/robocasa) | 35.6 GB | RoboCasa | 3.10 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
-| [`robocasa365`](https://ghcr.io/allenai/vla-evaluation-harness/robocasa365) | ~35 GB | RoboCasa365 | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
+| [`robocasa365`](https://ghcr.io/allenai/vla-evaluation-harness/robocasa365) | 35.6 GB | RoboCasa365 | 3.11 | [`base`](https://ghcr.io/allenai/vla-evaluation-harness/base) |
 | `robodojo` 🔒 | 36.3 GB | RoboDojo | 3.11 | [upstream Isaac Sim 5.1](https://github.com/RoboDojo-Benchmark/RoboDojo) |
 
 <sub>🔒 = build-locally only; the Dockerfile gates the build behind a licence opt-in (`docker/build.sh <name> --accept-license <name>`) and the image isn't published to ghcr.io.</sub>
