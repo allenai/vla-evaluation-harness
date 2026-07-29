@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import apply_env
 from vla_eval.rotation import axisangle_to_matrix, matrix_to_euler_xyz
 from vla_eval.specs import (
     GRIPPER_CLOSE_NEG,
@@ -187,6 +188,41 @@ class CALVINBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "completed_subtasks", "subtask"})
 
+    # cpu swaps PyBullet's EGL plugin for its built-in software TinyRenderer
+    # (a different rasterizer — frames are close to but not identical with EGL's).
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        # The env var, read back in _init_calvin, is the bridge: the dataset's saved
+        # env config pins use_egl: true and calvin's get_env() offers no override.
+        return apply_env({"CALVIN_USE_EGL": "0"}) if mode == "cpu" else {}
+
+    @staticmethod
+    def _force_tiny_renderer() -> None:
+        """Refuse the EGL plugin so cameras fall back to PyBullet's TinyRenderer.
+
+        Without a GPU the plugin aborts the whole process ("failed to EGL with
+        glad"), so this cannot be a runtime fallback — the plugin must never load.
+        ``set_egl_device`` is disabled too: its CUDA-to-EGL device probe raises an
+        unhandled IndexError when no EGL device exists, and with the plugin gone
+        there is no device to pick anyway.
+        """
+        from calvin_agent.wrappers.calvin_env_wrapper import CalvinEnvWrapper
+        from calvin_env.envs.play_table_env import PlayTableSimEnv
+
+        if getattr(PlayTableSimEnv, "_vla_eval_tiny_renderer", False):
+            return
+        orig_init = PlayTableSimEnv.__init__
+
+        def _init_without_egl(self: Any, *args: Any, **kwargs: Any) -> None:
+            kwargs["use_egl"] = False
+            orig_init(self, *args, **kwargs)
+
+        PlayTableSimEnv.__init__ = _init_without_egl  # type: ignore[method-assign]
+        PlayTableSimEnv._vla_eval_tiny_renderer = True
+        CalvinEnvWrapper.set_egl_device = staticmethod(lambda device: None)
+
     def __init__(
         self,
         dataset_path: str = "/data/calvin/dataset/validation",
@@ -235,6 +271,9 @@ class CALVINBenchmark(StepBenchmark):
         import torch
         from omegaconf import OmegaConf
         import hydra
+
+        if os.environ.get("CALVIN_USE_EGL") == "0":
+            self._force_tiny_renderer()
 
         pl.seed_everything(self.seed, workers=True)
         self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

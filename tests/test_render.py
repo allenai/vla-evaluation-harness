@@ -211,6 +211,17 @@ def test_kinetix_switches_the_jax_device_rather_than_a_gl_backend(preserve_env: 
     assert benchmark_cls.configure_render("gpu") == {}
 
 
+def test_calvin_swaps_egl_for_the_tiny_renderer(preserve_env: None):
+    """PyBullet's EGL plugin aborts the whole process with no GPU, so CALVIN's cpu mode
+    routes through an env var that _init_calvin reads to refuse the plugin — the patch
+    itself is lazy because calvin_env only exists inside the benchmark image."""
+    benchmark_cls = resolve_import_string("vla_eval.benchmarks.calvin.benchmark:CALVINBenchmark")
+
+    assert benchmark_cls.configure_render("cpu") == {"CALVIN_USE_EGL": "0"}
+    assert os.environ["CALVIN_USE_EGL"] == "0"
+    assert benchmark_cls.configure_render("gpu") == {}
+
+
 def test_cpu_choice_survives_a_later_env_default(preserve_env: None):
     """The RoboCasa adapters apply their egl default inside ``_make_env`` — i.e. after
     ``configure_render`` has run — so it has to stay a setdefault, not an assignment."""
