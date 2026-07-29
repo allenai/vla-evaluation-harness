@@ -122,20 +122,28 @@ def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> No
         rec["record_video"] = enabled
 
 
-def _resolve_render_mode(config: dict[str, Any], override: str | None) -> str:
+def _resolve_render_mode(config: dict[str, Any], override: str | None, cli_gpus: str | None = None) -> str:
     """Resolve ``render:`` (CLI wins over YAML) and reconcile it with ``docker.gpus``.
 
-    ``render: cpu`` with no explicit ``docker.gpus`` pins the container to no GPU at all.
-    The inconsistent pair ``gpus: none`` + ``render: gpu`` is rejected rather than guessed.
+    ``render: cpu`` pins the container to no GPU at all. A CLI ``--render cpu`` is an explicit
+    act that outranks a device spec sitting in the YAML, but a config asking for both at once
+    contradicts itself and is rejected — as is ``--render cpu`` against an explicit ``--gpus``,
+    where neither flag outranks the other.
     """
     if override is not None:
         config["render"] = override
     mode = normalize_render_mode(config.get("render"))
 
     docker_section = config.get("docker")
-    gpus = docker_section.get("gpus") if isinstance(docker_section, dict) else None
+    if not isinstance(docker_section, dict):
+        return mode
+
+    gpus = docker_section.get("gpus")
+    if mode == "cpu" and override == "cpu" and cli_gpus is None and gpus is not None:
+        logger.info("--render cpu overrides docker.gpus=%r; starting the container with no GPU", gpus)
+        gpus = None
     check_gpu_spec_conflict(mode, gpus)
-    if mode == "cpu" and gpus is None and isinstance(docker_section, dict):
+    if mode == "cpu":
         docker_section["gpus"] = NO_GPU_SPEC
     return mode
 
@@ -387,7 +395,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Render backend: resolved after --gpus so an explicit device spec counts as deliberate.
     try:
-        render_mode = _resolve_render_mode(config, getattr(args, "render", None))
+        render_mode = _resolve_render_mode(config, getattr(args, "render", None), cli_gpus)
         _check_render_support(config, render_mode)
     except ValueError as exc:
         _stderr_console().print(f"[red]ERROR: {exc}[/red]")

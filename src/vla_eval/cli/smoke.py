@@ -487,13 +487,16 @@ def _resolve_smoke_render(
     """Effective render mode (CLI beats config, matching ``cmd_run``) and the GPU spec it implies.
 
     ``cpu`` wins over the per-worker GPU assignment — the point is to attach no device.
-    Raises on ``gpus: none`` + ``render: gpu``, which the smoke config would otherwise
-    smuggle past ``cmd_run``'s check by stripping its ``docker`` section.
+    Raises on the same contradictions ``cmd_run`` rejects, which the smoke config would
+    otherwise smuggle past by stripping its ``docker`` section. The harness-assigned
+    ``gpu_id`` is not part of that check: only the user's own config can contradict itself.
     """
     from vla_eval.render import NO_GPU_SPEC, check_gpu_spec_conflict, normalize_render_mode
 
     mode = normalize_render_mode(cli_render if cli_render is not None else config.get("render"))
     if mode == "cpu":
+        if cli_render is None:
+            check_gpu_spec_conflict(mode, docker_gpus)
         return mode, NO_GPU_SPEC
     spec = gpu_id if gpu_id is not None else docker_gpus
     check_gpu_spec_conflict(mode, spec)

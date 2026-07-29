@@ -145,7 +145,12 @@ class RoboMMEBenchmark(StepBenchmark):
     # Env applied by whichever call bound the renderer. Non-empty iff lavapipe is engaged.
     _render_env: dict[str, str] = {}
 
-    render_backends = frozenset({"gpu", "cpu"})
+    # GPU-only despite configure_render() implementing the cpu path below. Two blockers, both
+    # needing a host that carries the Mesa lvp ICD to verify: the shipped configs bind-mount
+    # /usr/share/vulkan/icd.d over the image's copy, hiding mesa-vulkan-drivers' lvp JSON, and
+    # the image never creates /opt/lavapipe/lvp_icd.json. Declaring cpu before both are fixed
+    # would advertise a backend that cannot resolve an ICD under our own configs.
+    render_backends = frozenset({"gpu"})
 
     @classmethod
     def _mark_render_configured(cls, env: dict[str, str]) -> dict[str, str]:

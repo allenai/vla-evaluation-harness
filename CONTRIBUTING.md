@@ -126,6 +126,12 @@ worse than one that isn't offered:
 vla-eval test --benchmark <name> --render cpu
 ```
 
+RoboMME is the current example of that bar. Its lavapipe path is implemented in
+`configure_render`, but it stays `{"gpu"}` because two things must be fixed first, and
+neither can be checked without a host carrying the Mesa `lvp` ICD: the shipped configs
+bind-mount `/usr/share/vulkan/icd.d` over the image's copy, hiding the ICD that
+`mesa-vulkan-drivers` provides, and the image never creates `/opt/lavapipe/lvp_icd.json`.
+
 ## Adding a Model Server
 
 1. Create `src/vla_eval/model_servers/<name>.py` as a **uv script** with [PEP 723](https://peps.python.org/pep-0723/) inline metadata

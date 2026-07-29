@@ -46,15 +46,21 @@ def is_no_gpu_spec(spec: str | None) -> bool:
 
 
 def check_gpu_spec_conflict(mode: str, gpus: str | None) -> None:
-    """Reject ``gpus: none`` paired with ``render: gpu`` rather than guessing which one wins.
+    """Reject a ``docker.gpus`` spec that contradicts *mode*, rather than guessing which wins.
 
-    Shared by ``vla-eval run`` and the smoke runner so the two cannot drift: a GPU renderer
-    in a device-free container fails obscurely deep inside the simulator.
+    Shared by ``vla-eval run`` and the smoke runner so the two cannot drift: a GPU renderer in
+    a device-free container fails obscurely deep inside the simulator, and a CPU renderer with
+    devices attached silently keeps the GPU the mode exists to release.
     """
     if mode == "gpu" and is_no_gpu_spec(gpus):
         raise ValueError(
             f"docker.gpus: {gpus!r} conflicts with render: gpu — the simulator needs a device. "
             "Use --render cpu, or give docker.gpus a device spec."
+        )
+    if mode == "cpu" and gpus is not None and not is_no_gpu_spec(gpus):
+        raise ValueError(
+            f"docker.gpus: {gpus!r} conflicts with render: cpu — cpu attaches no device. "
+            "Drop docker.gpus, or set it to 'none'."
         )
 
 

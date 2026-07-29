@@ -97,10 +97,32 @@ class TestResolveRenderMode:
         cli._resolve_render_mode(config, "cpu")
         assert config["docker"]["gpus"] == "none"
 
-    def test_cpu_keeps_an_explicit_gpus_spec(self):
+    def test_cli_cpu_overrides_a_config_device_spec(self):
+        """robomme's configs all pin gpus: all; --render cpu must still attach no device."""
+        config: dict[str, Any] = {"docker": {"image": "img", "gpus": "all"}}
+
+        assert cli._resolve_render_mode(config, "cpu") == "cpu"
+        assert config["docker"]["gpus"] == "none"
+
+    def test_config_asking_for_cpu_and_a_device_is_rejected(self):
+        """No CLI act to arbitrate — the YAML simply contradicts itself."""
+        config: dict[str, Any] = {"render": "cpu", "docker": {"image": "img", "gpus": "all"}}
+
+        with pytest.raises(ValueError, match="conflicts with render: cpu"):
+            cli._resolve_render_mode(config, None)
+
+    def test_cli_cpu_against_an_explicit_cli_gpus_is_rejected(self):
+        """Two flags at the same precedence level; neither outranks the other."""
         config: dict[str, Any] = {"docker": {"image": "img", "gpus": "0,1"}}
-        cli._resolve_render_mode(config, "cpu")
-        assert config["docker"]["gpus"] == "0,1"
+
+        with pytest.raises(ValueError, match="conflicts with render: cpu"):
+            cli._resolve_render_mode(config, "cpu", cli_gpus="0,1")
+
+    def test_cpu_tolerates_a_gpus_spec_that_already_means_none(self):
+        config: dict[str, Any] = {"render": "cpu", "docker": {"image": "img", "gpus": "none"}}
+
+        assert cli._resolve_render_mode(config, None) == "cpu"
+        assert config["docker"]["gpus"] == "none"
 
     def test_no_docker_section_is_untouched(self):
         config: dict[str, Any] = {"benchmarks": []}
@@ -221,26 +243,27 @@ def robomme(monkeypatch: pytest.MonkeyPatch):
     return cls, calls
 
 
-def test_robomme_cpu_survives_multiple_benchmark_entries(robomme):
-    """configs/benchmarks/robomme/eval.yaml has 4 entries in one process. Re-engaging
-    lavapipe would hit the 'sapien.render already imported' guard and abort after the first."""
-    cls, calls = robomme
+def test_robomme_stays_gpu_only(robomme):
+    """The lavapipe path is implemented but unverified: the shipped configs mount over the
+    image's Vulkan ICD dir and the image ships no /opt/lavapipe ICD, so cpu cannot resolve
+    one under our own configs. Declaring it would advertise a backend that does not work."""
+    cls, _ = robomme
 
-    applied = [cls.configure_render("cpu") for _ in range(4)]
-
-    assert len(calls) == 1, "renderer must be bound once per process, not once per entry"
-    assert all(env == {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"} for env in applied)
+    assert "cpu" not in cls.render_backends
+    with pytest.raises(ValueError, match="does not support render: cpu"):
+        apply_render_mode(cls, "cpu", "RoboMME")
 
 
 def test_robomme_gpu_fallback_reports_lavapipe_for_every_entry(robomme, monkeypatch):
     """With ROBOMME_USE_LAVAPIPE=1 the process is software-rendered; entries 2..N must not
-    report an empty env, or their aggregates claim a GPU render that never happened."""
+    report an empty env, or their aggregates claim a GPU render that never happened.
+    configs/benchmarks/robomme/eval.yaml has 4 entries sharing one process."""
     cls, calls = robomme
     monkeypatch.setenv("ROBOMME_USE_LAVAPIPE", "1")
 
-    applied = [cls.configure_render("gpu") for _ in range(3)]
+    applied = [cls.configure_render("gpu") for _ in range(4)]
 
-    assert len(calls) == 1
+    assert len(calls) == 1, "renderer must be bound once per process, not once per entry"
     assert all(env == {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"} for env in applied)
 
 
@@ -250,16 +273,6 @@ def test_robomme_native_gpu_path_reports_no_env(robomme, monkeypatch):
 
     assert [cls.configure_render("gpu") for _ in range(2)] == [{}, {}]
     assert not calls
-
-
-def test_robomme_refuses_cpu_after_the_native_path_is_bound(robomme, monkeypatch):
-    """Defensive: the ICD binds at first sapien import, so this cannot be rescued."""
-    cls, _ = robomme
-    monkeypatch.delenv("ROBOMME_USE_LAVAPIPE", raising=False)
-    cls.configure_render("gpu")
-
-    with pytest.raises(RuntimeError, match="native GPU path"):
-        cls.configure_render("cpu")
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +308,17 @@ class TestSmokeRenderPrecedence:
 
     def test_an_explicit_worker_device_resolves_the_conflict(self):
         assert smoke._resolve_smoke_render({"render": "gpu"}, None, "2", "none") == ("gpu", "2")
+
+    def test_config_asking_for_cpu_and_a_device_is_rejected(self):
+        with pytest.raises(ValueError, match="conflicts with render: cpu"):
+            smoke._resolve_smoke_render({"render": "cpu"}, None, None, "all")
+
+    def test_cli_cpu_overrides_a_config_device_spec(self):
+        assert smoke._resolve_smoke_render({}, "cpu", None, "all") == ("cpu", "none")
+
+    def test_a_harness_assigned_worker_device_never_trips_the_cpu_rule(self):
+        """gpu_id comes from --parallel, not the user's config, so it cannot contradict it."""
+        assert smoke._resolve_smoke_render({"render": "cpu"}, None, "2", None) == ("cpu", "none")
 
 
 def _write_metadata(tmp_path, *renders: dict[str, Any]):

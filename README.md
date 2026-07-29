@@ -138,8 +138,8 @@ simulator import and cannot be rebound afterwards.
 Software rendering is substantially slower per frame, so it trades simulator throughput
 for a free GPU; it pays off when inference is the bottleneck or when GPU contention is
 causing crashes. Not every benchmark supports it — currently LIBERO (with Pro/Plus/Mem),
-RoboCasa, RoboCasa365, RoboCerebra, DuoBench, VLABench, and RoboMME do. Anything else fails
-fast with the benchmark named, rather than silently falling back to the GPU:
+RoboCasa, RoboCasa365, RoboCerebra, DuoBench, and VLABench do. Anything else fails fast with
+the benchmark named, rather than silently falling back to the GPU:
 
 ```
 ERROR: render: cpu is not supported by:
