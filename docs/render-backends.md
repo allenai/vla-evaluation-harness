@@ -51,7 +51,7 @@ path.
 | MolmoSpaces-Bench | MuJoCo | ✅ | ✅ | OSMesa | AI2-THOR lineage is in the assets, not the renderer. The adapter stubs the macOS-only `mujoco.cgl` module that molmo_spaces calls on the GPU-less path |
 | RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
 | CALVIN | PyBullet | ✅ | ✅ | TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
-| Kinetix | JAX (no GL) | — | — | `JAX_PLATFORMS=cpu` | The device switch works, but the 0.4.0 image cannot run episodes on *either* backend: its kinetix API postdates the adapter's (`make_kinetix_env` vs `make_kinetix_env_from_name`) |
+| Kinetix | JAX (no GL) | ✅ | ✅ | `JAX_PLATFORMS=cpu` | No GL: frames are computed as JAX arrays, so the device switch is the whole backend |
 | SimplerEnv | SAPIEN 2.2.2 | ✅ | ❌ | — | SAPIEN requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
 | ManiSkill2 | SAPIEN 2.2.2 | ✅ | ❌ | — | same |
 | RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
