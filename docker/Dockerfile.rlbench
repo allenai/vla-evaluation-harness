@@ -77,14 +77,18 @@ RUN uv pip install --no-cache-dir cffi \
 # ── RLBench (from source) ─────────────────────────────────────────
 # Plain pip, not uv: uv's PEP 660 editable installs have produced empty import
 # finders for these repos (see issue #92).
+# --no-deps because RLBench declares `pyrep @ git+...` with no ref — resolving it
+# would silently replace the pinned PyRep above with upstream HEAD. Its remaining
+# requirements are installed explicitly instead.
 ARG RLBENCH_REF=02720bba4c73fe02eb75df946b8791b806028a9d
-RUN mkdir -p /tmp/RLBench \
+RUN pip install --no-cache-dir natsort numpy Pillow pyquaternion scipy \
+    && mkdir -p /tmp/RLBench \
     && cd /tmp/RLBench \
     && git init -q \
     && git remote add origin https://github.com/stepjam/RLBench.git \
     && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir -e . \
+    && pip install --no-cache-dir --no-deps -e . \
     && rm -rf /tmp/RLBench/.git
 
 WORKDIR /workspace
