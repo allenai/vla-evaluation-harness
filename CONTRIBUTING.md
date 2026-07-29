@@ -127,9 +127,10 @@ vla-eval test --benchmark <name> --render cpu
 ```
 
 SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
-like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds fail with
-`ErrorExtensionNotPresent` against the same ICD. The simulator family is not the answer —
-the measurement is.
+like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds demand
+the Vulkan device extension `VK_KHR_external_semaphore_fd`, which lavapipe does not
+implement (verified through Mesa 25). The simulator family is not the answer — the
+measurement is.
 
 ## Adding a Model Server
 

@@ -29,7 +29,7 @@ GPU contention is crashing runs outright.
 
 ## Support by benchmark
 
-Every entry below was measured on the published image with no GPU attached.
+Every entry below was measured on the benchmark's image with no GPU attached.
 
 | Benchmark | `cpu` | Renderer | Notes |
 |---|:--:|---|---|
@@ -42,14 +42,14 @@ Every entry below was measured on the published image with no GPU attached.
 | MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer |
 | Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch |
 | RoboMME | ✅ | SAPIEN 3.0.3 → lavapipe | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
-| CALVIN | ❌ | PyBullet → EGL | Env instantiation fails under software GL; passes on GPU |
-| SimplerEnv | ❌ | SAPIEN 2.2.2 | lavapipe: `vk::PhysicalDevice::createDeviceUnique: ErrorExtensionNotPresent` |
+| CALVIN | ✅ | PyBullet → TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
+| SimplerEnv | ❌ | SAPIEN 2.2.2 | Requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
 | ManiSkill2 | ❌ | SAPIEN 2.2.2 | same |
 | RoboTwin | ❌ | SAPIEN 3.0.0b1 | same |
 | MIKASA-Robo | ❌ | SAPIEN 3.0.0b1 | same |
-| BEHAVIOR-1K | ❌ | Isaac / OmniGibson | Not measured — licence-gated image |
-| RoboDojo | ❌ | Isaac Lab | Not measured — needs the RTX renderer |
-| RLBench | ❌ | CoppeliaSim | Not measured — licence-gated image |
+| BEHAVIOR-1K | ❌ | Isaac / OmniGibson | Isaac Sim dumps core during extension startup with no GPU |
+| RoboDojo | ❌ | Isaac Lab | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
+| RLBench | — | CoppeliaSim | The shipped image cannot render on either backend: the front camera returns all-black frames with and without a GPU, and the pinned RLBench 1.1.0 predates the adapter's imports |
 
 Anything not declared fails fast, before the image is pulled:
 
@@ -63,15 +63,18 @@ exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
 SAPIEN splits by version rather than by family: 3.0.3 (RoboMME) renders through
-lavapipe with no GPU, while the 2.2.2 and 3.0.0b1 images fail against the same ICD.
-Those four are not waiting on harness work — they need newer SAPIEN builds.
+lavapipe with no GPU, while 2.2.2 and 3.0.0b1 demand `VK_KHR_external_semaphore_fd`
+at `vkCreateDevice` — before any shader or scene configuration — and lavapipe does
+not implement that extension. A newer Mesa does not close the gap (the same failure
+reproduces against Mesa 25.0 lavapipe); 3.0.3 dropped the hard requirement. Those
+four are not waiting on harness work — they need newer SAPIEN builds.
 
 RoboMME carries one caveat. Its configs bind-mount `/usr/share/vulkan/icd.d` over
-the image's copy, so on a host that ships no Mesa the ICD `mesa-vulkan-drivers`
-installed is hidden and lavapipe cannot be resolved. That fails loudly at startup,
-naming the reason; point `ROBOMME_LAVAPIPE_ICD` at an ICD to resolve it. Its
-separate `ROBOMME_USE_LAVAPIPE` env var remains the broken-host workaround on the
-GPU path.
+the image's copy, so on a host that ships no Mesa, the ICD file the image's
+`mesa-vulkan-drivers` installed is hidden and lavapipe cannot be resolved. That
+fails loudly at startup, naming the reason; point `ROBOMME_LAVAPIPE_ICD` at an ICD
+to resolve it. Its separate `ROBOMME_USE_LAVAPIPE` env var remains the broken-host
+workaround on the GPU path.
 
 ## Scope and interaction with `docker.gpus`
 
