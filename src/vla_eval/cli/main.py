@@ -24,7 +24,7 @@ from vla_eval.orchestrator import Orchestrator
 from vla_eval.render import (
     NO_GPU_SPEC,
     RENDER_MODES,
-    is_no_gpu_spec,
+    check_gpu_spec_conflict,
     normalize_render_mode,
     supports_render_mode,
     unsupported_render_message,
@@ -134,11 +134,7 @@ def _resolve_render_mode(config: dict[str, Any], override: str | None) -> str:
 
     docker_section = config.get("docker")
     gpus = docker_section.get("gpus") if isinstance(docker_section, dict) else None
-    if is_no_gpu_spec(gpus) and mode == "gpu":
-        raise ValueError(
-            f"docker.gpus: {gpus!r} conflicts with render: gpu — the simulator needs a device. "
-            "Use --render cpu, or give docker.gpus a device spec."
-        )
+    check_gpu_spec_conflict(mode, gpus)
     if mode == "cpu" and gpus is None and isinstance(docker_section, dict):
         docker_section["gpus"] = NO_GPU_SPEC
     return mode

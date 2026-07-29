@@ -45,6 +45,19 @@ def is_no_gpu_spec(spec: str | None) -> bool:
     return spec is not None and spec.strip().lower() == NO_GPU_SPEC
 
 
+def check_gpu_spec_conflict(mode: str, gpus: str | None) -> None:
+    """Reject ``gpus: none`` paired with ``render: gpu`` rather than guessing which one wins.
+
+    Shared by ``vla-eval run`` and the smoke runner so the two cannot drift: a GPU renderer
+    in a device-free container fails obscurely deep inside the simulator.
+    """
+    if mode == "gpu" and is_no_gpu_spec(gpus):
+        raise ValueError(
+            f"docker.gpus: {gpus!r} conflicts with render: gpu — the simulator needs a device. "
+            "Use --render cpu, or give docker.gpus a device spec."
+        )
+
+
 def apply_env(env: Mapping[str, str]) -> dict[str, str]:
     """Assign *env* into ``os.environ`` and return what was applied.
 

@@ -282,20 +282,59 @@ class TestSmokeRenderPrecedence:
     def test_gpu_mode_falls_back_to_the_config_device_spec(self):
         assert smoke._resolve_smoke_render({}, None, None, "0,1") == ("gpu", "0,1")
 
+    @pytest.mark.parametrize(
+        ("config", "cli_render"),
+        [({"render": "gpu"}, None), ({"render": "cpu"}, "gpu"), ({}, "gpu")],
+        ids=["from-yaml", "cli-overrides-cpu-config", "cli-on-bare-config"],
+    )
+    def test_rejects_the_same_conflict_cmd_run_rejects(self, config: dict, cli_render: str | None):
+        """The smoke config drops its docker section before the inner run, so nothing
+        downstream re-checks this: a GPU renderer would start in a device-free container."""
+        with pytest.raises(ValueError, match="conflicts with render: gpu"):
+            smoke._resolve_smoke_render(config, cli_render, None, "none")
+
+    def test_an_explicit_worker_device_resolves_the_conflict(self):
+        assert smoke._resolve_smoke_render({"render": "gpu"}, None, "2", "none") == ("gpu", "2")
+
+
+def _write_metadata(tmp_path, *renders: dict[str, Any]):
+    """Simulate N shards writing bench metadata under one eval_id; return the merged aggregate."""
+    from vla_eval.recording import RecordingStore, db_path_for_eval
+    from vla_eval.results.merge import merge_db
+
+    db = db_path_for_eval(tmp_path, "ev")
+    for render in renders:
+        store = RecordingStore(db)  # each shard is its own process/connection
+        store.upsert_eval_metadata("ev", "demo", {"benchmark": "demo", "render": render})
+        store.close()
+    return merge_db(db, tmp_path)[0]
+
 
 def test_render_provenance_reaches_the_merge_aggregate(tmp_path):
     """The orchestrator records requested + applied env; merge must surface it,
     otherwise a run's renderer is unrecoverable from its results."""
-    from vla_eval.recording import RecordingStore, db_path_for_eval
-    from vla_eval.results.merge import merge_db
-
     provenance = {"requested": "cpu", "applied_env": mujoco_cpu_env()}
-    db = db_path_for_eval(tmp_path, "ev")
-    store = RecordingStore(db)
-    store.upsert_eval_metadata("ev", "demo", {"benchmark": "demo", "render": provenance})
-    store.close()
 
-    assert merge_db(db, tmp_path)[0]["render"] == provenance
+    assert _write_metadata(tmp_path, provenance)["render"] == provenance
+
+
+def test_agreeing_shards_leave_provenance_unflagged(tmp_path):
+    provenance = {"requested": "gpu", "applied_env": {}}
+
+    assert _write_metadata(tmp_path, provenance, provenance, provenance)["render"] == provenance
+
+
+def test_disagreeing_shards_are_flagged_not_silently_resolved(tmp_path):
+    """eval_metadata is INSERT OR IGNORE and every shard writes the same eval_id, so a
+    RoboMME auto-probe that lands differently per process would otherwise publish one
+    shard's renderer as everyone's."""
+    native = {"requested": "gpu", "applied_env": {}}
+    lavapipe = {"requested": "gpu", "applied_env": {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"}}
+
+    render = _write_metadata(tmp_path, native, lavapipe)["render"]
+
+    assert render["divergent"] is True
+    assert render["applied_env"] == native["applied_env"], "first writer's payload is still reported"
 
 
 class TestNoGpuDockerFlags:
