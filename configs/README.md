@@ -84,7 +84,8 @@ benchmarks:
 
 `render` is run-level rather than per entry: the renderer binds at the first simulator
 import. `cpu` software-renders and starts the container with no GPU attached; benchmarks
-that don't declare CPU support are rejected before the run starts.
+that don't declare CPU support are rejected before the run starts. See
+[Render Backends](../docs/render-backends.md).
 
 ### Server configs (`model_servers/<name>/*.yaml`)
 
