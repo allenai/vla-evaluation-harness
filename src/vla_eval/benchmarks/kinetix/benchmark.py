@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
+from vla_eval.render import apply_env
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -91,6 +92,13 @@ class KinetixBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
+    # No GL involved: frames are computed in JAX, so "CPU rendering" is just a CPU device.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return apply_env({"JAX_PLATFORMS": "cpu"}) if mode == "cpu" else {}
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -153,6 +161,7 @@ class KinetixBenchmark(StepBenchmark):
         jax = self._jax
 
         from kinetix.environment import env as kenv
+        from kinetix.environment.spaces import ActionType, ObservationType
         from kinetix.util.saving import load_from_json_file
 
         level_path = _resolve_level_path(level, self._rtc_worlds_dir)
@@ -162,12 +171,11 @@ class KinetixBenchmark(StepBenchmark):
         static_env_params = level_static_params
         env_params = level_env_params.replace(max_timesteps=self._max_episode_steps)
 
-        env_name = (
-            "Kinetix-Symbolic-Continuous-v1"
-            if self._observation_type == "symbolic"
-            else "Kinetix-Pixels-Continuous-v1"
+        obs_type = ObservationType.SYMBOLIC_FLAT if self._observation_type == "symbolic" else ObservationType.PIXELS
+        # auto_reset=False: the harness owns episode boundaries (reset per task, check_done).
+        env = kenv.make_kinetix_env(
+            ActionType.CONTINUOUS, obs_type, None, env_params, static_env_params, auto_reset=False
         )
-        env = kenv.make_kinetix_env_from_name(env_name, static_env_params=static_env_params)
 
         self._env = env
         self._env_params = env_params
@@ -175,9 +183,14 @@ class KinetixBenchmark(StepBenchmark):
         self._level_state = level_state
         self._current_level = level
 
-        # JIT compile step_env and reset_env_to_level (raw env, no wrappers)
-        self._jit_step = jax.jit(env.step_env)
-        self._jit_reset = jax.jit(env.reset_env_to_level)
+        self._jit_step = jax.jit(env.step)
+
+        def _reset_to_level(rng: Any, params: Any) -> Any:
+            # override_reset_state replaces the removed reset_env_to_level: every
+            # episode restarts from the level file's stored state.
+            return env.reset(rng, params, override_reset_state=level_state)
+
+        self._jit_reset = jax.jit(_reset_to_level)
 
         logger.info("Kinetix env created for level: %s (path: %s)", level, level_path)
 
@@ -210,8 +223,8 @@ class KinetixBenchmark(StepBenchmark):
         rng = jax.random.PRNGKey(self._seed + episode_idx)
         rng, reset_rng = jax.random.split(rng)
 
-        # reset_to_level: load the stored level state (matches RTC's eval pattern)
-        obs, env_state = self._jit_reset(reset_rng, self._level_state, self._env_params)
+        # Restart from the level file's stored state (matches RTC's eval pattern).
+        obs, env_state = self._jit_reset(reset_rng, self._env_params)
         self._env_state = env_state
         self._rng = rng
         self._step_count = 0

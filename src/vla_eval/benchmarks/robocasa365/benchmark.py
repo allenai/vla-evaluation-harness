@@ -29,6 +29,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import configure_mujoco_render
 from vla_eval.specs import (
     BASE_MOTION,
     CONTROL_MODE_01,
@@ -116,6 +117,12 @@ class RoboCasa365Benchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return configure_mujoco_render(mode)
+
     def __init__(
         self,
         tasks: list[str] | None = None,
@@ -170,6 +177,8 @@ class RoboCasa365Benchmark(StepBenchmark):
         return [dict(task) for task in self._resolved_tasks]
 
     def _make_env(self, task_name: str) -> Any:
+        # GPU fallback for non-container runs. Must stay setdefault: this runs after
+        # configure_render(), so a plain assignment would revert a `render: cpu` choice.
         os.environ.setdefault("MUJOCO_GL", "egl")
         import gymnasium as gym
         import robocasa.wrappers.gym_wrapper  # noqa: F401  # registers the robocasa/* Gym environments

@@ -31,6 +31,7 @@ import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.benchmarks.duobench.utils import ensure_mujoco_arena_memory, extract_rgb, resolve_enum
+from vla_eval.render import apply_env
 from vla_eval.specs import (
     GRIPPER_01,
     IMAGE_RGB,
@@ -120,6 +121,18 @@ class DuoBenchBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "stage"})
+
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        """OSMesa is not an option here: rcs bootstraps a real EGL context for its C++
+        camera renderer (rcs.sim.egl_bootstrap) no matter what MUJOCO_GL says. With no
+        GPU the only EGL device is Mesa's software rasterizer, so cpu keeps EGL and pins
+        MUJOCO_EGL_DEVICE_ID to it (mujoco.egl reads the var at import)."""
+        if mode != "cpu":
+            return {}
+        return apply_env({"MUJOCO_GL": "egl", "PYOPENGL_PLATFORM": "egl", "MUJOCO_EGL_DEVICE_ID": "0"})
 
     def __init__(
         self,

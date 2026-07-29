@@ -16,11 +16,20 @@ from vla_eval import watchdog
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.cli._docker import (
     check_docker_daemon as _check_docker_daemon,
+    dev_src_mount_flags as _dev_src_mount_flags,
     ensure_image_local as _ensure_docker_image,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
-from vla_eval.config import DockerConfig
+from vla_eval.config import DockerConfig, EvalConfig
 from vla_eval.orchestrator import Orchestrator
+from vla_eval.docker_resources import NO_GPU_SPEC
+from vla_eval.render import (
+    RENDER_MODES,
+    check_gpu_spec_conflict,
+    normalize_render_mode,
+    supports_render_mode,
+    unsupported_render_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,22 +94,6 @@ def _exec_docker(docker: str, cmd: list[str], container_name: str) -> None:
         sys.exit(130)
 
 
-def _resolve_dev_src() -> Path:
-    """Find the host ``src/`` directory for ``--dev`` bind-mount."""
-    cwd_src = Path.cwd() / "src"
-    if (cwd_src / "vla_eval").is_dir():
-        return cwd_src.resolve()
-    # Editable install: ``vla_eval.__file__`` lives under ``src/vla_eval/``.
-    import vla_eval
-
-    pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
-    if pkg_parent.name == "src" and (pkg_parent / "vla_eval").is_dir():
-        return pkg_parent
-
-    print("ERROR: --dev: cannot find src/vla_eval/ in cwd or via editable install", file=sys.stderr)
-    sys.exit(1)
-
-
 def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> None:
     """Apply the run-level video override to per-benchmark recording blocks, creating them as needed."""
     for idx, bench in enumerate(config.get("benchmarks") or []):
@@ -112,6 +105,60 @@ def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> No
         if not isinstance(rec, dict):
             raise ValueError(f"benchmarks[{idx}].recording must be a mapping or null")
         rec["record_video"] = enabled
+
+
+def _resolve_render_mode(config: dict[str, Any], override: str | None, cli_gpus: str | None = None) -> str:
+    """Resolve ``render:`` (CLI wins over YAML) and reconcile it with ``docker.gpus``.
+
+    ``render: cpu`` pins the container to no GPU at all. A CLI ``--render cpu`` is an explicit
+    act that outranks a device spec sitting in the YAML, but a config asking for both at once
+    contradicts itself and is rejected — as is ``--render cpu`` against an explicit ``--gpus``,
+    where neither flag outranks the other.
+    """
+    if override is not None:
+        config["render"] = override
+    mode = normalize_render_mode(config.get("render"))
+
+    docker_section = config.get("docker")
+    if not isinstance(docker_section, dict):
+        return mode
+
+    gpus = docker_section.get("gpus")
+    if override == "cpu" and cli_gpus is None and gpus is not None:
+        logger.info("--render cpu overrides docker.gpus=%r; starting the container with no GPU", gpus)
+        gpus = None
+    check_gpu_spec_conflict(mode, gpus)
+    if mode == "cpu":
+        docker_section["gpus"] = NO_GPU_SPEC
+    return mode
+
+
+def _check_render_support(config: dict[str, Any], mode: str) -> None:
+    """Reject benchmarks that do not declare *mode*, before any docker pull.
+
+    Falling back to GPU would reinstate the crash the caller is avoiding, so this
+    raises instead of warning.
+    """
+    from vla_eval.registry import resolve_import_string
+
+    offenders: list[str] = []
+    for entry in config.get("benchmarks") or []:
+        import_path = (entry or {}).get("benchmark", "")
+        if not import_path:
+            continue
+        try:
+            benchmark_cls = resolve_import_string(import_path)
+        except Exception as exc:
+            # Adapter deps often only exist in the benchmark image; the in-container
+            # orchestrator re-checks authoritatively before any episode runs.
+            logger.debug("Skipping host-side render check for %s: %s", import_path, exc)
+            continue
+        if not supports_render_mode(benchmark_cls, mode):
+            offenders.append(
+                unsupported_render_message(EvalConfig.from_dict(entry).resolved_name(), benchmark_cls, mode)
+            )
+    if offenders:
+        raise ValueError("render: {} is not supported by:\n  {}".format(mode, "\n  ".join(offenders)))
 
 
 class _RecordVideoAction(argparse.Action):
@@ -233,9 +280,13 @@ def _run_via_docker(
 
     # Dev mode: mount host src/ into container (requires editable install in image).
     if dev:
-        src_dir = _resolve_dev_src()
-        cmd.extend(["-v", f"{src_dir}:/workspace/src"])
-        logger.info("Dev mode: mounting %s -> /workspace/src", src_dir)
+        try:
+            mount = _dev_src_mount_flags()
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+        cmd.extend(mount)
+        logger.info("Dev mode: mounting %s -> /workspace/src", mount[1].split(":", 1)[0])
 
     # Extra volumes / env vars from config
     for vol in docker_cfg.volumes:
@@ -330,6 +381,14 @@ def cmd_run(args: argparse.Namespace) -> None:
             docker_section["gpus"] = cli_gpus
         if cli_cpus is not None:
             docker_section["cpus"] = cli_cpus
+
+    # Render backend: resolved after --gpus so an explicit device spec counts as deliberate.
+    try:
+        render_mode = _resolve_render_mode(config, getattr(args, "render", None), cli_gpus)
+        _check_render_support(config, render_mode)
+    except ValueError as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
 
     # Decide whether to run via Docker
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
@@ -623,27 +682,35 @@ def cmd_test(args: argparse.Namespace) -> None:
     import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from contextlib import nullcontext
+    from functools import partial
 
     from vla_eval.docker_resources import parse_gpus
 
     # --- resolve parallelism ---
+    # Workers are sized by (and handed) GPUs — except under --render cpu, where no
+    # device is attached and the GPU count would cap or serialise for no reason.
+    cpu_render = getattr(args, "render", None) == "cpu"
     gpu_queue: queue.Queue[str] | None = None
     if args.parallel is not None:
-        gpu_ids = parse_gpus(None)  # auto-detect via the active GPU runtime
+        gpu_ids = [] if cpu_render else parse_gpus(None)  # auto-detect via the active GPU runtime
         if args.parallel == "auto":
-            workers = len(gpu_ids)
+            if cpu_render:
+                print("--parallel auto sizes workers by GPU count; with --render cpu pass an explicit number")
+                workers = 1
+            else:
+                workers = len(gpu_ids)
         else:
             try:
                 n = int(args.parallel)
                 if n <= 0:
                     raise ValueError("must be positive")
-                workers = min(n, len(gpu_ids))
+                workers = n if cpu_render else min(n, len(gpu_ids))
             except ValueError:
                 print(
                     f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr
                 )
                 sys.exit(1)
-        if workers > 1:
+        if workers > 1 and not cpu_render:
             gpu_queue = queue.Queue()
             for gid in gpu_ids[:workers]:
                 gpu_queue.put(gid)
@@ -753,7 +820,10 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
-                _run_parallel(benchmark_tests, run_benchmark_test)
+                runner = partial(
+                    run_benchmark_test, render=getattr(args, "render", None), dev=getattr(args, "dev", False)
+                )
+                _run_parallel(benchmark_tests, runner)
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Interrupted by user.[/yellow]")
 
@@ -805,6 +875,13 @@ execution flow:
     block overrides those defaults per benchmark; use --record-video to
     enable per-episode mp4s for the run. Single-shard runs auto-merge.
     Use --no-save for in-memory summary only.
+
+  render backend (render: gpu|cpu, --render):
+    Run-level: the renderer binds at the first simulator import, so it cannot
+    vary per benchmark entry. 'cpu' software-renders the simulator and attaches
+    no GPU to the container, which keeps simulator readback off the device the
+    model server computes on. Only benchmarks that declare CPU support accept
+    it; the rest fail fast rather than silently falling back to the GPU.
 
   error recovery:
     Episodes are isolated — one failure does not abort the run.
@@ -889,6 +966,17 @@ execution flow:
         action=_RecordVideoAction,
         default=None,
         help="Enable (or disable with --no-record-video) per-episode mp4 recording for all benchmarks.",
+    )
+    run_parser.add_argument(
+        "--render",
+        choices=RENDER_MODES,
+        default=None,
+        help=(
+            "Where the simulator renders (overrides 'render:' in config; default: gpu). "
+            "'cpu' runs the benchmark software-rendered with no GPU attached — slower, but it "
+            "frees the GPU for the model server. Benchmarks that have not declared CPU support "
+            "are rejected up front."
+        ),
     )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
@@ -994,6 +1082,7 @@ examples:
   vla-eval test --server                            test all model servers
   vla-eval test --server cogact                     test a specific server by registry name
   vla-eval test --benchmark libero                  test a specific benchmark by registry name
+  vla-eval test --benchmark libero --render cpu     test it software-rendered, with no GPU attached
   vla-eval test -c configs/model_servers/cogact.yaml   test an arbitrary config file
   vla-eval test --dry-run                           preview what would run
 """,
@@ -1012,6 +1101,21 @@ examples:
         "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
     )
     test_parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument(
+        "--render",
+        choices=RENDER_MODES,
+        default=None,
+        help="Render backend for benchmark tests (default: the config's). 'cpu' attaches no GPU.",
+    )
+    test_parser.add_argument(
+        "--dev",
+        action="store_true",
+        help=(
+            "Mount local src/ into the benchmark container (as in 'vla-eval run --dev'). "
+            "Without this, benchmark tests run the harness baked into the image — the right "
+            "thing for validating a shipped image, the wrong thing for validating local changes."
+        ),
+    )
     test_parser.add_argument(
         "--parallel",
         nargs="?",

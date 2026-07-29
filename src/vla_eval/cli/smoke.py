@@ -481,8 +481,57 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
 # ---------------------------------------------------------------------------
 
 
-def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None) -> SmokeResult:
-    """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode."""
+def _resolve_smoke_render(
+    config: dict[str, Any], cli_render: str | None, gpu_id: str | None, docker_gpus: str | None
+) -> tuple[str, str | None]:
+    """Effective render mode (CLI beats config, matching ``cmd_run``) and the GPU spec it implies.
+
+    ``cpu`` wins over the per-worker GPU assignment — the point is to attach no device.
+    Raises on the same contradictions ``cmd_run`` rejects, which the smoke config would
+    otherwise smuggle past by stripping its ``docker`` section. The harness-assigned
+    ``gpu_id`` is not part of that check: only the user's own config can contradict itself.
+    """
+    from vla_eval.docker_resources import NO_GPU_SPEC
+    from vla_eval.render import check_gpu_spec_conflict, normalize_render_mode
+
+    mode = normalize_render_mode(cli_render if cli_render is not None else config.get("render"))
+    if mode == "cpu":
+        if cli_render is None:
+            check_gpu_spec_conflict(mode, docker_gpus)
+        return mode, NO_GPU_SPEC
+    spec = gpu_id if gpu_id is not None else docker_gpus
+    check_gpu_spec_conflict(mode, spec)
+    return mode, spec
+
+
+def _errored_episodes(aggregate: dict[str, Any]) -> list[str]:
+    """Episode error summaries from a merge aggregate.
+
+    Episode failures are isolated by design, so a run where every episode errored
+    still exits 0 and writes an aggregate — a smoke pass has to mean episodes
+    actually ran, not merely that the pipeline completed.
+    """
+    lines: list[str] = []
+    for task in aggregate.get("tasks", []):
+        for ep in task.get("episodes", []):
+            reason = ep.get("failure_reason")
+            if not reason:
+                continue
+            detail = (ep.get("failure_detail") or "").strip().splitlines()
+            tail = f" — {detail[-1]}" if detail else ""
+            lines.append(f"{task.get('task', '?')}: {reason}{tail}")
+    return lines
+
+
+def run_benchmark_test(
+    test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None, render: str | None = None, dev: bool = False
+) -> SmokeResult:
+    """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode.
+
+    ``dev`` mounts the host checkout's ``src/`` over the image's (mirroring
+    ``vla-eval run --dev``). Without it the container runs the harness baked into the
+    image at build time, so a smoke run validates the shipped image — not local changes.
+    """
     assert test.config_path is not None
 
     config = _load_yaml(test.config_path)
@@ -512,10 +561,26 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
 
     port = _free_port()
 
+    try:
+        effective_render, gpu_spec = _resolve_smoke_render(config, render, gpu_id, docker_cfg.gpus)
+    except ValueError as exc:
+        return SmokeResult(test, "fail", str(exc))
+
+    # Resolve the --dev mount before any resource (echo server, temp files) is allocated.
+    dev_mount: list[str] = []
+    if dev:
+        from vla_eval.cli._docker import dev_src_mount_flags
+
+        try:
+            dev_mount = dev_src_mount_flags()
+        except RuntimeError as exc:
+            return SmokeResult(test, "fail", str(exc))
+
     # Write temp config: 1 task, 1 episode, capped steps, pointing to echo server
     smoke_config = dict(config)
     smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
     smoke_config.pop("docker", None)
+    smoke_config["render"] = effective_render
     for bench in smoke_config.get("benchmarks", []):
         bench["episodes_per_task"] = 1
         bench["max_tasks"] = 1
@@ -585,12 +650,14 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
-    gpu_spec = gpu_id if gpu_id is not None else docker_cfg.gpus
-    docker_cmd.extend(gpu_docker_flag(gpu_spec))
+    docker_cmd.extend(dev_mount)
     for vol in docker_cfg.volumes:
         docker_cmd.extend(["-v", vol])
     for env_str in docker_cfg.env:
         docker_cmd.extend(["-e", env_str])
+    # After docker_cfg.env, matching _run_via_docker: for duplicate -e docker keeps the
+    # last one, and a config env like NVIDIA_VISIBLE_DEVICES must not beat cpu's "void".
+    docker_cmd.extend(gpu_docker_flag(gpu_spec))
     docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
 
     try:
@@ -615,10 +682,14 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
             msg = "\n    ".join(tail)
             return SmokeResult(test, "fail", msg, dt, stderr=result.stderr)
 
-        json_files = _glob.glob(os.path.join(results_dir, "*.json"))
+        json_files = sorted(_glob.glob(os.path.join(results_dir, "*.json")))
         if json_files:
-            data = json.loads(Path(json_files[0]).read_text())
-            rate = data.get("mean_success", 0)
+            aggregates = [json.loads(Path(j).read_text()) for j in json_files]
+            errored = [line for agg in aggregates for line in _errored_episodes(agg)]
+            if errored:
+                more = f" (+{len(errored) - 1} more)" if len(errored) > 1 else ""
+                return SmokeResult(test, "fail", f"episode errored{more}: {errored[0]}", dt, stderr=result.stderr)
+            rate = aggregates[0].get("mean_success", 0)
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         # rc == 0 with no aggregate JSON in the mounted results dir means results were
         # silently lost (e.g. mis-resolved output_dir) — a failure, not a pass.

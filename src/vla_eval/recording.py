@@ -257,11 +257,41 @@ class RecordingStore:
         self._conn.close()
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
-        """First-writer-wins. Repeat calls with the same eval_id are no-ops."""
+        """First-writer-wins, except that a later shard disagreeing about the renderer is
+        flagged rather than dropped.
+
+        Shards all write this row under one eval_id. Renderer provenance is the one field
+        that can legitimately differ between them (RoboMME probes the native Vulkan path per
+        process), and silently keeping the first answer would attribute one shard's renderer
+        to every episode in the merged output. On disagreement the stored row gains
+        ``render.divergent = true``, which flows through ``vla-eval merge`` unchanged.
+        """
         with self._conn:
-            self._conn.execute(
+            cur = self._conn.execute(
                 "INSERT OR IGNORE INTO eval_metadata (eval_id, safe_name, metadata) VALUES (?, ?, ?)",
                 (eval_id, safe_name, json.dumps(metadata, default=_json_default)),
+            )
+            if cur.rowcount:
+                return
+            row = self._conn.execute("SELECT metadata FROM eval_metadata WHERE eval_id = ?", (eval_id,)).fetchone()
+            stored = json.loads(row[0]).get("render") if row else None
+            if isinstance(stored, dict):
+                # Ignore the flag itself, or every later agreeing shard would re-warn.
+                stored = {k: v for k, v in stored.items() if k != "divergent"}
+            mine = metadata.get("render")
+            if stored is None or mine is None or stored == mine:
+                return
+            logger.warning(
+                "Renderer provenance differs across shards for eval_id=%s (stored=%r, this shard=%r); "
+                "flagging render.divergent",
+                eval_id,
+                stored,
+                mine,
+            )
+            self._conn.execute(
+                "UPDATE eval_metadata SET metadata = json_set(metadata, '$.render.divergent', json('true')) "
+                "WHERE eval_id = ?",
+                (eval_id,),
             )
 
     def upsert_episode_result(

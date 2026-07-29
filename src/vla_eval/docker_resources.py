@@ -16,6 +16,15 @@ from typing import Literal
 
 GpuRuntime = Literal["nvidia", "rocm"]
 
+#: ``docker.gpus`` spec meaning "attach no GPU at all" (as opposed to ``None``/``"all"``).
+NO_GPU_SPEC = "none"
+
+
+def is_no_gpu_spec(spec: str | None) -> bool:
+    """True when a ``docker.gpus`` spec asks for no GPU device at all."""
+    return spec is not None and spec.strip().lower() == NO_GPU_SPEC
+
+
 _ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
 
 
@@ -106,6 +115,8 @@ def parse_gpus(spec: str | None) -> list[str]:
 
     ``None`` or ``"all"`` enumerates GPUs via the active runtime.
     ``"0,1"`` returns ``["0", "1"]``.
+    ``"none"`` never reaches this parser — callers branch on :func:`is_no_gpu_spec` first,
+    since "no devices" has nothing to enumerate or round-robin.
     """
     if spec is None or spec.strip().lower() == "all":
         return _detect_gpu_ids()
@@ -113,7 +124,16 @@ def parse_gpus(spec: str | None) -> list[str]:
 
 
 def gpu_docker_flag(spec: str | None) -> list[str]:
-    """Return GPU device flags for a single (non-sharded) container."""
+    """Return GPU device flags for a single (non-sharded) container.
+
+    ``"none"`` attaches no GPU: no device flags at all, plus ``NVIDIA_VISIBLE_DEVICES=void``
+    because some hosts set docker's default-runtime to nvidia and would otherwise inject
+    devices anyway. Callers must append these flags *after* any user-supplied ``-e``
+    list — docker keeps the last duplicate ``-e``, and a config env like
+    ``NVIDIA_VISIBLE_DEVICES`` must not beat the ``void``.
+    """
+    if is_no_gpu_spec(spec):
+        return ["-e", "NVIDIA_VISIBLE_DEVICES=void"]
     runtime = _detect_runtime()
     if runtime == "rocm":
         flags = list(_ROCM_DEVICE_FLAGS)
@@ -163,7 +183,8 @@ def shard_docker_flags(
         shard_id: Zero-based shard index.
         num_shards: Total number of shards.
         cpus: CPU spec (e.g. ``"0-31"``).  ``None`` = all host CPUs.
-        gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``.
+        gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``,
+            ``"none"`` = no GPU (every shard runs GPU-free).
 
     Returns:
         Flag list to extend a ``docker run`` command.  GPU flags are
@@ -171,10 +192,13 @@ def shard_docker_flags(
     """
     flags: list[str] = []
 
-    # GPU: round-robin across available devices
-    gpu_list = parse_gpus(gpus)
-    device = gpu_list[shard_id % len(gpu_list)]
-    flags.extend(gpu_docker_flag(device))
+    # GPU: round-robin across available devices; "none" has nothing to distribute
+    if is_no_gpu_spec(gpus):
+        flags.extend(gpu_docker_flag(gpus))
+    else:
+        gpu_list = parse_gpus(gpus)
+        device = gpu_list[shard_id % len(gpu_list)]
+        flags.extend(gpu_docker_flag(device))
 
     # CPU: partition available cores across shards
     cpu_ids = parse_cpus(cpus)

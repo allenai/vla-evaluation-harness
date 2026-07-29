@@ -24,18 +24,23 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import configure_mujoco_render
 from vla_eval.specs import GRIPPER_01, IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
 
 os.environ.setdefault("DISPLAY", "")
+# GPU fallback for non-container runs. Must stay setdefault: this module is imported
+# after configure_render(), so a plain assignment would revert a `render: cpu` choice.
 os.environ.setdefault("MUJOCO_GL", "egl")
 
 # Fallback max steps used if ``task_horizon`` is not set in the config.
@@ -55,6 +60,23 @@ PRIMARY_CAM = "exo_camera_1"
 WRIST_CAM = "wrist_camera"
 
 
+def _stub_out_mujoco_cgl() -> None:
+    """molmo_spaces' MjOpenGLRenderer wrongly treats mujoco's generic GLContext as CGL
+    and calls ``mujoco.cgl`` lock/unlock around every render, but that module hard-dlopens
+    the macOS OpenGL framework and can never import on Linux. Only the GPU-less path
+    reaches it (with CUDA available the renderer takes its own EGL class instead), so
+    without this stub `render: cpu` crashes at the first scene load."""
+    if sys.platform == "darwin" or "mujoco.cgl" in sys.modules:
+        return
+    stub = types.ModuleType("mujoco.cgl.cgl")
+    stub.CGLLockContext = lambda *_: None  # type: ignore
+    stub.CGLUnlockContext = lambda *_: None  # type: ignore
+    pkg = types.ModuleType("mujoco.cgl")
+    pkg.cgl = stub  # type: ignore
+    sys.modules["mujoco.cgl"] = pkg
+    sys.modules["mujoco.cgl.cgl"] = stub
+
+
 class MolmoSpacesBenchmark(StepBenchmark):
     """MolmoSpaces-Bench manipulation benchmark.
 
@@ -72,6 +94,13 @@ class MolmoSpacesBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
+    # The AI2-THOR lineage is in the scenes and assets; the runtime renderer is MuJoCo.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return configure_mujoco_render(mode)
+
     def __init__(
         self,
         benchmark_dir: str,
@@ -81,6 +110,7 @@ class MolmoSpacesBenchmark(StepBenchmark):
         send_state: bool = True,
     ) -> None:
         super().__init__()
+        _stub_out_mujoco_cgl()
         self.benchmark_dir = Path(benchmark_dir)
         self.eval_config_cls = eval_config_cls
         self.task_horizon = task_horizon

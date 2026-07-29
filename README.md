@@ -256,6 +256,8 @@ Under sharding, aggregate emission defers to `vla-eval merge`; per-episode track
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Component descriptions, protocol, episode flow, configuration |
+| [Render Backends](docs/render-backends.md) | Running the simulator on the CPU (`--render cpu`) to free the GPU for the model |
+| [Tuning Guide](docs/tuning-guide.md) | Measuring λ / μ and deriving `max_wait_time` for batch-parallel runs |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding benchmarks/models, PR workflow |
 | [Reproduction Reports](docs/reproductions/) | Per-model evaluation results and reproducibility verdicts |
 | [RFCs](docs/rfcs/README.md) | Design proposals with rationale and status tracking |

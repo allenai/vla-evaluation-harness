@@ -124,6 +124,8 @@ def _build_aggregate(
     }
     if "server_info" in metadata:
         body["server_info"] = metadata["server_info"]
+    if "render" in metadata:
+        body["render"] = metadata["render"]
     seed = _extract_seed(config)
     if seed is not None:
         body["seed"] = seed
