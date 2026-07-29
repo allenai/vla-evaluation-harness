@@ -503,6 +503,25 @@ def _resolve_smoke_render(
     return mode, spec
 
 
+def _errored_episodes(aggregate: dict[str, Any]) -> list[str]:
+    """Episode error summaries from a merge aggregate.
+
+    Episode failures are isolated by design, so a run where every episode errored
+    still exits 0 and writes an aggregate — a smoke pass has to mean episodes
+    actually ran, not merely that the pipeline completed.
+    """
+    lines: list[str] = []
+    for task in aggregate.get("tasks", []):
+        for ep in task.get("episodes", []):
+            reason = ep.get("failure_reason")
+            if not reason:
+                continue
+            detail = (ep.get("failure_detail") or "").strip().splitlines()
+            tail = f" — {detail[-1]}" if detail else ""
+            lines.append(f"{task.get('task', '?')}: {reason}{tail}")
+    return lines
+
+
 def run_benchmark_test(
     test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None, render: str | None = None
 ) -> SmokeResult:
@@ -615,11 +634,13 @@ def run_benchmark_test(
         "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
-    docker_cmd.extend(gpu_docker_flag(gpu_spec))
     for vol in docker_cfg.volumes:
         docker_cmd.extend(["-v", vol])
     for env_str in docker_cfg.env:
         docker_cmd.extend(["-e", env_str])
+    # After docker_cfg.env, matching _run_via_docker: for duplicate -e docker keeps the
+    # last one, and a config env like NVIDIA_VISIBLE_DEVICES must not beat cpu's "void".
+    docker_cmd.extend(gpu_docker_flag(gpu_spec))
     docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
 
     try:
@@ -644,10 +665,14 @@ def run_benchmark_test(
             msg = "\n    ".join(tail)
             return SmokeResult(test, "fail", msg, dt, stderr=result.stderr)
 
-        json_files = _glob.glob(os.path.join(results_dir, "*.json"))
+        json_files = sorted(_glob.glob(os.path.join(results_dir, "*.json")))
         if json_files:
-            data = json.loads(Path(json_files[0]).read_text())
-            rate = data.get("mean_success", 0)
+            aggregates = [json.loads(Path(j).read_text()) for j in json_files]
+            errored = [line for agg in aggregates for line in _errored_episodes(agg)]
+            if errored:
+                more = f" (+{len(errored) - 1} more)" if len(errored) > 1 else ""
+                return SmokeResult(test, "fail", f"episode errored{more}: {errored[0]}", dt, stderr=result.stderr)
+            rate = aggregates[0].get("mean_success", 0)
             return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
         # rc == 0 with no aggregate JSON in the mounted results dir means results were
         # silently lost (e.g. mis-resolved output_dir) — a failure, not a pass.
