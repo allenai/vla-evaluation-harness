@@ -123,8 +123,15 @@ Verify before declaring support — a backend that is declared but doesn't engag
 worse than one that isn't offered:
 
 ```bash
-vla-eval test --benchmark <name> --render cpu
+vla-eval test --benchmark <name> --render cpu --dev
 ```
+
+`--dev` matters: images bake the harness at build time, so without it the container
+runs the image's copy of `vla_eval` and your change is not what is being tested. Then
+check the run's aggregate — `render.applied_env` must show the env your hook set, and
+episodes must have stepped. (`vla-eval test` fails on errored episodes, but reading the
+provenance is what proves the backend engaged rather than something else working by
+accident.)
 
 SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
 like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds demand

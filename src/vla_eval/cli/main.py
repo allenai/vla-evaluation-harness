@@ -831,7 +831,9 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
-                runner = partial(run_benchmark_test, render=getattr(args, "render", None))
+                runner = partial(
+                    run_benchmark_test, render=getattr(args, "render", None), dev=getattr(args, "dev", False)
+                )
                 _run_parallel(benchmark_tests, runner)
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Interrupted by user.[/yellow]")
@@ -1115,6 +1117,15 @@ examples:
         choices=RENDER_MODES,
         default=None,
         help="Render backend for benchmark tests (default: the config's). 'cpu' attaches no GPU.",
+    )
+    test_parser.add_argument(
+        "--dev",
+        action="store_true",
+        help=(
+            "Mount local src/ into the benchmark container (as in 'vla-eval run --dev'). "
+            "Without this, benchmark tests run the harness baked into the image — the right "
+            "thing for validating a shipped image, the wrong thing for validating local changes."
+        ),
     )
     test_parser.add_argument(
         "--parallel",

@@ -29,27 +29,40 @@ GPU contention is crashing runs outright.
 
 ## Support by benchmark
 
-Every entry below was measured on the benchmark's image with no GPU attached.
+A simulator is not a renderer, so the table separates the two. MuJoCo draws with its
+own built-in OpenGL renderer; what a backend chooses is the **GL context provider** —
+EGL on an NVIDIA device for `gpu`, OSMesa (pure-software GL) or an EGL software device
+for `cpu`. SAPIEN draws through Vulkan, where lavapipe is Mesa's software driver.
+PyBullet ships two rasterizers of its own (hardware OpenGL via its EGL plugin, and the
+software TinyRenderer). Kinetix computes frames as JAX arrays and has no GL at all.
 
-| Benchmark | `cpu` | Renderer | Notes |
-|---|:--:|---|---|
-| LIBERO (+ Pro / Plus / Mem) | ✅ | MuJoCo → OSMesa | |
-| RoboCasa | ✅ | MuJoCo → OSMesa | |
-| RoboCasa365 | ✅ | MuJoCo → OSMesa | |
-| RoboCerebra | ✅ | MuJoCo → OSMesa | |
-| DuoBench | ✅ | MuJoCo → EGL on Mesa's software device | Not OSMesa: its rcs camera stack bootstraps a real EGL context regardless of `MUJOCO_GL`, so cpu keeps EGL and pins `MUJOCO_EGL_DEVICE_ID` to the only (software) device |
-| VLABench | ✅ | dm_control / MuJoCo → OSMesa | |
-| MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer. The adapter stubs the macOS-only `mujoco.cgl` module that molmo_spaces calls on the GPU-less path |
-| Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch. The 0.4.0 image cannot run episodes on either backend — its kinetix API postdates the adapter's (`make_kinetix_env` vs `make_kinetix_env_from_name`) — so this row is verified only up to the device switch |
-| RoboMME | ✅ | SAPIEN 3.0.3 → lavapipe | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
-| CALVIN | ✅ | PyBullet → TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
-| SimplerEnv | ❌ | SAPIEN 2.2.2 | Requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
-| ManiSkill2 | ❌ | SAPIEN 2.2.2 | same |
-| RoboTwin | ❌ | SAPIEN 3.0.0b1 | same |
-| MIKASA-Robo | ❌ | SAPIEN 3.0.0b1 | same |
-| BEHAVIOR-1K | ❌ | Isaac / OmniGibson | Isaac Sim dumps core during extension startup with no GPU |
-| RoboDojo | ❌ | Isaac Lab | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
-| RLBench | — | CoppeliaSim | The shipped image cannot render on either backend: the front camera returns all-black frames with and without a GPU, and the pinned RLBench 1.1.0 predates the adapter's imports |
+The `cpu` column was measured on each benchmark's image with no GPU attached; nothing
+is inferred from the simulator's name. The `gpu` column is the image's shipped NVIDIA
+path.
+
+| Benchmark | Simulator | `gpu` | `cpu` | `cpu` render path | Notes |
+|---|---|:--:|:--:|---|---|
+| LIBERO (+ Pro / Plus / Mem) | MuJoCo | ✅ | ✅ | OSMesa | |
+| RoboCasa | MuJoCo | ✅ | ✅ | OSMesa | |
+| RoboCasa365 | MuJoCo | ✅ | ✅ | OSMesa | |
+| RoboCerebra | MuJoCo | ✅ | ✅ | OSMesa | |
+| DuoBench | MuJoCo + rcs | ✅ | ✅ | EGL on Mesa's software device | Not OSMesa: its rcs camera stack bootstraps a real EGL context regardless of `MUJOCO_GL`, so cpu keeps EGL and pins `MUJOCO_EGL_DEVICE_ID` to the only (software) device |
+| VLABench | dm_control (MuJoCo) | ✅ | ✅ | OSMesa | |
+| MolmoSpaces-Bench | MuJoCo | ✅ | ✅ | OSMesa | AI2-THOR lineage is in the assets, not the renderer. The adapter stubs the macOS-only `mujoco.cgl` module that molmo_spaces calls on the GPU-less path |
+| RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
+| CALVIN | PyBullet | ✅ | ✅ | TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
+| Kinetix | JAX (no GL) | — | — | `JAX_PLATFORMS=cpu` | The device switch works, but the 0.4.0 image cannot run episodes on *either* backend: its kinetix API postdates the adapter's (`make_kinetix_env` vs `make_kinetix_env_from_name`) |
+| SimplerEnv | SAPIEN 2.2.2 | ✅ | ❌ | — | SAPIEN requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
+| ManiSkill2 | SAPIEN 2.2.2 | ✅ | ❌ | — | same |
+| RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
+| MIKASA-Robo | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
+| BEHAVIOR-1K | OmniGibson (Isaac Sim) | ✅ | ❌ | — | Isaac Sim dumps core during extension startup with no GPU |
+| RoboDojo | Isaac Lab | ✅ | ❌ | — | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
+| RLBench | CoppeliaSim | — | — | — | The shipped image cannot render on either backend: all-black frames with and without a GPU, and the pinned RLBench 1.1.0 predates the adapter's imports. Its Xvfb pipeline is Mesa software GL even when a GPU is attached |
+
+**AMD GPUs**: the harness can attach ROCm devices — on a ROCm runtime, `docker.gpus`
+mounts `/dev/kfd` and `/dev/dri` instead of passing `--gpus` — but no benchmark's
+*rendering* has been measured on ROCm. The `gpu` column makes no claim about AMD.
 
 Anything not declared fails fast, before the image is pulled:
 

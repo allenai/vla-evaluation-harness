@@ -523,9 +523,14 @@ def _errored_episodes(aggregate: dict[str, Any]) -> list[str]:
 
 
 def run_benchmark_test(
-    test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None, render: str | None = None
+    test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None, render: str | None = None, dev: bool = False
 ) -> SmokeResult:
-    """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode."""
+    """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode.
+
+    ``dev`` mounts the host checkout's ``src/`` over the image's (mirroring
+    ``vla-eval run --dev``). Without it the container runs the harness baked into the
+    image at build time, so a smoke run validates the shipped image — not local changes.
+    """
     assert test.config_path is not None
 
     config = _load_yaml(test.config_path)
@@ -634,6 +639,10 @@ def run_benchmark_test(
         "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
+    if dev:
+        from vla_eval.cli.main import _resolve_dev_src
+
+        docker_cmd.extend(["-v", f"{_resolve_dev_src()}:/workspace/src"])
     for vol in docker_cfg.volumes:
         docker_cmd.extend(["-v", vol])
     for env_str in docker_cfg.env:
