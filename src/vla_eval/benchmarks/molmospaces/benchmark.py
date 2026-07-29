@@ -36,6 +36,9 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 logger = logging.getLogger(__name__)
 
 os.environ.setdefault("DISPLAY", "")
+# MUJOCO_GL here makes this look like a candidate for the software-rendering
+# (render: cpu) migration, but the scene renders through AI2-THOR — CPU support
+# would have to cover THOR too, which is unverified. Stays GPU-only.
 os.environ.setdefault("MUJOCO_GL", "egl")
 
 # Fallback max steps used if ``task_horizon`` is not set in the config.

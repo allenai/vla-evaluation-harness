@@ -19,8 +19,16 @@ from vla_eval.cli._docker import (
     ensure_image_local as _ensure_docker_image,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
-from vla_eval.config import DockerConfig
+from vla_eval.config import DockerConfig, EvalConfig
 from vla_eval.orchestrator import Orchestrator
+from vla_eval.render import (
+    NO_GPU_SPEC,
+    RENDER_MODES,
+    is_no_gpu_spec,
+    normalize_render_mode,
+    supports_render_mode,
+    unsupported_render_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +120,56 @@ def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> No
         if not isinstance(rec, dict):
             raise ValueError(f"benchmarks[{idx}].recording must be a mapping or null")
         rec["record_video"] = enabled
+
+
+def _resolve_render_mode(config: dict[str, Any], override: str | None) -> str:
+    """Resolve ``render:`` (CLI wins over YAML) and reconcile it with ``docker.gpus``.
+
+    ``render: cpu`` with no explicit ``docker.gpus`` pins the container to no GPU at all.
+    The inconsistent pair ``gpus: none`` + ``render: gpu`` is rejected rather than guessed.
+    """
+    if override is not None:
+        config["render"] = override
+    mode = normalize_render_mode(config.get("render"))
+
+    docker_section = config.get("docker")
+    gpus = docker_section.get("gpus") if isinstance(docker_section, dict) else None
+    if is_no_gpu_spec(gpus) and mode == "gpu":
+        raise ValueError(
+            f"docker.gpus: {gpus!r} conflicts with render: gpu — the simulator needs a device. "
+            "Use --render cpu, or give docker.gpus a device spec."
+        )
+    if mode == "cpu" and gpus is None and isinstance(docker_section, dict):
+        docker_section["gpus"] = NO_GPU_SPEC
+    return mode
+
+
+def _check_render_support(config: dict[str, Any], mode: str) -> None:
+    """Reject benchmarks that do not declare *mode*, before any docker pull.
+
+    Falling back to GPU would reinstate the crash the caller is avoiding, so this
+    raises instead of warning.
+    """
+    from vla_eval.registry import resolve_import_string
+
+    offenders: list[str] = []
+    for entry in config.get("benchmarks") or []:
+        import_path = (entry or {}).get("benchmark", "")
+        if not import_path:
+            continue
+        try:
+            benchmark_cls = resolve_import_string(import_path)
+        except Exception as exc:
+            # Adapter deps often only exist in the benchmark image; the in-container
+            # orchestrator re-checks authoritatively before any episode runs.
+            logger.debug("Skipping host-side render check for %s: %s", import_path, exc)
+            continue
+        if not supports_render_mode(benchmark_cls, mode):
+            offenders.append(
+                unsupported_render_message(EvalConfig.from_dict(entry).resolved_name(), benchmark_cls, mode)
+            )
+    if offenders:
+        raise ValueError("render: {} is not supported by:\n  {}".format(mode, "\n  ".join(offenders)))
 
 
 class _RecordVideoAction(argparse.Action):
@@ -330,6 +388,14 @@ def cmd_run(args: argparse.Namespace) -> None:
             docker_section["gpus"] = cli_gpus
         if cli_cpus is not None:
             docker_section["cpus"] = cli_cpus
+
+    # Render backend: resolved after --gpus so an explicit device spec counts as deliberate.
+    try:
+        render_mode = _resolve_render_mode(config, getattr(args, "render", None))
+        _check_render_support(config, render_mode)
+    except ValueError as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
 
     # Decide whether to run via Docker
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
@@ -623,6 +689,7 @@ def cmd_test(args: argparse.Namespace) -> None:
     import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from contextlib import nullcontext
+    from functools import partial
 
     from vla_eval.docker_resources import parse_gpus
 
@@ -753,7 +820,9 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
-                _run_parallel(benchmark_tests, run_benchmark_test)
+                render = getattr(args, "render", None)
+                runner = partial(run_benchmark_test, render=render) if render else run_benchmark_test
+                _run_parallel(benchmark_tests, runner)
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Interrupted by user.[/yellow]")
 
@@ -805,6 +874,13 @@ execution flow:
     block overrides those defaults per benchmark; use --record-video to
     enable per-episode mp4s for the run. Single-shard runs auto-merge.
     Use --no-save for in-memory summary only.
+
+  render backend (render: gpu|cpu, --render):
+    Run-level: the renderer binds at the first simulator import, so it cannot
+    vary per benchmark entry. 'cpu' software-renders the simulator and attaches
+    no GPU to the container, which keeps simulator readback off the device the
+    model server computes on. Only benchmarks that declare CPU support accept
+    it; the rest fail fast rather than silently falling back to the GPU.
 
   error recovery:
     Episodes are isolated — one failure does not abort the run.
@@ -889,6 +965,17 @@ execution flow:
         action=_RecordVideoAction,
         default=None,
         help="Enable (or disable with --no-record-video) per-episode mp4 recording for all benchmarks.",
+    )
+    run_parser.add_argument(
+        "--render",
+        choices=RENDER_MODES,
+        default=None,
+        help=(
+            "Where the simulator renders (overrides 'render:' in config; default: gpu). "
+            "'cpu' runs the benchmark software-rendered with no GPU attached — slower, but it "
+            "frees the GPU for the model server. Benchmarks that have not declared CPU support "
+            "are rejected up front."
+        ),
     )
     run_parser.add_argument("--verbose", "-v", action="store_true")
     run_parser.set_defaults(func=cmd_run)
@@ -994,6 +1081,7 @@ examples:
   vla-eval test --server                            test all model servers
   vla-eval test --server cogact                     test a specific server by registry name
   vla-eval test --benchmark libero                  test a specific benchmark by registry name
+  vla-eval test --benchmark libero --render cpu     test it software-rendered, with no GPU attached
   vla-eval test -c configs/model_servers/cogact.yaml   test an arbitrary config file
   vla-eval test --dry-run                           preview what would run
 """,
@@ -1012,6 +1100,12 @@ examples:
         "--benchmark", nargs="?", const="*", default=None, metavar="NAME", help="Benchmark tests (exact registry name)"
     )
     test_parser.add_argument("--timeout", type=int, default=600, help="Timeout in seconds for server/benchmark tests")
+    test_parser.add_argument(
+        "--render",
+        choices=RENDER_MODES,
+        default=None,
+        help="Render backend for benchmark tests (default: the config's). 'cpu' attaches no GPU.",
+    )
     test_parser.add_argument(
         "--parallel",
         nargs="?",

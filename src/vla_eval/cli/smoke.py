@@ -481,7 +481,24 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
 # ---------------------------------------------------------------------------
 
 
-def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None) -> SmokeResult:
+def _resolve_smoke_render(
+    config: dict[str, Any], cli_render: str | None, gpu_id: str | None, docker_gpus: str | None
+) -> tuple[str, str | None]:
+    """Effective render mode (CLI beats config, matching ``cmd_run``) and the GPU spec it implies.
+
+    ``cpu`` wins over the per-worker GPU assignment — the point is to attach no device.
+    """
+    from vla_eval.render import NO_GPU_SPEC, normalize_render_mode
+
+    mode = normalize_render_mode(cli_render if cli_render is not None else config.get("render"))
+    if mode == "cpu":
+        return mode, NO_GPU_SPEC
+    return mode, gpu_id if gpu_id is not None else docker_gpus
+
+
+def run_benchmark_test(
+    test: SmokeTest, timeout: int = 600, *, gpu_id: str | None = None, render: str | None = None
+) -> SmokeResult:
     """Smoke-test a benchmark: start EchoModelServer, run benchmark via Docker for 1 episode."""
     assert test.config_path is not None
 
@@ -512,10 +529,13 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
 
     port = _free_port()
 
+    effective_render, gpu_spec = _resolve_smoke_render(config, render, gpu_id, docker_cfg.gpus)
+
     # Write temp config: 1 task, 1 episode, capped steps, pointing to echo server
     smoke_config = dict(config)
     smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
     smoke_config.pop("docker", None)
+    smoke_config["render"] = effective_render
     for bench in smoke_config.get("benchmarks", []):
         bench["episodes_per_task"] = 1
         bench["max_tasks"] = 1
@@ -585,7 +605,6 @@ def run_benchmark_test(test: SmokeTest, timeout: int = 600, *, gpu_id: str | Non
         "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
-    gpu_spec = gpu_id if gpu_id is not None else docker_cfg.gpus
     docker_cmd.extend(gpu_docker_flag(gpu_spec))
     for vol in docker_cfg.volumes:
         docker_cmd.extend(["-v", vol])

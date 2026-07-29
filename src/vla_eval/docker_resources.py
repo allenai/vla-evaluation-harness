@@ -14,6 +14,8 @@ from functools import lru_cache
 from glob import glob
 from typing import Literal
 
+from vla_eval.render import is_no_gpu_spec
+
 GpuRuntime = Literal["nvidia", "rocm"]
 
 _ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
@@ -113,7 +115,14 @@ def parse_gpus(spec: str | None) -> list[str]:
 
 
 def gpu_docker_flag(spec: str | None) -> list[str]:
-    """Return GPU device flags for a single (non-sharded) container."""
+    """Return GPU device flags for a single (non-sharded) container.
+
+    ``"none"`` attaches no GPU: no device flags at all, plus ``NVIDIA_VISIBLE_DEVICES=void``
+    because some hosts set docker's default-runtime to nvidia and would otherwise inject
+    devices anyway.
+    """
+    if is_no_gpu_spec(spec):
+        return ["-e", "NVIDIA_VISIBLE_DEVICES=void"]
     runtime = _detect_runtime()
     if runtime == "rocm":
         flags = list(_ROCM_DEVICE_FLAGS)
@@ -163,7 +172,8 @@ def shard_docker_flags(
         shard_id: Zero-based shard index.
         num_shards: Total number of shards.
         cpus: CPU spec (e.g. ``"0-31"``).  ``None`` = all host CPUs.
-        gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``.
+        gpus: GPU spec (e.g. ``"0,1"`` or ``"all"``).  ``None`` = ``"all"``,
+            ``"none"`` = no GPU (every shard runs GPU-free).
 
     Returns:
         Flag list to extend a ``docker run`` command.  GPU flags are
@@ -171,10 +181,13 @@ def shard_docker_flags(
     """
     flags: list[str] = []
 
-    # GPU: round-robin across available devices
-    gpu_list = parse_gpus(gpus)
-    device = gpu_list[shard_id % len(gpu_list)]
-    flags.extend(gpu_docker_flag(device))
+    # GPU: round-robin across available devices; "none" has nothing to distribute
+    if is_no_gpu_spec(gpus):
+        flags.extend(gpu_docker_flag(gpus))
+    else:
+        gpu_list = parse_gpus(gpus)
+        device = gpu_list[shard_id % len(gpu_list)]
+        flags.extend(gpu_docker_flag(device))
 
     # CPU: partition available cores across shards
     cpu_ids = parse_cpus(cpus)

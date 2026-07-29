@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from vla_eval.specs import DimSpec
 
@@ -70,6 +70,30 @@ class Benchmark(ABC):
         - ``get_result()`` → episode result dict.
         - ``get_metadata()`` → benchmark defaults / metadata.
     """
+
+    #: Render backends this benchmark can run on (see ``render: gpu|cpu`` / ``--render``).
+    #: Default is GPU-only, so a benchmark that has not been verified on CPU fails fast
+    #: at startup instead of crashing mid-run.
+    render_backends: ClassVar[frozenset[str]] = frozenset({"gpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        """Set process env for *mode* before any simulator import; return the applied env.
+
+        Called once per run by the orchestrator, between resolving the class and
+        constructing it — the renderer is bound at the first simulator import and
+        cannot be re-bound afterwards.
+
+        Override together with :attr:`render_backends`.  Most MuJoCo adapters just
+        ``return configure_mujoco_render(mode)`` (``vla_eval.render``).
+        """
+        if mode == "gpu":
+            return {}
+        raise NotImplementedError(
+            f"{cls.__name__} does not implement configure_render() for render: {mode}; "
+            "declare the backend in render_backends and set the simulator's env explicitly "
+            "(see vla_eval.render)."
+        )
 
     # -- abstract: data ---------------------------------------------------
 

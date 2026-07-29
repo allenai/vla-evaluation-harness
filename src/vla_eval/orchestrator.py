@@ -28,6 +28,7 @@ from vla_eval.recording import (
     serializable_task_kwargs,
 )
 from vla_eval.registry import resolve_import_string
+from vla_eval.render import apply_render_mode, normalize_render_mode
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
 from vla_eval.runners.live_runner import LiveEpisodeRunner
@@ -81,6 +82,7 @@ class Orchestrator:
     ) -> None:
         self.config = config
         self._server_cfg = ServerConfig.from_dict(config.get("server"))
+        self._render_mode = normalize_render_mode(config.get("render"))
         self.shard_id = shard_id
         self.num_shards = num_shards
         self.no_save = no_save
@@ -171,6 +173,12 @@ class Orchestrator:
         await conn.connect(benchmark=cfg.benchmark)
 
         benchmark_cls = resolve_import_string(cfg.benchmark)
+        # Before construction: the renderer binds at the first simulator import.
+        try:
+            render_env = apply_render_mode(benchmark_cls, self._render_mode, name)
+        except Exception:
+            await conn.close()
+            raise
         sig = inspect.signature(benchmark_cls.__init__)
 
         obs_params = conn.server_info.get("observation_params", {})
@@ -268,6 +276,8 @@ class Orchestrator:
             "metric_keys": benchmark.get_metric_keys(),
             "harness_version": __version__,
             "server_info": conn.server_info,
+            # applied can differ from requested (e.g. RoboMME's auto lavapipe probe)
+            "render": {"requested": self._render_mode, "applied_env": render_env},
         }
         rec_cfg = _effective_recording_config(cfg.recording, no_save=self.no_save)
         if self._store is not None and rec_cfg is not None:

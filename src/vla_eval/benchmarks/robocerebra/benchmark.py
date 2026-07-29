@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import configure_mujoco_render
 from vla_eval.rotation import quat_to_axisangle
 from vla_eval.specs import (
     GRIPPER_CLOSE_POS,
@@ -48,6 +49,12 @@ class RoboCerebraBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return configure_mujoco_render(mode)
 
     def __init__(
         self,
