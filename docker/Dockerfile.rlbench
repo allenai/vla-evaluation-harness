@@ -23,11 +23,10 @@ RUN if [ "$ACCEPT_RLBENCH_LICENCE" != "YES" ]; then \
     fi
 
 # ── Xvfb for headless CoppeliaSim ─────────────────────────────────
+# libdbus-1-3: the bundled Qt xcb platform plugin links libdbus-1.so.3, its only
+# unresolved dependency (everything else ships with the base image or CoppeliaSim).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        xvfb libfontconfig1 tini \
-        libdbus-1-3 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-        libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
-        libxrender1 libxi6 libsm6 libice6 \
+        xvfb libfontconfig1 tini libdbus-1-3 \
     && rm -rf /var/lib/apt/lists/*
 
 # ── CoppeliaSim 4.1.0 ─────────────────────────────────────────────
