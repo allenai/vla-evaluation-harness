@@ -30,15 +30,15 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import configure_mujoco_render
 from vla_eval.specs import GRIPPER_01, IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
 
 os.environ.setdefault("DISPLAY", "")
-# MUJOCO_GL here makes this look like a candidate for the software-rendering
-# (render: cpu) migration, but the scene renders through AI2-THOR — CPU support
-# would have to cover THOR too, which is unverified. Stays GPU-only.
+# GPU fallback for non-container runs. Must stay setdefault: this module is imported
+# after configure_render(), so a plain assignment would revert a `render: cpu` choice.
 os.environ.setdefault("MUJOCO_GL", "egl")
 
 # Fallback max steps used if ``task_horizon`` is not set in the config.
@@ -74,6 +74,13 @@ class MolmoSpacesBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
+    # The AI2-THOR lineage is in the scenes and assets; the runtime renderer is MuJoCo.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return configure_mujoco_render(mode)
 
     def __init__(
         self,

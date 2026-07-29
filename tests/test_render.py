@@ -25,6 +25,7 @@ MUJOCO_CPU_BENCHMARKS = [
     "vla_eval.benchmarks.robocerebra.benchmark:RoboCerebraBenchmark",
     "vla_eval.benchmarks.duobench.benchmark:DuoBenchBenchmark",
     "vla_eval.benchmarks.vlabench.benchmark:VLABenchBenchmark",
+    "vla_eval.benchmarks.molmospaces.benchmark:MolmoSpacesBenchmark",
 ]
 
 GPU_ONLY_BENCHMARK = "vla_eval.benchmarks.mikasa.benchmark:MIKASABenchmark"

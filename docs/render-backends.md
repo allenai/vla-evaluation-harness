@@ -29,8 +29,8 @@ GPU contention is crashing runs outright.
 
 ## Supported benchmarks
 
-LIBERO (with Pro / Plus / Mem), RoboCasa, RoboCasa365, RoboCerebra, DuoBench and
-VLABench — all MuJoCo, rendering through OSMesa.
+LIBERO (with Pro / Plus / Mem), RoboCasa, RoboCasa365, RoboCerebra, DuoBench,
+VLABench and MolmoSpaces-Bench — all MuJoCo, rendering through OSMesa.
 
 Anything else fails fast, before the image is pulled, with the benchmark named:
 
