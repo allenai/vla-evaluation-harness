@@ -37,10 +37,10 @@ Every entry below was measured on the benchmark's image with no GPU attached.
 | RoboCasa | ✅ | MuJoCo → OSMesa | |
 | RoboCasa365 | ✅ | MuJoCo → OSMesa | |
 | RoboCerebra | ✅ | MuJoCo → OSMesa | |
-| DuoBench | ✅ | MuJoCo → OSMesa | |
+| DuoBench | ✅ | MuJoCo → EGL on Mesa's software device | Not OSMesa: its rcs camera stack bootstraps a real EGL context regardless of `MUJOCO_GL`, so cpu keeps EGL and pins `MUJOCO_EGL_DEVICE_ID` to the only (software) device |
 | VLABench | ✅ | dm_control / MuJoCo → OSMesa | |
-| MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer |
-| Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch |
+| MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer. The adapter stubs the macOS-only `mujoco.cgl` module that molmo_spaces calls on the GPU-less path |
+| Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch. The 0.4.0 image cannot run episodes on either backend — its kinetix API postdates the adapter's (`make_kinetix_env` vs `make_kinetix_env_from_name`) — so this row is verified only up to the device switch |
 | RoboMME | ✅ | SAPIEN 3.0.3 → lavapipe | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
 | CALVIN | ✅ | PyBullet → TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
 | SimplerEnv | ❌ | SAPIEN 2.2.2 | Requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
