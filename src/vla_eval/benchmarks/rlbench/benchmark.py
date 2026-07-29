@@ -39,6 +39,13 @@ class RLBenchBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
+    # CoppeliaSim renders via Xvfb + software GL on both paths; cpu needs no env.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return {}
+
     def __init__(
         self,
         tasks: list[str] | None = None,

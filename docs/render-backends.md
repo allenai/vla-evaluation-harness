@@ -58,7 +58,7 @@ path.
 | MIKASA-Robo | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
 | BEHAVIOR-1K | OmniGibson (Isaac Sim) | ✅ | ❌ | — | Isaac Sim dumps core during extension startup with no GPU |
 | RoboDojo | Isaac Lab | ✅ | ❌ | — | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
-| RLBench | CoppeliaSim | — | — | — | The shipped image cannot render on either backend: all-black frames with and without a GPU, and the pinned RLBench 1.1.0 predates the adapter's imports. Its Xvfb pipeline is Mesa software GL even when a GPU is attached |
+| RLBench | CoppeliaSim | ✅ | ✅ | Xvfb + Mesa GLX — identical to `gpu` | CoppeliaSim renders through Xvfb's software GLX on both paths (the GPU is never used for rendering), so cpu needs no env at all — it only detaches the device |
 
 **AMD GPUs**: the harness can attach ROCm devices — on a ROCm runtime, `docker.gpus`
 mounts `/dev/kfd` and `/dev/dri` instead of passing `--gpus` — but no benchmark's
