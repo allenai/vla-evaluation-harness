@@ -1,9 +1,7 @@
-# RoboCasa kitchen manipulation evaluation (6 tasks × 5 episodes)
+# RoboCasa evaluation: the 24 atomic tasks x 50 episodes, each running to its
+# own registry horizon (300-1000 steps) or to first success.
 #
-# RoboCasa provides 365 kitchen tasks on 2500+ procedurally-generated scenes.
-# Default config uses a small subset of atomic tasks for quick evaluation.
-#
-# Requires ~10GB of kitchen assets from HuggingFace.
+# Requires ~10GB of kitchen assets from HuggingFace (baked into the image).
 server:
   url: "ws://localhost:8000"
 
@@ -14,11 +12,12 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.robocasa.benchmark:RoboCasaBenchmark"
-    episodes_per_task: 5
+    episodes_per_task: 50
     params:
       robot: PandaOmron
-      camera_size: 256
-      max_steps: 500
-      split: pretrain
+      # 128 is the resolution of the released human demonstrations and of
+      # robocasa's own evaluation environment.
+      camera_size: 128
+      obj_instance_split: B
+      eval_scenes: true
       seed: null
-

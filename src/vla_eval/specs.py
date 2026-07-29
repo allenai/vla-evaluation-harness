@@ -163,7 +163,12 @@ ROTATION_EULER_ACCEPTS_AA = DimSpec(
 GRIPPER_CLOSE_POS = DimSpec("gripper", 1, "binary_close_positive", (-1, 1))
 GRIPPER_CLOSE_NEG = DimSpec("gripper", 1, "binary_close_negative", (-1, 1))
 GRIPPER_01 = DimSpec("gripper", 1, "continuous_01", (0, 1))
+GRIPPER_CLOSE_01 = DimSpec("gripper", 1, "binary_close_01", (0, 1))
 GRIPPER_RAW = DimSpec("gripper", 1, "raw")
+
+# Mobile base (planar base velocity + torso, and the base/arm control-mode switch)
+BASE_MOTION = DimSpec("base_motion", 4, "base_velocity3_torso1", (-1, 1))
+CONTROL_MODE_01 = DimSpec("control_mode", 1, "base_mode_01", (0, 1))
 
 # Observation — images
 IMAGE_RGB = DimSpec("image", 0, "rgb_hwc_uint8")

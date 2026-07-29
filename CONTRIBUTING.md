@@ -69,7 +69,7 @@ Every PR triggers lint, type-check, and test jobs automatically (`.github/workfl
 ```
 src/vla_eval/
 ├── cli/              # CLI entry point (argparse)
-├── benchmarks/       # Benchmark adapters (LIBERO + LIBERO-Pro/Plus/Mem, CALVIN, ManiSkill2, SimplerEnv, RoboCasa, VLABench, MIKASA-Robo, RoboTwin, RLBench, RoboCerebra, RoboMME, MolmoSpaces, Kinetix, BEHAVIOR-1K)
+├── benchmarks/       # Benchmark adapters (LIBERO + LIBERO-Pro/Plus/Mem, CALVIN, ManiSkill2, SimplerEnv, RoboCasa, RoboCasa365, VLABench, MIKASA-Robo, RoboTwin, RLBench, RoboCerebra, RoboMME, MolmoSpaces, Kinetix, BEHAVIOR-1K)
 ├── model_servers/    # Model server ABCs, utilities, and implementations
 ├── runners/          # Episode execution loops (sync, live)
 ├── results/          # Result collection and shard merging
