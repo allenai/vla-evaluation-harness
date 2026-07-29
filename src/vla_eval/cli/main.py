@@ -139,7 +139,7 @@ def _resolve_render_mode(config: dict[str, Any], override: str | None, cli_gpus:
         return mode
 
     gpus = docker_section.get("gpus")
-    if mode == "cpu" and override == "cpu" and cli_gpus is None and gpus is not None:
+    if override == "cpu" and cli_gpus is None and gpus is not None:
         logger.info("--render cpu overrides docker.gpus=%r; starting the container with no GPU", gpus)
         gpus = None
     check_gpu_spec_conflict(mode, gpus)
@@ -824,8 +824,7 @@ def cmd_test(args: argparse.Namespace) -> None:
             else:
                 par = f", {workers} parallel" if workers > 1 else ""
                 console.print(f"[bold]Running {len(benchmark_tests)} benchmark test(s){par}...[/bold]")
-                render = getattr(args, "render", None)
-                runner = partial(run_benchmark_test, render=render) if render else run_benchmark_test
+                runner = partial(run_benchmark_test, render=getattr(args, "render", None))
                 _run_parallel(benchmark_tests, runner)
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Interrupted by user.[/yellow]")
