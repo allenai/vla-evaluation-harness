@@ -698,23 +698,30 @@ def cmd_test(args: argparse.Namespace) -> None:
     from vla_eval.docker_resources import parse_gpus
 
     # --- resolve parallelism ---
+    # Workers are sized by (and handed) GPUs — except under --render cpu, where no
+    # device is attached and the GPU count would cap or serialise for no reason.
+    cpu_render = getattr(args, "render", None) == "cpu"
     gpu_queue: queue.Queue[str] | None = None
     if args.parallel is not None:
-        gpu_ids = parse_gpus(None)  # auto-detect via the active GPU runtime
+        gpu_ids = [] if cpu_render else parse_gpus(None)  # auto-detect via the active GPU runtime
         if args.parallel == "auto":
-            workers = len(gpu_ids)
+            if cpu_render:
+                print("--parallel auto sizes workers by GPU count; with --render cpu pass an explicit number")
+                workers = 1
+            else:
+                workers = len(gpu_ids)
         else:
             try:
                 n = int(args.parallel)
                 if n <= 0:
                     raise ValueError("must be positive")
-                workers = min(n, len(gpu_ids))
+                workers = n if cpu_render else min(n, len(gpu_ids))
             except ValueError:
                 print(
                     f"ERROR: --parallel must be 'auto' or a positive integer, got '{args.parallel}'", file=sys.stderr
                 )
                 sys.exit(1)
-        if workers > 1:
+        if workers > 1 and not cpu_render:
             gpu_queue = queue.Queue()
             for gid in gpu_ids[:workers]:
                 gpu_queue.put(gid)
