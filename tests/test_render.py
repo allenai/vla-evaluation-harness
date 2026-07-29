@@ -369,6 +369,19 @@ def test_disagreeing_shards_are_flagged_not_silently_resolved(tmp_path):
     assert render["applied_env"] == native["applied_env"], "first writer's payload is still reported"
 
 
+def test_shards_matching_the_recorded_provenance_do_not_rewarn(tmp_path, caplog):
+    """Once the flag is set the stored render dict carries the extra key, so the
+    comparison must ignore it — else every later agreeing shard re-reports divergence."""
+    native = {"requested": "gpu", "applied_env": {}}
+    lavapipe = {"requested": "gpu", "applied_env": {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"}}
+
+    render = _write_metadata(tmp_path, native, lavapipe, native, native)["render"]
+
+    assert render["divergent"] is True, "later agreeing shards must not clear the flag"
+    warnings = [r for r in caplog.records if "divergent" in r.getMessage()]
+    assert len(warnings) == 1, "only the actually-disagreeing shard should warn"
+
+
 class TestNoGpuDockerFlags:
     def test_emits_no_gpu_flag_and_hides_devices(self):
         # Independent of the host GPU runtime: "none" short-circuits detection.

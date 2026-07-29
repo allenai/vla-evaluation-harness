@@ -275,6 +275,9 @@ class RecordingStore:
                 return
             row = self._conn.execute("SELECT metadata FROM eval_metadata WHERE eval_id = ?", (eval_id,)).fetchone()
             stored = json.loads(row[0]).get("render") if row else None
+            if isinstance(stored, dict):
+                # Ignore the flag itself, or every later agreeing shard would re-warn.
+                stored = {k: v for k, v in stored.items() if k != "divergent"}
             mine = metadata.get("render")
             if stored is None or mine is None or stored == mine:
                 return
