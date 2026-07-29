@@ -39,9 +39,7 @@ class RLBenchBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
-    # CoppeliaSim renders through Xvfb + Mesa's software GL on both paths — the
-    # image never uses the GPU for rendering — so cpu needs no env, only a
-    # device-free container.
+    # CoppeliaSim renders via Xvfb + software GL on both paths; cpu needs no env.
     render_backends = frozenset({"gpu", "cpu"})
 
     @classmethod

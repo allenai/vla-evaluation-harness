@@ -33,11 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── CoppeliaSim 4.1.0 ─────────────────────────────────────────────
 # PyRep/RLBench require exactly 4.1.0; newer versions cause segfaults.
 ENV COPPELIASIM_ROOT=/opt/coppeliasim
-# QT_QPA_PLATFORM must be xcb, not offscreen: vision sensors need a Qt GL context,
-# and the offscreen platform has none (frames come back all black, or the sim
-# segfaults in initGl_ifNeeded). QT_PLUGIN_PATH makes Qt find the bundled
-# xcbglintegrations/ GLX plugin — without it Qt reports "neither GLX nor EGL are
-# enabled" and crashes the same way, even under Xvfb.
+# xcb, not offscreen: vision sensors need a Qt GL context or they render black.
+# QT_PLUGIN_PATH lets Qt find the bundled xcbglintegrations/ GLX plugin.
 ENV LD_LIBRARY_PATH=${COPPELIASIM_ROOT}:${LD_LIBRARY_PATH} \
     QT_QPA_PLATFORM_PLUGIN_PATH=${COPPELIASIM_ROOT}/platforms \
     QT_PLUGIN_PATH=${COPPELIASIM_ROOT} \
@@ -48,21 +45,17 @@ RUN wget -qO /tmp/coppeliasim.tar.xz \
     && tar -xf /tmp/coppeliasim.tar.xz -C ${COPPELIASIM_ROOT} --strip-components=1 \
     && rm /tmp/coppeliasim.tar.xz
 
-# The OpenGL3 renderer plugin used to be disabled here for segfaulting headless.
-# Root cause was the missing Qt GLX integration (see the QT_PLUGIN_PATH note
-# above), not the plugin: with GLX resolvable it renders fine under Xvfb, so
-# cameras keep RLBench's default RenderMode.OPENGL3.
+# The OpenGL3 renderer plugin (once disabled here for segfaulting headless)
+# works with the GLX integration above; cameras keep RLBench's default mode.
 
 # ── Conda environment (Python 3.8 required by PyRep/RLBench) ──────
 RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
-# Master-commit pins, not version tags: stepjam froze both version strings years
-# ago (PyRep "4.1.0.3", RLBench "1.1.0"), so the tags point at 2021 code — the
-# 1.1.0 tag predates rlbench.action_modes.action_mode entirely and its setup.py
-# declares no dependencies.
-# PyRep imports cffi at setup time, so disable build isolation.
+# Master-commit pins, not tags: stepjam froze the version strings years ago, so
+# the 4.1.0/1.1.0 tags are 2021 code predating the adapter's RLBench API.
+# cffi + --no-build-isolation: PyRep imports cffi at setup time.
 ARG PYREP_REF=8f420be8064b1970aae18a9cfbc978dfb15747ef
 RUN uv pip install --no-cache-dir cffi \
     && mkdir -p /tmp/PyRep \
@@ -71,24 +64,22 @@ RUN uv pip install --no-cache-dir cffi \
     && git remote add origin https://github.com/stepjam/PyRep.git \
     && git fetch -q --depth 1 origin "${PYREP_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir --no-build-isolation -e . \
+    && uv pip install --no-cache-dir --no-build-isolation --config-settings editable_mode=compat -e . \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
-# Plain pip, not uv: uv's PEP 660 editable installs have produced empty import
-# finders for these repos (see issue #92).
-# --no-deps because RLBench declares `pyrep @ git+...` with no ref — resolving it
-# would silently replace the pinned PyRep above with upstream HEAD. Its remaining
-# requirements are installed explicitly instead.
+# editable_mode=compat sidesteps uv's PEP 660 empty-finder trap (issue #92).
+# --no-deps: RLBench declares an unpinned `pyrep @ git+...` that would replace
+# the pinned PyRep above; its other requirements are installed explicitly.
 ARG RLBENCH_REF=02720bba4c73fe02eb75df946b8791b806028a9d
-RUN pip install --no-cache-dir natsort numpy Pillow pyquaternion scipy \
+RUN uv pip install --no-cache-dir natsort numpy Pillow pyquaternion scipy \
     && mkdir -p /tmp/RLBench \
     && cd /tmp/RLBench \
     && git init -q \
     && git remote add origin https://github.com/stepjam/RLBench.git \
     && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && pip install --no-cache-dir --no-deps -e . \
+    && uv pip install --no-cache-dir --no-deps --config-settings editable_mode=compat -e . \
     && rm -rf /tmp/RLBench/.git
 
 WORKDIR /workspace
