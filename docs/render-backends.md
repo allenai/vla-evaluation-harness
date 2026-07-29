@@ -41,8 +41,8 @@ Every entry below was measured on the published image with no GPU attached.
 | VLABench | ✅ | dm_control / MuJoCo → OSMesa | |
 | MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer |
 | Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch |
+| RoboMME | ✅ | SAPIEN 3.0.3 → lavapipe | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
 | CALVIN | ❌ | PyBullet → EGL | Env instantiation fails under software GL; passes on GPU |
-| RoboMME | ❌ | SAPIEN 3.0.3 → lavapipe | Renders on lavapipe, but its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so the ICD is only there if the host has Mesa. See below |
 | SimplerEnv | ❌ | SAPIEN 2.2.2 | lavapipe: `vk::PhysicalDevice::createDeviceUnique: ErrorExtensionNotPresent` |
 | ManiSkill2 | ❌ | SAPIEN 2.2.2 | same |
 | RoboTwin | ❌ | SAPIEN 3.0.0b1 | same |
@@ -62,14 +62,16 @@ Failing is deliberate. Falling back to the GPU would reinstate the crash the fla
 exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
-RoboMME is the near miss. SAPIEN 3.0.3 does render through lavapipe with no GPU —
-the SAPIEN 2.x and 3.0.0b1 images cannot, so the version matters — but its configs
-bind-mount `/usr/share/vulkan/icd.d` over the image's copy, which hides the ICD
-`mesa-vulkan-drivers` installs unless the host happens to ship one too. Declaring
-`cpu` would make support depend on the host rather than the image. Dropping that
-mount for CPU runs, or having the image write `/opt/lavapipe/lvp_icd.json` outside
-the mounted directory, would settle it. `ROBOMME_USE_LAVAPIPE` still works as the
-broken-host workaround on the GPU path.
+SAPIEN splits by version rather than by family: 3.0.3 (RoboMME) renders through
+lavapipe with no GPU, while the 2.2.2 and 3.0.0b1 images fail against the same ICD.
+Those four are not waiting on harness work — they need newer SAPIEN builds.
+
+RoboMME carries one caveat. Its configs bind-mount `/usr/share/vulkan/icd.d` over
+the image's copy, so on a host that ships no Mesa the ICD `mesa-vulkan-drivers`
+installed is hidden and lavapipe cannot be resolved. That fails loudly at startup,
+naming the reason; point `ROBOMME_LAVAPIPE_ICD` at an ICD to resolve it. Its
+separate `ROBOMME_USE_LAVAPIPE` env var remains the broken-host workaround on the
+GPU path.
 
 ## Scope and interaction with `docker.gpus`
 

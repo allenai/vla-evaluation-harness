@@ -252,15 +252,14 @@ def robomme(monkeypatch: pytest.MonkeyPatch):
     return cls, calls
 
 
-def test_robomme_stays_gpu_only(robomme):
-    """The lavapipe path is implemented but unverified: the shipped configs mount over the
-    image's Vulkan ICD dir and the image ships no /opt/lavapipe ICD, so cpu cannot resolve
-    one under our own configs. Declaring it would advertise a backend that does not work."""
-    cls, _ = robomme
+def test_robomme_cpu_engages_lavapipe(robomme):
+    """cpu must actually bind software Vulkan, not fall through to the native path."""
+    cls, calls = robomme
 
-    assert "cpu" not in cls.render_backends
-    with pytest.raises(ValueError, match="does not support render: cpu"):
-        apply_render_mode(cls, "cpu", "RoboMME")
+    applied = apply_render_mode(cls, "cpu", "RoboMME")
+
+    assert len(calls) == 1
+    assert applied["VK_ICD_FILENAMES"].endswith("lvp_icd.json")
 
 
 def test_robomme_gpu_fallback_reports_lavapipe_for_every_entry(robomme, monkeypatch):

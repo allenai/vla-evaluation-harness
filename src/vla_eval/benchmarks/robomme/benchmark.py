@@ -145,13 +145,9 @@ class RoboMMEBenchmark(StepBenchmark):
     # Env applied by whichever call bound the renderer. Non-empty iff lavapipe is engaged.
     _render_env: dict[str, str] = {}
 
-    # GPU-only despite configure_render() implementing the cpu path below. SAPIEN 3.0.3 does
-    # render through lavapipe with no GPU attached (measured), but the shipped configs
-    # bind-mount /usr/share/vulkan/icd.d over the image's copy, so the ICD survives only on
-    # hosts that ship Mesa themselves. Declaring cpu would make support depend on the host
-    # rather than the image; drop that mount for CPU runs, or have the image write
-    # /opt/lavapipe/lvp_icd.json outside the mounted directory, and this can flip.
-    render_backends = frozenset({"gpu"})
+    # Software Vulkan via lavapipe; ROBOMME_USE_LAVAPIPE stays the orthogonal
+    # broken-host workaround on the gpu path.
+    render_backends = frozenset({"gpu", "cpu"})
 
     @classmethod
     def _mark_render_configured(cls, env: dict[str, str]) -> dict[str, str]:

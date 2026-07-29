@@ -126,11 +126,10 @@ worse than one that isn't offered:
 vla-eval test --benchmark <name> --render cpu
 ```
 
-RoboMME is the current example of that bar. Its lavapipe path is implemented in
-`configure_render`, but it stays `{"gpu"}` because two things must be fixed first, and
-neither can be checked without a host carrying the Mesa `lvp` ICD: the shipped configs
-bind-mount `/usr/share/vulkan/icd.d` over the image's copy, hiding the ICD that
-`mesa-vulkan-drivers` provides, and the image never creates `/opt/lavapipe/lvp_icd.json`.
+SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
+like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds fail with
+`ErrorExtensionNotPresent` against the same ICD. The simulator family is not the answer —
+the measurement is.
 
 ## Adding a Model Server
 
