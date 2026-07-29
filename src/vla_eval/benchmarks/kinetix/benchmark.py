@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
+from vla_eval.render import apply_env
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -90,6 +91,13 @@ class KinetixBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+
+    # No GL involved: frames are computed in JAX, so "CPU rendering" is just a CPU device.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return apply_env({"JAX_PLATFORMS": "cpu"}) if mode == "cpu" else {}
 
     def __init__(
         self,

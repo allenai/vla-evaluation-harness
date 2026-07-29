@@ -27,12 +27,31 @@ Software rendering is substantially slower per frame, so this trades simulator
 throughput for a free GPU. It pays off when inference is the bottleneck, or when
 GPU contention is crashing runs outright.
 
-## Supported benchmarks
+## Support by benchmark
 
-LIBERO (with Pro / Plus / Mem), RoboCasa, RoboCasa365, RoboCerebra, DuoBench,
-VLABench and MolmoSpaces-Bench — all MuJoCo, rendering through OSMesa.
+Every entry below was measured on the published image with no GPU attached.
 
-Anything else fails fast, before the image is pulled, with the benchmark named:
+| Benchmark | `cpu` | Renderer | Notes |
+|---|:--:|---|---|
+| LIBERO (+ Pro / Plus / Mem) | ✅ | MuJoCo → OSMesa | |
+| RoboCasa | ✅ | MuJoCo → OSMesa | |
+| RoboCasa365 | ✅ | MuJoCo → OSMesa | |
+| RoboCerebra | ✅ | MuJoCo → OSMesa | |
+| DuoBench | ✅ | MuJoCo → OSMesa | |
+| VLABench | ✅ | dm_control / MuJoCo → OSMesa | |
+| MolmoSpaces-Bench | ✅ | MuJoCo → OSMesa | AI2-THOR lineage is in the assets, not the renderer |
+| Kinetix | ✅ | JAX | No GL: frames are computed, so `JAX_PLATFORMS=cpu` is the whole switch |
+| CALVIN | ❌ | PyBullet → EGL | Env instantiation fails under software GL; passes on GPU |
+| RoboMME | ❌ | SAPIEN 3.0.3 → lavapipe | Renders on lavapipe, but its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so the ICD is only there if the host has Mesa. See below |
+| SimplerEnv | ❌ | SAPIEN 2.2.2 | lavapipe: `vk::PhysicalDevice::createDeviceUnique: ErrorExtensionNotPresent` |
+| ManiSkill2 | ❌ | SAPIEN 2.2.2 | same |
+| RoboTwin | ❌ | SAPIEN 3.0.0b1 | same |
+| MIKASA-Robo | ❌ | SAPIEN 3.0.0b1 | same |
+| BEHAVIOR-1K | ❌ | Isaac / OmniGibson | Not measured — licence-gated image |
+| RoboDojo | ❌ | Isaac Lab | Not measured — needs the RTX renderer |
+| RLBench | ❌ | CoppeliaSim | Not measured — licence-gated image |
+
+Anything not declared fails fast, before the image is pulled:
 
 ```
 ERROR: render: cpu is not supported by:
@@ -43,12 +62,14 @@ Failing is deliberate. Falling back to the GPU would reinstate the crash the fla
 exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
-RoboMME is the current example of that bar. Its lavapipe software-Vulkan path is
-implemented, but it stays GPU-only until two things are fixed: its configs
-bind-mount `/usr/share/vulkan/icd.d` over the image's, hiding the ICD that
-`mesa-vulkan-drivers` installs, and the image never creates the alternate
-`/opt/lavapipe/lvp_icd.json`. Its `ROBOMME_USE_LAVAPIPE` env var still works as
-the broken-host workaround on the GPU path.
+RoboMME is the near miss. SAPIEN 3.0.3 does render through lavapipe with no GPU —
+the SAPIEN 2.x and 3.0.0b1 images cannot, so the version matters — but its configs
+bind-mount `/usr/share/vulkan/icd.d` over the image's copy, which hides the ICD
+`mesa-vulkan-drivers` installs unless the host happens to ship one too. Declaring
+`cpu` would make support depend on the host rather than the image. Dropping that
+mount for CPU runs, or having the image write `/opt/lavapipe/lvp_icd.json` outside
+the mounted directory, would settle it. `ROBOMME_USE_LAVAPIPE` still works as the
+broken-host workaround on the GPU path.
 
 ## Scope and interaction with `docker.gpus`
 

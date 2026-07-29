@@ -203,6 +203,14 @@ def test_gpu_mode_leaves_the_image_defaults_in_place(import_path: str, preserve_
     assert resolve_import_string(import_path).configure_render("gpu") == {}
 
 
+def test_kinetix_switches_the_jax_device_rather_than_a_gl_backend(preserve_env: None):
+    """Kinetix computes frames in JAX, so it is the one adapter whose cpu mode is not GL."""
+    benchmark_cls = resolve_import_string("vla_eval.benchmarks.kinetix.benchmark:KinetixBenchmark")
+
+    assert benchmark_cls.configure_render("cpu") == {"JAX_PLATFORMS": "cpu"}
+    assert benchmark_cls.configure_render("gpu") == {}
+
+
 def test_cpu_choice_survives_a_later_env_default(preserve_env: None):
     """The RoboCasa adapters apply their egl default inside ``_make_env`` — i.e. after
     ``configure_render`` has run — so it has to stay a setdefault, not an assignment."""
