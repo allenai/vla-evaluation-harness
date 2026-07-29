@@ -16,13 +16,14 @@ from vla_eval import watchdog
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.cli._docker import (
     check_docker_daemon as _check_docker_daemon,
+    dev_src_mount_flags as _dev_src_mount_flags,
     ensure_image_local as _ensure_docker_image,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig, EvalConfig
 from vla_eval.orchestrator import Orchestrator
+from vla_eval.docker_resources import NO_GPU_SPEC
 from vla_eval.render import (
-    NO_GPU_SPEC,
     RENDER_MODES,
     check_gpu_spec_conflict,
     normalize_render_mode,
@@ -91,22 +92,6 @@ def _exec_docker(docker: str, cmd: list[str], container_name: str) -> None:
     except KeyboardInterrupt:
         _stop_container()
         sys.exit(130)
-
-
-def _resolve_dev_src() -> Path:
-    """Find the host ``src/`` directory for ``--dev`` bind-mount."""
-    cwd_src = Path.cwd() / "src"
-    if (cwd_src / "vla_eval").is_dir():
-        return cwd_src.resolve()
-    # Editable install: ``vla_eval.__file__`` lives under ``src/vla_eval/``.
-    import vla_eval
-
-    pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
-    if pkg_parent.name == "src" and (pkg_parent / "vla_eval").is_dir():
-        return pkg_parent
-
-    print("ERROR: --dev: cannot find src/vla_eval/ in cwd or via editable install", file=sys.stderr)
-    sys.exit(1)
 
 
 def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> None:
@@ -295,9 +280,13 @@ def _run_via_docker(
 
     # Dev mode: mount host src/ into container (requires editable install in image).
     if dev:
-        src_dir = _resolve_dev_src()
-        cmd.extend(["-v", f"{src_dir}:/workspace/src"])
-        logger.info("Dev mode: mounting %s -> /workspace/src", src_dir)
+        try:
+            mount = _dev_src_mount_flags()
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+        cmd.extend(mount)
+        logger.info("Dev mode: mounting %s -> /workspace/src", mount[1].split(":", 1)[0])
 
     # Extra volumes / env vars from config
     for vol in docker_cfg.volumes:

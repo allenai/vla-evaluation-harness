@@ -268,11 +268,6 @@ def test_cpu_choice_survives_a_later_env_default(preserve_env: None):
 
 
 # ---------------------------------------------------------------------------
-# Docker flags
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # Per-process renderer state vs per-entry hook (RoboMME)
 # ---------------------------------------------------------------------------
 
@@ -284,9 +279,7 @@ def robomme(monkeypatch: pytest.MonkeyPatch):
     The real ``_engage_lavapipe`` imports ``sapien.render``, which the dev env lacks.
     """
     cls = resolve_import_string("vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark")
-    monkeypatch.setattr(cls, "_rendering_configured", False)
-    # raising=False so these assertions, not an AttributeError, are what fails on a regression.
-    monkeypatch.setattr(cls, "_render_env", {}, raising=False)
+    monkeypatch.setattr(cls, "_render_env", None)
 
     calls: list[int] = []
 
@@ -447,6 +440,11 @@ def test_shards_matching_the_recorded_provenance_do_not_rewarn(tmp_path, caplog)
     assert render["divergent"] is True, "later agreeing shards must not clear the flag"
     warnings = [r for r in caplog.records if "divergent" in r.getMessage()]
     assert len(warnings) == 1, "only the actually-disagreeing shard should warn"
+
+
+# ---------------------------------------------------------------------------
+# Docker flags
+# ---------------------------------------------------------------------------
 
 
 class TestNoGpuDockerFlags:

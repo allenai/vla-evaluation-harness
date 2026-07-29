@@ -16,13 +16,12 @@ import os
 from collections.abc import Mapping
 from typing import Any, Final
 
+from vla_eval.docker_resources import is_no_gpu_spec
+
 logger = logging.getLogger(__name__)
 
 RENDER_MODES: Final = ("gpu", "cpu")
 DEFAULT_RENDER_MODE: Final = "gpu"
-
-#: ``docker.gpus`` spec meaning "attach no GPU at all" (as opposed to ``None``/``"all"``).
-NO_GPU_SPEC: Final = "none"
 
 _LAVAPIPE_ICD_CANDIDATES: Final = (
     "/opt/lavapipe/lvp_icd.json",
@@ -38,11 +37,6 @@ def normalize_render_mode(value: object) -> str:
     if mode not in RENDER_MODES:
         raise ValueError(f"render: {value!r} is not supported (choose one of: {', '.join(RENDER_MODES)}).")
     return mode
-
-
-def is_no_gpu_spec(spec: str | None) -> bool:
-    """True when a ``docker.gpus`` spec asks for no GPU device at all."""
-    return spec is not None and spec.strip().lower() == NO_GPU_SPEC
 
 
 def check_gpu_spec_conflict(mode: str, gpus: str | None) -> None:
@@ -92,7 +86,7 @@ def configure_mujoco_render(mode: str) -> dict[str, str]:
     return apply_env(mujoco_cpu_env()) if mode == "cpu" else {}
 
 
-def resolve_lavapipe_icd(override_env: str = "VLA_EVAL_LAVAPIPE_ICD") -> str | None:
+def resolve_lavapipe_icd(override_env: str) -> str | None:
     """Find the lavapipe (Mesa software Vulkan) ICD path, or None if unavailable.
 
     Honors ``override_env`` if set — falling back silently when an explicit user
@@ -134,7 +128,8 @@ def lavapipe_cpu_env(icd: str) -> dict[str, str]:
 
 def supported_backends(benchmark_cls: type[Any]) -> frozenset[str]:
     """Render backends *benchmark_cls* declares, defaulting to gpu-only."""
-    return frozenset(getattr(benchmark_cls, "render_backends", None) or {DEFAULT_RENDER_MODE})
+    backends = getattr(benchmark_cls, "render_backends", None)
+    return frozenset(backends) if backends is not None else frozenset({DEFAULT_RENDER_MODE})
 
 
 def supports_render_mode(benchmark_cls: type[Any], mode: str) -> bool:
@@ -155,7 +150,7 @@ def apply_render_mode(benchmark_cls: type[Any], mode: str, name: str) -> dict[st
     """
     if not supports_render_mode(benchmark_cls, mode):
         raise ValueError(unsupported_render_message(name, benchmark_cls, mode))
-    applied = benchmark_cls.configure_render(mode) or {}
+    applied = benchmark_cls.configure_render(mode)
     if applied:
         logger.info("Render backend %s for %s: %s", mode, name, applied)
     return dict(applied)

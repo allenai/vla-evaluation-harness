@@ -14,9 +14,16 @@ from functools import lru_cache
 from glob import glob
 from typing import Literal
 
-from vla_eval.render import is_no_gpu_spec
-
 GpuRuntime = Literal["nvidia", "rocm"]
+
+#: ``docker.gpus`` spec meaning "attach no GPU at all" (as opposed to ``None``/``"all"``).
+NO_GPU_SPEC = "none"
+
+
+def is_no_gpu_spec(spec: str | None) -> bool:
+    """True when a ``docker.gpus`` spec asks for no GPU device at all."""
+    return spec is not None and spec.strip().lower() == NO_GPU_SPEC
+
 
 _ROCM_DEVICE_FLAGS = ("--device=/dev/kfd", "--device=/dev/dri", "--group-add", "video")
 
@@ -108,6 +115,8 @@ def parse_gpus(spec: str | None) -> list[str]:
 
     ``None`` or ``"all"`` enumerates GPUs via the active runtime.
     ``"0,1"`` returns ``["0", "1"]``.
+    ``"none"`` never reaches this parser — callers branch on :func:`is_no_gpu_spec` first,
+    since "no devices" has nothing to enumerate or round-robin.
     """
     if spec is None or spec.strip().lower() == "all":
         return _detect_gpu_ids()
@@ -119,7 +128,9 @@ def gpu_docker_flag(spec: str | None) -> list[str]:
 
     ``"none"`` attaches no GPU: no device flags at all, plus ``NVIDIA_VISIBLE_DEVICES=void``
     because some hosts set docker's default-runtime to nvidia and would otherwise inject
-    devices anyway.
+    devices anyway. Callers must append these flags *after* any user-supplied ``-e``
+    list — docker keeps the last duplicate ``-e``, and a config env like
+    ``NVIDIA_VISIBLE_DEVICES`` must not beat the ``void``.
     """
     if is_no_gpu_spec(spec):
         return ["-e", "NVIDIA_VISIBLE_DEVICES=void"]

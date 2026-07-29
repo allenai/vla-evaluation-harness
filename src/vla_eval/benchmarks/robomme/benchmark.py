@@ -77,11 +77,6 @@ def native_render_path_works(timeout_s: int = 15) -> bool:
         return False
 
 
-def _resolve_lavapipe_icd() -> str | None:
-    """Find the lavapipe ICD path, honoring ``ROBOMME_LAVAPIPE_ICD``. None if unavailable."""
-    return resolve_lavapipe_icd("ROBOMME_LAVAPIPE_ICD")
-
-
 _DEFAULT_TASK_LIST = [
     "PickXtimes",
     "StopCube",
@@ -141,9 +136,9 @@ class RoboMMEBenchmark(StepBenchmark):
         {"simple_subgoal_online", "grounded_subgoal_online", "reward", "state_fq", "terminated"}
     )
 
-    _rendering_configured: bool = False
-    # Env applied by whichever call bound the renderer. Non-empty iff lavapipe is engaged.
-    _render_env: dict[str, str] = {}
+    # Env applied by whichever call bound the renderer: None until bound, {} on the
+    # native GPU path, non-empty iff lavapipe is engaged.
+    _render_env: dict[str, str] | None = None
 
     # Software Vulkan via lavapipe; ROBOMME_USE_LAVAPIPE stays the orthogonal
     # broken-host workaround on the gpu path.
@@ -151,7 +146,6 @@ class RoboMMEBenchmark(StepBenchmark):
 
     @classmethod
     def _mark_render_configured(cls, env: dict[str, str]) -> dict[str, str]:
-        RoboMMEBenchmark._rendering_configured = True
         RoboMMEBenchmark._render_env = dict(env)
         return dict(env)
 
@@ -167,7 +161,7 @@ class RoboMMEBenchmark(StepBenchmark):
         """
         if mode != "cpu":
             return cls._setup_rendering()
-        if RoboMMEBenchmark._rendering_configured:
+        if RoboMMEBenchmark._render_env is not None:
             if not RoboMMEBenchmark._render_env:
                 # Renderer already bound to the native GPU path; the Vulkan ICD is
                 # loaded at first `import sapien.render` and cannot be re-bound.
@@ -242,7 +236,7 @@ class RoboMMEBenchmark(StepBenchmark):
               ``auto`` adds ~5–10 s of startup probe time on healthy hosts
               but lets a single launcher work across the whole fleet.
 
-        Decision is cached per-process via ``_rendering_configured``;
+        Decision is cached per-process via ``_render_env``;
         changing ``ROBOMME_USE_LAVAPIPE`` after the first ``reset()`` has no
         effect (Vulkan ICD is loaded at the first ``import sapien.render``
         and cannot be re-bound in-process).
@@ -264,7 +258,7 @@ class RoboMMEBenchmark(StepBenchmark):
            that lavapipe actually uses.
         """
         # Replays the first call's decision: later benchmark entries share this process.
-        if RoboMMEBenchmark._rendering_configured:
+        if RoboMMEBenchmark._render_env is not None:
             return dict(RoboMMEBenchmark._render_env)
 
         mode = os.environ.get("ROBOMME_USE_LAVAPIPE", "").strip().lower()
@@ -313,7 +307,7 @@ class RoboMMEBenchmark(StepBenchmark):
             )
             return None
 
-        lavapipe_icd = _resolve_lavapipe_icd()
+        lavapipe_icd = resolve_lavapipe_icd("ROBOMME_LAVAPIPE_ICD")
         if lavapipe_icd is None:
             logger.error("Lavapipe ICD not found; cannot engage lavapipe rendering")
             return None

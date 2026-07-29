@@ -4,8 +4,29 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 
 from vla_eval.cli._console import stderr_console as _stderr_console
+
+
+def dev_src_mount_flags() -> list[str]:
+    """Volume flags mounting the host checkout's ``src/`` over the image's (``--dev``).
+
+    Raises ``RuntimeError`` when no checkout is found; the caller decides whether that
+    exits the CLI (``vla-eval run``) or fails one test (the smoke runner).
+    """
+    cwd_src = Path.cwd() / "src"
+    if (cwd_src / "vla_eval").is_dir():
+        src = cwd_src.resolve()
+    else:
+        # Editable install: ``vla_eval.__file__`` lives under ``src/vla_eval/``.
+        import vla_eval
+
+        pkg_parent = Path(vla_eval.__file__).resolve().parent.parent
+        if pkg_parent.name != "src" or not (pkg_parent / "vla_eval").is_dir():
+            raise RuntimeError("--dev: cannot find src/vla_eval/ in cwd or via editable install")
+        src = pkg_parent
+    return ["-v", f"{src}:/workspace/src"]
 
 
 def check_docker_daemon(docker: str) -> None:

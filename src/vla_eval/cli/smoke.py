@@ -491,7 +491,8 @@ def _resolve_smoke_render(
     otherwise smuggle past by stripping its ``docker`` section. The harness-assigned
     ``gpu_id`` is not part of that check: only the user's own config can contradict itself.
     """
-    from vla_eval.render import NO_GPU_SPEC, check_gpu_spec_conflict, normalize_render_mode
+    from vla_eval.docker_resources import NO_GPU_SPEC
+    from vla_eval.render import check_gpu_spec_conflict, normalize_render_mode
 
     mode = normalize_render_mode(cli_render if cli_render is not None else config.get("render"))
     if mode == "cpu":
@@ -564,6 +565,16 @@ def run_benchmark_test(
         effective_render, gpu_spec = _resolve_smoke_render(config, render, gpu_id, docker_cfg.gpus)
     except ValueError as exc:
         return SmokeResult(test, "fail", str(exc))
+
+    # Resolve the --dev mount before any resource (echo server, temp files) is allocated.
+    dev_mount: list[str] = []
+    if dev:
+        from vla_eval.cli._docker import dev_src_mount_flags
+
+        try:
+            dev_mount = dev_src_mount_flags()
+        except RuntimeError as exc:
+            return SmokeResult(test, "fail", str(exc))
 
     # Write temp config: 1 task, 1 episode, capped steps, pointing to echo server
     smoke_config = dict(config)
@@ -639,10 +650,7 @@ def run_benchmark_test(
         "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
     ]
     # fmt: on
-    if dev:
-        from vla_eval.cli.main import _resolve_dev_src
-
-        docker_cmd.extend(["-v", f"{_resolve_dev_src()}:/workspace/src"])
+    docker_cmd.extend(dev_mount)
     for vol in docker_cfg.volumes:
         docker_cmd.extend(["-v", vol])
     for env_str in docker_cfg.env:
