@@ -94,6 +94,38 @@ src/vla_eval/
 
 See `benchmarks/libero/` for a complete reference implementation.
 
+### Render Backends
+
+Benchmarks are GPU-rendered by default. Nothing is required to keep it that way: the
+base class declares `render_backends = frozenset({"gpu"})`, so a new benchmark rejects
+`--render cpu` up front instead of crashing mid-run.
+
+To also support software rendering, declare it and implement the hook:
+
+```python
+class MyBenchmark(StepBenchmark):
+    render_backends = frozenset({"gpu", "cpu"})
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        return configure_mujoco_render(mode)  # from vla_eval.render
+```
+
+`configure_render` runs once per run, before the benchmark is constructed and before
+any simulator import — the renderer binds at that first import and cannot be rebound.
+Set env with plain assignment, not `setdefault`: benchmark images bake `MUJOCO_GL` /
+`PYOPENGL_PLATFORM` as image ENV, so a default would never win. Return the env you
+applied; it is recorded as run provenance. `vla_eval.render` provides
+`configure_mujoco_render` (OSMesa) and `resolve_lavapipe_icd` / `lavapipe_cpu_env`
+(software Vulkan for SAPIEN).
+
+Verify before declaring support — a backend that is declared but doesn't engage is
+worse than one that isn't offered:
+
+```bash
+vla-eval test --benchmark <name> --render cpu
+```
+
 ## Adding a Model Server
 
 1. Create `src/vla_eval/model_servers/<name>.py` as a **uv script** with [PEP 723](https://peps.python.org/pep-0723/) inline metadata

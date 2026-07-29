@@ -75,11 +75,16 @@ server:
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/<name>:latest
 output_dir: "./results"
+render: gpu                  # optional: gpu (default) | cpu — see --render
 benchmarks:
   - benchmark: "vla_eval.benchmarks.<name>.benchmark:ClassName"
     episodes_per_task: 50
     params: { ... }
 ```
+
+`render` is run-level rather than per entry: the renderer binds at the first simulator
+import. `cpu` software-renders and starts the container with no GPU attached; benchmarks
+that don't declare CPU support are rejected before the run starts.
 
 ### Server configs (`model_servers/<name>/*.yaml`)
 

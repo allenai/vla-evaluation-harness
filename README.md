@@ -114,6 +114,43 @@ Each benchmark and model server directory has a README with setup details, suppo
 
 ---
 
+## Render Backend (GPU or CPU)
+
+By default the simulator renders on the GPU. On a single-GPU host that puts simulator
+rendering and model inference on the same device, which can destabilise the NVIDIA
+driver. `--render cpu` moves the simulator to software rendering and starts its
+container with no GPU attached, leaving the device to the model server:
+
+```bash
+vla-eval run -c configs/benchmarks/libero/spatial.yaml --render cpu
+scripts/run_sharded.sh -c configs/benchmarks/libero/spatial.yaml -n 16 --render cpu
+```
+
+Or set it in the config, which `--render` overrides:
+
+```yaml
+render: cpu   # top-level, alongside output_dir / server / docker
+```
+
+The setting is run-level, not per benchmark entry — the renderer binds at the first
+simulator import and cannot be rebound afterwards.
+
+Software rendering is substantially slower per frame, so it trades simulator throughput
+for a free GPU; it pays off when inference is the bottleneck or when GPU contention is
+causing crashes. Not every benchmark supports it — currently LIBERO (with Pro/Plus/Mem),
+RoboCasa, RoboCasa365, RoboCerebra, DuoBench, VLABench, and RoboMME do. Anything else fails
+fast with the benchmark named, rather than silently falling back to the GPU:
+
+```
+ERROR: render: cpu is not supported by:
+  MIKASABenchmark does not support render: cpu (declares render_backends: gpu)
+```
+
+Adding support for another benchmark is a two-line change; see
+[CONTRIBUTING.md](CONTRIBUTING.md#render-backends).
+
+---
+
 ## Batch Parallel Evaluation
 
 A full evaluation takes hours sequentially. Two layers of parallelism bring this down to minutes:
