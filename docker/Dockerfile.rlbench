@@ -25,33 +25,45 @@ RUN if [ "$ACCEPT_RLBENCH_LICENCE" != "YES" ]; then \
 # ── Xvfb for headless CoppeliaSim ─────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         xvfb libfontconfig1 tini \
+        libdbus-1-3 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+        libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
+        libxrender1 libxi6 libsm6 libice6 \
     && rm -rf /var/lib/apt/lists/*
 
 # ── CoppeliaSim 4.1.0 ─────────────────────────────────────────────
 # PyRep/RLBench require exactly 4.1.0; newer versions cause segfaults.
 ENV COPPELIASIM_ROOT=/opt/coppeliasim
+# QT_QPA_PLATFORM must be xcb, not offscreen: vision sensors need a Qt GL context,
+# and the offscreen platform has none (frames come back all black, or the sim
+# segfaults in initGl_ifNeeded). QT_PLUGIN_PATH makes Qt find the bundled
+# xcbglintegrations/ GLX plugin — without it Qt reports "neither GLX nor EGL are
+# enabled" and crashes the same way, even under Xvfb.
 ENV LD_LIBRARY_PATH=${COPPELIASIM_ROOT}:${LD_LIBRARY_PATH} \
     QT_QPA_PLATFORM_PLUGIN_PATH=${COPPELIASIM_ROOT}/platforms \
-    QT_QPA_PLATFORM=offscreen
+    QT_PLUGIN_PATH=${COPPELIASIM_ROOT} \
+    QT_QPA_PLATFORM=xcb
 RUN wget -qO /tmp/coppeliasim.tar.xz \
         https://downloads.coppeliarobotics.com/V4_1_0/CoppeliaSim_Edu_V4_1_0_Ubuntu20_04.tar.xz \
     && mkdir -p ${COPPELIASIM_ROOT} \
     && tar -xf /tmp/coppeliasim.tar.xz -C ${COPPELIASIM_ROOT} --strip-components=1 \
     && rm /tmp/coppeliasim.tar.xz
 
-# Disable the OpenGL3 renderer plugin — the bundled Qt lacks GLX/EGL
-# support in headless Docker, causing segfaults.  The built-in renderer
-# works correctly under Xvfb.
-RUN mv ${COPPELIASIM_ROOT}/libsimExtOpenGL3Renderer.so \
-       ${COPPELIASIM_ROOT}/libsimExtOpenGL3Renderer.so.disabled
+# The OpenGL3 renderer plugin used to be disabled here for segfaulting headless.
+# Root cause was the missing Qt GLX integration (see the QT_PLUGIN_PATH note
+# above), not the plugin: with GLX resolvable it renders fine under Xvfb, so
+# cameras keep RLBench's default RenderMode.OPENGL3.
 
 # ── Conda environment (Python 3.8 required by PyRep/RLBench) ──────
 RUN conda create -y -n rlbench python=3.8 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "rlbench", "/bin/bash", "-c"]
 
 # ── PyRep (from source) ───────────────────────────────────────────
+# Master-commit pins, not version tags: stepjam froze both version strings years
+# ago (PyRep "4.1.0.3", RLBench "1.1.0"), so the tags point at 2021 code — the
+# 1.1.0 tag predates rlbench.action_modes.action_mode entirely and its setup.py
+# declares no dependencies.
 # PyRep imports cffi at setup time, so disable build isolation.
-ARG PYREP_REF=4.1.0
+ARG PYREP_REF=8f420be8064b1970aae18a9cfbc978dfb15747ef
 RUN uv pip install --no-cache-dir cffi \
     && mkdir -p /tmp/PyRep \
     && cd /tmp/PyRep \
@@ -59,18 +71,20 @@ RUN uv pip install --no-cache-dir cffi \
     && git remote add origin https://github.com/stepjam/PyRep.git \
     && git fetch -q --depth 1 origin "${PYREP_REF}" \
     && git checkout -q FETCH_HEAD \
-    && uv pip install --no-cache-dir --no-build-isolation -e . \
+    && pip install --no-cache-dir --no-build-isolation -e . \
     && rm -rf /tmp/PyRep/.git
 
 # ── RLBench (from source) ─────────────────────────────────────────
-ARG RLBENCH_REF=1.1.0
+# Plain pip, not uv: uv's PEP 660 editable installs have produced empty import
+# finders for these repos (see issue #92).
+ARG RLBENCH_REF=02720bba4c73fe02eb75df946b8791b806028a9d
 RUN mkdir -p /tmp/RLBench \
     && cd /tmp/RLBench \
     && git init -q \
     && git remote add origin https://github.com/stepjam/RLBench.git \
     && git fetch -q --depth 1 origin "${RLBENCH_REF}" \
     && git checkout -q FETCH_HEAD \
-    && uv pip install --no-cache-dir -e . \
+    && pip install --no-cache-dir -e . \
     && rm -rf /tmp/RLBench/.git
 
 WORKDIR /workspace
