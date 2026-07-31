@@ -73,7 +73,7 @@ Field semantics live in the schema files above. `extract.py` and `refine.py` bot
 
 ## External Leaderboard Policy
 
-Benchmarks whose authors maintain their own leaderboard (RoboArena, RoboChallenge, RoboCasa365, RoboDojo) are **link-out only**:
+Benchmarks whose authors maintain their own leaderboard (RoboArena, RoboChallenge, RoboCasa365, RoboDojo, MolmoSpaces-Bench) are **link-out only**:
 
 - Set `external_only: true` and `official_leaderboard: <url>` in the benchmark's `.md` frontmatter. The site renders these as link cards; results stay on the official board.
 - `leaderboard.json` must contain **zero** rows for these benchmarks. `validate.py` enforces this. Do not build scrapers or API mirrors: mirrored rows go stale between syncs, need manual model-to-paper mapping, and diverge from the authoritative source (the previous RoboChallenge/RoboArena API sync was retired for these reasons in 2026-07).
