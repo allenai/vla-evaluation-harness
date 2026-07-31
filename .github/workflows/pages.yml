@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'leaderboard/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -33,6 +34,15 @@ jobs:
           python leaderboard/scripts/scan.py --check
           python leaderboard/scripts/update_citations.py
           mkdir -p _site/leaderboard
+          # The site lives under /leaderboard/; keep the Pages root from 404ing.
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>VLA Model Leaderboard</title>
+          <link rel="canonical" href="https://allenai.github.io/vla-evaluation-harness/leaderboard/">
+          <meta http-equiv="refresh" content="0; url=./leaderboard/">
+          <p><a href="./leaderboard/">VLA Model Leaderboard</a></p>
+          HTML
           cp leaderboard/site/* _site/leaderboard/
           cp leaderboard/data/leaderboard.json _site/leaderboard/
           cp leaderboard/data/benchmarks.json _site/leaderboard/
