@@ -322,6 +322,22 @@
     },
     "detail_notes": "Standard protocol: 5-task VLA evaluation (ShellGameTouch, InterceptMedium, RememberColor3/5/9) from the MIKASA paper, endorsed by MemoryVLA (ICLR 2026). <code>overall_score</code> = arithmetic mean of 5 tasks. Entries using non-standard task sets (e.g., ELMUR 4-task) have <code>overall_score</code> = null."
   },
+  "molmospaces": {
+    "display_name": "MolmoSpaces-Bench",
+    "paper_url": "https://arxiv.org/abs/2602.11337",
+    "metric": {
+      "name": "success_rate",
+      "unit": "%",
+      "range": [
+        0,
+        100
+      ],
+      "higher_is_better": true
+    },
+    "official_leaderboard": "https://molmospaces.allen.ai/leaderboard",
+    "external_only": true,
+    "detail_notes": "&ldquo;MolmoSpaces: A Large-Scale Open Ecosystem for Robot Navigation and Manipulation&rdquo; (<a href='https://arxiv.org/abs/2602.11337'>2602.11337</a>). Results live on the official leaderboard; this site does not mirror them."
+  },
   "rlbench": {
     "display_name": "RLBench",
     "paper_url": "https://arxiv.org/abs/1909.12271",
