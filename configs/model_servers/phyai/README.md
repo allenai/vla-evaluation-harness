@@ -8,7 +8,7 @@ Serves a converted PhyAI pi0.5 checkpoint for LIBERO through the
 vla-evaluation-harness WebSocket protocol.
 
 The server pins PhyAI commit
-[`4e95665`](https://github.com/rebecca26358/phyai/commit/4e9566511d4d7ad5ff45ec072c667e93ccc27483),
+[`4e95665`](https://github.com/rebecca26358/phyai/commit/4e95665fae38e7d13a737922398eaadb4db24669),
 which is tracked by [PhyAI PR #21](https://github.com/mingti-org/phyai/pull/21).
 
 ## Prerequisites

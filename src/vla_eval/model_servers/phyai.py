@@ -11,10 +11,10 @@
 #
 # [tool.uv.sources]
 # vla-eval = { path = "../../..", editable = true }
-# phyai = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e9566511d4d7ad5ff45ec072c667e93ccc27483", subdirectory = "phyai" }
-# phyai-ext = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e9566511d4d7ad5ff45ec072c667e93ccc27483", subdirectory = "phyai-ext" }
-# phyai-kernel = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e9566511d4d7ad5ff45ec072c667e93ccc27483", subdirectory = "phyai-kernel" }
-# phyai-utils-tools = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e9566511d4d7ad5ff45ec072c667e93ccc27483", subdirectory = "phyai-utils-tools" }
+# phyai = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e95665fae38e7d13a737922398eaadb4db24669", subdirectory = "phyai" }
+# phyai-ext = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e95665fae38e7d13a737922398eaadb4db24669", subdirectory = "phyai-ext" }
+# phyai-kernel = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e95665fae38e7d13a737922398eaadb4db24669", subdirectory = "phyai-kernel" }
+# phyai-utils-tools = { git = "https://github.com/rebecca26358/phyai.git", rev = "4e95665fae38e7d13a737922398eaadb4db24669", subdirectory = "phyai-utils-tools" }
 #
 # [tool.uv]
 # exclude-newer = "2026-08-02T00:00:00Z"
