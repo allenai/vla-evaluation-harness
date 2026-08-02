@@ -1,0 +1,16 @@
+# PhyAI pi0.5 model server: LIBERO reproduction target.
+# Set PHYAI_CHECKPOINT_PATH to the converted PhyAI checkpoint directory.
+
+script: "src/vla_eval/model_servers/phyai.py"
+args:
+  checkpoint_path: null
+  device: cuda
+  params_dtype: bfloat16
+  use_cuda_graph: true
+  attn_backend: flashinfer
+  norm_backend: phyai-kernel
+  linear_backend: flashinfer
+  flashinfer_workspace_bytes: 536870912
+  camera_mode: two_camera
+  chunk_size: 10
+  port: 8000
