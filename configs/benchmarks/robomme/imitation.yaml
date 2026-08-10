@@ -2,18 +2,16 @@
 server:
   url: "ws://localhost:8000"
 
-# Default to software rendering (lavapipe): SAPIEN's native NVIDIA path hangs at the
-# first image capture on a small subset of hosts (hardware dependent, issue #112).
-# On a known-good host, pass --render gpu for a roughly 5-10x faster simulator.
+# Lavapipe by default: the native NVIDIA path hangs on some hosts (issue #112).
+# On a known-good host, pass --render gpu for a ~5-10x faster simulator.
 render: cpu
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robomme:latest
   env:
     - "NVIDIA_DRIVER_CAPABILITIES=all"
-  # With --render gpu, if Vulkan cannot enumerate the NVIDIA driver inside the
-  # container, mount the host ICDs (this shadows the image's lavapipe ICD, so
-  # never ship it as a default):
+  # If --render gpu cannot enumerate the NVIDIA driver, mount the host ICDs
+  # (shadows the image's lavapipe ICD, so keep it off the cpu default):
   #   volumes:
   #     - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
 

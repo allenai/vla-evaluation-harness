@@ -304,8 +304,7 @@ def test_robomme_cpu_engages_lavapipe(robomme):
 
 def test_robomme_cpu_reports_lavapipe_for_every_entry(robomme):
     """Entries 2..N must not report an empty env, or their aggregates claim a GPU
-    render that never happened. configs/benchmarks/robomme/eval.yaml has 4 entries
-    sharing one process."""
+    render that never happened (eval.yaml has 4 entries sharing one process)."""
     cls, calls = robomme
 
     applied = [cls.configure_render("cpu") for _ in range(4)]
@@ -315,9 +314,8 @@ def test_robomme_cpu_reports_lavapipe_for_every_entry(robomme):
 
 
 def test_robomme_removed_lavapipe_env_var_fails_fast(robomme, monkeypatch):
-    """ROBOMME_USE_LAVAPIPE was removed with the auto probe (issue #112). A launcher
-    still setting it must get a migration error, not a silent native-path run that
-    hangs on the hosts the variable used to protect."""
+    """A launcher still setting the removed ROBOMME_USE_LAVAPIPE (issue #112) must get
+    a migration error, not a silent native-path run that hangs on affected hosts."""
     cls, calls = robomme
     monkeypatch.setenv("ROBOMME_USE_LAVAPIPE", "auto")
 

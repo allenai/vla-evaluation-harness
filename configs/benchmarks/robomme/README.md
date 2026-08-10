@@ -11,14 +11,11 @@ Multi-modal evaluation for robotic manipulation (ManiSkill3 fork / SAPIEN).
 
 ## Rendering
 
-These configs default to `render: cpu` (lavapipe software Vulkan, shipped inside
-the image). SAPIEN's native NVIDIA path is roughly 5-10x faster but hangs at the
-first image capture on a small subset of hosts, and no startup probe can reliably
-certify a host (issue #112). On a known-good host, pass `--render gpu` to opt back
-into the native path; if Vulkan then cannot enumerate the NVIDIA driver inside the
-container, uncomment the host ICD mount in the config (it must stay off by default
-because it shadows the image's lavapipe ICD). See
-[docs/render-backends.md](../../../docs/render-backends.md).
+These configs default to `render: cpu` (lavapipe, shipped in the image): the native
+NVIDIA path is ~5-10x faster but hangs at the first capture on some hosts, and no
+startup probe can certify a host (issue #112). Pass `--render gpu` on a known-good
+host; if Vulkan then cannot find the NVIDIA driver, uncomment the host ICD mount in
+the config. Details: [docs/render-backends.md](../../../docs/render-backends.md).
 
 ## Configs
 

@@ -101,26 +101,16 @@ class RoboMMEBenchmark(StepBenchmark):
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:
-        """``cpu`` (the shipped-config default) engages lavapipe; ``gpu`` opts into
-        SAPIEN's native NVIDIA Vulkan path.
+        """``cpu`` (the shipped-config default) engages lavapipe (~5-10x slower);
+        ``gpu`` opts into SAPIEN's native NVIDIA path.
 
-        On a small subset of hosts the native path hangs at the first
-        ``take_picture`` (100%% GPU util, no progress past ``_setup_scene``;
-        symptom matches SAPIEN #290, closed as host-specific). The kernel module
-        flavor is not the discriminator: across a DGX-H100 fleet, both the closed
-        and the open modules reproduce the hang on some nodes and not others with
-        byte-identical packages. No startup probe can certify the native path
-        either, since a render-only check passes on hosts that later hang under
-        the combined CUDA plus rendering workload (issue #112). The shipped
-        configs therefore default to ``render: cpu``, and ``gpu`` is an explicit
-        opt-in for known-good hosts.
+        cpu is the default because the native path hangs at the first capture on
+        some hosts (SAPIEN #290, hardware dependent) and no startup probe can
+        certify a host: a render-only check passes where the combined CUDA plus
+        rendering workload later hangs (issue #112).
 
-        Lavapipe is roughly 5-10x slower than the native path (~4-12 fps vs
-        ~33-80 fps at 256x256); both paths warn once so the trade-off is visible.
-
-        Called once per benchmark *entry* but the renderer is per-*process*, so a
-        config with several RoboMME suites lands here repeatedly; only the first
-        call binds anything and the rest replay what it applied.
+        Called once per benchmark entry; only the first call binds the
+        per-process renderer, the rest replay what it applied.
         """
         legacy = os.environ.get("ROBOMME_USE_LAVAPIPE")
         if legacy is not None:
@@ -198,16 +188,6 @@ class RoboMMEBenchmark(StepBenchmark):
     @staticmethod
     def _engage_lavapipe() -> dict[str, str] | None:
         """Apply the three-piece lavapipe patch + perf-tuning env vars.
-
-        1. ``VK_ICD_FILENAMES`` points at lavapipe, so Vulkan dispatch goes to
-           the Mesa software renderer, bypassing the broken interop path.
-        2. ``sapien.render.RenderSystem`` is wrapped to drop the ``device``
-           positional arg: lavapipe has no CUDA backend, so calling
-           ``RenderSystem("cuda:0")`` raises "Failed to find a supported
-           physical device".
-        3. ``mani_skill ... parse_sim_and_render_backend`` is patched so the
-           render backend resolves to ``sapien_cpu``, matching the device
-           that lavapipe actually uses.
 
         Must be called BEFORE ``import sapien.render`` in this process for
         ``VK_ICD_FILENAMES`` and ``LP_NUM_THREADS`` to take effect (Vulkan

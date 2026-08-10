@@ -1,6 +1,5 @@
-# BEHAVIOR-1K evaluation, BEHAVIOR Challenge 2025 protocol (50 tasks, OmniGibson / Isaac Sim,
-# BEHAVIOR-1K v3.7.2). This is NOT the 2026 challenge evaluator (v3.9.1, 100 tasks,
-# python -m omnigibson.eval.eval); see issue #113.
+# BEHAVIOR-1K evaluation, 2025 challenge protocol (50 tasks, v3.7.2, OmniGibson / Isaac Sim).
+# NOT the 2026 evaluator (v3.9.1, 100 tasks, omnigibson.eval.eval); see issue #113.
 # Requires ~35 GiB asset download on first run. Pass --accept-license behavior-dataset-tos for non-interactive use.
 server:
   url: "ws://localhost:8000"

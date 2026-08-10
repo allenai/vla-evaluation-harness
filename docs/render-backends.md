@@ -83,20 +83,14 @@ reproduces against Mesa 25.0 lavapipe); 3.0.3 dropped the hard requirement. Thos
 four are not waiting on harness work — they need newer SAPIEN builds.
 
 RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
-unlike every other benchmark: on a small subset of hosts SAPIEN's native NVIDIA path
-hangs at the first image capture (hardware dependent, and no startup probe can
-certify a host, because a render-only check passes on hosts that later hang under
-the combined CUDA plus rendering workload). The default trades a 5-10x slower
-simulator for a run that completes everywhere; `--render gpu` opts back into the
-native path on known-good hosts. The former `ROBOMME_USE_LAVAPIPE` variable (and its
-`auto` probe) has been removed; setting it now fails at startup with a migration
-message. Second, the gpu opt-in may need the host's Vulkan ICDs: if the NVIDIA
-container toolkit does not inject one, add a `docker.volumes` entry mounting
-`/usr/share/vulkan/icd.d` read-only (the configs carry it as a comment). Do not ship
-that mount as a default, because it shadows the image's `mesa-vulkan-drivers`
-lavapipe ICD and breaks the cpu path on Mesa-less hosts. If lavapipe still cannot be
-resolved in a custom setup, point `ROBOMME_LAVAPIPE_ICD` at an ICD manifest; the
-failure is loud at startup and names the reason.
+unlike every other benchmark: the native path hangs at the first capture on a small
+subset of hosts, and no probe can certify one, because a render-only check passes
+where the combined CUDA plus rendering workload later hangs. The former
+`ROBOMME_USE_LAVAPIPE` variable (and its `auto` probe) is removed; setting it fails
+at startup with a migration message. Second, the gpu opt-in may need the host's
+Vulkan ICDs when the NVIDIA container toolkit injects none; the configs carry that
+mount as a comment. Keep it off by default: it shadows the image's lavapipe ICD and
+breaks the cpu path on Mesa-less hosts (`ROBOMME_LAVAPIPE_ICD` still overrides).
 
 ## Scope and interaction with `docker.gpus`
 
