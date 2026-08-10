@@ -1,5 +1,8 @@
 # BEHAVIOR-1K — OmniGibson on NVIDIA Isaac Sim (https://behavior.stanford.edu)
 #
+# BEHAVIOR Challenge 2025 stack (Isaac Sim 4.5.0, BEHAVIOR-1K v3.7.2, B50 tasks);
+# NOT the 2026 evaluator stack (v3.9.1, 100 tasks); see issue #113.
+#
 # Heavy image: pulls Isaac Sim wheels (~12 GB) and the BEHAVIOR-1K
 # source tree.  The dataset itself (~10 GB) is NOT baked in; mount it
 # at runtime under /app/BEHAVIOR-1K/datasets.

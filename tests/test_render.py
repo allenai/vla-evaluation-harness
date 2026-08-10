@@ -301,22 +301,19 @@ def test_robomme_cpu_engages_lavapipe(robomme):
     assert applied["VK_ICD_FILENAMES"].endswith("lvp_icd.json")
 
 
-def test_robomme_gpu_fallback_reports_lavapipe_for_every_entry(robomme, monkeypatch):
-    """With ROBOMME_USE_LAVAPIPE=1 the process is software-rendered; entries 2..N must not
-    report an empty env, or their aggregates claim a GPU render that never happened.
-    configs/benchmarks/robomme/eval.yaml has 4 entries sharing one process."""
+def test_robomme_cpu_reports_lavapipe_for_every_entry(robomme):
+    """Entries 2..N must not report an empty env, or their aggregates claim a GPU
+    render that never happened (eval.yaml has 4 entries sharing one process)."""
     cls, calls = robomme
-    monkeypatch.setenv("ROBOMME_USE_LAVAPIPE", "1")
 
-    applied = [cls.configure_render("gpu") for _ in range(4)]
+    applied = [cls.configure_render("cpu") for _ in range(4)]
 
     assert len(calls) == 1, "renderer must be bound once per process, not once per entry"
     assert all(env == {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"} for env in applied)
 
 
-def test_robomme_native_gpu_path_reports_no_env(robomme, monkeypatch):
+def test_robomme_native_gpu_path_reports_no_env(robomme):
     cls, calls = robomme
-    monkeypatch.delenv("ROBOMME_USE_LAVAPIPE", raising=False)
 
     assert [cls.configure_render("gpu") for _ in range(2)] == [{}, {}]
     assert not calls

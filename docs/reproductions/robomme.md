@@ -67,6 +67,9 @@ Uses conditioning video via `add_buffer` to populate perceptual memory before in
 - **Action space**: 8D absolute joint angles (7 arm joints + 1 gripper). `chunk_size=10`.
 - **Image resolution**: 224×224 (SigLIP2 encoder input).
 - **Evaluation protocol**: Paper uses 50 episodes per task, max 1300 steps, `test` split.
+- **Render backend**: measured on the native GPU path (`render: gpu`); shipped configs
+  now default to `render: cpu` (issue #112). Lavapipe frames are not guaranteed
+  pixel-identical, and a cpu-backend re-run has not been done yet.
 
 ## Per-Suite Reported Scores (%)
 

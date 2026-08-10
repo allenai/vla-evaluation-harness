@@ -5,6 +5,11 @@
 [Paper (2025 challenge report)](https://arxiv.org/abs/2512.06951) |
 50 long-horizon household tasks on R1Pro / OmniGibson
 
+> **Protocol version:** everything below runs the 2025 challenge stack (BEHAVIOR-1K
+> v3.7.2, Isaac Sim 4.5.0, B50) through the harness WebSocket protocol, not the 2026
+> evaluator (v3.9.1, 100 tasks, `python -m omnigibson.eval.eval`); see
+> [issue #113](https://github.com/allenai/vla-evaluation-harness/issues/113).
+
 ## Status
 
 **Integration:** ✅ Benchmark + config + Docker recipe + unit tests + zero-action model server landed.

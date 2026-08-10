@@ -2,13 +2,18 @@
 server:
   url: "ws://localhost:8000"
 
+# Lavapipe by default: the native NVIDIA path hangs on some hosts (issue #112).
+# On a known-good host, pass --render gpu for a ~5-10x faster simulator.
+render: cpu
+
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robomme:latest
-  gpus: "all"
   env:
     - "NVIDIA_DRIVER_CAPABILITIES=all"
-  volumes:
-    - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
+  # If --render gpu cannot enumerate the NVIDIA driver, mount the host ICDs
+  # (shadows the image's lavapipe ICD, so keep it off the cpu default):
+  #   volumes:
+  #     - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
 
 output_dir: "./results"
 

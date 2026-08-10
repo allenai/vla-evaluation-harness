@@ -144,9 +144,8 @@ def unsupported_render_message(name: str, benchmark_cls: type[Any], mode: str) -
 def apply_render_mode(benchmark_cls: type[Any], mode: str, name: str) -> dict[str, str]:
     """Configure the process renderer for *mode*, before any simulator import.
 
-    Returns the env the benchmark actually applied — which can differ from what
-    *mode* implies (e.g. RoboMME's ``ROBOMME_USE_LAVAPIPE=auto`` probe), so callers
-    record it as provenance rather than re-deriving it.
+    Returns the env the benchmark actually applied — callers record it as
+    provenance rather than re-deriving it from *mode*.
     """
     if not supports_render_mode(benchmark_cls, mode):
         raise ValueError(unsupported_render_message(name, benchmark_cls, mode))
