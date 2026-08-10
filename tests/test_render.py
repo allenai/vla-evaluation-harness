@@ -280,7 +280,6 @@ def robomme(monkeypatch: pytest.MonkeyPatch):
     """
     cls = resolve_import_string("vla_eval.benchmarks.robomme.benchmark:RoboMMEBenchmark")
     monkeypatch.setattr(cls, "_render_env", None)
-    monkeypatch.delenv("ROBOMME_USE_LAVAPIPE", raising=False)
 
     calls: list[int] = []
 
@@ -313,22 +312,8 @@ def test_robomme_cpu_reports_lavapipe_for_every_entry(robomme):
     assert all(env == {"VK_ICD_FILENAMES": "/opt/lavapipe/lvp_icd.json"} for env in applied)
 
 
-def test_robomme_removed_lavapipe_env_var_fails_fast(robomme, monkeypatch):
-    """A launcher still setting the removed ROBOMME_USE_LAVAPIPE (issue #112) must get
-    a migration error, not a silent native-path run that hangs on affected hosts."""
+def test_robomme_native_gpu_path_reports_no_env(robomme):
     cls, calls = robomme
-    monkeypatch.setenv("ROBOMME_USE_LAVAPIPE", "auto")
-
-    with pytest.raises(RuntimeError, match="has been removed"):
-        cls.configure_render("gpu")
-    with pytest.raises(RuntimeError, match="render: cpu"):
-        cls.configure_render("cpu")
-    assert not calls
-
-
-def test_robomme_native_gpu_path_reports_no_env(robomme, monkeypatch):
-    cls, calls = robomme
-    monkeypatch.delenv("ROBOMME_USE_LAVAPIPE", raising=False)
 
     assert [cls.configure_render("gpu") for _ in range(2)] == [{}, {}]
     assert not calls

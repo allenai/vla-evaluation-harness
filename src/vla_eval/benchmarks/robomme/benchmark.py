@@ -8,7 +8,6 @@ is sent to the model server as ``video_history`` on the first observation.
 from __future__ import annotations
 
 import logging
-import os
 import re
 import sys
 from typing import Any, Literal
@@ -112,14 +111,6 @@ class RoboMMEBenchmark(StepBenchmark):
         Called once per benchmark entry; only the first call binds the
         per-process renderer, the rest replay what it applied.
         """
-        legacy = os.environ.get("ROBOMME_USE_LAVAPIPE")
-        if legacy is not None:
-            raise RuntimeError(
-                "ROBOMME_USE_LAVAPIPE={!r} is set, but the variable has been removed. "
-                "Rendering is now selected by the run-level 'render' key: the shipped RoboMME "
-                "configs default to 'render: cpu' (lavapipe, completes on every host); pass "
-                "--render gpu to opt into the native NVIDIA path on a known-good host.".format(legacy)
-            )
         if RoboMMEBenchmark._render_env is not None:
             if mode == "cpu" and not RoboMMEBenchmark._render_env:
                 # Renderer already bound to the native GPU path; the Vulkan ICD is

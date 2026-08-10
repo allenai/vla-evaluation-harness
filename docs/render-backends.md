@@ -85,9 +85,7 @@ four are not waiting on harness work — they need newer SAPIEN builds.
 RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
 unlike every other benchmark: the native path hangs at the first capture on a small
 subset of hosts, and no probe can certify one, because a render-only check passes
-where the combined CUDA plus rendering workload later hangs. The former
-`ROBOMME_USE_LAVAPIPE` variable (and its `auto` probe) is removed; setting it fails
-at startup with a migration message. Second, the gpu opt-in may need the host's
+where the combined CUDA plus rendering workload later hangs. Second, the gpu opt-in may need the host's
 Vulkan ICDs when the NVIDIA container toolkit injects none; the configs carry that
 mount as a comment. Keep it off by default: it shadows the image's lavapipe ICD and
 breaks the cpu path on Mesa-less hosts (`ROBOMME_LAVAPIPE_ICD` still overrides).
