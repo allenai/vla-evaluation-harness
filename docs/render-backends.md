@@ -90,11 +90,13 @@ the combined CUDA plus rendering workload). The default trades a 5-10x slower
 simulator for a run that completes everywhere; `--render gpu` opts back into the
 native path on known-good hosts. The former `ROBOMME_USE_LAVAPIPE` variable (and its
 `auto` probe) has been removed; setting it now fails at startup with a migration
-message. Second, its configs bind-mount `/usr/share/vulkan/icd.d` over the image's
-copy, so on a host that ships no Mesa, the ICD file the image's
-`mesa-vulkan-drivers` installed is hidden and lavapipe cannot be resolved. That
-fails loudly at startup, naming the reason; point `ROBOMME_LAVAPIPE_ICD` at an ICD
-to resolve it.
+message. Second, the gpu opt-in may need the host's Vulkan ICDs: if the NVIDIA
+container toolkit does not inject one, add a `docker.volumes` entry mounting
+`/usr/share/vulkan/icd.d` read-only (the configs carry it as a comment). Do not ship
+that mount as a default, because it shadows the image's `mesa-vulkan-drivers`
+lavapipe ICD and breaks the cpu path on Mesa-less hosts. If lavapipe still cannot be
+resolved in a custom setup, point `ROBOMME_LAVAPIPE_ICD` at an ICD manifest; the
+failure is loud at startup and names the reason.
 
 ## Scope and interaction with `docker.gpus`
 

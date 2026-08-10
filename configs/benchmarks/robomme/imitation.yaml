@@ -11,8 +11,11 @@ docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robomme:latest
   env:
     - "NVIDIA_DRIVER_CAPABILITIES=all"
-  volumes:
-    - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
+  # With --render gpu, if Vulkan cannot enumerate the NVIDIA driver inside the
+  # container, mount the host ICDs (this shadows the image's lavapipe ICD, so
+  # never ship it as a default):
+  #   volumes:
+  #     - "/usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro"
 
 output_dir: "./results"
 
