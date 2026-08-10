@@ -49,7 +49,7 @@ path.
 | DuoBench | MuJoCo + rcs | ✅ | ✅ | EGL on Mesa's software device | Not OSMesa: its rcs camera stack bootstraps a real EGL context regardless of `MUJOCO_GL`, so cpu keeps EGL and pins `MUJOCO_EGL_DEVICE_ID` to the only (software) device |
 | VLABench | dm_control (MuJoCo) | ✅ | ✅ | OSMesa | |
 | MolmoSpaces-Bench | MuJoCo | ✅ | ✅ | OSMesa | AI2-THOR lineage is in the assets, not the renderer. The adapter stubs the macOS-only `mujoco.cgl` module that molmo_spaces calls on the GPU-less path |
-| RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Its configs mount the host's `/usr/share/vulkan/icd.d` over the image's, so a host without Mesa needs `ROBOMME_LAVAPIPE_ICD`. See below |
+| RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Shipped configs default to `render: cpu`; `--render gpu` opts into the native path, which hangs on a small subset of hosts. See below |
 | CALVIN | PyBullet | ✅ | ✅ | TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
 | Kinetix | JAX (no GL) | ✅ | ✅ | `JAX_PLATFORMS=cpu` | No GL: frames are computed as JAX arrays, so the device switch is the whole backend |
 | SimplerEnv | SAPIEN 2.2.2 | ✅ | ❌ | — | SAPIEN requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
@@ -82,12 +82,19 @@ not implement that extension. A newer Mesa does not close the gap (the same fail
 reproduces against Mesa 25.0 lavapipe); 3.0.3 dropped the hard requirement. Those
 four are not waiting on harness work — they need newer SAPIEN builds.
 
-RoboMME carries one caveat. Its configs bind-mount `/usr/share/vulkan/icd.d` over
-the image's copy, so on a host that ships no Mesa, the ICD file the image's
+RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
+unlike every other benchmark: on a small subset of hosts SAPIEN's native NVIDIA path
+hangs at the first image capture (hardware dependent, and no startup probe can
+certify a host, because a render-only check passes on hosts that later hang under
+the combined CUDA plus rendering workload). The default trades a 5-10x slower
+simulator for a run that completes everywhere; `--render gpu` opts back into the
+native path on known-good hosts. The former `ROBOMME_USE_LAVAPIPE` variable (and its
+`auto` probe) has been removed; setting it now fails at startup with a migration
+message. Second, its configs bind-mount `/usr/share/vulkan/icd.d` over the image's
+copy, so on a host that ships no Mesa, the ICD file the image's
 `mesa-vulkan-drivers` installed is hidden and lavapipe cannot be resolved. That
 fails loudly at startup, naming the reason; point `ROBOMME_LAVAPIPE_ICD` at an ICD
-to resolve it. Its separate `ROBOMME_USE_LAVAPIPE` env var remains the broken-host
-workaround on the GPU path.
+to resolve it.
 
 ## Scope and interaction with `docker.gpus`
 
@@ -109,8 +116,7 @@ Rejecting rather than guessing keeps a typed flag from being silently swallowed.
 ## Provenance
 
 The requested mode and the env actually applied are recorded in the run metadata
-and flow into the merge aggregate. The two can differ: RoboMME's
-`ROBOMME_USE_LAVAPIPE=auto` probes the host and may pick either path.
+and flow into the merge aggregate.
 
 Under sharding every process writes metadata under one `eval_id`, and the store is
 first-writer-wins, so a shard that resolved differently would otherwise be

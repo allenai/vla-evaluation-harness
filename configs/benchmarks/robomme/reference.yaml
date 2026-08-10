@@ -2,9 +2,13 @@
 server:
   url: "ws://localhost:8000"
 
+# Default to software rendering (lavapipe): SAPIEN's native NVIDIA path hangs at the
+# first image capture on a small subset of hosts (hardware dependent, issue #112).
+# On a known-good host, pass --render gpu for a roughly 5-10x faster simulator.
+render: cpu
+
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robomme:latest
-  gpus: "all"
   env:
     - "NVIDIA_DRIVER_CAPABILITIES=all"
   volumes:
