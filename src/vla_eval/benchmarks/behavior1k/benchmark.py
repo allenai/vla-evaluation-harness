@@ -1,8 +1,18 @@
-"""BEHAVIOR-1K benchmark implementation.
+"""BEHAVIOR-1K benchmark implementation (BEHAVIOR Challenge 2025 protocol).
 
 BEHAVIOR-1K is a long-horizon household-activity benchmark built on OmniGibson (NVIDIA Isaac Sim).
 The 2025 BEHAVIOR Challenge defines a 50-task evaluation suite (B10/B20/B30/B40/B50) using the
 R1Pro mobile-manipulation robot.
+
+Protocol version: this adapter implements the **2025** challenge stack (BEHAVIOR-1K v3.7.2,
+Isaac Sim 4.5.0, B50 tasks, 2025-challenge-task-instances) and drives the model server over the
+harness's own WebSocket protocol. It is NOT the 2026 challenge evaluation path, which pins
+BEHAVIOR-1K v3.9.1, evaluates 100 tasks, and drives the policy server through
+``python -m omnigibson.eval.eval`` with its own wire protocol (/healthz wait, flattened
+observations, msgpack action array). A passing run here validates the 2025 adapter only; it does
+not establish compatibility with the official 2026 submission flow. See
+https://github.com/allenai/vla-evaluation-harness/issues/113 and
+https://behavior.stanford.edu/challenge/evaluation.html.
 
 References:
     - https://behavior.stanford.edu
