@@ -8,6 +8,9 @@ from pathlib import Path
 
 from vla_eval.cli._console import stderr_console as _stderr_console
 
+# Public mirror for images the allenai org has not granted public read on (issue #73).
+_REGISTRY_MIRRORS = {"ghcr.io/allenai/vla-evaluation-harness/": "ghcr.io/worv-ai/vla-evaluation-harness-public/"}
+
 
 def dev_src_mount_flags() -> list[str]:
     """Volume flags mounting the host checkout's ``src/`` over the image's (``--dev``).
@@ -63,7 +66,14 @@ def ensure_image_local(docker: str, image: str, auto_yes: bool) -> None:
             sys.exit(0)
 
     con.print(f"Pulling {image} ...")
-    ret = subprocess.call([docker, "pull", image])
-    if ret != 0:
-        con.print(f"[red]ERROR: docker pull failed (exit code {ret}).[/red]")
-        sys.exit(1)
+    if subprocess.call([docker, "pull", image]) == 0:
+        return
+    for primary, mirror_prefix in _REGISTRY_MIRRORS.items():
+        if image.startswith(primary):
+            mirror = mirror_prefix + image.removeprefix(primary)
+            con.print(f"[yellow]Pull failed; retrying from public mirror: {mirror}[/yellow]")
+            if subprocess.call([docker, "pull", mirror]) == 0:
+                subprocess.call([docker, "tag", mirror, image])
+                return
+    con.print(f"[red]ERROR: docker pull failed for {image}.[/red]")
+    sys.exit(1)
