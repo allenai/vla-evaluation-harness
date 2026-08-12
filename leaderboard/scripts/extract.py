@@ -488,6 +488,10 @@ class LLMError(RuntimeError):
     pass
 
 
+class UsageLimitError(LLMError):
+    """The account's usage window is exhausted; retrying now cannot succeed."""
+
+
 @functools.lru_cache(maxsize=1)
 def _extraction_schema() -> dict:
     """Load the authoritative per-paper extraction schema."""
@@ -660,9 +664,16 @@ def _call_claude_cli(
     except subprocess.TimeoutExpired as e:
         raise LLMError(f"timed out after {timeout}s") from e
 
+    # Log first: a failed stream is exactly the one that needs inspecting.
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(result.stdout, encoding="utf-8")
+
     n_tool_calls = 0
     seen_result = False
     stream_success = False
+    error: LLMError | None = None
+    resets_at = None
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line:
@@ -671,8 +682,13 @@ def _call_claude_cli(
             evt = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if evt.get("is_error"):
-            raise LLMError(f"error: {evt.get('subtype')}")
+        if evt.get("type") == "rate_limit_event":
+            info = evt.get("rate_limit_info") or {}
+            if info.get("status") == "rejected":
+                resets_at = info.get("resetsAt")
+                error = UsageLimitError(f"usage limit reached (resetsAt={resets_at})")
+        if evt.get("is_error") and error is None:
+            error = LLMError(f"error: {evt.get('subtype')} (api_error_status={evt.get('api_error_status')})")
         if evt.get("type") == "assistant":
             for block in evt.get("message", {}).get("content", []):
                 if block.get("type") == "tool_use":
@@ -684,10 +700,8 @@ def _call_claude_cli(
             # If the stream's own result event reports success, trust it.
             stream_success = not evt.get("is_error", False) and evt.get("subtype") == "success"
 
-    if log_path is not None:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text(result.stdout, encoding="utf-8")
-
+    if error is not None and not stream_success:
+        raise error
     if result.returncode != 0 and not stream_success:
         raise LLMError(f"exit {result.returncode}: {result.stderr[:500]}")
     if not seen_result:
@@ -704,13 +718,15 @@ def _call_claude_cli_with_retry(
     log_path: Path | None,
     retries: int = 1,
 ) -> int:
-    """Retry once on transient failure."""
+    """Retry once on transient failure. Usage-limit failures are terminal, not transient."""
     last_err: LLMError | None = None
     for attempt in range(retries + 1):
         try:
             return _call_claude_cli(
                 system_prompt, user_prompt, extra_add_dirs, model=model, timeout=timeout, log_path=log_path
             )
+        except UsageLimitError:
+            raise
         except LLMError as e:
             last_err = e
             if attempt < retries:
@@ -994,6 +1010,8 @@ def _run_one_batch(
             log_path=log_path,
             retries=1,
         )
+    except UsageLimitError:
+        raise
     except LLMError as e:
         print(f"    LLM error for batch ({len(todo)} papers): {e}")
         return {aid: None for aid in todo}
@@ -1064,7 +1082,12 @@ def extract_batch(
     if not todo:
         return results
 
-    batch_results = _run_one_batch(todo, all_rules, model, timeout)
+    try:
+        batch_results = _run_one_batch(todo, all_rules, model, timeout)
+    except UsageLimitError as e:
+        print(f"    usage limit reached — skipping batch ({len(todo)} papers): {e}")
+        results.update({aid: None for aid in todo})
+        return results
     results.update(batch_results)
 
     # Fallback: if >=50% of the batch failed, retry remaining ones one-by-one.
@@ -1073,7 +1096,11 @@ def extract_batch(
     if len(todo) > 1 and len(failed_ids) >= len(todo) // 2:
         print(f"    batch degraded ({len(failed_ids)}/{len(todo)} failed) — retrying per-paper")
         for aid in failed_ids:
-            single = _run_one_batch([aid], all_rules, model, timeout)
+            try:
+                single = _run_one_batch([aid], all_rules, model, timeout)
+            except UsageLimitError as e:
+                print(f"    usage limit reached — stopping per-paper retries: {e}")
+                break
             results.update(single)
 
     return results
