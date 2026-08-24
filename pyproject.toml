@@ -22,7 +22,7 @@ dependencies = [
     "rich>=13.0",
     "tqdm",
     "typing_extensions>=4.0; python_version < '3.11'",  # NotRequired backport for results/collector.py
-    "websockets>=12.0",
+    "websockets>=13.0",  # 13.0 adds websockets.asyncio.server, the implementation serve.py imports
 ]
 
 [dependency-groups]
