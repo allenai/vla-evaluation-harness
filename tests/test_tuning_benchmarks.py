@@ -161,6 +161,23 @@ async def test_config_partial_error_still_applies_valid(echo_server_url: str):
     assert data["config"]["max_batch_size"] == 4
 
 
+def test_serve_uses_the_asyncio_implementation_not_the_alias():
+    """``serve.py`` must not go back to the top-level ``websockets.serve`` alias.
+
+    The alias resolves to ``websockets.legacy.server`` on <=13.x, which calls
+    ``process_request(path, Headers)``.  ``_make_process_request`` builds a
+    ``(connection, Request)`` callback, so under the alias every request raises
+    ``AttributeError: 'Headers' object has no attribute 'path'`` and websockets
+    answers 500.  The tests above cannot see it, because a dev install resolves
+    a version where the alias happens to point at the right implementation.
+    """
+    import websockets.asyncio.server
+
+    from vla_eval.model_servers import serve as serve_mod
+
+    assert serve_mod.ws_serve is websockets.asyncio.server.serve
+
+
 @pytest.mark.anyio
 async def test_set_server_config_helper(echo_server_url: str):
     """set_server_config() from bench_supply should work end-to-end."""

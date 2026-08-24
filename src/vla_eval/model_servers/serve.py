@@ -40,6 +40,13 @@ import anyio
 from anyio.to_thread import run_sync as _run_in_thread
 import websockets
 
+# Import the implementation directly rather than through the top-level ``websockets.serve``
+# alias.  That alias resolves to ``websockets.legacy.server`` on <=13.x and to this module
+# from 14.0 on, and the two call ``process_request`` with different arguments: the legacy
+# one passes ``(path, Headers)``, this one passes ``(connection, Request)``.  Naming the
+# module keeps one calling convention on every version the project supports.
+from websockets.asyncio.server import serve as ws_serve
+
 from vla_eval.model_servers.base import ModelServer, SessionContext
 from vla_eval.types import Action
 from vla_eval.protocol.messages import Message, MessageType, make_hello_payload, pack_message, unpack_message
@@ -307,7 +314,7 @@ async def serve_async(
     process_request = _make_process_request(model_server)
     async with anyio.create_task_group() as tg:
         tg.start_soon(_backpressure_monitor, backpressure_threshold)
-        async with websockets.serve(
+        async with ws_serve(
             handler,
             host,
             port,
