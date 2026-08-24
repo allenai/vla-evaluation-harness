@@ -66,9 +66,15 @@ if [[ -z "$EVAL_ID" ]]; then
   EVAL_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())')"
 fi
 
+# kill -- -$$ only works when this script leads its own process group, which is
+# true under an interactive shell but not under CI, a container, or another script.
+pids=()
 cleanup() {
   echo "Cleaning up background processes..."
-  kill -- -$$ 2>/dev/null || true
+  local pid
+  for pid in "${pids[@]}"; do
+    kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+  done
 }
 trap cleanup EXIT
 
@@ -95,11 +101,13 @@ if [[ -n "$RENDER" ]]; then
 fi
 
 echo "Launching ${NUM_SHARDS} shards..."
-pids=()
+set -m  # each shard leads its own process group, so cleanup() can signal its whole tree
 for i in $(seq 0 $((NUM_SHARDS - 1))); do
-  vla-eval run "${RUN_OPTS[@]}" --shard-id "$i" --num-shards "$NUM_SHARDS" &
+  # </dev/null: with -m, background jobs keep terminal stdin; a shard reading it would stop on SIGTTIN
+  vla-eval run "${RUN_OPTS[@]}" --shard-id "$i" --num-shards "$NUM_SHARDS" </dev/null &
   pids+=($!)
 done
+set +m
 
 echo "Waiting for all shards to finish..."
 failed=0
@@ -108,6 +116,7 @@ for pid in "${pids[@]}"; do
     failed=$((failed + 1))
   fi
 done
+pids=()  # all shards reaped; keep the trap from signaling reused PIDs during merge
 
 if [[ "$failed" -gt 0 ]]; then
   echo "ERROR: $failed of $NUM_SHARDS shards failed." >&2
