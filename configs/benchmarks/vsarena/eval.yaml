@@ -1,0 +1,20 @@
+# VSArena live eval (requires VSARENA_API_KEY)
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/vsarena:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.vsarena.benchmark:VSArenaBenchmark"
+    episodes_per_task: 5
+    params:
+      dry_run: false
+      ws_url: "wss://vsarena-harness.onrender.com"
+      mode: vla
+      max_episode_steps: 500
+      # api_key: set via VSARENA_API_KEY env var passed to Docker
+      # agent_name: optional VSARENA_AGENT_NAME
+    action_dim: 7

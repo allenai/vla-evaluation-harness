@@ -1,0 +1,17 @@
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+# Thin client: no local sim — connects to hosted VSArena harness over WebSocket.
+RUN conda create -n vsarena python=3.11 pip -y && conda clean -afy
+SHELL ["conda", "run", "-n", "vsarena", "/bin/bash", "-c"]
+
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "vsarena", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/vsarena/smoke_test.yaml"]

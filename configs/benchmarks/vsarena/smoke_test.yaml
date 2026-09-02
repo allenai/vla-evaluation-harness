@@ -1,0 +1,17 @@
+# VSArena smoke test (dry_run — no API key, no network harness)
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/vsarena:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.vsarena.benchmark:VSArenaBenchmark"
+    episodes_per_task: 1
+    params:
+      dry_run: true
+      mode: vla
+      max_episode_steps: 12
+    action_dim: 7
