@@ -9,6 +9,7 @@ import math
 import re
 import traceback
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -47,6 +48,52 @@ def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) ->
     if no_save:
         return None
     return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
+
+
+def _merge_observation_params(
+    benchmark_cls: type[Any],
+    configured_params: Mapping[str, Any],
+    observation_params: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Merge model-server observation settings into benchmark constructor params.
+
+    Observation settings are negotiated by the model server because they describe
+    the inputs its policy expects (for example, state or a wrist camera).  A
+    benchmark may expose those settings explicitly or collect benchmark-specific
+    options through ``**kwargs``.  In either case, values supplied in the eval
+    config remain authoritative so users can intentionally override negotiation.
+
+    Parameters that cannot be accepted by the constructor are ignored with a
+    warning.  This keeps older benchmarks compatible while making a dropped
+    negotiation visible before the first episode starts.
+    """
+    signature = inspect.signature(benchmark_cls.__init__)
+    accepts_kwargs = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
+    )
+    merged = dict(configured_params)
+
+    for key, value in observation_params.items():
+        if key in merged:
+            continue
+
+        parameter = signature.parameters.get(key)
+        accepts_named_parameter = parameter is not None and parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+        if accepts_kwargs or accepts_named_parameter:
+            merged[key] = value
+            logger.info("Auto-configured from model server: %s=%s", key, value)
+        else:
+            logger.warning(
+                "Model-server observation parameter %r cannot be forwarded to %s; "
+                "the benchmark constructor does not accept it",
+                key,
+                benchmark_cls.__qualname__,
+            )
+
+    return merged
 
 
 class Orchestrator:
@@ -181,13 +228,8 @@ class Orchestrator:
             raise
         sig = inspect.signature(benchmark_cls.__init__)
 
-        obs_params = conn.server_info.get("observation_params", {})
-        merged_params = dict(cfg.params)
-        if obs_params:
-            for key, value in obs_params.items():
-                if key not in merged_params and key in sig.parameters:
-                    merged_params[key] = value
-                    logger.info("Auto-configured from model server: %s=%s", key, value)
+        obs_params = conn.server_info.get("observation_params") or {}
+        merged_params = _merge_observation_params(benchmark_cls, cfg.params, obs_params)
 
         try:
             benchmark = benchmark_cls(**merged_params)
