@@ -50,39 +50,34 @@ def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) ->
     return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
 
 
+def _accepted_init_params(benchmark_cls: type[Any]) -> set[str]:
+    """Named ``__init__`` params across the MRO; stops where ``**kwargs`` no longer flows upward."""
+    names: set[str] = set()
+    for klass in benchmark_cls.__mro__:
+        if klass is object or "__init__" not in klass.__dict__:
+            continue
+        params = list(inspect.signature(klass.__init__).parameters.values())
+        names.update(p.name for p in params if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY))
+        if not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params):
+            break
+    names.discard("self")
+    return names
+
+
 def _merge_observation_params(
     benchmark_cls: type[Any],
     configured_params: Mapping[str, Any],
     observation_params: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Merge model-server observation settings into benchmark constructor params.
-
-    Observation settings are negotiated by the model server because they describe
-    the inputs its policy expects (for example, state or a wrist camera).  A
-    benchmark may expose those settings explicitly or collect benchmark-specific
-    options through ``**kwargs``.  In either case, values supplied in the eval
-    config remain authoritative so users can intentionally override negotiation.
-
-    Parameters that cannot be accepted by the constructor are ignored with a
-    warning.  This keeps older benchmarks compatible while making a dropped
-    negotiation visible before the first episode starts.
-    """
-    signature = inspect.signature(benchmark_cls.__init__)
-    accepts_kwargs = any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
-    )
+    """Merge server ``observation_params`` into constructor params. Eval config wins;
+    keys no class in the MRO names are dropped with a warning."""
+    accepted = _accepted_init_params(benchmark_cls)
     merged = dict(configured_params)
 
     for key, value in observation_params.items():
         if key in merged:
             continue
-
-        parameter = signature.parameters.get(key)
-        accepts_named_parameter = parameter is not None and parameter.kind in (
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        )
-        if accepts_kwargs or accepts_named_parameter:
+        if key in accepted:
             merged[key] = value
             logger.info("Auto-configured from model server: %s=%s", key, value)
         else:
