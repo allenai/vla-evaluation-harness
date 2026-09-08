@@ -9,6 +9,7 @@ import math
 import re
 import traceback
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -47,6 +48,47 @@ def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) ->
     if no_save:
         return None
     return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
+
+
+def _accepted_init_params(benchmark_cls: type[Any]) -> set[str]:
+    """Named ``__init__`` params across the MRO; stops where ``**kwargs`` no longer flows upward."""
+    names: set[str] = set()
+    for klass in benchmark_cls.__mro__:
+        if klass is object or "__init__" not in klass.__dict__:
+            continue
+        params = list(inspect.signature(klass.__init__).parameters.values())
+        names.update(p.name for p in params if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY))
+        if not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params):
+            break
+    names.discard("self")
+    return names
+
+
+def _merge_observation_params(
+    benchmark_cls: type[Any],
+    configured_params: Mapping[str, Any],
+    observation_params: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Merge server ``observation_params`` into constructor params. Eval config wins;
+    keys no class in the MRO names are dropped with a warning."""
+    accepted = _accepted_init_params(benchmark_cls)
+    merged = dict(configured_params)
+
+    for key, value in observation_params.items():
+        if key in merged:
+            continue
+        if key in accepted:
+            merged[key] = value
+            logger.info("Auto-configured from model server: %s=%s", key, value)
+        else:
+            logger.warning(
+                "Model-server observation parameter %r cannot be forwarded to %s; "
+                "the benchmark constructor does not accept it",
+                key,
+                benchmark_cls.__qualname__,
+            )
+
+    return merged
 
 
 class Orchestrator:
@@ -181,13 +223,8 @@ class Orchestrator:
             raise
         sig = inspect.signature(benchmark_cls.__init__)
 
-        obs_params = conn.server_info.get("observation_params", {})
-        merged_params = dict(cfg.params)
-        if obs_params:
-            for key, value in obs_params.items():
-                if key not in merged_params and key in sig.parameters:
-                    merged_params[key] = value
-                    logger.info("Auto-configured from model server: %s=%s", key, value)
+        obs_params = conn.server_info.get("observation_params") or {}
+        merged_params = _merge_observation_params(benchmark_cls, cfg.params, obs_params)
 
         try:
             benchmark = benchmark_cls(**merged_params)

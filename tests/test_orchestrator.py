@@ -10,6 +10,7 @@ separately in ``tests/test_recording_sqlite.py``.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from unittest.mock import patch
 
@@ -17,7 +18,7 @@ import numpy as np
 import pytest
 import websockets.exceptions
 
-from vla_eval.orchestrator import Orchestrator
+from vla_eval.orchestrator import Orchestrator, _merge_observation_params
 
 from tests.conftest import BrokenTracker, RecordingTracker, StubBenchmark
 
@@ -29,6 +30,73 @@ class StepRecordingStub(StubBenchmark):
         res = super().step(action)
         self._recorder.record_step(reward=float(self._step_count))
         return res
+
+
+class ExplicitObservationBenchmark:
+    """Constructor exposing negotiated settings explicitly."""
+
+    def __init__(self, *, seed: int = 7, send_state: bool = False, send_wrist_image: bool = False) -> None:
+        self.seed = seed
+        self.send_state = send_state
+        self.send_wrist_image = send_wrist_image
+
+
+class WrapperObservationBenchmark(ExplicitObservationBenchmark):
+    """Subclass forwarding ``**kwargs`` to its parent, like LIBERO-Plus/Pro/Mem."""
+
+    def __init__(self, *, category: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.category = category
+
+
+def test_observation_params_forwarded_through_wrapper_kwargs() -> None:
+    """Negotiated inputs reach parameters that only the parent constructor names."""
+    merged = _merge_observation_params(
+        WrapperObservationBenchmark,
+        {"category": "spatial"},
+        {"send_state": True, "send_wrist_image": True},
+    )
+
+    assert merged == {"category": "spatial", "send_state": True, "send_wrist_image": True}
+    benchmark = WrapperObservationBenchmark(**merged)
+    assert benchmark.send_state is True
+    assert benchmark.send_wrist_image is True
+
+
+def test_wrapper_kwargs_do_not_admit_unknown_params(caplog) -> None:
+    """``**kwargs`` is not a blank cheque: keys no class in the MRO names are dropped."""
+    with caplog.at_level(logging.WARNING, logger="vla_eval.orchestrator"):
+        merged = _merge_observation_params(
+            WrapperObservationBenchmark,
+            {},
+            {"send_state": True, "max_episode_steps": 300},
+        )
+
+    assert merged == {"send_state": True}
+    WrapperObservationBenchmark(**merged)
+    assert any("max_episode_steps" in record.getMessage() for record in caplog.records)
+
+
+def test_configured_observation_params_take_precedence() -> None:
+    """An explicit benchmark config must override server negotiation."""
+    merged = _merge_observation_params(
+        ExplicitObservationBenchmark,
+        {"send_state": False},
+        {"send_state": True},
+    )
+
+    assert merged == {"send_state": False}
+
+
+def test_unforwardable_observation_params_warn(caplog) -> None:
+    """Unsupported negotiated inputs are visible before benchmark construction."""
+    with caplog.at_level(logging.WARNING, logger="vla_eval.orchestrator"):
+        merged = _merge_observation_params(ExplicitObservationBenchmark, {}, {"quat_no_antipodal": True})
+
+    assert merged == {}
+    assert any(
+        record.levelname == "WARNING" and "quat_no_antipodal" in record.getMessage() for record in caplog.records
+    )
 
 
 @pytest.mark.anyio
