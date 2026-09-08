@@ -6,6 +6,7 @@ import inspect
 import json
 import logging
 import math
+import random
 import re
 import traceback
 import uuid
@@ -48,6 +49,19 @@ def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) ->
     if no_save:
         return None
     return {**_DEFAULT_RECORDING_CONFIG, **(raw or {})}
+
+
+_SHARD_SHUFFLE_SEED = 42
+
+
+def _shard_work_items(work_items: list[Any], num_shards: int, shard_id: int) -> list[Any]:
+    """Fixed-seed shuffle so a shard never collects one episode index across every task
+    (gcd(num_shards, episodes_per_task) > 1 does that); re-sort by task to keep env rebuilds rare."""
+    items = list(work_items)
+    random.Random(_SHARD_SHUFFLE_SEED).shuffle(items)
+    mine = [w for i, w in enumerate(items) if i % num_shards == shard_id]
+    mine.sort(key=lambda w: w[0])
+    return mine
 
 
 def _accepted_init_params(benchmark_cls: type[Any]) -> set[str]:
@@ -100,8 +114,9 @@ class Orchestrator:
         3. Determine ``max_steps``: if config omits it, the benchmark's
            ``get_metadata()["max_steps"]`` is used.
         4. Build a flat list of (task, episode) work items.
-        5. If sharding is enabled, select this shard's subset via round-robin
-           (``item_index % num_shards == shard_id``).
+        5. If sharding is enabled, shuffle the list with a fixed seed, take this
+           shard's round-robin slice (``item_index % num_shards == shard_id``),
+           and re-sort it by task so env rebuilds stay rare.
         6. Run each work item via the runner. Recording goes through SQLite.
            Failures are isolated per episode.
 
@@ -298,7 +313,7 @@ class Orchestrator:
             (task_idx, task, ep) for task_idx, task in enumerate(tasks) for ep in range(cfg.episodes_per_task)
         ]
         if self.num_shards is not None and self.shard_id is not None:
-            work_items = [w for i, w in enumerate(work_items) if i % self.num_shards == self.shard_id]
+            work_items = _shard_work_items(work_items, self.num_shards, self.shard_id)
             logger.info("Shard %d/%d: %d episodes assigned", self.shard_id, self.num_shards, len(work_items))
 
         collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())

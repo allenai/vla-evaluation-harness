@@ -394,6 +394,7 @@ def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     assert body["mode"] == "sync"
     assert body["seed"] == 7
     assert body["harness_version"] == "test"
+    assert isinstance(body["num_errors"], int)
     assert body["server_info"] == {"model_server": "EchoServer"}
     assert body["metric_keys"] == {"success": "mean"}
     assert body["mean_success"] == pytest.approx(2 / 3, abs=1e-4)

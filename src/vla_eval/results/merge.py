@@ -133,6 +133,7 @@ def _build_aggregate(
         body["metric_keys"] = metric_keys
         _aggregate_metrics(body, all_episodes, metric_keys)
     body["num_episodes_total"] = episode_count
+    body["num_errors"] = sum(t.get("num_errors", 0) for t in tasks_out)
     return body
 
 
