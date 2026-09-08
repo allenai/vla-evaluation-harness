@@ -123,8 +123,10 @@ if [[ "$failed" -gt 0 ]]; then
 fi
 
 echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval merge'..."
-vla-eval merge "${MERGE_OPTS[@]}" || \
+vla-eval merge "${MERGE_OPTS[@]}" || {
   echo "WARNING: merge failed; the SQLite recording still has the raw data — rerun 'vla-eval merge' manually." >&2
+  echo "         If it failed with 'Permission denied', the shard containers ran as root; set 'docker.user: host' in the config." >&2
+}
 
 if [[ "$failed" -gt 0 ]]; then
   exit 1

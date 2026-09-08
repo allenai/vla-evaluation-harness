@@ -141,6 +141,8 @@ vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spati
 
 Each shard gets a deterministic slice via round-robin. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
 
+Benchmark containers run as root by default, so `output_dir` ends up root-owned and the host-side `vla-eval merge` fails with `Permission denied`. Set `docker.user: host` in the eval YAML (or an explicit `"<uid>:<gid>"`) to run the containers as the invoking user.
+
 ### Batch Model Server (GPU parallelism)
 
 Enable batching in the model server config by setting `max_batch_size > 1`:
