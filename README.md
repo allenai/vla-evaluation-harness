@@ -139,7 +139,7 @@ wait
 vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
 ```
 
-Each shard gets a deterministic slice via round-robin. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
+Work items are shuffled with a fixed seed before the round-robin split, so no shard ends up holding a single episode index across every task; each shard then runs its slice task by task. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
 
 Benchmark containers run as root by default, so `output_dir` ends up root-owned and the host-side `vla-eval merge` fails with `Permission denied`. Set `docker.user: host` in the eval YAML (or an explicit `"<uid>:<gid>"`) to run the containers as the invoking user.
 

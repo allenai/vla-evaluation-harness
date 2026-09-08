@@ -47,6 +47,7 @@ class BenchmarkResult(TypedDict):
     created_at: str
     tasks: list[TaskResult]
     config: dict[str, Any]
+    num_errors: NotRequired[int]
     seed: NotRequired[int | None]
     metric_keys: NotRequired[dict[str, str]]
 
@@ -170,6 +171,8 @@ class ResultCollector:
             tasks=tasks,
             config=config,
         )
+
+        result["num_errors"] = self.error_count
 
         # Promote seed to top level for reproducibility
         seed = _extract_seed(config)

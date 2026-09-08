@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 import websockets.exceptions
 
-from vla_eval.orchestrator import Orchestrator, _merge_observation_params
+from vla_eval.orchestrator import Orchestrator, _merge_observation_params, _shard_work_items
 
 from tests.conftest import BrokenTracker, RecordingTracker, StubBenchmark
 
@@ -97,6 +97,19 @@ def test_unforwardable_observation_params_warn(caplog) -> None:
     assert any(
         record.levelname == "WARNING" and "quat_no_antipodal" in record.getMessage() for record in caplog.records
     )
+
+
+def test_shard_work_items_mixes_episode_indices_and_stays_task_sorted() -> None:
+    """num_shards == episodes_per_task used to give shard k only episode k of every task."""
+    tasks, eps, shards = 10, 50, 50
+    items = [(t, {"name": f"t{t}"}, e) for t in range(tasks) for e in range(eps)]
+    slices = [_shard_work_items(items, shards, k) for k in range(shards)]
+
+    assert sorted(w for s in slices for w in s) == sorted(items)
+    assert all(len(s) == tasks * eps // shards for s in slices)
+    assert all(len({e for _, _, e in s}) > 1 for s in slices)
+    assert all([t for t, _, _ in s] == sorted(t for t, _, _ in s) for s in slices)
+    assert _shard_work_items(items, shards, 3) == slices[3]
 
 
 @pytest.mark.anyio

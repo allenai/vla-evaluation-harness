@@ -425,7 +425,9 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Print final summary
     for r in results:
-        print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}")
+        errs = r.get("num_errors", 0)
+        tail = f"  (⚠ {errs} episodes errored)" if errs else ""
+        print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}{tail}")
 
     # Single-shard runs auto-merge: write per-episode jsonl + aggregate JSON from
     # the SQLite recording, since there are no other shard processes to coordinate
