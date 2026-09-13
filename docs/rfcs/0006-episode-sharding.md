@@ -125,7 +125,7 @@ Sharding args pass through to the Docker container transparently:
 docker run ghcr.io/allenai/vla-evaluation-harness/libero:latest run --no-docker --config /tmp/config.yaml --shard-id 0 --num-shards 4
 ```
 
-The `_run_via_docker` function forwards `--shard-id` and `--num-shards` to the container command.
+The `run_via_docker` function (`cli/_docker.py`) forwards `--shard-id` and `--num-shards` to the container command.
 
 ## Interaction with Model Server
 

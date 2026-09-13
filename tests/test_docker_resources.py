@@ -321,7 +321,7 @@ class TestRocmShardDockerFlags:
 
 
 # --------------------------------------------------------------------------
-# DockerConfig.user default-to-host-uid (cli _run_via_docker behavior)
+# DockerConfig.user default-to-host-uid (cli/_docker.py run_via_docker behavior)
 # --------------------------------------------------------------------------
 
 

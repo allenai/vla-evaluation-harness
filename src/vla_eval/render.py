@@ -16,7 +16,8 @@ import os
 from collections.abc import Mapping
 from typing import Any, Final
 
-from vla_eval.docker_resources import is_no_gpu_spec
+from vla_eval.config import EvalConfig
+from vla_eval.docker_resources import NO_GPU_SPEC, is_no_gpu_spec
 
 logger = logging.getLogger(__name__)
 
@@ -153,3 +154,57 @@ def apply_render_mode(benchmark_cls: type[Any], mode: str, name: str) -> dict[st
     if applied:
         logger.info("Render backend %s for %s: %s", mode, name, applied)
     return dict(applied)
+
+
+def resolve_run_render_mode(config: dict[str, Any], override: str | None, cli_gpus: str | None = None) -> str:
+    """Resolve ``render:`` (CLI wins over YAML) and reconcile it with ``docker.gpus``.
+
+    ``render: cpu`` pins the container to no GPU at all. A CLI ``--render cpu`` is an explicit
+    act that outranks a device spec sitting in the YAML, but a config asking for both at once
+    contradicts itself and is rejected — as is ``--render cpu`` against an explicit ``--gpus``,
+    where neither flag outranks the other.
+    """
+    if override is not None:
+        config["render"] = override
+    mode = normalize_render_mode(config.get("render"))
+
+    docker_section = config.get("docker")
+    if not isinstance(docker_section, dict):
+        return mode
+
+    gpus = docker_section.get("gpus")
+    if override == "cpu" and cli_gpus is None and gpus is not None:
+        logger.info("--render cpu overrides docker.gpus=%r; starting the container with no GPU", gpus)
+        gpus = None
+    check_gpu_spec_conflict(mode, gpus)
+    if mode == "cpu":
+        docker_section["gpus"] = NO_GPU_SPEC
+    return mode
+
+
+def check_run_render_support(config: dict[str, Any], mode: str) -> None:
+    """Reject benchmarks that do not declare *mode*, before any docker pull.
+
+    Falling back to GPU would reinstate the crash the caller is avoiding, so this
+    raises instead of warning.
+    """
+    from vla_eval.registry import resolve_import_string
+
+    offenders: list[str] = []
+    for entry in config.get("benchmarks") or []:
+        import_path = (entry or {}).get("benchmark", "")
+        if not import_path:
+            continue
+        try:
+            benchmark_cls = resolve_import_string(import_path)
+        except Exception as exc:
+            # Adapter deps often only exist in the benchmark image; the in-container
+            # orchestrator re-checks authoritatively before any episode runs.
+            logger.debug("Skipping host-side render check for %s: %s", import_path, exc)
+            continue
+        if not supports_render_mode(benchmark_cls, mode):
+            offenders.append(
+                unsupported_render_message(EvalConfig.from_dict(entry).resolved_name(), benchmark_cls, mode)
+            )
+    if offenders:
+        raise ValueError("render: {} is not supported by:\n  {}".format(mode, "\n  ".join(offenders)))
