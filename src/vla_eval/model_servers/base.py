@@ -104,6 +104,10 @@ class ModelServer(ABC):
     WebSocket connections as soon as ``__init__`` returns.
     """
 
+    def on_serve_start(self) -> None:
+        """Called by ``serve_async`` before accepting connections. Override to reset state that is
+        bound to an event loop, so one instance can be served again on a new loop."""
+
     @abstractmethod
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
         """Called when an observation arrives. Run inference and call ctx.send_action()."""

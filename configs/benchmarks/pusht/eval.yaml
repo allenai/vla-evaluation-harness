@@ -1,0 +1,17 @@
+# Push-T evaluation: 1 task x 50 episodes (seeds 0..49)
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/pusht:latest
+
+render: cpu
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.pusht.benchmark:PushTBenchmark"
+    episodes_per_task: 50
+    params:
+      seed: 0
+      max_episode_steps: 300
+    action_dim: 2

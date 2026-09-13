@@ -52,3 +52,16 @@ jobs:
         run: uv sync --python 3.11 --no-install-project --dev --group leaderboard
       - name: Run pytest
         run: uv run pytest leaderboard/tests/
+
+  example-pusht:
+    runs-on: ubuntu-latest
+    name: Example (pusht train + eval)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Run the training-time evaluation example end to end
+        # The example is its own uv project (vla-eval from this checkout via [tool.uv.sources]).
+        working-directory: examples/pusht_train_eval
+        run: |
+          uv sync --python 3.12
+          uv run train.py --steps 20 --eval-every 10 --eval-episodes 2 --eval-max-steps 30

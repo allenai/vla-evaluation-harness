@@ -48,3 +48,6 @@ src/vla_eval/_version.py
 
 # Leaderboard local cache (extract.py / refine.py working files)
 leaderboard/.cache/
+
+# example project outputs
+examples/pusht_train_eval/outputs/

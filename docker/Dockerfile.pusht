@@ -1,0 +1,20 @@
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+RUN conda create -n pusht python=3.11 pip -y && conda clean -afy
+SHELL ["conda", "run", "-n", "pusht", "/bin/bash", "-c"]
+
+# gym-pusht 0.1.6 targets the pymunk 6 collision-handler API.
+RUN uv pip install --no-cache-dir "gym-pusht==0.1.6" "pymunk<7" && rm -rf ~/.cache/uv
+
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENV SDL_VIDEODRIVER=dummy
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "pusht", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/pusht/eval.yaml"]

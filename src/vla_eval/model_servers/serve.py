@@ -33,7 +33,7 @@ import time
 import uuid
 from functools import partial
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 import anyio
@@ -303,10 +303,16 @@ async def serve_async(
     host: str = "0.0.0.0",
     port: int = 8000,
     backpressure_threshold: int = 4,
+    ready: Callable[[int], None] | None = None,
 ) -> None:
-    """Start a WebSocket server wrapping the given ModelServer."""
+    """Start a WebSocket server wrapping the given ModelServer.
+
+    ``ready`` is called with the bound port once the socket is listening; pass
+    ``port=0`` to let the OS pick one (see :func:`vla_eval.api.serve_background`).
+    """
     logger.info("Starting model server on ws://%s:%d", host, port)
     logger.info("HTTP config endpoint at http://%s:%d/config", host, port)
+    model_server.on_serve_start()
 
     async def handler(ws: Any) -> None:
         await _handle_connection(ws, model_server)
@@ -322,7 +328,9 @@ async def serve_async(
             compression=None,  # disable deflate; unnecessary for binary payloads and costly under high concurrency
             max_size=None,  # observations with images can exceed the 1MB default
             ping_interval=None,  # disable keepalive pings; JIT warmup can hold the GIL for 20s+
-        ):
+        ) as server:
+            if ready is not None:
+                ready(server.sockets[0].getsockname()[1])
             await anyio.sleep_forever()
 
 

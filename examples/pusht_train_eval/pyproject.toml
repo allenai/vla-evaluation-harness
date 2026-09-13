@@ -1,0 +1,16 @@
+[project]
+name = "pusht-train-eval"
+version = "0.1.0"
+description = "Train LeRobot's Diffusion Policy on Push-T and evaluate it with vla-eval during training"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "vla-eval[pusht]",
+    "lerobot[dataset,diffusion]==0.6.0",
+    "torch>=2.7,<2.12",
+    "av>=12",
+]
+
+# In-repo only: use the checkout instead of the published package. Delete this block
+# when you copy this directory into your own project.
+[tool.uv.sources]
+vla-eval = { path = "../..", editable = true }

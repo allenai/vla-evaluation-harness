@@ -25,6 +25,10 @@ dependencies = [
     "websockets>=13.0",  # 13.0 adds websockets.asyncio.server, the implementation serve.py imports
 ]
 
+[project.optional-dependencies]
+# CPU-only benchmark used by tests and examples/pusht_train_eval.
+pusht = ["gym-pusht==0.1.6; python_version >= '3.10'", "pymunk<7; python_version >= '3.10'"]
+
 [dependency-groups]
 dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
 # Runtime deps for leaderboard/scripts (refine, extract…).

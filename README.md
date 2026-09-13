@@ -115,6 +115,19 @@ Each benchmark and model server directory has a README with setup details, suppo
 
 > **Need faster runs?** See [Batch Parallel Evaluation](#batch-parallel-evaluation) for up to 47x throughput.
 
+### From Python (evaluate while training)
+
+The same run is one function call, with the model served from the calling process:
+
+```python
+import vla_eval
+
+results = vla_eval.evaluate(MyModelServer(model), "configs/benchmarks/pusht/eval.yaml")
+print(results[0]["mean_success"])
+```
+
+[`examples/pusht_train_eval`](examples/pusht_train_eval/) is a self-contained project (LeRobot Diffusion Policy on Push-T) that evaluates every N steps, in-process and without Docker; [Python API](docs/python-api.md) documents the arguments.
+
 ---
 
 ## Batch Parallel Evaluation
@@ -261,6 +274,7 @@ Under sharding, aggregate emission defers to `vla-eval merge`; per-episode track
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Component descriptions, protocol, episode flow, configuration |
+| [Python API](docs/python-api.md) | `evaluate()` / `run()` / `serve_background()` for calling the harness from a training script |
 | [Render Backends](docs/render-backends.md) | Running the simulator on the CPU (`--render cpu`) to free the GPU for the model |
 | [Container runtimes](docs/runtimes.md) | Docker vs Charliecloud (`--runtime charliecloud`, no daemon, no root) |
 | [Tuning Guide](docs/tuning-guide.md) | Measuring λ / μ and deriving `max_wait_time` for batch-parallel runs |
