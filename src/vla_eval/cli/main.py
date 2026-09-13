@@ -10,25 +10,22 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import yaml
 
 from vla_eval import watchdog
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.cli._docker import (
-    check_docker_daemon as _check_docker_daemon,
-    dev_src_mount_flags as _dev_src_mount_flags,
-    ensure_image_local as _ensure_docker_image,
+    RUNTIMES,
+    resolve_runtime as _resolve_container_runtime,
+    inside_docker as _inside_docker,
+    run_in_container as _run_in_container,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
-from vla_eval.config import DockerConfig, EvalConfig
+from vla_eval.config import DockerConfig
 from vla_eval.orchestrator import Orchestrator
-from vla_eval.docker_resources import NO_GPU_SPEC
 from vla_eval.render import (
     RENDER_MODES,
-    check_gpu_spec_conflict,
-    normalize_render_mode,
-    supports_render_mode,
-    unsupported_render_message,
+    check_run_render_support as _check_render_support,
+    resolve_run_render_mode as _resolve_render_mode,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,10 +39,6 @@ def _setup_logging(verbose: bool = False) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logging.getLogger("vla_eval").setLevel(level)
-
-
-def _inside_docker() -> bool:
-    return Path("/.dockerenv").exists()
 
 
 def _exec_subprocess(cmd: list[str]) -> None:
@@ -62,38 +55,6 @@ def _exec_subprocess(cmd: list[str]) -> None:
         sys.exit(130)
 
 
-def _exec_docker(docker: str, cmd: list[str], container_name: str) -> None:
-    """Run a Docker container, stopping it on exit/signal to prevent orphans."""
-    import atexit
-    import signal
-    import subprocess
-
-    proc = subprocess.Popen(cmd)
-
-    def _stop_container() -> None:
-        try:
-            subprocess.run([docker, "stop", "-t", "10", container_name], capture_output=True, timeout=15)
-        except Exception:
-            pass
-
-    atexit.register(_stop_container)
-
-    def _handle_signal(signum: int, _frame: object) -> None:
-        _stop_container()
-        sys.exit(128 + signum)
-
-    signal.signal(signal.SIGHUP, _handle_signal)
-    signal.signal(signal.SIGTERM, _handle_signal)
-
-    try:
-        rc = proc.wait()
-        atexit.unregister(_stop_container)
-        sys.exit(rc)
-    except KeyboardInterrupt:
-        _stop_container()
-        sys.exit(130)
-
-
 def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> None:
     """Apply the run-level video override to per-benchmark recording blocks, creating them as needed."""
     for idx, bench in enumerate(config.get("benchmarks") or []):
@@ -107,60 +68,6 @@ def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> No
         rec["record_video"] = enabled
 
 
-def _resolve_render_mode(config: dict[str, Any], override: str | None, cli_gpus: str | None = None) -> str:
-    """Resolve ``render:`` (CLI wins over YAML) and reconcile it with ``docker.gpus``.
-
-    ``render: cpu`` pins the container to no GPU at all. A CLI ``--render cpu`` is an explicit
-    act that outranks a device spec sitting in the YAML, but a config asking for both at once
-    contradicts itself and is rejected — as is ``--render cpu`` against an explicit ``--gpus``,
-    where neither flag outranks the other.
-    """
-    if override is not None:
-        config["render"] = override
-    mode = normalize_render_mode(config.get("render"))
-
-    docker_section = config.get("docker")
-    if not isinstance(docker_section, dict):
-        return mode
-
-    gpus = docker_section.get("gpus")
-    if override == "cpu" and cli_gpus is None and gpus is not None:
-        logger.info("--render cpu overrides docker.gpus=%r; starting the container with no GPU", gpus)
-        gpus = None
-    check_gpu_spec_conflict(mode, gpus)
-    if mode == "cpu":
-        docker_section["gpus"] = NO_GPU_SPEC
-    return mode
-
-
-def _check_render_support(config: dict[str, Any], mode: str) -> None:
-    """Reject benchmarks that do not declare *mode*, before any docker pull.
-
-    Falling back to GPU would reinstate the crash the caller is avoiding, so this
-    raises instead of warning.
-    """
-    from vla_eval.registry import resolve_import_string
-
-    offenders: list[str] = []
-    for entry in config.get("benchmarks") or []:
-        import_path = (entry or {}).get("benchmark", "")
-        if not import_path:
-            continue
-        try:
-            benchmark_cls = resolve_import_string(import_path)
-        except Exception as exc:
-            # Adapter deps often only exist in the benchmark image; the in-container
-            # orchestrator re-checks authoritatively before any episode runs.
-            logger.debug("Skipping host-side render check for %s: %s", import_path, exc)
-            continue
-        if not supports_render_mode(benchmark_cls, mode):
-            offenders.append(
-                unsupported_render_message(EvalConfig.from_dict(entry).resolved_name(), benchmark_cls, mode)
-            )
-    if offenders:
-        raise ValueError("render: {} is not supported by:\n  {}".format(mode, "\n  ".join(offenders)))
-
-
 class _RecordVideoAction(argparse.Action):
     """Python 3.8-compatible boolean optional action for --record-video."""
 
@@ -169,155 +76,6 @@ class _RecordVideoAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, option_string != "--no-record-video")
-
-
-def _run_via_docker(
-    config: dict[str, Any],
-    *,
-    auto_yes: bool = False,
-    dev: bool = False,
-    shard_id: int | None = None,
-    num_shards: int | None = None,
-    accept_license: list[str] | None = None,
-    eval_id: str | None = None,
-    no_save: bool = False,
-) -> None:
-    """Execute the evaluation inside a Docker container."""
-    import shutil
-
-    docker = shutil.which("docker")
-    if docker is None:
-        _stderr_console().print(
-            "[red]ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/[/red]"
-        )
-        sys.exit(1)
-
-    _check_docker_daemon(docker)
-
-    docker_cfg = DockerConfig.from_dict(config.get("docker"))
-    if docker_cfg.image is None:
-        _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
-        sys.exit(1)
-
-    _ensure_docker_image(docker, docker_cfg.image, auto_yes)
-
-    results_dir = str(Path(config.get("output_dir", "./results")).resolve())
-    Path(results_dir).mkdir(parents=True, exist_ok=True)
-
-    # output_dir must point to the container mount; the host absolute path doesn't exist inside.
-    import tempfile
-
-    docker_config = dict(config)
-    docker_config["output_dir"] = "/workspace/results"
-    # Also remap any per-benchmark `recording.output_dir` that points under the
-    # host results_dir — otherwise the recorder writes mp4/jsonl inside the
-    # container at the host path and they vanish when the container exits.
-    benchmarks = docker_config.get("benchmarks") or []
-    remapped_benchmarks = []
-    for entry in benchmarks:
-        rec = (entry or {}).get("recording")
-        if isinstance(rec, dict) and rec.get("output_dir"):
-            host_path = Path(rec["output_dir"]).resolve()
-            try:
-                rel = host_path.relative_to(results_dir)
-                new_entry = dict(entry)
-                new_rec = dict(rec)
-                new_rec["output_dir"] = str(Path("/workspace/results") / rel)
-                new_entry["recording"] = new_rec
-                remapped_benchmarks.append(new_entry)
-                continue
-            except ValueError:
-                logger.warning(
-                    "recording.output_dir=%s is outside output_dir=%s; container writes will not persist on the host",
-                    host_path,
-                    results_dir,
-                )
-        remapped_benchmarks.append(entry)
-    docker_config["benchmarks"] = remapped_benchmarks
-    docker_config_fd, docker_config_path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-docker-")
-    try:
-        with os.fdopen(docker_config_fd, "w") as f:
-            yaml.safe_dump(docker_config, f)
-    except Exception:
-        os.close(docker_config_fd)
-        raise
-
-    container_name = f"vla-eval-{os.getpid()}"
-
-    from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags, tty_docker_flags
-
-    # fmt: off
-    cmd: list[str] = [
-        docker, "run", "--rm",
-        "--name", container_name,
-        "--network", "host",
-        "-v", f"{results_dir}:/workspace/results",
-        "-v", f"{docker_config_path}:/tmp/eval_config.yaml:ro",
-    ]
-    # fmt: on
-
-    # Opt-in --user (see DockerConfig.user).
-    if docker_cfg.user == "host":
-        if not hasattr(os, "getuid"):
-            _stderr_console().print(
-                "[red]ERROR: docker.user='host' needs a POSIX host; pin user: '<uid>:<gid>' instead.[/red]"
-            )
-            sys.exit(1)
-        cmd.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
-    elif docker_cfg.user:
-        cmd.extend(["--user", docker_cfg.user])
-
-    # Forward host-side results_dir for recorder._host_translate.
-    cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
-
-    # The watchdog runs inside the container; forward the host override so long
-    # episodes (e.g. RoboDojo's 1900-step tasks) aren't killed as stalls.
-    if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
-        cmd.extend(["-e", f"VLA_EVAL_WATCHDOG_TIMEOUT_S={os.environ['VLA_EVAL_WATCHDOG_TIMEOUT_S']}"])
-
-    # Forward stdin/TTY for in-container licence prompts.
-    cmd.extend(tty_docker_flags())
-
-    # Dev mode: mount host src/ into container (requires editable install in image).
-    if dev:
-        try:
-            mount = _dev_src_mount_flags()
-        except RuntimeError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            sys.exit(1)
-        cmd.extend(mount)
-        logger.info("Dev mode: mounting %s -> /workspace/src", mount[1].split(":", 1)[0])
-
-    # Extra volumes / env vars from config
-    for vol in docker_cfg.volumes:
-        cmd.extend(["-v", vol])
-    for env_str in docker_cfg.env:
-        cmd.extend(["-e", env_str])
-
-    # Forward licence acceptance into the container so ``ensure_license`` can skip the prompt.
-    if accept_license:
-        cmd.extend(["-e", f"VLA_EVAL_ACCEPTED_LICENSES={','.join(accept_license)}"])
-
-    # Resource allocation
-    if num_shards is not None:
-        assert shard_id is not None
-        cmd.extend(shard_docker_flags(shard_id, num_shards, cpus=docker_cfg.cpus, gpus=docker_cfg.gpus))
-    else:
-        cmd.extend(gpu_docker_flag(docker_cfg.gpus))
-
-    cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
-    if shard_id is not None:
-        cmd.extend(["--shard-id", str(shard_id), "--num-shards", str(num_shards)])
-    if eval_id:
-        cmd.extend(["--eval-id", eval_id])
-    if no_save:
-        cmd.append("--no-save")
-
-    logger.info("Running via Docker: %s", " ".join(cmd))
-    try:
-        _exec_docker(docker, cmd, container_name)
-    finally:
-        Path(docker_config_path).unlink(missing_ok=True)
 
 
 def cmd_run(args: argparse.Namespace) -> None:
@@ -395,8 +153,14 @@ def cmd_run(args: argparse.Namespace) -> None:
     use_docker = bool(docker_cfg.image) and not getattr(args, "no_docker", False) and not _inside_docker()
 
     if use_docker:
-        _run_via_docker(
+        try:
+            runtime = _resolve_container_runtime(config, getattr(args, "runtime", None))
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
+        rc = _run_in_container(
             config,
+            runtime=runtime,
             auto_yes=getattr(args, "yes", False),
             dev=getattr(args, "dev", False),
             shard_id=shard_id,
@@ -405,6 +169,8 @@ def cmd_run(args: argparse.Namespace) -> None:
             eval_id=eval_id,
             no_save=no_save,
         )
+        if rc != 0:
+            sys.exit(rc)
         return
 
     import anyio
@@ -911,6 +677,12 @@ execution flow:
     )
     run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"
+    )
+    run_parser.add_argument(
+        "--runtime",
+        choices=RUNTIMES,
+        default=None,
+        help="Container runtime (default: docker.runtime, $VLA_EVAL_RUNTIME, or docker); see docs/runtimes.md",
     )
     run_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
     run_parser.add_argument(

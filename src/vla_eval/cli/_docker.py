@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from vla_eval.cli._console import stderr_console as _stderr_console
+from vla_eval.config import DockerConfig
+
+logger = logging.getLogger(__name__)
 
 # Public mirror for images the allenai org has not granted public read on (issue #73).
 _REGISTRY_MIRRORS = {"ghcr.io/allenai/vla-evaluation-harness/": "ghcr.io/worv-ai/vla-evaluation-harness-public/"}
@@ -77,3 +85,236 @@ def ensure_image_local(docker: str, image: str, auto_yes: bool) -> None:
                 return
     con.print(f"[red]ERROR: docker pull failed for {image}.[/red]")
     sys.exit(1)
+
+
+RUNTIMES = ("docker", "charliecloud")
+CONTAINER_RESULTS = "/workspace/results"
+CONTAINER_CONFIG = "/tmp/eval_config.yaml"
+
+
+def inside_docker() -> bool:
+    return Path("/.dockerenv").exists()
+
+
+def resolve_runtime(config: dict[str, Any], override: str | None = None) -> str:
+    """``--runtime`` > ``$VLA_EVAL_RUNTIME`` > ``docker.runtime`` > ``"docker"``."""
+    name = override or os.environ.get("VLA_EVAL_RUNTIME") or DockerConfig.from_dict(config.get("docker")).runtime
+    name = (name or "docker").strip().lower()
+    if name not in RUNTIMES:
+        raise ValueError(f"unknown container runtime {name!r}; expected one of {', '.join(RUNTIMES)}")
+    return name
+
+
+def prepare_container_config(config: dict[str, Any]) -> tuple[str, str]:
+    """Write the eval config the container reads, output paths remapped to the mount point.
+    Returns ``(host_results_dir, temp_config_path)``; the caller unlinks the temp file."""
+    import tempfile
+
+    results_dir = str(Path(config.get("output_dir", "./results")).resolve())
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
+
+    container_config = dict(config)
+    container_config["output_dir"] = CONTAINER_RESULTS
+    # recording.output_dir under results_dir must follow the remap or its files vanish with the container.
+    remapped = []
+    for entry in container_config.get("benchmarks") or []:
+        rec = (entry or {}).get("recording")
+        if isinstance(rec, dict) and rec.get("output_dir"):
+            host_path = Path(rec["output_dir"]).resolve()
+            try:
+                rel = host_path.relative_to(results_dir)
+                remapped.append({**entry, "recording": {**rec, "output_dir": str(Path(CONTAINER_RESULTS) / rel)}})
+                continue
+            except ValueError:
+                logger.warning(
+                    "recording.output_dir=%s is outside output_dir=%s; container writes will not persist on the host",
+                    host_path,
+                    results_dir,
+                )
+        remapped.append(entry)
+    container_config["benchmarks"] = remapped
+
+    fd, path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-container-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.safe_dump(container_config, f)
+    except Exception:
+        os.close(fd)
+        raise
+    return results_dir, path
+
+
+def inner_run_args(*, shard_id: int | None, num_shards: int | None, eval_id: str | None, no_save: bool) -> list[str]:
+    """``vla-eval`` arguments executed inside the container."""
+    args = ["run", "--no-docker", "--config", CONTAINER_CONFIG]
+    if shard_id is not None:
+        args.extend(["--shard-id", str(shard_id), "--num-shards", str(num_shards)])
+    if eval_id:
+        args.extend(["--eval-id", eval_id])
+    if no_save:
+        args.append("--no-save")
+    return args
+
+
+def exec_child(cmd: list[str], stop: Any) -> int:
+    """Run *cmd*; ``stop(proc)`` runs on exit/signal so no container outlives us. Returns the exit code."""
+    import atexit
+    import signal
+    import subprocess
+    import threading
+
+    proc = subprocess.Popen(cmd)
+
+    def _stop() -> None:
+        try:
+            stop(proc)
+        except Exception:
+            pass
+
+    atexit.register(_stop)
+
+    def _handle_signal(signum: int, _frame: object) -> None:
+        _stop()
+        sys.exit(128 + signum)
+
+    # Restore the caller's handlers afterwards (library use).
+    previous: dict[int, Any] = {}
+    if threading.current_thread() is threading.main_thread():
+        for sig in (signal.SIGHUP, signal.SIGTERM):
+            previous[sig] = signal.signal(sig, _handle_signal)
+
+    try:
+        rc = proc.wait()
+        atexit.unregister(_stop)
+        return rc
+    except KeyboardInterrupt:
+        _stop()
+        return 130
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+
+
+def exec_docker(docker: str, cmd: list[str], container_name: str) -> int:
+    """Run a Docker container, stopping it on exit/signal to prevent orphans. Returns the exit code."""
+    import subprocess
+
+    def _stop(_proc: Any) -> None:
+        subprocess.run([docker, "stop", "-t", "10", container_name], capture_output=True, timeout=15)
+
+    return exec_child(cmd, _stop)
+
+
+def run_in_container(config: dict[str, Any], *, runtime: str | None = None, **kwargs: Any) -> int:
+    """Dispatch to the configured runtime (see :func:`resolve_runtime`). Returns the exit code."""
+    name = resolve_runtime(config, runtime)
+    if name == "charliecloud":
+        from vla_eval.cli._charliecloud import run_via_charliecloud
+
+        return run_via_charliecloud(config, **kwargs)
+    return run_via_docker(config, **kwargs)
+
+
+def run_via_docker(
+    config: dict[str, Any],
+    *,
+    auto_yes: bool = False,
+    dev: bool = False,
+    shard_id: int | None = None,
+    num_shards: int | None = None,
+    accept_license: list[str] | None = None,
+    eval_id: str | None = None,
+    no_save: bool = False,
+) -> int:
+    """Execute the evaluation inside a Docker container. Returns the container's exit code."""
+    import shutil
+
+    docker = shutil.which("docker")
+    if docker is None:
+        _stderr_console().print(
+            "[red]ERROR: 'docker' not found. Install Docker: https://docs.docker.com/get-docker/ "
+            "(or use --runtime charliecloud, see docs/runtimes.md)[/red]"
+        )
+        sys.exit(1)
+
+    check_docker_daemon(docker)
+
+    docker_cfg = DockerConfig.from_dict(config.get("docker"))
+    if docker_cfg.image is None:
+        _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
+        sys.exit(1)
+
+    ensure_image_local(docker, docker_cfg.image, auto_yes)
+
+    results_dir, docker_config_path = prepare_container_config(config)
+    container_name = f"vla-eval-{os.getpid()}"
+
+    from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags, tty_docker_flags
+
+    # fmt: off
+    cmd: list[str] = [
+        docker, "run", "--rm",
+        "--name", container_name,
+        "--network", "host",
+        "-v", f"{results_dir}:{CONTAINER_RESULTS}",
+        "-v", f"{docker_config_path}:{CONTAINER_CONFIG}:ro",
+    ]
+    # fmt: on
+
+    # Opt-in --user (see DockerConfig.user).
+    if docker_cfg.user == "host":
+        if not hasattr(os, "getuid"):
+            _stderr_console().print(
+                "[red]ERROR: docker.user='host' needs a POSIX host; pin user: '<uid>:<gid>' instead.[/red]"
+            )
+            sys.exit(1)
+        cmd.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
+    elif docker_cfg.user:
+        cmd.extend(["--user", docker_cfg.user])
+
+    # Forward host-side results_dir for recorder._host_translate.
+    cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
+
+    # The watchdog runs inside the container; forward the host override so long
+    # episodes (e.g. RoboDojo's 1900-step tasks) aren't killed as stalls.
+    if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
+        cmd.extend(["-e", f"VLA_EVAL_WATCHDOG_TIMEOUT_S={os.environ['VLA_EVAL_WATCHDOG_TIMEOUT_S']}"])
+
+    # Forward stdin/TTY for in-container licence prompts.
+    cmd.extend(tty_docker_flags())
+
+    # Dev mode: mount host src/ into container (requires editable install in image).
+    if dev:
+        try:
+            mount = dev_src_mount_flags()
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+        cmd.extend(mount)
+        logger.info("Dev mode: mounting %s -> /workspace/src", mount[1].split(":", 1)[0])
+
+    # Extra volumes / env vars from config
+    for vol in docker_cfg.volumes:
+        cmd.extend(["-v", vol])
+    for env_str in docker_cfg.env:
+        cmd.extend(["-e", env_str])
+
+    # Forward licence acceptance into the container so ``ensure_license`` can skip the prompt.
+    if accept_license:
+        cmd.extend(["-e", f"VLA_EVAL_ACCEPTED_LICENSES={','.join(accept_license)}"])
+
+    # Resource allocation
+    if num_shards is not None:
+        assert shard_id is not None
+        cmd.extend(shard_docker_flags(shard_id, num_shards, cpus=docker_cfg.cpus, gpus=docker_cfg.gpus))
+    else:
+        cmd.extend(gpu_docker_flag(docker_cfg.gpus))
+
+    cmd.append(docker_cfg.image)
+    cmd.extend(inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save))
+
+    logger.info("Running via Docker: %s", " ".join(cmd))
+    try:
+        return exec_docker(docker, cmd, container_name)
+    finally:
+        Path(docker_config_path).unlink(missing_ok=True)

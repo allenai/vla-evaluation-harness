@@ -655,7 +655,7 @@ def run_benchmark_test(
         docker_cmd.extend(["-v", vol])
     for env_str in docker_cfg.env:
         docker_cmd.extend(["-e", env_str])
-    # After docker_cfg.env, matching _run_via_docker: for duplicate -e docker keeps the
+    # After docker_cfg.env, matching run_via_docker: for duplicate -e docker keeps the
     # last one, and a config env like NVIDIA_VISIBLE_DEVICES must not beat cpu's "void".
     docker_cmd.extend(gpu_docker_flag(gpu_spec))
     docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])

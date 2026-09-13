@@ -80,6 +80,7 @@ class DockerConfig:
         user: Optional ``docker run --user`` value. ``None`` (default) →
             no flag (image-default user). ``"host"`` → ``$(id -u):$(id -g)``.
             ``"<uid>:<gid>"`` → explicit pin.
+        runtime: ``"docker"`` (default) or ``"charliecloud"``; ``--runtime`` / ``$VLA_EVAL_RUNTIME`` override.
     """
 
     image: str | None = None
@@ -88,6 +89,7 @@ class DockerConfig:
     cpus: str | None = None
     gpus: str | None = None
     user: str | None = None
+    runtime: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> DockerConfig:
@@ -100,6 +102,7 @@ class DockerConfig:
             cpus=data.get("cpus"),
             gpus=data.get("gpus"),
             user=data.get("user") or None,
+            runtime=data.get("runtime") or None,
         )
 
     def to_dict(self) -> dict[str, Any]:

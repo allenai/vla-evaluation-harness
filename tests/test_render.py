@@ -9,10 +9,17 @@ from typing import Any
 import pytest
 
 from vla_eval.benchmarks.base import Benchmark
-from vla_eval.cli import main as cli, smoke
+from vla_eval.cli import smoke
 from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags
 from vla_eval.registry import resolve_import_string
-from vla_eval.render import apply_render_mode, mujoco_cpu_env, normalize_render_mode, supports_render_mode
+from vla_eval.render import (
+    apply_render_mode,
+    check_run_render_support,
+    mujoco_cpu_env,
+    normalize_render_mode,
+    resolve_run_render_mode,
+    supports_render_mode,
+)
 
 # Adapters migrated to software rendering; the LIBERO variants inherit the hook.
 MUJOCO_CPU_BENCHMARKS = [
@@ -81,27 +88,27 @@ class TestNormalizeRenderMode:
 class TestResolveRenderMode:
     def test_cli_overrides_config(self):
         config: dict[str, Any] = {"render": "gpu", "docker": {"image": "img", "gpus": "0"}}
-        assert cli._resolve_render_mode(config, "cpu") == "cpu"
+        assert resolve_run_render_mode(config, "cpu") == "cpu"
         assert config["render"] == "cpu"
 
     def test_config_used_when_no_cli_override(self):
-        assert cli._resolve_render_mode({"render": "cpu", "docker": {"image": "img"}}, None) == "cpu"
+        assert resolve_run_render_mode({"render": "cpu", "docker": {"image": "img"}}, None) == "cpu"
 
     def test_defaults_to_gpu_and_leaves_gpus_alone(self):
         config: dict[str, Any] = {"docker": {"image": "img"}}
-        assert cli._resolve_render_mode(config, None) == "gpu"
+        assert resolve_run_render_mode(config, None) == "gpu"
         assert "gpus" not in config["docker"]
 
     def test_cpu_without_explicit_gpus_pins_container_to_no_gpu(self):
         config: dict[str, Any] = {"docker": {"image": "img"}}
-        cli._resolve_render_mode(config, "cpu")
+        resolve_run_render_mode(config, "cpu")
         assert config["docker"]["gpus"] == "none"
 
     def test_cli_cpu_overrides_a_config_device_spec(self):
         """robomme's configs all pin gpus: all; --render cpu must still attach no device."""
         config: dict[str, Any] = {"docker": {"image": "img", "gpus": "all"}}
 
-        assert cli._resolve_render_mode(config, "cpu") == "cpu"
+        assert resolve_run_render_mode(config, "cpu") == "cpu"
         assert config["docker"]["gpus"] == "none"
 
     def test_config_asking_for_cpu_and_a_device_is_rejected(self):
@@ -109,30 +116,30 @@ class TestResolveRenderMode:
         config: dict[str, Any] = {"render": "cpu", "docker": {"image": "img", "gpus": "all"}}
 
         with pytest.raises(ValueError, match="conflicts with render: cpu"):
-            cli._resolve_render_mode(config, None)
+            resolve_run_render_mode(config, None)
 
     def test_cli_cpu_against_an_explicit_cli_gpus_is_rejected(self):
         """Two flags at the same precedence level; neither outranks the other."""
         config: dict[str, Any] = {"docker": {"image": "img", "gpus": "0,1"}}
 
         with pytest.raises(ValueError, match="conflicts with render: cpu"):
-            cli._resolve_render_mode(config, "cpu", cli_gpus="0,1")
+            resolve_run_render_mode(config, "cpu", cli_gpus="0,1")
 
     def test_cpu_tolerates_a_gpus_spec_that_already_means_none(self):
         config: dict[str, Any] = {"render": "cpu", "docker": {"image": "img", "gpus": "none"}}
 
-        assert cli._resolve_render_mode(config, None) == "cpu"
+        assert resolve_run_render_mode(config, None) == "cpu"
         assert config["docker"]["gpus"] == "none"
 
     def test_no_docker_section_is_untouched(self):
         config: dict[str, Any] = {"benchmarks": []}
-        assert cli._resolve_render_mode(config, "cpu") == "cpu"
+        assert resolve_run_render_mode(config, "cpu") == "cpu"
         assert "docker" not in config
 
     def test_gpus_none_with_render_gpu_is_rejected(self):
         config: dict[str, Any] = {"docker": {"image": "img", "gpus": "none"}}
         with pytest.raises(ValueError, match="conflicts with render: gpu"):
-            cli._resolve_render_mode(config, "gpu")
+            resolve_run_render_mode(config, "gpu")
 
 
 # ---------------------------------------------------------------------------
@@ -168,17 +175,17 @@ class TestCapabilityGating:
             ]
         }
         with pytest.raises(ValueError) as excinfo:
-            cli._check_render_support(config, "cpu")
+            check_run_render_support(config, "cpu")
         assert "offender-a" in str(excinfo.value)
         assert "offender-b" in str(excinfo.value)
 
     def test_check_passes_for_migrated_benchmarks(self):
-        cli._check_render_support({"benchmarks": [{"benchmark": p} for p in MUJOCO_CPU_BENCHMARKS]}, "cpu")
+        check_run_render_support({"benchmarks": [{"benchmark": p} for p in MUJOCO_CPU_BENCHMARKS]}, "cpu")
 
     def test_unresolvable_import_is_deferred_to_the_container(self):
         """Adapter deps often only exist in the benchmark image, so a host-side
         import failure must not abort the run."""
-        cli._check_render_support({"benchmarks": [{"benchmark": "no.such.module:Nope"}]}, "cpu")
+        check_run_render_support({"benchmarks": [{"benchmark": "no.such.module:Nope"}]}, "cpu")
 
 
 # ---------------------------------------------------------------------------
