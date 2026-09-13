@@ -27,10 +27,8 @@ dependencies = [
 
 [dependency-groups]
 dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
-# Runtime deps for leaderboard/scripts (refine, extract…).
-# Tooling (pytest, jsonschema) comes from `dev`, so CI can sync
-# `--dev --group leaderboard --no-install-project` to get a lean env
-# for leaderboard tests without pulling vla_eval's runtime.
+# leaderboard/scripts runtime deps. Tooling comes from `dev`, so CI can sync
+# `--dev --group leaderboard --no-install-project` without pulling vla_eval's runtime.
 leaderboard = [
     "beautifulsoup4>=4.12",
     "markdownify>=0.14",
@@ -50,22 +48,19 @@ packages = ["src/vla_eval"]
 vla-eval = "vla_eval.cli.main:main"
 
 [tool.pytest.ini_options]
-# Explicit so discovery doesn't creep into anywhere else a stray
-# test_*.py lands (e.g. .cache, experiments, site).
+# Explicit: keep discovery out of .cache, experiments, site.
 testpaths = ["tests", "leaderboard/tests"]
 
 [tool.uv]
-# Pin resolution to a known-good date so `uv sync` from a fresh clone
-# won't pick up a newly-published (and potentially compromised) dep
-# version without explicit intent. Bump when intentionally upgrading.
+# Fresh clones resolve to this date, so a newly published (possibly compromised) version is
+# never picked up without intent. Bump when upgrading on purpose.
 exclude-newer = "2026-07-07"
 
 [tool.ruff]
 line-length = 119
 
-# Ruff 0.16 expanded the default selection from 59 to 413 rules, and started
-# formatting code blocks in Markdown. Pin both to what this repo was written
-# against; CI installs the latest ruff.
+# Ruff 0.16 grew the default rule set (59 -> 413) and formats Markdown code blocks. Pin to what
+# this repo was written against; CI installs the latest ruff.
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
 
@@ -75,10 +70,8 @@ exclude = ["*.md"]
 [tool.ty.environment]
 python-version = "3.11"
 
-# Benchmark adapters import simulators that exist only inside their Docker images. Checking
-# them on the host means checking against whatever version happens to be installed here (or
-# nothing, which `unresolved-import = "ignore"` turns into a silent pass), so skip them all;
-# base.py and video.py stay checked. Adapters are the image build's concern.
+# Adapters import simulators that only exist in their images; on the host `unresolved-import = "ignore"`
+# made them a silent pass or a check against a random version. base.py and video.py stay checked.
 [tool.ty.src]
 exclude = ["src/vla_eval/benchmarks/*/"]
 
