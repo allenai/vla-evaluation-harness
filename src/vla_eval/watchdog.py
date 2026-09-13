@@ -26,6 +26,7 @@ class ProgressWatchdog:
         self._timeout_s = float(timeout_s)
         self._last = time.monotonic()
         self._phase = "startup"
+        self._stopped = threading.Event()
 
     def pet(self, phase: str) -> None:
         """Record progress; phase is surfaced if the watchdog later panics."""
@@ -44,10 +45,13 @@ class ProgressWatchdog:
         threading.Thread(target=self._loop, name="progress-watchdog", daemon=True).start()
         return self
 
+    def stop(self) -> None:
+        """Disarm: the thread exits at its next poll. For library callers whose run has ended."""
+        self._stopped.set()
+
     def _loop(self) -> None:
         poll = min(30.0, self._timeout_s / 4)
-        while True:
-            time.sleep(poll)
+        while not self._stopped.wait(poll):
             idle = self.idle_s()
             if idle > self._timeout_s:
                 logger.critical(
@@ -76,3 +80,11 @@ def pet(phase: str) -> None:
     """Pet the process-global watchdog; no-op if it was never armed."""
     if _watchdog is not None:
         _watchdog.pet(phase)
+
+
+def stop() -> None:
+    """Disarm the process-global watchdog (idempotent) so it can be re-armed by a later run."""
+    global _watchdog
+    if _watchdog is not None:
+        _watchdog.stop()
+        _watchdog = None

@@ -37,3 +37,17 @@ def test_idle_grows_past_timeout() -> None:
 def test_module_pet_is_noop_before_start() -> None:
     # Callers pet unconditionally — pet() before start() must not raise.
     watchdog.pet("safe no-op")
+
+
+def test_stop_ends_the_thread() -> None:
+    import threading
+    import time
+
+    from vla_eval.watchdog import ProgressWatchdog
+
+    wd = ProgressWatchdog(0.2).start()
+    thread = next(t for t in threading.enumerate() if t.name == "progress-watchdog")
+    wd.stop()
+    thread.join(1.0)
+    assert not thread.is_alive()
+    time.sleep(0.3)  # past the timeout: still here, so no os._exit fired
