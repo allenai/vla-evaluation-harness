@@ -14,8 +14,10 @@ from typing import Any
 from vla_eval import watchdog
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.cli._docker import (
+    RUNTIMES,
+    resolve_runtime as _resolve_container_runtime,
     inside_docker as _inside_docker,
-    run_via_docker as _run_via_docker,
+    run_in_container as _run_in_container,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig
@@ -151,8 +153,14 @@ def cmd_run(args: argparse.Namespace) -> None:
     use_docker = bool(docker_cfg.image) and not getattr(args, "no_docker", False) and not _inside_docker()
 
     if use_docker:
-        rc = _run_via_docker(
+        try:
+            runtime = _resolve_container_runtime(config, getattr(args, "runtime", None))
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
+        rc = _run_in_container(
             config,
+            runtime=runtime,
             auto_yes=getattr(args, "yes", False),
             dev=getattr(args, "dev", False),
             shard_id=shard_id,
@@ -669,6 +677,12 @@ execution flow:
     )
     run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"
+    )
+    run_parser.add_argument(
+        "--runtime",
+        choices=RUNTIMES,
+        default=None,
+        help="Container runtime (default: docker.runtime, $VLA_EVAL_RUNTIME, or docker); see docs/runtimes.md",
     )
     run_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
     run_parser.add_argument(

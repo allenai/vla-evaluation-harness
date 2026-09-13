@@ -87,6 +87,8 @@ vla-eval run --config configs/benchmarks/libero/smoke_test.yaml
 
 Results are saved to `results/` as JSON. The benchmark runs inside Docker by default; pass `--no-docker` for local development.
 
+No Docker daemon? `--runtime charliecloud` runs the same image without root; see [Container runtimes](docs/runtimes.md).
+
 For full evaluation (10 tasks x 50 episodes):
 
 ```bash
@@ -260,6 +262,7 @@ Under sharding, aggregate emission defers to `vla-eval merge`; per-episode track
 |----------|-------------|
 | [Architecture](docs/architecture.md) | Component descriptions, protocol, episode flow, configuration |
 | [Render Backends](docs/render-backends.md) | Running the simulator on the CPU (`--render cpu`) to free the GPU for the model |
+| [Container runtimes](docs/runtimes.md) | Docker vs Charliecloud (`--runtime charliecloud`, no daemon, no root) |
 | [Tuning Guide](docs/tuning-guide.md) | Measuring λ / μ and deriving `max_wait_time` for batch-parallel runs |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding benchmarks/models, PR workflow |
 | [Reproduction Reports](docs/reproductions/) | Per-model evaluation results and reproducibility verdicts |
