@@ -115,6 +115,19 @@ Each benchmark and model server directory has a README with setup details, suppo
 
 > **Need faster runs?** See [Batch Parallel Evaluation](#batch-parallel-evaluation) for up to 47x throughput.
 
+### From Python (evaluate while training)
+
+The same run is one function call, with the model served from the calling process:
+
+```python
+import vla_eval
+
+results = vla_eval.evaluate(MyModelServer(model), "configs/benchmarks/libero/smoke_test.yaml")
+print(results[0]["mean_success"])
+```
+
+[Python API](docs/python-api.md) documents the arguments.
+
 ---
 
 ## Batch Parallel Evaluation
@@ -263,6 +276,7 @@ Under sharding, aggregate emission defers to `vla-eval merge`; per-episode track
 | [Architecture](docs/architecture.md) | Component descriptions, protocol, episode flow, configuration |
 | [Render Backends](docs/render-backends.md) | Running the simulator on the CPU (`--render cpu`) to free the GPU for the model |
 | [Container runtimes](docs/runtimes.md) | Docker vs Charliecloud (`--runtime charliecloud`, no daemon, no root) |
+| [Python API](docs/python-api.md) | `evaluate()` / `run()` / `serve_background()` for calling the harness from a training script |
 | [Tuning Guide](docs/tuning-guide.md) | Measuring λ / μ and deriving `max_wait_time` for batch-parallel runs |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding benchmarks/models, PR workflow |
 | [Reproduction Reports](docs/reproductions/) | Per-model evaluation results and reproducibility verdicts |

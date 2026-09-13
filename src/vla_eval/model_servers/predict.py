@@ -169,6 +169,18 @@ class PredictModelServer(ModelServer):
         self._obs_slots: dict[str, tuple[Observation, SessionContext, float]] = {}
         self._obs_events: dict[str, asyncio.Event] = {}
 
+    def on_serve_start(self) -> None:
+        # asyncio.Lock / anyio limiters bind to the loop that first uses them; a server reused
+        # across serve_background() lifetimes (each on a fresh loop) needs fresh ones.
+        self._predict_lock = asyncio.Lock()
+        self._thread_limiter = anyio.CapacityLimiter(1)
+        self._send_stream = self._receive_stream = None
+        self._dispatch_task = None
+        self._chunk_buffers.clear()
+        self._ci_tasks.clear()
+        self._obs_slots.clear()
+        self._obs_events.clear()
+
     # ------------------------------------------------------------------
     # Inference methods — override one or both
     # ------------------------------------------------------------------
