@@ -1,5 +1,6 @@
 """Tests for vla_eval.docker_resources."""
 
+import pytest
 from unittest.mock import patch
 
 from vla_eval.docker_resources import (
@@ -363,3 +364,73 @@ def test_docker_config_user_empty_string_stays_none():
 
     cfg = DockerConfig.from_dict({"image": "x", "user": ""})
     assert cfg.user is None
+
+
+# ---------------------------------------------------------------------------
+# docker.build (compose-style image build)
+# ---------------------------------------------------------------------------
+
+
+def test_build_config_parsing() -> None:
+    from vla_eval.config import BuildConfig, DockerConfig
+
+    assert DockerConfig.from_dict({"image": "x", "build": "."}).build == BuildConfig(context=".")
+    cfg = DockerConfig.from_dict({"image": "x", "build": {"context": "bench", "dockerfile": "Dockerfile.gpu"}})
+    assert cfg.build == BuildConfig(context="bench", dockerfile="Dockerfile.gpu")
+    assert DockerConfig.from_dict({"image": "x"}).build is None
+    with pytest.raises(ValueError):
+        DockerConfig.from_dict({"image": "x", "build": {"dockerfile": "D"}})
+    assert BuildConfig(context="/ctx", dockerfile="sub/D").dockerfile_path == "/ctx/sub/D"
+    assert BuildConfig(context="/ctx", dockerfile="/abs/D").dockerfile_path == "/abs/D"
+
+
+def test_loader_resolves_build_paths_relative_to_yaml(tmp_path) -> None:
+    from vla_eval.cli.config_loader import load_config
+
+    (tmp_path / "bench").mkdir()
+    cfg_path = tmp_path / "bench" / "eval.yaml"
+    cfg_path.write_text("docker:\n  image: x:local\n  build: { context: ., dockerfile: Dockerfile }\nbenchmarks: []\n")
+    cfg = load_config(str(cfg_path))
+    assert cfg["docker"]["build"] == {"context": str(tmp_path / "bench"), "dockerfile": "Dockerfile"}
+    cfg_path.write_text("docker:\n  image: x:local\n  build: ..\nbenchmarks: []\n")
+    assert load_config(str(cfg_path))["docker"]["build"]["context"] == str(tmp_path)
+
+
+def test_ensure_image_local_builds_when_missing_or_forced(monkeypatch) -> None:
+    from vla_eval.cli import _docker
+    from vla_eval.config import BuildConfig
+
+    calls: list[list[str]] = []
+    present = {"x:local": False}
+    monkeypatch.setattr(_docker, "image_exists_locally", lambda docker, image: present[image])
+    monkeypatch.setattr(_docker.subprocess, "call", lambda cmd, *a, **k: calls.append(list(cmd)) or 0)
+    build = BuildConfig(context="/ctx")
+    _docker.ensure_image_local("docker", "x:local", auto_yes=False, build=build)
+    assert calls == [["docker", "build", "-t", "x:local", "-f", "/ctx/Dockerfile", "/ctx"]]
+    present["x:local"] = True
+    _docker.ensure_image_local("docker", "x:local", auto_yes=False, build=build)
+    assert len(calls) == 1  # present: not rebuilt
+    _docker.ensure_image_local("docker", "x:local", auto_yes=False, build=build, force_build=True)
+    assert len(calls) == 2
+
+
+def test_loader_child_context_keeps_relative_dockerfile(tmp_path) -> None:
+    from vla_eval.cli.config_loader import load_config
+    from vla_eval.config import DockerConfig
+
+    (tmp_path / "base").mkdir()
+    (tmp_path / "child").mkdir()
+    (tmp_path / "base" / "eval.yaml").write_text(
+        "docker:\n  image: x:local\n  build: { context: . }\nbenchmarks: []\n"
+    )
+    (tmp_path / "child" / "eval.yaml").write_text("extends: ../base/eval.yaml\ndocker:\n  build: { context: . }\n")
+    build = DockerConfig.from_dict(load_config(str(tmp_path / "child" / "eval.yaml"))["docker"]).build
+    assert build is not None and build.dockerfile_path == str(tmp_path / "child" / "Dockerfile")
+
+
+def test_build_without_image_derives_compose_style_tag() -> None:
+    from vla_eval.config import DockerConfig
+
+    cfg = DockerConfig.from_dict({"build": {"context": "/home/me/My Project/benchmark"}})
+    assert cfg.image == "my-project-benchmark:vla-eval"
+    assert DockerConfig.from_dict({"image": "x", "build": "/ctx"}).image == "x"

@@ -35,4 +35,19 @@ def load_config(path: str) -> dict[str, Any]:
     container = OmegaConf.to_container(merged, resolve=True)
     if not isinstance(container, dict):
         raise TypeError(f"expected dict from OmegaConf.to_container, got {type(container).__name__}")
-    return cast("dict[str, Any]", container)
+    config = cast("dict[str, Any]", container)
+    _resolve_build_paths(config, Path(path).resolve().parent)
+    return config
+
+
+def _resolve_build_paths(config: dict[str, Any], base: Path) -> None:
+    """``docker.build.context`` is relative to the YAML that declares it; ``dockerfile`` stays relative to it."""
+    docker = config.get("docker")
+    if not isinstance(docker, dict) or not docker.get("build"):
+        return
+    build = docker["build"]
+    if isinstance(build, str):
+        build = {"context": build}
+    if not isinstance(build, dict) or not build.get("context"):
+        return
+    docker["build"] = {**build, "context": str((base / build["context"]).resolve())}

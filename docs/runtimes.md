@@ -10,6 +10,7 @@ The benchmark side runs from a pinned OCI image under one of two runtimes. Selec
 | Runs as | image default (root) unless `docker.user` | the calling user; `docker.user` ignored |
 | GPU | `--gpus` | `ch-fromhost --nvidia` injects the host driver into the export (needs `nvidia-container-cli`); `docker.gpus` maps to `CUDA_VISIBLE_DEVICES`, unset/`all` inherits the job's mask |
 | CPU pinning (`docker.cpus`) | `--cpuset-cpus` | not applied |
+| `docker.build` | `docker build -t <image> -f <dockerfile> <context>` when the image is missing, or with `--build`; `image` defaults to `<parent>-<dir>:vla-eval` | `ch-image build` when not in storage, then export; `--build` rebuilds and drops the image's other cached exports, so do not force it while another run of the same image is active |
 | Image cache | Docker's store | `~/.cache/vla-eval/charliecloud/<image>[+nvidia-<driver>]` (`VLA_EVAL_HOME` overrides); delete to re-pull |
 
 ```bash

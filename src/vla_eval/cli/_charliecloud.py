@@ -13,7 +13,7 @@ from typing import Any
 
 from vla_eval import dirs
 from vla_eval.cli._console import stderr_console as _stderr_console
-from vla_eval.config import DockerConfig
+from vla_eval.config import BuildConfig, DockerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,16 @@ def image_dir_for(image: str, root: Path | None = None, driver: str | None = Non
     return root / (f"{name}+nvidia-{driver}" if driver else name)
 
 
-def ensure_image_dir(image: str, *, auto_yes: bool, gpu: bool, tools: dict[str, str] | None = None) -> Path:
-    """Pull, export and (when *gpu*) inject the driver on first use, under a per-directory lock."""
+def ensure_image_dir(
+    image: str,
+    *,
+    auto_yes: bool,
+    gpu: bool,
+    tools: dict[str, str] | None = None,
+    build: BuildConfig | None = None,
+    force_build: bool = False,
+) -> Path:
+    """Pull or build, export and (when *gpu*) inject the driver on first use, under a per-directory lock."""
     import fcntl
 
     tools = tools or find_tools()
@@ -48,11 +56,14 @@ def ensure_image_dir(image: str, *, auto_yes: bool, gpu: bool, tools: dict[str, 
     img_dir.parent.mkdir(parents=True, exist_ok=True)
     with open(f"{img_dir}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        if (img_dir / "ch" / "metadata.json").is_file():
+        rebuild = force_build and build is not None
+        if (img_dir / "ch" / "metadata.json").is_file() and not rebuild:
             return img_dir
         con = _stderr_console()
-        con.print(f"[yellow]Charliecloud export for '{image}' not found at {img_dir}; pulling (several GB).[/yellow]")
-        if not auto_yes:
+        if build is None and not auto_yes:
+            con.print(
+                f"[yellow]Charliecloud export for '{image}' not found at {img_dir}; pulling (several GB).[/yellow]"
+            )
             if not sys.stdin.isatty():
                 con.print("[red]ERROR: cannot confirm in non-interactive mode; use --yes.[/red]")
                 sys.exit(1)
@@ -61,10 +72,22 @@ def ensure_image_dir(image: str, *, auto_yes: bool, gpu: bool, tools: dict[str, 
         if gpu and shutil.which("nvidia-container-cli") is None:
             con.print("[red]ERROR: GPU rendering needs nvidia-container-cli on the host, or use --render cpu.[/red]")
             sys.exit(1)
-        pulled = _pull_with_mirror(tools["ch-image"], image)
+        if build is None:
+            pulled = _pull_with_mirror(tools["ch-image"], image)
+        elif rebuild or image not in _stored_images(tools["ch-image"]):
+            con.print(f"Building {image} from {build.dockerfile_path} with ch-image ...", soft_wrap=True)
+            cmd = [tools["ch-image"], "build", "-t", image, "-f", build.dockerfile_path, build.context]
+            pulled = image if subprocess.call(cmd) == 0 else None
+        else:
+            pulled = image  # already in storage; only this export variant is missing
         if pulled is None:
-            con.print(f"[red]ERROR: ch-image pull failed for {image}.[/red]")
+            con.print(f"[red]ERROR: ch-image {'build' if build else 'pull'} failed for {image}.[/red]")
             sys.exit(1)
+        if rebuild:  # other cached exports of this image are now stale
+            base = image_dir_for(image, img_dir.parent).name
+            for d in img_dir.parent.glob(f"{base}*"):
+                if d != img_dir and (d.name == base or d.name.startswith(f"{base}+nvidia-")):
+                    shutil.rmtree(d, ignore_errors=True)
         tmp_dir = Path(f"{img_dir}.tmp-{os.getpid()}")  # ch-run cannot use ch-image's storage directly
         shutil.rmtree(tmp_dir, ignore_errors=True)
         ok = subprocess.call([tools["ch-convert"], "-i", "ch-image", "-o", "dir", pulled, str(tmp_dir)]) == 0
@@ -76,6 +99,10 @@ def ensure_image_dir(image: str, *, auto_yes: bool, gpu: bool, tools: dict[str, 
         shutil.rmtree(img_dir, ignore_errors=True)
         os.rename(tmp_dir, img_dir)
     return img_dir
+
+
+def _stored_images(ch_image: str) -> list[str]:
+    return subprocess.run([ch_image, "list"], capture_output=True, text=True).stdout.split()
 
 
 def _pull_with_mirror(ch_image: str, image: str) -> str | None:
@@ -174,6 +201,7 @@ def run_via_charliecloud(
     accept_license: list[str] | None = None,
     eval_id: str | None = None,
     no_save: bool = False,
+    force_build: bool = False,
 ) -> int:
     """Execute the evaluation under ``ch-run``. Returns the exit code."""
     from vla_eval.cli._docker import dev_src_mount_flags, exec_child, inner_run_args, prepare_container_config
@@ -188,7 +216,9 @@ def run_via_charliecloud(
         logger.info("docker.user / docker.cpus are ignored under Charliecloud (runs as the caller, no cpuset)")
 
     gpu = not is_no_gpu_spec(docker_cfg.gpus) and str(config.get("render", "gpu")).lower() != "cpu"
-    img_dir = ensure_image_dir(docker_cfg.image, auto_yes=auto_yes, gpu=gpu, tools=tools)
+    img_dir = ensure_image_dir(
+        docker_cfg.image, auto_yes=auto_yes, gpu=gpu, tools=tools, build=docker_cfg.build, force_build=force_build
+    )
 
     dev_mount: list[str] | None = None
     if dev:

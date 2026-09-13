@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import os
 from pathlib import Path
 
@@ -226,3 +227,39 @@ def test_shards_get_thread_limits_even_without_gpu(monkeypatch) -> None:
     env = ch._gpu_env("none", 0, 4)
     assert env == {"OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "CUDA_VISIBLE_DEVICES": ""}
     assert "OMP_NUM_THREADS" not in ch._gpu_env("none", None, None)
+
+
+def test_ensure_image_dir_builds_from_dockerfile(tmp_path: Path, monkeypatch) -> None:
+    from vla_eval.config import BuildConfig
+
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path)
+    stored: list[str] = []
+    monkeypatch.setattr(ch, "_stored_images", lambda ch_image: stored)
+    calls: list[list[str]] = []
+
+    def fake_call(cmd, *a, **kw):
+        calls.append(list(cmd))
+        if cmd[0] == "ch-image":
+            stored.append(cmd[3])
+        if cmd[0] == "ch-convert":
+            _fake_image(Path(cmd[-1]).parent).rename(Path(cmd[-1]))
+        return 0
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    build = BuildConfig(context="/ctx")
+    tools = {t: t for t in ch.TOOLS}
+    ch.ensure_image_dir("x:local", auto_yes=False, gpu=False, tools=tools, build=build)
+    assert calls[0] == ["ch-image", "build", "-t", "x:local", "-f", "/ctx/Dockerfile", "/ctx"]
+    assert calls[1][0] == "ch-convert"
+
+    calls.clear()  # in storage, this variant missing: export only
+    shutil.rmtree(ch.image_dir_for("x:local"))
+    ch.ensure_image_dir("x:local", auto_yes=False, gpu=False, tools=tools, build=build)
+    assert [c[0] for c in calls] == ["ch-convert"]
+
+    calls.clear()  # forced: rebuild, and other variants are dropped
+    stale_gpu = ch.image_dir_for("x:local", driver="999.1")
+    _fake_image(stale_gpu.parent).rename(stale_gpu)
+    ch.ensure_image_dir("x:local", auto_yes=False, gpu=False, tools=tools, build=build, force_build=True)
+    assert [c[0] for c in calls] == ["ch-image", "ch-convert"]
+    assert not stale_gpu.exists()

@@ -168,6 +168,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             accept_license=getattr(args, "accept_license", None),
             eval_id=eval_id,
             no_save=no_save,
+            force_build=getattr(args, "build", False),
         )
         if rc != 0:
             sys.exit(rc)
@@ -685,6 +686,9 @@ execution flow:
         help="Container runtime (default: docker.runtime, $VLA_EVAL_RUNTIME, or docker); see docs/runtimes.md",
     )
     run_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts (e.g. docker pull)")
+    run_parser.add_argument(
+        "--build", action="store_true", help="Rebuild docker.image from docker.build even if it exists locally"
+    )
     run_parser.add_argument(
         "--accept-license",
         action="append",
