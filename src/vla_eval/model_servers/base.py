@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Coroutine, Dict, Literal
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Literal
 
 from vla_eval.specs import DimSpec
 from vla_eval.types import Action, Observation
+
+if TYPE_CHECKING:
+    from anyio.abc import TaskGroup
 
 # Type alias for the async send_action callback injected by the framework.
 # NOTE: Dict (not dict) for Python 3.8 compatibility in type aliases.
@@ -104,9 +107,9 @@ class ModelServer(ABC):
     WebSocket connections as soon as ``__init__`` returns.
     """
 
-    def on_serve_start(self) -> None:
-        """Called by ``serve_async`` before accepting connections. Override to reset state that is
-        bound to an event loop, so one instance can be served again on a new loop."""
+    async def on_serve_start(self, tg: TaskGroup) -> None:
+        """Called by ``serve_async`` before accepting connections; *tg* lives as long as the server.
+        Start background work with ``tg.start_soon`` and create loop-bound resources here."""
 
     @abstractmethod
     async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:

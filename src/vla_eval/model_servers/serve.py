@@ -33,10 +33,11 @@ import time
 import uuid
 from functools import partial
 from http import HTTPStatus
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import anyio
+from anyio.abc import TaskStatus
 from anyio.to_thread import run_sync as _run_in_thread
 import websockets
 
@@ -303,22 +304,19 @@ async def serve_async(
     host: str = "0.0.0.0",
     port: int = 8000,
     backpressure_threshold: int = 4,
-    ready: Callable[[int], None] | None = None,
+    *,
+    task_status: TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
 ) -> None:
-    """Start a WebSocket server wrapping the given ModelServer.
-
-    ``ready`` is called with the bound port once the socket is listening; pass
-    ``port=0`` to let the OS pick one (see :func:`vla_eval.api.serve_background`).
-    """
+    """Start a WebSocket server wrapping the given ModelServer. Reports the bound port via *task_status*."""
     logger.info("Starting model server on ws://%s:%d", host, port)
     logger.info("HTTP config endpoint at http://%s:%d/config", host, port)
-    model_server.on_serve_start()
 
     async def handler(ws: Any) -> None:
         await _handle_connection(ws, model_server)
 
     process_request = _make_process_request(model_server)
     async with anyio.create_task_group() as tg:
+        await model_server.on_serve_start(tg)
         tg.start_soon(_backpressure_monitor, backpressure_threshold)
         async with ws_serve(
             handler,
@@ -329,8 +327,7 @@ async def serve_async(
             max_size=None,  # observations with images can exceed the 1MB default
             ping_interval=None,  # disable keepalive pings; JIT warmup can hold the GIL for 20s+
         ) as server:
-            if ready is not None:
-                ready(server.sockets[0].getsockname()[1])
+            task_status.started(server.sockets[0].getsockname()[1])
             await anyio.sleep_forever()
 
 

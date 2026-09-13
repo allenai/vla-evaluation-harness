@@ -110,8 +110,6 @@ def test_serve_background_reusable_with_batched_server(tmp_path) -> None:
 
 
 def test_serve_background_reusable_under_contention() -> None:
-    """A non-batched server's asyncio.Lock binds to the first loop it contends on; the server
-    must reset it per serve so a second lifetime with concurrent clients does not raise."""
     server = EchoModelServer()
     for _ in range(2):
         with serve_background(server) as handle:
@@ -166,8 +164,8 @@ def test_serve_background_startup_timeout_cancels_server() -> None:
     import time
 
     class Slow(EchoModelServer):
-        def on_serve_start(self) -> None:
-            time.sleep(1.0)
+        async def on_serve_start(self, tg) -> None:
+            await anyio.sleep(1.0)
 
     with pytest.raises(TimeoutError):
         serve_background(Slow(), ready_timeout=0.1)
