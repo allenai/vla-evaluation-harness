@@ -75,5 +75,12 @@ exclude = ["*.md"]
 [tool.ty.environment]
 python-version = "3.11"
 
+# Benchmark adapters import simulators that exist only inside their Docker images. Checking
+# them on the host means checking against whatever version happens to be installed here (or
+# nothing, which `unresolved-import = "ignore"` turns into a silent pass), so skip them all;
+# base.py and video.py stay checked. Adapters are the image build's concern.
+[tool.ty.src]
+exclude = ["src/vla_eval/benchmarks/*/"]
+
 [tool.ty.rules]
 unresolved-import = "ignore"
