@@ -92,6 +92,8 @@ src/vla_eval/
 8. Register the name in the `BENCHMARKS` array in `docker/build.sh` and the `IMAGES` array in `docker/push.sh`
 9. Smoke-test: `vla-eval test -c configs/<name>.yaml` (runs 1 episode with an EchoModelServer; no real model or GPU needed, but requires Docker + the benchmark image)
 
+A pure-Python benchmark can also ship as a `pyproject.toml` extra (see `pusht`) so `tests/` can exercise the real env without Docker.
+
 See `benchmarks/libero/` for a complete reference implementation.
 
 ### Render Backends
