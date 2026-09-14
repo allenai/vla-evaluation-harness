@@ -604,16 +604,12 @@ def run_benchmark_test(
     from anyio.from_thread import start_blocking_portal
 
     portal_cm = start_blocking_portal()
-    server_future, _ = portal_cm.__enter__().start_task(serve_async, echo_server, "0.0.0.0", port)
-
-    # Wait for echo server readiness
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                break
-        except OSError:
-            time.sleep(0.1)
+    try:  # start_task returns once the port is bound
+        server_future, _ = portal_cm.__enter__().start_task(serve_async, echo_server, "0.0.0.0", port)
+    except Exception as exc:
+        portal_cm.__exit__(type(exc), exc, exc.__traceback__)
+        Path(tmp_path).unlink(missing_ok=True)
+        return SmokeResult(test, "fail", f"echo server failed to start: {exc}")
 
     # Run Docker container
     results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
