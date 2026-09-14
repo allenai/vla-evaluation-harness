@@ -9,7 +9,9 @@ JSON).
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,35 @@ class ServerConfig:
 
 
 @dataclass
+class BuildConfig:
+    """``docker.build``: how to build ``docker.image``; ``context`` is made absolute by the config loader."""
+
+    context: str
+    dockerfile: str = "Dockerfile"
+
+    @property
+    def dockerfile_path(self) -> str:
+        """``dockerfile`` resolved against ``context`` (compose semantics)."""
+        return str(Path(self.context, self.dockerfile))
+
+    @property
+    def default_image(self) -> str:
+        """Tag used when ``docker.image`` is omitted: ``<parent>-<dir>:vla-eval``, like compose."""
+        ctx = Path(self.context).resolve()
+        return re.sub(r"[^a-z0-9._-]", "-", f"{ctx.parent.name}-{ctx.name}".lower()).strip("-") + ":vla-eval"
+
+    @classmethod
+    def from_value(cls, value: Any) -> BuildConfig | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return cls(context=value)
+        if isinstance(value, dict) and value.get("context"):
+            return cls(context=str(value["context"]), dockerfile=str(value.get("dockerfile") or "Dockerfile"))
+        raise ValueError("docker.build must be a context path or {context, dockerfile}")
+
+
+@dataclass
 class DockerConfig:
     """Docker execution settings.
 
@@ -81,6 +112,8 @@ class DockerConfig:
             no flag (image-default user). ``"host"`` → ``$(id -u):$(id -g)``.
             ``"<uid>:<gid>"`` → explicit pin.
         runtime: ``"docker"`` (default) or ``"charliecloud"``; ``--runtime`` / ``$VLA_EVAL_RUNTIME`` override.
+        build: Compose-style ``{context, dockerfile}`` (or a context string). ``image`` is the tag
+            (default ``<parent>-<dir>:vla-eval``); built when missing locally, or always with ``--build``.
     """
 
     image: str | None = None
@@ -90,19 +123,22 @@ class DockerConfig:
     gpus: str | None = None
     user: str | None = None
     runtime: str | None = None
+    build: BuildConfig | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> DockerConfig:
         if not data:
             return cls()
+        build = BuildConfig.from_value(data.get("build"))
         return cls(
-            image=data.get("image"),
+            image=data.get("image") or (build.default_image if build else None),
             volumes=data.get("volumes", []),
             env=data.get("env", []),
             cpus=data.get("cpus"),
             gpus=data.get("gpus"),
             user=data.get("user") or None,
             runtime=data.get("runtime") or None,
+            build=build,
         )
 
     def to_dict(self) -> dict[str, Any]:

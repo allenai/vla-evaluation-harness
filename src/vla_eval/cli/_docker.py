@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from vla_eval.cli._console import stderr_console as _stderr_console
-from vla_eval.config import DockerConfig
+from vla_eval.config import BuildConfig, DockerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,24 @@ def image_exists_locally(docker: str, image: str) -> bool:
     return subprocess.run([docker, "image", "inspect", image], capture_output=True).returncode == 0
 
 
-def ensure_image_local(docker: str, image: str, auto_yes: bool) -> None:
-    """Make sure ``image`` is available locally, prompting for ``docker pull`` when missing."""
+def build_image(docker: str, image: str, build: BuildConfig) -> bool:
+    """``docker build -t image -f dockerfile context``; returns False on failure."""
+    _stderr_console().print(f"Building {image} from {build.dockerfile_path} ...", soft_wrap=True)
+    if subprocess.call([docker, "build", "-t", image, "-f", build.dockerfile_path, build.context]) == 0:
+        return True
+    _stderr_console().print(f"[red]ERROR: docker build failed for {image}.[/red]")
+    return False
+
+
+def ensure_image_local(
+    docker: str, image: str, auto_yes: bool, build: BuildConfig | None = None, force_build: bool = False
+) -> None:
+    """Make sure ``image`` is available locally: build it when ``build`` is set (and it is missing or
+    *force_build*), otherwise prompt for ``docker pull`` when missing."""
+    if build is not None and (force_build or not image_exists_locally(docker, image)):
+        if not build_image(docker, image, build):
+            sys.exit(1)
+        return
     if image_exists_locally(docker, image):
         return
 
@@ -225,6 +241,7 @@ def run_via_docker(
     accept_license: list[str] | None = None,
     eval_id: str | None = None,
     no_save: bool = False,
+    force_build: bool = False,
 ) -> int:
     """Execute the evaluation inside a Docker container. Returns the container's exit code."""
     import shutil
@@ -244,7 +261,7 @@ def run_via_docker(
         _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
         sys.exit(1)
 
-    ensure_image_local(docker, docker_cfg.image, auto_yes)
+    ensure_image_local(docker, docker_cfg.image, auto_yes, build=docker_cfg.build, force_build=force_build)
 
     results_dir, docker_config_path = prepare_container_config(config)
     container_name = f"vla-eval-{os.getpid()}"

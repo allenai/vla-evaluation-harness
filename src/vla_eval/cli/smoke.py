@@ -551,7 +551,12 @@ def run_benchmark_test(
         return SmokeResult(test, "skip", docker_msg)
 
     img_ok, img_msg = check_docker_image(docker_cfg.image)
-    if not img_ok:
+    if not img_ok and docker_cfg.build is not None:
+        from vla_eval.cli._docker import build_image
+
+        if not build_image(docker, docker_cfg.image, docker_cfg.build):
+            return SmokeResult(test, "fail", f"docker build failed: {docker_cfg.image}")
+    elif not img_ok:
         return SmokeResult(test, "skip", f"{img_msg}: {test.description}")
 
     # Extract action_dim before mutating config

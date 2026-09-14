@@ -148,6 +148,7 @@ def run(
     docker: bool | None = None,
     runtime: str | None = None,
     pull: bool = False,
+    build: bool = False,
     benchmark_overrides: Mapping[str, Any] | None = None,
     watchdog_timeout_s: float | None = None,
 ) -> list[dict[str, Any]]:
@@ -164,6 +165,7 @@ def run(
         runtime: Container runtime for the image: ``"docker"`` or ``"charliecloud"`` (no daemon, no
             root; see docs/runtimes.md). Default follows ``docker.runtime`` / ``$VLA_EVAL_RUNTIME``.
         pull: Allow pulling a missing image without a prompt (images are often tens of GB).
+        build: Rebuild ``docker.image`` from ``docker.build`` even if it exists locally.
         benchmark_overrides: Keys applied to every benchmark entry, e.g.
             ``{"episodes_per_task": 10, "max_tasks": 1, "params": {"seed": 3}}``.
         watchdog_timeout_s: Stall watchdog for this run only: in-process it is disarmed on return,
@@ -209,7 +211,9 @@ def run(
         if watchdog_timeout_s is not None:
             os.environ[env_key] = str(watchdog_timeout_s)  # the container's own watchdog reads this
         try:
-            rc = run_in_container(cfg, runtime=runtime, auto_yes=pull, eval_id=eval_id, no_save=False)
+            rc = run_in_container(
+                cfg, runtime=runtime, auto_yes=pull, eval_id=eval_id, no_save=False, force_build=build
+            )
         except SystemExit as exc:  # the docker helpers exit on missing daemon/image
             raise RuntimeError(f"benchmark container could not be started (exit {exc.code})") from exc
         finally:
