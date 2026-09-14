@@ -89,9 +89,10 @@ def main() -> None:
         "--docker", action="store_true", help="run the benchmark in the image built from benchmark/Dockerfile"
     )
     p.add_argument(
-        "--runtime", choices=["docker", "charliecloud"], default=None, help="container runtime for --docker"
+        "--runtime", choices=["docker", "charliecloud"], default=None, help="container runtime; implies --docker"
     )
     args = p.parse_args()
+    args.docker = args.docker or args.runtime is not None
 
     torch.manual_seed(0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

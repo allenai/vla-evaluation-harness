@@ -15,7 +15,7 @@ uv run train.py --docker   # same, but the environment runs in a container
 
 `--docker` builds `benchmark/Dockerfile` on first use and runs the environment there, so the
 simulator's dependencies stay out of the training environment. `--runtime charliecloud` does
-the same without a Docker daemon. Metrics go to `outputs/curve.jsonl`, the final checkpoint to
+the same without a Docker daemon (it implies `--docker`). Metrics go to `outputs/curve.jsonl`, the final checkpoint to
 `outputs/policy/`.
 
 ## What you write for your own environment
