@@ -14,4 +14,4 @@ dependencies = [
 
 # Until vla-eval 0.6.0 (the first release with vla_eval.evaluate) is on PyPI; delete afterwards.
 [tool.uv.sources]
-vla-eval = { git = "https://github.com/allenai/vla-evaluation-harness", rev = "cf74191a4b3b53c135ffa525f9654c246c090be3" }
+vla-eval = { git = "https://github.com/allenai/vla-evaluation-harness", rev = "0f31bfdf5daa3bdc0dac1751e632066fc007e2af" }
