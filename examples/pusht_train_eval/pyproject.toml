@@ -1,0 +1,17 @@
+[project]
+name = "pusht-train-eval"
+version = "0.1.0"
+description = "Train a policy on a benchmark vla-eval does not ship, and evaluate it with vla-eval during training"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "vla-eval",
+    "gym-pusht==0.1.6",
+    "pymunk<7",
+    "lerobot[dataset,diffusion]==0.6.0",
+    "torch>=2.7,<2.12",
+    "av>=12",
+]
+
+# Until vla-eval 0.6.0 (the first release with vla_eval.evaluate) is on PyPI; delete afterwards.
+[tool.uv.sources]
+vla-eval = { git = "https://github.com/allenai/vla-evaluation-harness", rev = "0f31bfdf5daa3bdc0dac1751e632066fc007e2af" }

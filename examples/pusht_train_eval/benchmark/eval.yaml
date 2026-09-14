@@ -1,0 +1,16 @@
+# Push-T eval config. The adapter is imported by name: from the project root, or inside the image.
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  build: .     # image built from ./Dockerfile when missing, or with --build
+  user: host   # write results as you, not root
+
+render: cpu
+
+benchmarks:
+  - benchmark: "benchmark.pusht:PushTBenchmark"
+    episodes_per_task: 20
+    params:
+      seed: 1000   # disjoint from the training episodes; fixed, so eval rounds are comparable
+    action_dim: 2
