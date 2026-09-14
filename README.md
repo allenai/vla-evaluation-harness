@@ -126,7 +126,8 @@ results = vla_eval.evaluate(MyModelServer(model), "configs/benchmarks/libero/smo
 print(results[0]["mean_success"])
 ```
 
-[Python API](docs/python-api.md) documents the arguments.
+[Python API](docs/python-api.md) documents the arguments. [examples/pusht_train_eval](examples/pusht_train_eval/)
+is a complete training script that does this every N steps on an environment vla-eval does not ship.
 
 ---
 
@@ -277,6 +278,7 @@ Under sharding, aggregate emission defers to `vla-eval merge`; per-episode track
 | [Render Backends](docs/render-backends.md) | Running the simulator on the CPU (`--render cpu`) to free the GPU for the model |
 | [Container runtimes](docs/runtimes.md) | Docker vs Charliecloud (`--runtime charliecloud`, no daemon, no root) |
 | [Python API](docs/python-api.md) | `evaluate()` / `run()` / `serve_background()` for calling the harness from a training script |
+| [Push-T example](examples/pusht_train_eval/) | Train with LeRobot and evaluate with vla-eval during training, on your own environment |
 | [Tuning Guide](docs/tuning-guide.md) | Measuring λ / μ and deriving `max_wait_time` for batch-parallel runs |
 | [Contributing](CONTRIBUTING.md) | Dev setup, adding benchmarks/models, PR workflow |
 | [Reproduction Reports](docs/reproductions/) | Per-model evaluation results and reproducibility verdicts |
