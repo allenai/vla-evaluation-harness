@@ -67,7 +67,11 @@ def evaluate(server: PolicyServer, args: argparse.Namespace) -> dict[str, float]
             runtime=args.runtime,
             no_save=not args.docker,  # container runs report through the recording on disk
             output_dir=args.output_dir / "eval",
-            benchmark_overrides={"episodes_per_task": args.eval_episodes, "max_steps": args.eval_max_steps},
+            benchmark_overrides={
+                "episodes_per_task": args.eval_episodes,
+                "max_steps": args.eval_max_steps,
+                "params": {"max_episode_steps": args.eval_max_steps},  # the env's own TimeLimit
+            },
         )
     finally:
         server.policy.train()
