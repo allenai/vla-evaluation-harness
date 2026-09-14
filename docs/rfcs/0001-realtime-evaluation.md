@@ -116,7 +116,7 @@ Real-time evaluation introduces metrics that sync evaluation cannot capture:
 - ✅ `SyncEpisodeRunner`: fully implemented and tested across LIBERO, CALVIN, SimplerEnv
 - ✅ Client-server architecture: WebSocket + msgpack protocol operational
 - ✅ Protocol timestamps: `seq` and `timestamp` fields on every message
-- ✅ `Connection.send_observation()` / `on_action()` / `run_listener()` (owned by the episode's task group)
+- ✅ `Connection.send_observation()` / `on_action()` / `listening()` (the listener runs for the block's duration)
 - ✅ `AsyncEpisodeRunner`: fully implemented (`runners/async_runner.py`)
 - ✅ `ActionBuffer` + hold policies (`repeat_last`, `zero`, callable): `runners/action_buffer.py`
 - ✅ Real-time metrics collection: effective control Hz, step timing, stale action ratio

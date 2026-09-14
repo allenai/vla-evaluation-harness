@@ -457,3 +457,67 @@ async def test_predict_serialised_under_concurrent_clients(free_port):
             await c.close()
     finally:
         await stop_server(task)
+
+
+class SlowCIServer(PredictModelServer):
+    """CI server whose inference takes 0.3 s; records every action it sends."""
+
+    def __init__(self):
+        super().__init__(continuous_inference=True, laas=False, hz=10.0)
+        self.sent: list[float] = []
+
+    def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+        time.sleep(0.3)
+        return {"actions": np.ones(7, dtype=np.float32)}
+
+
+def _ci_ctx(server: SlowCIServer, sid: str = "s") -> SessionContext:
+    ctx = SessionContext(sid, "e", mode="live")
+
+    async def send_action(action: dict[str, Any]) -> None:
+        server.sent.append(time.monotonic())
+
+    ctx._send_action_fn = send_action
+    return ctx
+
+
+@pytest.mark.anyio
+async def test_ci_episode_end_waits_for_inflight_inference(free_port):
+    """on_episode_end returns only after the CI loop exited, so no action lands after it."""
+    server = SlowCIServer()
+    task = asyncio.create_task(serve_async(server, port=free_port))
+    await wait_for_server(free_port)
+    try:
+        ctx = _ci_ctx(server)
+        await server.on_episode_start({}, ctx)
+        await server.on_observation({"value": 1.0}, ctx)
+        await anyio.sleep(0.05)  # inference is now running in a thread
+        t0 = time.monotonic()
+        await server.on_episode_end({}, ctx)
+        assert time.monotonic() - t0 >= 0.2
+        assert not server._ci_loops
+        n = len(server.sent)
+        await anyio.sleep(0.2)
+        assert len(server.sent) == n  # nothing sent after the episode ended
+    finally:
+        await stop_server(task)
+
+
+@pytest.mark.anyio
+async def test_ci_start_end_start_leaves_one_loop(free_port):
+    """Back-to-back lifecycle messages must not leave a second CI loop behind."""
+    server = SlowCIServer()
+    task = asyncio.create_task(serve_async(server, port=free_port))
+    await wait_for_server(free_port)
+    try:
+        ctx = _ci_ctx(server)
+        await server.on_episode_start({}, ctx)
+        await server.on_episode_end({}, ctx)
+        await server.on_episode_start({}, ctx)
+        assert len(server._ci_loops) == 1
+        await server.on_observation({"value": 1.0}, ctx)
+        await anyio.sleep(0.6)
+        assert len(server.sent) == 1
+        await server.on_episode_end({}, ctx)
+    finally:
+        await stop_server(task)

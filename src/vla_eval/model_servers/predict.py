@@ -20,7 +20,7 @@ from typing import Any, Callable
 import anyio
 import numpy as np
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from anyio.abc import TaskGroup
+from anyio.abc import TaskGroup, TaskStatus
 from anyio.to_thread import run_sync as _run_in_thread
 
 from vla_eval.model_servers.base import ModelServer, SessionContext
@@ -154,14 +154,12 @@ class PredictModelServer(ModelServer):
         # Loop-bound state; (re)created in on_serve_start for each serve.
         self._tg: TaskGroup | None = None
         self._predict_lock = anyio.Lock()  # one predict() on the GPU at a time (non-batched and CI paths)
-        self._thread_limiter = anyio.CapacityLimiter(
-            1
-        )  # own token so inference is never starved by other run_sync users
+        self._thread_limiter = anyio.CapacityLimiter(1)  # own token: never starved by other run_sync users
         self._send_stream: MemoryObjectSendStream[_PendingRequest] | None = None
         self._receive_stream: MemoryObjectReceiveStream[_PendingRequest] | None = None
         self._dispatch_running = False
         # CI state (per session)
-        self._ci_scopes: dict[str, anyio.CancelScope] = {}
+        self._ci_loops: dict[str, tuple[anyio.CancelScope, anyio.Event]] = {}  # per session: scope, exited
         self._obs_slots: dict[str, tuple[Observation, SessionContext, float]] = {}
         self._obs_events: dict[str, anyio.Event] = {}
 
@@ -172,7 +170,7 @@ class PredictModelServer(ModelServer):
         self._send_stream = self._receive_stream = None
         self._dispatch_running = False
         self._chunk_buffers.clear()
-        self._ci_scopes.clear()
+        self._ci_loops.clear()
         self._obs_slots.clear()
         self._obs_events.clear()
 
@@ -524,10 +522,10 @@ class PredictModelServer(ModelServer):
         self._chunk_buffers.pop(sid, None)
 
         if self.continuous_inference:
-            self._stop_ci(sid)
+            await self._stop_ci(sid)
             self._obs_events[sid] = anyio.Event()
             self._obs_slots.pop(sid, None)
-            self._task_group().start_soon(self._run_ci_loop, sid)
+            await self._task_group().start(self._run_ci_loop, sid)
             logger.info("CI loop started session=%s laas=%s hz=%.1f", sid, self.laas, self.hz)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
@@ -537,20 +535,28 @@ class PredictModelServer(ModelServer):
         self._session_chunk_sizes.pop(sid, None)
 
         if self.continuous_inference:
-            self._stop_ci(sid)
+            await self._stop_ci(sid)
 
-    async def _run_ci_loop(self, session_id: str) -> None:
+    async def _run_ci_loop(
+        self, session_id: str, *, task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED
+    ) -> None:
+        exited = anyio.Event()
         with anyio.CancelScope() as scope:
-            self._ci_scopes[session_id] = scope
+            self._ci_loops[session_id] = (scope, exited)
+            task_status.started()
             try:
                 await self._ci_loop(session_id)
             except Exception:
                 logger.exception("CI loop crashed session=%s", session_id)  # one session, not the server
+            finally:
+                exited.set()
 
-    def _stop_ci(self, session_id: str) -> None:
-        """Cancel the CI loop for a session."""
-        scope = self._ci_scopes.pop(session_id, None)
-        if scope is not None:
+    async def _stop_ci(self, session_id: str) -> None:
+        """Cancel the CI loop for a session and wait for it to exit (in-flight inference finishes first)."""
+        entry = self._ci_loops.pop(session_id, None)
+        if entry is not None:
+            scope, exited = entry
             scope.cancel()
+            await exited.wait()
         self._obs_slots.pop(session_id, None)
         self._obs_events.pop(session_id, None)

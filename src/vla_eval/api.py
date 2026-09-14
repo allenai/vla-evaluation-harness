@@ -19,14 +19,15 @@ from __future__ import annotations
 
 import copy
 import logging
+import math
 import os
 import uuid
-from concurrent.futures import Future, ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FuturesTimeout
+from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Mapping
 
 import anyio
+from anyio.abc import TaskStatus
 from anyio.from_thread import start_blocking_portal
 
 from vla_eval import watchdog
@@ -78,19 +79,30 @@ def serve_background(
     that lives on the training GPU is served without copying weights anywhere.
     """
     portal_cm = start_blocking_portal()
-    portal = portal_cm.__enter__()
-    pool = ThreadPoolExecutor(1)  # start_task blocks until the server reports its port; bound that wait
-    starting = pool.submit(portal.start_task, serve_async, model_server, host, port)
     try:
-        server_future, bound_port = starting.result(timeout=ready_timeout)
+        server_future, bound_port = portal_cm.__enter__().start_task(
+            _serve_or_timeout, model_server, host, port, ready_timeout
+        )
     except BaseException as exc:
-        if isinstance(exc, FuturesTimeout):
-            exc = TimeoutError(f"model server did not start listening within {ready_timeout}s")
         portal_cm.__exit__(type(exc), exc, exc.__traceback__)  # an exception makes the portal cancel its tasks
-        pool.shutdown(wait=False)
-        raise exc from None
-    pool.shutdown(wait=False)
+        raise
     return ServerHandle(host, bound_port, portal_cm, server_future)
+
+
+async def _serve_or_timeout(
+    model_server: ModelServer, host: str, port: int, ready_timeout: float, *, task_status: TaskStatus[int]
+) -> None:
+    """``serve_async`` with a deadline on startup only: lifted once the port is reported."""
+    with anyio.CancelScope(deadline=anyio.current_time() + ready_timeout) as scope:
+
+        class _Started(TaskStatus[int]):
+            def started(self, value: int | None = None) -> None:
+                scope.deadline = math.inf
+                task_status.started(value if value is not None else port)
+
+        await serve_async(model_server, host, port, task_status=_Started())
+    if scope.cancelled_caught:
+        raise TimeoutError(f"model server did not start listening within {ready_timeout}s")
 
 
 def _merge_benchmark_overrides(config: dict[str, Any], overrides: Mapping[str, Any]) -> None:

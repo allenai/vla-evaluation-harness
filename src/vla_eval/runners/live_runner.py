@@ -95,8 +95,7 @@ class LiveEpisodeRunner(EpisodeRunner):
         step_times: list[float] = []
         step_count = 0
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(conn.run_listener)
+        async with conn.listening():
             # --- Episode begins: clock starts, first obs sent ---
             clock.reset()
             await conn.send_observation(obs_dict)
@@ -135,8 +134,6 @@ class LiveEpisodeRunner(EpisodeRunner):
 
                 # Pacing via clock
                 await clock.wait_until(step_start + step_period)
-
-            tg.cancel_scope.cancel()  # episode over: stop the listener
 
         elapsed = clock.time()
         bench_metrics = await benchmark.get_result()
