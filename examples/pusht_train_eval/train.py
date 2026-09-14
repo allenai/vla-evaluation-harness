@@ -1,10 +1,6 @@
-"""Train LeRobot's Diffusion Policy on Push-T; evaluate with vla-eval every N steps.
+"""Train LeRobot's Diffusion Policy on Push-T and evaluate it with vla-eval every N steps.
 
-Push-T is not a vla-eval benchmark: ``benchmark/`` holds the adapter, the YAML naming it,
-and a Dockerfile. The adapter runs in this process, or with ``--docker`` in the image the
-YAML builds. Training is LeRobot's Push-T example; the addition is one call inside the loop::
-
-    results = vla_eval.evaluate(PolicyServer(policy, ...), "benchmark/eval.yaml", ...)
+The environment side (adapter, eval YAML, Dockerfile) is in ``benchmark/``; see README.md.
 """
 
 from __future__ import annotations

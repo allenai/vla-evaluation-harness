@@ -1,5 +1,4 @@
-# Push-T evaluation. `benchmark.pusht` is this directory's own adapter, imported by name:
-# in-process from the project root, or from the image built here with --docker.
+# Push-T eval config. The adapter is imported by name: from the project root, or inside the image.
 server:
   url: "ws://localhost:8000"
 

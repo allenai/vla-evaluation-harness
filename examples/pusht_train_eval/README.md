@@ -1,64 +1,61 @@
-# Push-T: your own benchmark, evaluated by vla-eval while training
+# Push-T: train with LeRobot, evaluate with vla-eval
 
-Push-T is not one of vla-eval's benchmarks. This directory shows what a project does to use
-vla-eval on an environment of its own: put an adapter, a YAML naming it, and a Dockerfile in
-`benchmark/`, then call `evaluate` from the training loop. Copy the directory anywhere; it depends on `vla-eval` as a package
-(pinned to a git commit until 0.6.0, the first release with `vla_eval.evaluate`, is on PyPI).
+A minimal training project that calls `vla_eval.evaluate` every N steps on an environment
+vla-eval does not ship. Everything specific to the environment lives in `benchmark/`; copy the
+directory and replace that folder to do the same for your own simulator.
+
+## Run
 
 ```bash
-cp -r examples/pusht_train_eval ~/my-pusht && cd ~/my-pusht
-uv sync
-uv run train.py                       # adapter runs in this process; 20k steps, ~1 h on one H100
-uv run train.py --docker              # adapter runs in the image benchmark/eval.yaml builds (or --runtime charliecloud)
+cp -r examples/pusht_train_eval ~/pusht && cd ~/pusht
+uv sync                    # Python 3.12; downloads lerobot/pusht on first run
+uv run train.py            # 20k steps, eval every 2k; about 1 h on one H100
+uv run train.py --docker   # same, but the environment runs in a container
 ```
 
-Both paths use the same YAML and the same adapter; the flag only decides where the adapter runs. Use the image when the env's dependencies should stay out of the training env.
+`--docker` builds `benchmark/Dockerfile` on first use and runs the environment there, so the
+simulator's dependencies stay out of the training environment. `--runtime charliecloud` does
+the same without a Docker daemon. Metrics go to `outputs/curve.jsonl`, the final checkpoint to
+`outputs/policy/`.
 
-| File | Role |
-|---|---|
-| `benchmark/pusht.py` | The adapter: a `StepBenchmark` subclass over `gym-pusht` (reset, step, make_obs, result, specs). 123 lines |
-| `benchmark/eval.yaml` | Names the adapter by import string (`benchmark.pusht:PushTBenchmark`), the episode budget, and the image for `--docker` with `build: .` |
-| `benchmark/Dockerfile` | `python:3.12-slim` + `vla-eval` + `gym-pusht` + the adapter; built on first `--docker` run |
-| `train.py` | LeRobot's Push-T Diffusion Policy training example plus the `evaluate` call. 150 lines |
-| `pyproject.toml` | `vla-eval`, `lerobot`, `gym-pusht` |
+## What you write for your own environment
 
-## The eval call
+| Piece | Here | What it does |
+|---|---|---|
+| Benchmark adapter | `benchmark/pusht.py` | `StepBenchmark` subclass: `get_tasks`, `reset`, `step`, `make_obs`, `get_step_result`, plus action/observation specs |
+| Eval config | `benchmark/eval.yaml` | Names the adapter by import string, the episode budget and seed, and `docker.build` for the container path |
+| Container image | `benchmark/Dockerfile` | `python:3.12-slim` + `vla-eval` + the simulator + the adapter. Only needed for `--docker` |
+| Model server | `PolicyServer` in `train.py` | `PredictModelServer` subclass: observation dict in, action array out, plus the same two specs |
+
+The two specs are compared before the first episode; a mismatch between what the policy emits
+and what the environment expects is warned about up front instead of showing up as a 0% run.
+
+## The call in the training loop
 
 ```python
 results = vla_eval.evaluate(
-    PolicyServer(policy, preprocess, postprocess, device),   # wraps the live model
+    PolicyServer(policy, preprocess, postprocess, device),
     "benchmark/eval.yaml",
-    docker=False, no_save=True,
+    docker=args.docker,
     benchmark_overrides={"episodes_per_task": 20},
 )
-results[0]["mean_success"]
+success = results[0]["mean_success"]
 ```
 
-`evaluate` starts a model server on a background thread of this process (the policy is served
-from the training GPU, no checkpoint round trip), imports the adapter named in the YAML, runs
-the episodes, and returns one result dict per benchmark entry. `PolicyServer` is the other
-piece you write: observation dict in, action array out, plus the two spec declarations the
-harness checks against the adapter before running.
+The policy is served from the training process, so no checkpoint is written or reloaded for an
+eval round. See [docs/python-api.md](../../docs/python-api.md) for the full argument list. In a
+distributed run, call it on rank 0 only.
 
-## Measured
+## Reference numbers
 
-One H100, 20 eval episodes per point (about +-20 pp of binomial noise), eval seeds disjoint
-from the training episodes.
+Diffusion Policy from scratch, one H100, 20 eval episodes per point, eval seeds disjoint from
+the training data. With 20 episodes the success rate has roughly a 20 pp noise band.
 
-| Steps | Success | Mean coverage | Wall clock |
+| Steps | Success | Coverage | Wall clock |
 |---:|---:|---:|---:|
-| 2k | 0% | 0.12 | 6 min |
 | 10k | 10% | 0.59 | 31 min |
-| 16k | 35% | 0.64 | 48 min |
 | 20k | 20% | 0.66 | 60 min |
 | 50k | 40% | 0.77 | 125 min |
 
-LeRobot trains its published checkpoint for 200k steps and reports 65%. Serving that checkpoint
-(`lerobot/diffusion_pusht`) through the same `PolicyServer` gives 60% over 50 episodes, which is
-how the serving path was validated.
-
-## Notes
-
-- Results go to `outputs/curve.jsonl`; log them to your own tracker from there.
-- In a distributed run, call `evaluate` on rank 0 only and barrier afterwards.
-- Do not pass `watchdog_timeout_s`: the stall watchdog `os._exit`s the whole process.
+LeRobot's published checkpoint (`lerobot/diffusion_pusht`, 200k steps) scores 60% over 50
+episodes through the same `PolicyServer`; the model card reports 65%.

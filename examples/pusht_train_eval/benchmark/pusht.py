@@ -1,4 +1,4 @@
-"""Push-T (gym-pusht) as a vla-eval benchmark: the adapter a project writes for its own env."""
+"""Push-T (gym-pusht) as a vla-eval benchmark."""
 
 from __future__ import annotations
 

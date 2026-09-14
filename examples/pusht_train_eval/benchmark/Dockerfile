@@ -1,4 +1,4 @@
-# The benchmark side for --docker: vla-eval, the env, and the adapter. No GPU needed.
+# Environment image for --docker: vla-eval, gym-pusht, and the adapter. No GPU needed.
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 libxcb1 \
     && rm -rf /var/lib/apt/lists/*  # opencv (via gym-pusht) needs the last three
