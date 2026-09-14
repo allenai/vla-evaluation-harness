@@ -12,8 +12,6 @@ Subclass and override ``predict()`` for single-observation inference, or
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
@@ -22,6 +20,7 @@ from typing import Any, Callable
 import anyio
 import numpy as np
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from anyio.abc import TaskGroup, TaskStatus
 from anyio.to_thread import run_sync as _run_in_thread
 
 from vla_eval.model_servers.base import ModelServer, SessionContext
@@ -152,34 +151,33 @@ class PredictModelServer(ModelServer):
 
         self._chunk_buffers: dict[str, ActionChunkBuffer] = {}
         self._session_chunk_sizes: dict[str, int] = {}
-        # Serialise predict() calls so only one runs on the GPU at a time.
-        # The batched path (_dispatch_loop) is already single-threaded; this
-        # lock protects the non-batched and CI paths.
-        self._predict_lock: asyncio.Lock = asyncio.Lock()
-        # Dedicated thread limiter so inference is never starved by
-        # unrelated run_sync consumers (e.g. process waits) sharing the
-        # default 40-token pool.
-        self._thread_limiter: anyio.CapacityLimiter = anyio.CapacityLimiter(1)
-        # Batch dispatch state
+        # Loop-bound state; (re)created in on_serve_start for each serve.
+        self._tg: TaskGroup | None = None
+        self._predict_lock = anyio.Lock()  # one predict() on the GPU at a time (non-batched and CI paths)
+        self._thread_limiter = anyio.CapacityLimiter(1)  # own token: never starved by other run_sync users
         self._send_stream: MemoryObjectSendStream[_PendingRequest] | None = None
         self._receive_stream: MemoryObjectReceiveStream[_PendingRequest] | None = None
-        self._dispatch_task: asyncio.Task | None = None
+        self._dispatch_running = False
         # CI state (per session)
-        self._ci_tasks: dict[str, asyncio.Task[None]] = {}
+        self._ci_loops: dict[str, tuple[anyio.CancelScope, anyio.Event]] = {}  # per session: scope, exited
         self._obs_slots: dict[str, tuple[Observation, SessionContext, float]] = {}
-        self._obs_events: dict[str, asyncio.Event] = {}
+        self._obs_events: dict[str, anyio.Event] = {}
 
-    def on_serve_start(self) -> None:
-        # asyncio.Lock / anyio limiters bind to the loop that first uses them; a server reused
-        # across serve_background() lifetimes (each on a fresh loop) needs fresh ones.
-        self._predict_lock = asyncio.Lock()
+    async def on_serve_start(self, tg: TaskGroup) -> None:
+        self._tg = tg
+        self._predict_lock = anyio.Lock()
         self._thread_limiter = anyio.CapacityLimiter(1)
         self._send_stream = self._receive_stream = None
-        self._dispatch_task = None
+        self._dispatch_running = False
         self._chunk_buffers.clear()
-        self._ci_tasks.clear()
+        self._ci_loops.clear()
         self._obs_slots.clear()
         self._obs_events.clear()
+
+    def _task_group(self) -> TaskGroup:
+        if self._tg is None:
+            raise RuntimeError("background inference loops need serve_async(): serve this model server first")
+        return self._tg
 
     # ------------------------------------------------------------------
     # Inference methods — override one or both
@@ -324,16 +322,21 @@ class PredictModelServer(ModelServer):
 
     def _ensure_dispatch_loop(self) -> None:
         """Lazily start the dispatch loop, restarting if it crashed."""
-        if self._dispatch_task is not None and not self._dispatch_task.done():
+        if self._dispatch_running:
             return
         self._send_stream, self._receive_stream = anyio.create_memory_object_stream()  # element type: _PendingRequest
-        self._dispatch_task = asyncio.create_task(self._dispatch_loop())
-        self._dispatch_task.add_done_callback(self._on_dispatch_done)
+        self._dispatch_running = True
+        self._task_group().start_soon(self._run_dispatch_loop)
 
-    def _on_dispatch_done(self, task: asyncio.Task[None]) -> None:
-        """Log unexpected dispatch loop termination."""
-        if not task.cancelled() and task.exception() is not None:
-            logger.error("Batch dispatch loop crashed", exc_info=task.exception())
+    async def _run_dispatch_loop(self) -> None:
+        try:
+            await self._dispatch_loop()
+        except anyio.get_cancelled_exc_class():
+            raise
+        except Exception:
+            logger.exception("Batch dispatch loop crashed")
+        finally:
+            self._dispatch_running = False
 
     async def _dispatch_loop(self) -> None:
         """Pipelined batch dispatch: collect next batch while GPU runs.
@@ -443,10 +446,12 @@ class PredictModelServer(ModelServer):
 
         DRAFT — not tested against a real model or environment.
         """
-        event = self._obs_events[session_id]
         while True:
+            event = self._obs_events.get(session_id)
+            if event is None:
+                return
             await event.wait()
-            event.clear()
+            self._obs_events[session_id] = anyio.Event()
 
             slot = self._obs_slots.get(session_id)
             if slot is None:
@@ -518,9 +523,9 @@ class PredictModelServer(ModelServer):
 
         if self.continuous_inference:
             await self._stop_ci(sid)
-            self._obs_events[sid] = asyncio.Event()
+            self._obs_events[sid] = anyio.Event()
             self._obs_slots.pop(sid, None)
-            self._ci_tasks[sid] = asyncio.create_task(self._ci_loop(sid))
+            await self._task_group().start(self._run_ci_loop, sid)
             logger.info("CI loop started session=%s laas=%s hz=%.1f", sid, self.laas, self.hz)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
@@ -532,12 +537,26 @@ class PredictModelServer(ModelServer):
         if self.continuous_inference:
             await self._stop_ci(sid)
 
+    async def _run_ci_loop(
+        self, session_id: str, *, task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED
+    ) -> None:
+        exited = anyio.Event()
+        with anyio.CancelScope() as scope:
+            self._ci_loops[session_id] = (scope, exited)
+            task_status.started()
+            try:
+                await self._ci_loop(session_id)
+            except Exception:
+                logger.exception("CI loop crashed session=%s", session_id)  # one session, not the server
+            finally:
+                exited.set()
+
     async def _stop_ci(self, session_id: str) -> None:
-        """Cancel and await the CI loop for a session."""
-        task = self._ci_tasks.pop(session_id, None)
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, anyio.get_cancelled_exc_class()):
-                await task
+        """Cancel the CI loop for a session and wait for it to exit (in-flight inference finishes first)."""
+        entry = self._ci_loops.pop(session_id, None)
+        if entry is not None:
+            scope, exited = entry
+            scope.cancel()
+            await exited.wait()
         self._obs_slots.pop(session_id, None)
         self._obs_events.pop(session_id, None)

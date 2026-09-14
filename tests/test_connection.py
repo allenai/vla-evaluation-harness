@@ -97,3 +97,12 @@ async def test_close_is_idempotent():
     await conn.close()
     await conn.close()
     assert not conn.is_connected
+
+
+@pytest.mark.anyio
+async def test_listening_reraises_bare_exception(echo_server):
+    """The orchestrator matches on exception types; the listener task group must not wrap them."""
+    async with Connection(echo_server) as conn:
+        with pytest.raises(TimeoutError):
+            async with conn.listening():
+                raise TimeoutError("boom")

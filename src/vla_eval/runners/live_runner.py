@@ -90,13 +90,12 @@ class LiveEpisodeRunner(EpisodeRunner):
         # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
         action_buffer = ActionBuffer(hold_fn=benchmark.get_hold_action)
         conn.on_action(lambda a: action_buffer.update(a))
-        await conn.start_listener()
 
         step_period = 1.0 / self.hz
         step_times: list[float] = []
         step_count = 0
 
-        try:
+        async with conn.listening():
             # --- Episode begins: clock starts, first obs sent ---
             clock.reset()
             await conn.send_observation(obs_dict)
@@ -135,9 +134,6 @@ class LiveEpisodeRunner(EpisodeRunner):
 
                 # Pacing via clock
                 await clock.wait_until(step_start + step_period)
-
-        finally:
-            await conn.stop_listener()
 
         elapsed = clock.time()
         bench_metrics = await benchmark.get_result()

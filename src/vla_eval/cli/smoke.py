@@ -7,7 +7,6 @@ delegation to other CLI subcommands.
 
 from __future__ import annotations
 
-import asyncio
 import glob as _glob
 import json
 import logging
@@ -17,7 +16,6 @@ import socket
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -600,8 +598,6 @@ def run_benchmark_test(
         os.close(tmp_fd)
         raise
 
-    import anyio
-
     from vla_eval.model_servers.serve import serve_async
 
     echo_server = _make_echo_server(action_dim)
@@ -609,36 +605,16 @@ def run_benchmark_test(
     # Suppress websocket noise
     logging.getLogger("websockets").setLevel(logging.CRITICAL)
 
-    # Start echo server in daemon thread with graceful shutdown via Event
-    echo_loop: asyncio.AbstractEventLoop | None = None
-    shutdown_event: asyncio.Event | None = None
+    # Echo server on a portal thread; cancel its future before exiting, a clean portal exit waits.
+    from anyio.from_thread import start_blocking_portal
 
-    def _run_echo_server() -> None:
-        nonlocal echo_loop, shutdown_event
-        echo_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(echo_loop)
-        shutdown_event = asyncio.Event()
-
-        async def _serve_until_shutdown() -> None:
-            assert shutdown_event is not None
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(serve_async, echo_server, "0.0.0.0", port)
-                await shutdown_event.wait()
-                tg.cancel_scope.cancel()
-
-        echo_loop.run_until_complete(_serve_until_shutdown())
-
-    server_thread = threading.Thread(target=_run_echo_server, daemon=True)
-    server_thread.start()
-
-    # Wait for echo server readiness
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
-                break
-        except OSError:
-            time.sleep(0.1)
+    portal_cm = start_blocking_portal()
+    try:  # start_task returns once the port is bound
+        server_future, _ = portal_cm.__enter__().start_task(serve_async, echo_server, "0.0.0.0", port)
+    except Exception as exc:
+        portal_cm.__exit__(type(exc), exc, exc.__traceback__)
+        Path(tmp_path).unlink(missing_ok=True)
+        return SmokeResult(test, "fail", f"echo server failed to start: {exc}")
 
     # Run Docker container
     results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
@@ -673,10 +649,8 @@ def run_benchmark_test(
         return SmokeResult(test, "fail", f"docker timeout after {timeout}s", dt)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
-        # Signal echo server to shut down gracefully
-        if echo_loop is not None and shutdown_event is not None:
-            echo_loop.call_soon_threadsafe(shutdown_event.set)
-            server_thread.join(timeout=5)
+        server_future.cancel()
+        portal_cm.__exit__(None, None, None)
 
     dt = time.monotonic() - t0
 

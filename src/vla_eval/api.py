@@ -17,16 +17,18 @@ the config asks for one.
 
 from __future__ import annotations
 
-import asyncio
 import copy
 import logging
+import math
 import os
-import threading
 import uuid
+from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Mapping
 
 import anyio
+from anyio.abc import TaskStatus
+from anyio.from_thread import start_blocking_portal
 
 from vla_eval import watchdog
 from vla_eval.config import DockerConfig
@@ -43,28 +45,23 @@ __all__ = ["ServerHandle", "evaluate", "run", "serve_background"]
 class ServerHandle:
     """A model server running on a background thread. Use as a context manager or call :meth:`close`."""
 
-    def __init__(
-        self, host: str, port: int, thread: threading.Thread, loop: asyncio.AbstractEventLoop, task: asyncio.Task[None]
-    ) -> None:
+    def __init__(self, host: str, port: int, portal_cm: Any, server_future: Future[Any]) -> None:
         self.host = host
         self.port = port
-        self._thread = thread
-        self._loop = loop
-        self._task = task
+        self._portal_cm = portal_cm
+        self._server_future = server_future
 
     @property
     def url(self) -> str:
         return f"ws://{self.host}:{self.port}"
 
-    def close(self, timeout: float = 10.0) -> None:
-        """Cancel the server and join its thread. Best effort: a client still mid-message can hold
-        the websocket close handshake up to *timeout*, after which the daemon thread is abandoned."""
-        if not self._thread.is_alive():
+    def close(self) -> None:
+        """Cancel the server and stop its thread. Idempotent."""
+        if self._portal_cm is None:
             return
-        self._loop.call_soon_threadsafe(self._task.cancel)
-        self._thread.join(timeout)
-        if self._thread.is_alive():
-            logger.warning("model server thread did not stop within %.0fs", timeout)
+        self._server_future.cancel()
+        self._portal_cm.__exit__(None, None, None)
+        self._portal_cm = None
 
     def __enter__(self) -> ServerHandle:
         return self
@@ -81,51 +78,31 @@ def serve_background(
     ``port=0`` picks a free port. The server shares the caller's process, so a policy
     that lives on the training GPU is served without copying weights anywhere.
     """
-    ready = threading.Event()
-    state: dict[str, Any] = {}
+    portal_cm = start_blocking_portal()
+    try:
+        server_future, bound_port = portal_cm.__enter__().start_task(
+            _serve_or_timeout, model_server, host, port, ready_timeout
+        )
+    except BaseException as exc:
+        portal_cm.__exit__(type(exc), exc, exc.__traceback__)  # an exception makes the portal cancel its tasks
+        raise
+    return ServerHandle(host, bound_port, portal_cm, server_future)
 
-    def _target() -> None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        state["loop"] = loop
 
-        def _on_ready(bound_port: int) -> None:
-            state["port"] = bound_port
-            ready.set()
+async def _serve_or_timeout(
+    model_server: ModelServer, host: str, port: int, ready_timeout: float, *, task_status: TaskStatus[int]
+) -> None:
+    """``serve_async`` with a deadline on startup only: lifted once the port is reported."""
+    with anyio.CancelScope(deadline=anyio.current_time() + ready_timeout) as scope:
 
-        task = loop.create_task(serve_async(model_server, host, port, ready=_on_ready))
-        state["task"] = task
-        try:
-            loop.run_until_complete(task)  # returns when close() cancels the task
-        except asyncio.CancelledError:
-            pass
-        except Exception as exc:  # startup failure (port in use, ...) surfaces to the caller
-            if not ready.is_set():
-                state["error"] = exc
-                ready.set()
-            else:
-                logger.exception("model server thread crashed")
-        finally:
-            # Like asyncio.run(): drain tasks the server spawned outside its task group
-            # (PredictModelServer's batch dispatcher) so the same server can be served again.
-            pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
-            for t in pending:
-                t.cancel()
-            if pending:
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            loop.run_until_complete(loop.shutdown_asyncgens())
-            loop.close()
+        class _Started(TaskStatus[int]):
+            def started(self, value: int | None = None) -> None:
+                scope.deadline = math.inf
+                task_status.started(value if value is not None else port)
 
-    thread = threading.Thread(target=_target, name="vla-eval-model-server", daemon=True)
-    thread.start()
-    if not ready.wait(ready_timeout):
-        if "task" in state:  # do not leave a server we cannot hand back
-            state["loop"].call_soon_threadsafe(state["task"].cancel)
-            thread.join(5.0)
+        await serve_async(model_server, host, port, task_status=_Started())
+    if scope.cancelled_caught:
         raise TimeoutError(f"model server did not start listening within {ready_timeout}s")
-    if "error" in state:
-        raise RuntimeError("model server failed to start") from state["error"]
-    return ServerHandle(host, state["port"], thread, state["loop"], state["task"])
 
 
 def _merge_benchmark_overrides(config: dict[str, Any], overrides: Mapping[str, Any]) -> None:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any, Callable
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Callable
 
 import anyio
 import websockets
@@ -34,7 +34,7 @@ class Connection:
 
     - `start_episode`, `end_episode`, `send_observation` — one-liner sends.
     - `act` — request/response (send + recv + seq validation).
-    - `on_action`, `start_listener`, `stop_listener` — callback-based receive.
+    - `on_action`, `listening()` — callback-based receive.
     - `reconnect` — close + connect with backoff.
 
     Timeouts and retries:
@@ -65,7 +65,6 @@ class Connection:
         self._ws: Any = None
         self._seq: int = 0
         self._action_callback: Callable[[Action], None] | None = None
-        self._listener_task: asyncio.Task[None] | None = None
         self._benchmark: str | None = None
         self.server_info: dict[str, Any] = {}
 
@@ -91,7 +90,6 @@ class Connection:
 
     async def close(self) -> None:
         """Close WebSocket connection and stop listener if running."""
-        await self.stop_listener()
         if self._ws:
             try:
                 await self._ws.close()
@@ -169,31 +167,27 @@ class Connection:
         """Register callback for incoming actions (live mode)."""
         self._action_callback = callback
 
-    async def start_listener(self) -> None:
-        """Start a background task that reads messages and dispatches to on_action.
-
-        Required for live mode where actions arrive asynchronously.
-        Call ``stop_listener()`` to cancel.
-        """
-        if self._listener_task is not None and not self._listener_task.done():
-            return
-        self._listener_task = asyncio.create_task(self._listener_loop())
-        self._listener_task.add_done_callback(self._on_listener_done)
-
-    async def stop_listener(self) -> None:
-        """Stop the background listener task."""
-        if self._listener_task is not None:
-            self._listener_task.cancel()
+    @asynccontextmanager
+    async def listening(self) -> AsyncIterator[None]:
+        """Run the listener for the block's duration (live mode): ACTIONs go to ``on_action``."""
+        error: Exception | None = None
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self._run_listener)
             try:
-                await self._listener_task
-            except (asyncio.CancelledError, anyio.get_cancelled_exc_class()):
-                pass
-            self._listener_task = None
+                yield
+            except Exception as exc:
+                error = exc  # re-raised outside the group so callers see the bare type
+            tg.cancel_scope.cancel()
+        if error is not None:
+            raise error
 
-    def _on_listener_done(self, task: asyncio.Task[None]) -> None:
-        """Log unexpected listener loop termination."""
-        if not task.cancelled() and task.exception() is not None:
-            logger.error("Listener loop crashed", exc_info=task.exception())
+    async def _run_listener(self) -> None:
+        try:
+            await self._listener_loop()
+        except anyio.get_cancelled_exc_class():
+            raise
+        except Exception:
+            logger.exception("Listener loop crashed")
 
     # ── Private helpers ──────────────────────────────────────────────
 

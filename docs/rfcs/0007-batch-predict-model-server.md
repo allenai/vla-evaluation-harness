@@ -77,8 +77,8 @@ async def on_observation(self, obs, ctx):
             return
 
     # 2. Lazily start dispatch loop
-    if self._dispatch_task is None:
-        self._dispatch_task = asyncio.create_task(self._dispatch_loop())
+    if not self._dispatch_running:
+        self._task_group().start_soon(self._run_dispatch_loop)  # the server's task group
 
     # 3. Enqueue and await
     fut = asyncio.get_running_loop().create_future()
