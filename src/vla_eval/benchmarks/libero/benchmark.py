@@ -72,6 +72,11 @@ class LIBEROBenchmark(StepBenchmark):
         - **Image preprocessing**: robosuite renders images with inverted axes.
           Both agentview and wrist images are flipped ``[::-1, ::-1]`` to
           correct orientation, then resized to 256×256 with padding.
+        - **Recorded step fields** (``recording.step_fields``): ``reward``,
+          ``done``, ``success``, plus ``action`` (the executed 7-D action, i.e.
+          the model's action after gripper discretization to ±1, float32) and
+          ``state`` (the 8-D proprioceptive state ``[pos3, axisangle3, gripper2]``
+          after the step, the same quantity as the ``states`` observation).
 
     Args:
         suite: LIBERO suite name (e.g. "libero_spatial", "libero_10").
@@ -89,7 +94,7 @@ class LIBEROBenchmark(StepBenchmark):
             OpenVLA reference uses ``env_seed=0`` separately from ``seed=7``.
     """
 
-    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
+    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "action", "state"})
 
     # Inherited as-is by LIBERO-Pro / -Plus / -Mem, which share this renderer path.
     render_backends = frozenset({"gpu", "cpu"})
@@ -235,8 +240,24 @@ class LIBEROBenchmark(StepBenchmark):
         assert self._env is not None
         obs, reward, done, info = self._env.step(processed_action)
         self._recorder.record_video(self._extract_frame(obs))
-        self._recorder.record_step(reward=float(reward), done=bool(done), success=bool(done))
+        self._recorder.record_step(
+            reward=float(reward),
+            done=bool(done),
+            success=bool(done),
+            action=np.asarray(processed_action, dtype=np.float32),
+            state=self._proprio_state(obs).astype(np.float32),
+        )
         return StepResult(obs=obs, reward=reward, done=done, info=info)
+
+    def _proprio_state(self, raw_obs: Any) -> np.ndarray:
+        """8-D ``[eef pos3, eef axis-angle3, gripper qpos2]`` from a robosuite observation."""
+        return np.concatenate(
+            [
+                raw_obs["robot0_eef_pos"],
+                self._quat_to_aa(raw_obs["robot0_eef_quat"]),
+                raw_obs["robot0_gripper_qpos"],
+            ]
+        )
 
     @staticmethod
     def _extract_frame(raw_obs: Any) -> np.ndarray | None:
@@ -263,13 +284,7 @@ class LIBEROBenchmark(StepBenchmark):
         if self.send_state:
             # Both sources: observation (default) and controller.
             # Most models (Pi0, OFT, GR00T) use obs; X-VLA uses controller.
-            obs_dict["states"] = np.concatenate(
-                [
-                    raw_obs["robot0_eef_pos"],
-                    self._quat_to_aa(raw_obs["robot0_eef_quat"]),
-                    raw_obs["robot0_gripper_qpos"],
-                ]
-            )
+            obs_dict["states"] = self._proprio_state(raw_obs)
             assert self._env is not None
             robot = self._env.robots[0]
             ee_pos = np.asarray(robot.controller.ee_pos, dtype=np.float32)
