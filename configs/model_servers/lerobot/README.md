@@ -60,6 +60,12 @@ and buffered per-session by the harness (same pattern as the π₀ server). This
 concurrency-safe under sharding for single-observation-step policies, the only
 kind supported.
 
+Benchmark frames reach the policy at their own resolution when the policy letterboxes
+them itself (pi0 / pi05 / pi0_fast via `image_resolution`, SmolVLA / X-VLA via
+`resize_imgs_with_padding`). Otherwise a frame that differs from the checkpoint's
+declared image feature shape is letterboxed to it (scaled uniformly, centred on
+black), never stretched.
+
 Checkpoints stored in a policy's original (non-LeRobot) format load through a
 fallback chain: the policy class's own loader (GR00T's `from_pretrained` consumes
 the NVIDIA training dumps directly), or a config built from `policy_kwargs` +
