@@ -125,6 +125,7 @@ class LeRobotModelServer(PredictModelServer):
         policy_kwargs: dict[str, Any] | None = None,
         features: dict[str, dict[str, Any]] | None = None,
         use_select_action: bool = False,
+        preprocessor_overrides: dict[str, dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -159,6 +160,8 @@ class LeRobotModelServer(PredictModelServer):
                 feed executed-step observations back into their context (e.g.
                 LingBot-VA's autoregressive video stream). Forces chunk_size=1
                 so the policy sees every step's observation.
+            preprocessor_overrides: Per-step config overrides forwarded to LeRobot's
+                ``make_pre_post_processors``; a ``device_processor`` entry replaces the bridge's.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
@@ -230,7 +233,10 @@ class LeRobotModelServer(PredictModelServer):
         self._preprocess, self._postprocess = make_pre_post_processors(
             self._policy.config,
             processor_source,
-            preprocessor_overrides={"device_processor": {"device": str(self._device)}},
+            preprocessor_overrides={
+                "device_processor": {"device": str(self._device)},
+                **(preprocessor_overrides or {}),
+            },
         )
 
         # Configs built without dataset metadata (original-format checkpoints) have no

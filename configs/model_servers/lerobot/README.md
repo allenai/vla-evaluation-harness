@@ -51,6 +51,17 @@ load through the same path but ship no config here and are untested.
 | `compile_model` | override the checkpoint's torch.compile setting; `null` keeps it |
 | `policy_kwargs` | extra policy-config fields, e.g. GR00T's `embodiment_tag`, MolmoAct2's `norm_tag` / `inference_action_mode` |
 | `features` | input/output feature spec for original-format checkpoints that carry none (see `molmoact2_libero.yaml`) |
+| `preprocessor_overrides` | config overrides for the checkpoint's preprocessor steps, keyed by step name (LeRobot's `make_pre_post_processors(preprocessor_overrides=...)`), merged over the bridge's `device_processor` entry |
+
+A checkpoint's saved preprocessor may reference resources you cannot fetch, e.g.
+a tokenizer on a gated Hub repo. Point the step at a local copy instead:
+
+```yaml
+args:
+  preprocessor_overrides:
+    tokenizer_processor:
+      tokenizer_name: /path/to/local/tokenizer
+```
 
 ## How it works
 
