@@ -71,14 +71,6 @@ def _qualify_image_key(key: str) -> str:
     return key if key.startswith("observation.image") else _IMAGE_PREFIX + key
 
 
-def _merge_preprocessor_overrides(
-    device: str, overrides: dict[str, dict[str, Any]] | None
-) -> dict[str, dict[str, Any]]:
-    """Per-step processor overrides for ``make_pre_post_processors``: the bridge's device entry,
-    then the user's (a user entry for ``device_processor`` replaces the bridge's)."""
-    return {"device_processor": {"device": device}, **(overrides or {})}
-
-
 def _parse_features(spec: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     """YAML feature spec -> (input_features, output_features) of PolicyFeature."""
     from lerobot.configs.types import FeatureType, PolicyFeature
@@ -145,12 +137,8 @@ class LeRobotModelServer(PredictModelServer):
                 feed executed-step observations back into their context (e.g.
                 LingBot-VA's autoregressive video stream). Forces chunk_size=1
                 so the policy sees every step's observation.
-            preprocessor_overrides: Config overrides for the checkpoint's
-                preprocessor steps, keyed by step name, forwarded to LeRobot's
-                ``make_pre_post_processors(preprocessor_overrides=...)`` on top of
-                the bridge's ``device_processor`` entry. E.g. serve a checkpoint
-                whose tokenizer is a gated Hub repo from a local copy:
-                ``{"tokenizer_processor": {"tokenizer_name": "/path/to/tokenizer"}}``.
+            preprocessor_overrides: Per-step config overrides forwarded to LeRobot's
+                ``make_pre_post_processors``; a ``device_processor`` entry replaces the bridge's.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
@@ -222,7 +210,10 @@ class LeRobotModelServer(PredictModelServer):
         self._preprocess, self._postprocess = make_pre_post_processors(
             self._policy.config,
             processor_source,
-            preprocessor_overrides=_merge_preprocessor_overrides(str(self._device), preprocessor_overrides),
+            preprocessor_overrides={
+                "device_processor": {"device": str(self._device)},
+                **(preprocessor_overrides or {}),
+            },
         )
 
         # Configs built without dataset metadata (original-format checkpoints) have no
