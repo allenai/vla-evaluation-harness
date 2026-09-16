@@ -21,6 +21,7 @@
 
 ### Latest News
 
+- [2026/09] [Push-T example](examples/pusht_train_eval/): a self-contained project that trains on its own environment and evaluates it with `vla_eval.evaluate` during training. `pip install vla-eval` is all it needs, no clone of this repo.
 - [2026/09] [v0.6.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.6.0) released. Python API for training-time evaluation, Charliecloud runtime, and `docker.build`.
 - [2026/08] [v0.5.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.5.0) released. RoboDojo, the RoboCasa/RoboCasa365 split, and the CPU render backend.
 - [2026/07] [v0.4.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.4.0) released. Recording on by default, pinned reproducible Docker rebuilds, DuoBench, and the LeRobot bridge below.
