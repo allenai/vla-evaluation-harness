@@ -64,6 +64,29 @@ logger = logging.getLogger(__name__)
 
 _IMAGE_PREFIX = "observation.images."
 
+# The pi family letterboxes to ``config.image_resolution`` itself; SmolVLA / X-VLA use ``resize_imgs_with_padding``.
+_IMAGE_RESOLUTION_LETTERBOXERS = frozenset({"pi0", "pi05", "pi0_fast"})
+
+
+def _letterboxes_internally(policy_type: str, config: Any) -> bool:
+    """True when the policy letterboxes frames itself, so the bridge must not resize them first."""
+    if getattr(config, "resize_imgs_with_padding", None):
+        return True
+    return policy_type in _IMAGE_RESOLUTION_LETTERBOXERS and bool(getattr(config, "image_resolution", None))
+
+
+def _letterbox_geometry(src_hw: tuple[int, int], dst_hw: tuple[int, int]) -> tuple[int, int, int, int]:
+    """``(height, width, top, left)`` of ``src_hw`` scaled uniformly to fit ``dst_hw``, centred.
+
+    Same rule as openpi's ``resize_with_pad``; a matching aspect fills the target with no padding."""
+    src_h, src_w = src_hw
+    dst_h, dst_w = dst_hw
+    if src_h * dst_w == src_w * dst_h:
+        return dst_h, dst_w, 0, 0
+    ratio = max(src_w / dst_w, src_h / dst_h)
+    fit_h, fit_w = int(src_h / ratio), int(src_w / ratio)
+    return fit_h, fit_w, (dst_h - fit_h) // 2, (dst_w - fit_w) // 2
+
 
 def _qualify_image_key(key: str) -> str:
     """Add the ``observation.images.`` prefix unless ``key`` is already an
@@ -216,6 +239,10 @@ class LeRobotModelServer(PredictModelServer):
             getattr(self._policy.config, "image_keys", None) or []
         )
         self._validate_image_keys()
+        if _letterboxes_internally(policy_type, self._policy.config):
+            logger.info(
+                "%s letterboxes frames in its own preprocessor; frames are passed through unresized", policy_type
+            )
         self._use_select_action = use_select_action
         if use_select_action:
             self.chunk_size = 1
@@ -315,19 +342,26 @@ class LeRobotModelServer(PredictModelServer):
             return int(shape[0]), int(shape[1])
         return None
 
-    def _resize_to_declared(self, img: np.ndarray, policy_key: str) -> np.ndarray:
-        """Match the checkpoint's declared input resolution.
-
-        Policies whose processors do not resize (e.g. FastWAM's video pipeline,
-        trained at 224) silently degrade when fed a different resolution.
-        """
-        hw = self._declared_image_hw(policy_key)
-        if hw is None or img.shape[:2] == hw:
-            return img
+    def _scale_bilinear(self, img: np.ndarray, hw: tuple[int, int]) -> np.ndarray:
         torch = self._torch
         t = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).float()
         t = torch.nn.functional.interpolate(t, size=hw, mode="bilinear", align_corners=False)
         return t.squeeze(0).permute(1, 2, 0).round().clamp(0, 255).to(torch.uint8).numpy()
+
+    def _resize_to_declared(self, img: np.ndarray, policy_key: str) -> np.ndarray:
+        """Letterbox to the checkpoint's declared input resolution, never stretch.
+
+        Policies that letterbox themselves (pi0, SmolVLA, X-VLA) get the frame untouched."""
+        hw = self._declared_image_hw(policy_key)
+        if hw is None or img.shape[:2] == hw or _letterboxes_internally(self.policy_type, self._policy.config):
+            return img
+        fit_h, fit_w, top, left = _letterbox_geometry((int(img.shape[0]), int(img.shape[1])), hw)
+        scaled = self._scale_bilinear(img, (fit_h, fit_w))
+        if (fit_h, fit_w) == hw:
+            return scaled
+        out = np.zeros((hw[0], hw[1], img.shape[2]), dtype=np.uint8)
+        out[top : top + fit_h, left : left + fit_w] = scaled
+        return out
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
         torch = self._torch
