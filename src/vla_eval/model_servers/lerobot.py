@@ -64,29 +64,21 @@ logger = logging.getLogger(__name__)
 
 _IMAGE_PREFIX = "observation.images."
 
-# Policy families whose own preprocessing letterboxes frames (openpi's ``resize_with_pad_torch``)
-# to ``config.image_resolution``. SmolVLA / X-VLA declare theirs as ``resize_imgs_with_padding``.
+# The pi family letterboxes to ``config.image_resolution`` itself; SmolVLA / X-VLA use ``resize_imgs_with_padding``.
 _IMAGE_RESOLUTION_LETTERBOXERS = frozenset({"pi0", "pi05", "pi0_fast"})
 
 
 def _letterboxes_internally(policy_type: str, config: Any) -> bool:
-    """True when the policy's own preprocessing resizes frames with padding to a size of its
-    own (SmolVLA / X-VLA ``resize_imgs_with_padding``, pi0 / pi05 / pi0_fast ``image_resolution``).
-
-    Such policies get the benchmark frame untouched: resizing it first to the declared feature
-    shape would alter its aspect ratio, and the policy's letterbox then preserves that distortion.
-    """
+    """True when the policy letterboxes frames itself, so the bridge must not resize them first."""
     if getattr(config, "resize_imgs_with_padding", None):
         return True
     return policy_type in _IMAGE_RESOLUTION_LETTERBOXERS and bool(getattr(config, "image_resolution", None))
 
 
 def _letterbox_geometry(src_hw: tuple[int, int], dst_hw: tuple[int, int]) -> tuple[int, int, int, int]:
-    """``(height, width, top, left)`` of the largest same-aspect copy of ``src_hw`` centred in ``dst_hw``.
+    """``(height, width, top, left)`` of ``src_hw`` scaled uniformly to fit ``dst_hw``, centred.
 
-    Same scale rule as openpi's ``resize_with_pad``: one uniform factor, truncated to whole
-    pixels. An exact aspect match fills the target, so no padding is added.
-    """
+    Same rule as openpi's ``resize_with_pad``; a matching aspect fills the target with no padding."""
     src_h, src_w = src_hw
     dst_h, dst_w = dst_hw
     if src_h * dst_w == src_w * dst_h:
@@ -357,15 +349,9 @@ class LeRobotModelServer(PredictModelServer):
         return t.squeeze(0).permute(1, 2, 0).round().clamp(0, 255).to(torch.uint8).numpy()
 
     def _resize_to_declared(self, img: np.ndarray, policy_key: str) -> np.ndarray:
-        """Match the checkpoint's declared input resolution without changing the aspect ratio.
+        """Letterbox to the checkpoint's declared input resolution, never stretch.
 
-        Policies whose processors do not resize (e.g. FastWAM's video pipeline,
-        trained at 224) silently degrade when fed a different resolution. A frame
-        of another aspect ratio is letterboxed (scaled uniformly to fit, centred
-        on black), never stretched: stretching changes the geometry the policy
-        was trained on. Policies that letterbox in their own preprocessor (pi0,
-        pi05, SmolVLA, X-VLA) get the frame untouched, so the only resize is theirs.
-        """
+        Policies that letterbox themselves (pi0, SmolVLA, X-VLA) get the frame untouched."""
         hw = self._declared_image_hw(policy_key)
         if hw is None or img.shape[:2] == hw or _letterboxes_internally(self.policy_type, self._policy.config):
             return img
