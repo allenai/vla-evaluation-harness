@@ -72,11 +72,8 @@ class LIBEROBenchmark(StepBenchmark):
         - **Image preprocessing**: robosuite renders images with inverted axes.
           Both agentview and wrist images are flipped ``[::-1, ::-1]`` to
           correct orientation, then resized to 256×256 with padding.
-        - **Recorded step fields** (``recording.step_fields``): ``reward``,
-          ``done``, ``success``, plus ``action`` (the executed 7-D action, i.e.
-          the model's action after gripper discretization to ±1, float32) and
-          ``state`` (the 8-D proprioceptive state ``[pos3, axisangle3, gripper2]``
-          after the step, the same quantity as the ``states`` observation).
+        - **Recorded step fields**: ``reward``, ``done``, ``success``, ``action`` (executed
+          7-D, gripper discretized to ±1) and ``state`` (post-step ``[pos3, axisangle3, gripper2]``).
 
     Args:
         suite: LIBERO suite name (e.g. "libero_spatial", "libero_10").
