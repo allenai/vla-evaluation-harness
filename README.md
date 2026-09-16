@@ -21,6 +21,7 @@
 
 ### Latest News
 
+- [2026/09] [v0.6.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.6.0) released. Python API for training-time evaluation, Charliecloud runtime, and `docker.build`.
 - [2026/08] [v0.5.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.5.0) released. RoboDojo, the RoboCasa/RoboCasa365 split, and the CPU render backend.
 - [2026/07] [v0.4.0](https://github.com/allenai/vla-evaluation-harness/releases/tag/v0.4.0) released. Recording on by default, pinned reproducible Docker rebuilds, DuoBench, and the LeRobot bridge below.
 - [2026/07] 🤗 [LeRobot](https://github.com/huggingface/lerobot) bridge: serve any single-obs-step LeRobot `PreTrainedPolicy` (π₀ / π₀.₅, GR00T N1.7, X-VLA, MolmoAct2, and the FastWAM / VLA-JEPA / LingBot-VA world models) with [one config](configs/model_servers/lerobot/), pinned at [v0.6.0](https://github.com/huggingface/lerobot/releases/tag/v0.6.0). Four checkpoints [reproduce their published LIBERO scores](docs/reproductions/lerobot.md): π₀.₅ 100%, GR00T N1.7 99%, MolmoAct2 97%, VLA-JEPA 96%.
@@ -65,7 +66,7 @@ pip install vla-eval
 Or from source (pinned to the latest stable release):
 
 ```bash
-git clone --branch v0.5.0 https://github.com/allenai/vla-evaluation-harness.git
+git clone --branch v0.6.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
 uv sync --python 3.11 --all-extras --dev
 ```
@@ -231,6 +232,8 @@ docker/build.sh                                           # build all (gated ima
 docker/build.sh libero                                    # build one
 docker/build.sh behavior1k --accept-license behavior1k    # build a gated image
 ```
+
+**Build from your own Dockerfile**: set `docker.build: <context>` (compose semantics, optional `dockerfile:`) in the benchmark config. The image is built when missing, or on `--build`. The [Push-T example](examples/pusht_train_eval/benchmark/eval.yaml) uses it.
 
 ---
 
