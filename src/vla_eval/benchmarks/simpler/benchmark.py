@@ -27,13 +27,18 @@ Success modes (set via model server ``get_observation_params()``):
 from __future__ import annotations
 
 from itertools import product
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import DEFAULT_RENDER_MODE, assert_lavapipe_vulkan, configure_sapien_render
 from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, POSITION_DELTA, RAW, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
+
+
+# Lets a caller name a lavapipe ICD outside the paths vla_eval.render knows.
+LAVAPIPE_ICD_ENV_VAR = "SIMPLER_LAVAPIPE_ICD"
 
 
 def _linspace_from_range(spec: list[float]) -> np.ndarray:
@@ -70,6 +75,20 @@ class SimplerEnvBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+
+    # SAPIEN rasterizes through Vulkan, so cpu means Mesa lavapipe rather than a
+    # simulator-side flag. The image carries a Mesa new enough to run it; see
+    # configure_render below and docker/Dockerfile.simpler.
+    render_backends = frozenset({"gpu", "cpu"})
+
+    # Set by configure_render so reset() knows whether to assert the renderer.
+    _render_mode: ClassVar[str] = DEFAULT_RENDER_MODE
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        applied = configure_sapien_render(mode, LAVAPIPE_ICD_ENV_VAR)
+        cls._render_mode = mode
+        return applied
 
     def __init__(
         self,
@@ -187,6 +206,9 @@ class SimplerEnvBenchmark(StepBenchmark):
         return [{"name": self.task_name, "task_name": self.task_name}]
 
     def reset(self, task: Task) -> Any:
+        if self._render_mode == "cpu":
+            assert_lavapipe_vulkan(type(self).__name__)
+
         # Close previous env -- new env per episode (matches reference)
         self._success_seen = False
         self._sticky_action_is_on = False
@@ -382,6 +404,7 @@ class SimplerEnvBenchmark(StepBenchmark):
             "task_name": self.task_name,
             "success_mode": self.success_mode,
             "max_steps": self.max_episode_steps,
+            "render_mode": self._render_mode,
         }
         if self.env_name is not None:
             meta["env_name"] = self.env_name

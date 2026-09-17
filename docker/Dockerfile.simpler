@@ -9,6 +9,22 @@ RUN conda create -n simpler python=3.10 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
 
+# ── Software Vulkan for `--render cpu` ────────────────────────────────
+# SAPIEN 2.2.2 asks for the device extension VK_KHR_external_semaphore_fd at
+# vkCreateDevice, before any scene work. Mesa's lavapipe only implements it from
+# 24.3; the base image's Ubuntu 22.04 Mesa is 23.2, which fails with
+# ErrorExtensionNotPresent. conda-forge ships a current lavapipe built against an
+# old sysroot, so it drops into this image without touching the system Mesa the
+# OSMesa benchmarks render through. Its own prefix keeps it off every library
+# path: only the ICD below reaches it, and only when cpu mode names it.
+RUN conda create -y -p /opt/lavapipe-env -c conda-forge "mesa-lavapipe==26.2.1" \
+    && conda clean -afy \
+    && mkdir -p /opt/lavapipe \
+    # conda-forge keeps the arch-suffixed manifest name at Mesa 26; only the distro
+    # packages dropped it. vla_eval.render looks for /opt/lavapipe/lvp_icd.json first,
+    # so the stash is named for the search path, not for the source.
+    && cp /opt/lavapipe-env/share/vulkan/icd.d/lvp_icd.x86_64.json /opt/lavapipe/lvp_icd.json
+
 # ── ManiSkill2_real2sim + SimplerEnv source ───────────────────────────
 WORKDIR /app
 ARG MANISKILL2_REAL2SIM_REF=ef7a4d4fdf4b69f2c2154db5b15b9ac8dfe10682

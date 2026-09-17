@@ -52,9 +52,9 @@ path.
 | RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Shipped configs default to `render: cpu`; `--render gpu` opts into the native path, which hangs on a small subset of hosts. See below |
 | CALVIN | PyBullet | ✅ | ✅ | TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
 | Kinetix | JAX (no GL) | ✅ | ✅ | `JAX_PLATFORMS=cpu` | No GL: frames are computed as JAX arrays, so the device switch is the whole backend |
-| SimplerEnv | SAPIEN 2.2.2 | ✅ | ❌ | — | SAPIEN requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
-| ManiSkill2 | SAPIEN 2.2.2 | ✅ | ❌ | — | same |
-| RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
+| SimplerEnv | SAPIEN 2.2.2 | ✅ | ✅ | lavapipe (software Vulkan) | Needs a lavapipe from Mesa >= 24.3, which the image installs from conda-forge into its own prefix. See below |
+| ManiSkill2 | SAPIEN 2.2.2 | ✅ | ✅ | lavapipe (software Vulkan) | same |
+| RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | Fails on the image's Mesa 23.2 lavapipe with `ErrorExtensionNotPresent`. Not re-measured against a newer Mesa |
 | MIKASA-Robo | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
 | BEHAVIOR-1K | OmniGibson (Isaac Sim) | ✅ | ❌ | — | Isaac Sim dumps core during extension startup with no GPU |
 | RoboDojo | Isaac Lab | ✅ | ❌ | — | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
@@ -75,12 +75,39 @@ Failing is deliberate. Falling back to the GPU would reinstate the crash the fla
 exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
-SAPIEN splits by version rather than by family: 3.0.3 (RoboMME) renders through
-lavapipe with no GPU, while 2.2.2 and 3.0.0b1 demand `VK_KHR_external_semaphore_fd`
-at `vkCreateDevice` — before any shader or scene configuration — and lavapipe does
-not implement that extension. A newer Mesa does not close the gap (the same failure
-reproduces against Mesa 25.0 lavapipe); 3.0.3 dropped the hard requirement. Those
-four are not waiting on harness work — they need newer SAPIEN builds.
+### SAPIEN splits by Mesa version, not by SAPIEN version
+
+SAPIEN 2.2.2 asks for the Vulkan device extension `VK_KHR_external_semaphore_fd` at
+`vkCreateDevice`, before any shader or scene configuration; its binary carries CUDA
+external-semaphore interop symbols, which is the likely reason the requirement is
+unconditional. Mesa's lavapipe gained that extension in 24.3
+("lavapipe: Implement VK_KHR_external_*_fd", [24.3.0 release
+notes](https://docs.mesa3d.org/relnotes/24.3.0.html)). Ubuntu 22.04, which the base image is
+built on, ships Mesa 23.2, so the system lavapipe fails with
+`ErrorExtensionNotPresent` and SAPIEN never reaches a frame.
+
+Measured both ways on the same SAPIEN 2.2.2 build: Mesa 23.2 lavapipe raises
+`vk::PhysicalDevice::createDeviceUnique: ErrorExtensionNotPresent`, and Mesa 26.2.1
+lavapipe renders a frame. So the fix is the driver, not the simulator. The two
+SAPIEN 2.2.2 images install `mesa-lavapipe` from conda-forge, which is built against
+an old sysroot and therefore runs on the image's Ubuntu 22.04, into
+`/opt/lavapipe-env`. Its own prefix keeps it off every library path, so the system
+Mesa the OSMesa benchmarks render through is untouched; only the ICD manifest stashed
+at `/opt/lavapipe/lvp_icd.json` reaches it, and only when `cpu` mode names it in
+`VK_ICD_FILENAMES` / `VK_DRIVER_FILES`.
+
+RoboTwin and MIKASA-Robo (SAPIEN 3.0.0b1) fail the same way on their images' Mesa
+23.2. They have not been re-measured against a current lavapipe, so they stay
+undeclared; the cause above makes them worth a look.
+
+Because SAPIEN 2.x exposes no device-query API — no `sapien.Device`, no device
+accessor on `SapienRenderer` — there is no way to ask, after the fact, which device
+a render landed on. What decides it is the loader's ICD list, so the adapters read
+that back just before building the simulator and refuse to start unless every listed
+ICD is a lavapipe manifest. While that holds, no GPU device is enumerable. The check
+exists because a container `env:` entry or an ICD bind-mount lands after
+`configure_render` and would otherwise restore the GPU silently, leaving the run
+reporting `cpu` while using the device the mode exists to release.
 
 RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
 unlike every other benchmark: the native path hangs at the first capture on a small

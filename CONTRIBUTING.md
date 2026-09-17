@@ -133,11 +133,13 @@ episodes must have stepped. (`vla-eval test` fails on errored episodes, but read
 provenance is what proves the backend engaged rather than something else working by
 accident.)
 
-SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
-like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds demand
-the Vulkan device extension `VK_KHR_external_semaphore_fd`, which lavapipe does not
-implement (verified through Mesa 25). The simulator family is not the answer — the
-measurement is.
+RoboTwin and MIKASA-Robo are the worked examples: both look like RoboMME, which renders
+fine through lavapipe, but they fail on their images' Mesa 23.2 with
+`ErrorExtensionNotPresent`. SimplerEnv and ManiSkill2 failed identically until the cause
+turned out to be the driver rather than the simulator — their SAPIEN needs a Vulkan
+extension lavapipe only implements from Mesa 24.3, so their images now install a current
+lavapipe from conda-forge. Neither the simulator family nor its version is the answer —
+the measurement is, and it has to name the component that actually fails.
 
 ## Adding a Model Server
 
