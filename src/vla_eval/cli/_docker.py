@@ -123,12 +123,9 @@ def resolve_runtime(config: dict[str, Any], override: str | None = None) -> str:
 
 def prepare_container_config(config: dict[str, Any], *, own_dir: bool = False) -> tuple[str, str]:
     """Write the eval config the container reads, output paths remapped to the mount point.
-    Returns ``(host_results_dir, temp_config_path)``; the caller unlinks the temp file.
-
-    With *own_dir* the config lands in a fresh directory of its own instead of a bare temp
-    file, so a runtime whose guest ``/tmp`` is the host's can bind it at a path no other
-    concurrent run uses (Charliecloud; see :func:`_charliecloud.container_config_path`).
-    The caller removes that directory."""
+    Returns ``(host_results_dir, temp_config_path)``. ``own_dir`` isolates runtimes
+    that share the host's temporary directory with the guest.
+    """
     import tempfile
 
     results_dir = str(Path(config.get("output_dir", "./results")).resolve())

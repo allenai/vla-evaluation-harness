@@ -281,13 +281,10 @@ def test_ensure_image_dir_builds_from_dockerfile(tmp_path: Path, monkeypatch) ->
 
 
 def test_concurrent_runs_never_share_a_bind_destination(tmp_path: Path, monkeypatch) -> None:
-    """Two shards in flight at once must bind distinct in-container paths.
-
-    The fixed ``/tmp/eval_config.yaml`` destination was a *host* path (ch-run bind-mounts
-    the host's /tmp at the guest's), so whichever shard lost the O_CREAT|O_EXCL race died
-    with "can't bind: can't create destination file: ... File exists".
-    """
+    """Concurrent shards bind distinct paths and retain their own config."""
     import threading
+
+    import yaml
 
     img_root = tmp_path / "home"
     monkeypatch.setattr(ch.dirs, "home", lambda: img_root)
@@ -299,11 +296,15 @@ def test_concurrent_runs_never_share_a_bind_destination(tmp_path: Path, monkeypa
 
     both_live = threading.Barrier(2, timeout=10)
     seen: dict[int, list[str]] = {}
+    contents: dict[int, str] = {}
 
     def fake_exec(cmd, stop):
         shard = int(cmd[cmd.index("--shard-id") + 1])
         seen[shard] = cmd
-        both_live.wait()  # hold each run open until the other's temp config also exists
+        host_dir = cmd[cmd.index("-b", cmd.index("-b") + 1) + 1].split(":")[0]
+        both_live.wait()
+        loaded = yaml.safe_load(Path(host_dir, "eval_config.yaml").read_text())
+        contents[shard] = loaded["benchmarks"][0]["benchmark"]
         return 0
 
     monkeypatch.setattr("vla_eval.cli._docker.exec_child", fake_exec)
@@ -340,52 +341,4 @@ def test_concurrent_runs_never_share_a_bind_destination(tmp_path: Path, monkeypa
         host_dirs.append(host_dir)
     assert len(set(host_dirs)) == 2
     assert not any(Path(d).exists() for d in host_dirs)  # both cleaned up
-
-
-def test_concurrent_runs_each_read_their_own_config(tmp_path: Path, monkeypatch) -> None:
-    """The per-run destination must carry that run's config, not another shard's."""
-    import threading
-
-    import yaml
-
-    img_root = tmp_path / "home"
-    monkeypatch.setattr(ch.dirs, "home", lambda: img_root)
-    img = ch.image_dir_for("reg/img:tag")
-    (img / "ch").mkdir(parents=True)
-    (img / "ch" / "metadata.json").write_text(json.dumps({"entrypoint": ["vla-eval"], "cwd": "/workspace"}))
-    monkeypatch.setattr(ch, "find_tools", lambda: {t: t for t in ch.TOOLS})
-    monkeypatch.setattr("vla_eval.docker_resources._detect_runtime", lambda: "cuda")
-
-    both_live = threading.Barrier(2, timeout=10)
-    contents: dict[int, str] = {}
-
-    def fake_exec(cmd, stop):
-        shard = int(cmd[cmd.index("--shard-id") + 1])
-        host_dir = cmd[cmd.index("-b", cmd.index("-b") + 1) + 1].split(":")[0]
-        both_live.wait()
-        # What the container would see through the bind, while the other shard is live.
-        loaded = yaml.safe_load(Path(host_dir, "eval_config.yaml").read_text())
-        contents[shard] = loaded["benchmarks"][0]["benchmark"]
-        return 0
-
-    monkeypatch.setattr("vla_eval.cli._docker.exec_child", fake_exec)
-
-    def run(shard: int) -> None:
-        ch.run_via_charliecloud(
-            {
-                "output_dir": str(tmp_path / "out"),
-                "render": "cpu",
-                "docker": {"image": "reg/img:tag", "gpus": "none"},
-                "benchmarks": [{"benchmark": f"x:Shard{shard}"}],
-            },
-            shard_id=shard,
-            num_shards=2,
-        )
-
-    threads = [threading.Thread(target=run, args=(i,)) for i in range(2)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
     assert contents == {0: "x:Shard0", 1: "x:Shard1"}

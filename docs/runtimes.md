@@ -23,11 +23,8 @@ injects the driver, and renames it into place under a per-directory lock. GPU ex
 driver version and never modified afterwards. `ch-run` starts from the image's own environment and binds the
 same paths as the Docker path.
 
-The guest's `/tmp` is the host's (`$TMPDIR` if set), not a private one as under Docker, so a bind target there
-is shared by every concurrent run: `ch-run` creates a missing target with `O_CREAT|O_EXCL` and shards that lose
-that race die with `can't bind: can't create destination file: ... File exists`. The eval config is therefore
-bound as a whole per-run temp directory under its own name, and removed afterwards. Keep `docker.volumes`
-targets out of `/tmp` for the same reason, or point them at a path the image already has.
+Charliecloud shares the host's `$TMPDIR` as guest `/tmp`. The eval config therefore uses a unique directory
+per run; custom `docker.volumes` should avoid missing targets under `/tmp` for the same reason.
 
 Sites that disable unprivileged user namespaces (`user.max_user_namespaces=0`, Debian's
 `kernel.unprivileged_userns_clone=0`, Ubuntu 24.04's AppArmor restriction) can only run containers through a

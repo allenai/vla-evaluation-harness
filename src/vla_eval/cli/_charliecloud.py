@@ -134,16 +134,7 @@ def read_metadata(img_dir: Path) -> dict[str, Any]:
 
 
 def container_config_path(host_config_path: str) -> str:
-    """In-container path for the eval config, unique per run.
-
-    ``ch-run`` bind-mounts the host's ``$TMPDIR`` (default ``/tmp``) at the guest's
-    ``/tmp``, so a fixed destination like ``/tmp/eval_config.yaml`` is a *host* path
-    shared by every concurrent run. ``ch-run`` creates a missing destination with
-    ``O_CREAT|O_EXCL``, so shards racing to start died with "can't bind: can't create
-    destination file: ... File exists". Naming the destination after the run's own temp
-    directory gives each run its own path; under the default ``/tmp`` bind that path is
-    the host directory itself, so nothing is created and nothing is left behind.
-    """
+    """Return a per-run guest path under Charliecloud's host-shared ``/tmp``."""
     host = Path(host_config_path)
     return f"/tmp/{host.parent.name}/{host.name}"
 
@@ -179,8 +170,7 @@ def build_ch_run_cmd(
     cmd.extend(f"--set-env={k}={v}" for k, v in env.items())
     cmd.extend(["--cd", meta.get("cwd") or "/workspace"])
     cmd.extend(_bind(f"{results_dir}:{CONTAINER_RESULTS}"))
-    # Bind the config's directory, not the file: the destination then already exists
-    # under the default /tmp bind, so ch-run creates no shared mount point.
+    # A unique directory avoids concurrent creation of one shared file target.
     cmd.extend(_bind(f"{Path(config_path).parent}:{Path(container_config).parent}"))
     if dev_mount:
         cmd.extend(_bind(dev_mount[1]))
