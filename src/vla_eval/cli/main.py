@@ -56,12 +56,7 @@ def _exec_subprocess(cmd: list[str]) -> None:
 
 
 def _dotlist_to_dict(items: list[str]) -> dict[str, Any]:
-    """``["a.b=1"]`` -> ``{"a": {"b": 1}}``, values YAML-typed by OmegaConf.
-
-    Raises ``ValueError`` on anything malformed: without ``=`` OmegaConf would
-    silently yield ``None`` (so a dropped value reads as "use the default"), and
-    a broken value raises a yaml error that is not a ``ValueError``.
-    """
+    """Parse ``KEY=VALUE`` dotlist entries into a YAML-typed nested mapping."""
     from omegaconf import OmegaConf
 
     for item in items:
@@ -73,19 +68,13 @@ def _dotlist_to_dict(items: list[str]) -> dict[str, Any]:
         raise
     except Exception as exc:  # yaml ParserError/ScannerError, omegaconf GrammarParseError
         raise ValueError(f"could not parse override {items}: {exc}") from exc
-    if not isinstance(parsed, dict):  # from_dotlist always yields a mapping
+    if not isinstance(parsed, dict):
         raise ValueError(f"could not parse overrides: {items}")
-    # to_container widens the key type; dotlist keys are strings by construction.
     return {str(key): value for key, value in parsed.items()}
 
 
 def _apply_benchmark_overrides(config: dict[str, Any], params: list[str] | None, fields: list[str] | None) -> None:
-    """Apply ``--param`` then ``--benchmark-field`` to every benchmark entry.
-
-    ``--param k=v`` is exactly ``--benchmark-field params.k=v``; both go through
-    :func:`~vla_eval.config.merge_benchmark_overrides`, so the CLI and the Python
-    API's ``benchmark_overrides`` cannot drift apart.
-    """
+    """Apply ``--param`` then ``--benchmark-field`` to every benchmark entry."""
     if params:
         merge_benchmark_overrides(config, {"params": _dotlist_to_dict(params)})
     if fields:
@@ -667,17 +656,10 @@ execution flow:
     is used (e.g. libero_spatial=220, libero_10=520).
     Setting max_steps explicitly in config always takes precedence.
 
-  benchmark overrides (--param / --benchmark-field):
-    Both apply to every entry in benchmarks[], so one config serves several
-    variants instead of a copy per variant. --param writes into params:
-      --param send_wrist_image=true
-    --benchmark-field writes any entry field, params included:
-      --benchmark-field max_steps=200 --benchmark-field subname=transport
-    Values are YAML-typed (200 is an int, true is a bool). Dotted keys nest,
-    so --param k=v is exactly --benchmark-field params.k=v. params.* merges
-    key by key; every other key replaces, matching the Python API's
-    benchmark_overrides. Entry fields are not validated: the schema is open,
-    and keys like action_dim are read by other commands (vla-eval test).
+  benchmark overrides:
+    --param KEY=VALUE updates params; --benchmark-field KEY=VALUE updates any
+    benchmark entry field. Both apply to every entry and accept YAML-typed,
+    dotted values. params merge by key; other fields replace existing values.
 
   sharding (--shard-id / --num-shards):
     Work items (task × episode pairs) are distributed round-robin across shards.
