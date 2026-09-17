@@ -37,7 +37,6 @@ from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, POSITION_DELT
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
-# Lets a caller name a lavapipe ICD outside the paths vla_eval.render knows.
 LAVAPIPE_ICD_ENV_VAR = "SIMPLER_LAVAPIPE_ICD"
 
 
@@ -76,12 +75,7 @@ class SimplerEnvBenchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
 
-    # SAPIEN rasterizes through Vulkan, so cpu means Mesa lavapipe rather than a
-    # simulator-side flag. The image carries a Mesa new enough to run it; see
-    # configure_render below and docker/Dockerfile.simpler.
     render_backends = frozenset({"gpu", "cpu"})
-
-    # Set by configure_render so reset() knows whether to assert the renderer.
     _render_mode: ClassVar[str] = DEFAULT_RENDER_MODE
 
     @classmethod

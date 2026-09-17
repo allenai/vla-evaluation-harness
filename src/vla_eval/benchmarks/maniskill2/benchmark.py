@@ -37,7 +37,6 @@ TASK_GOALS: dict[str, str] = {
 
 DEFAULT_TASKS = list(TASK_GOALS.keys())
 
-# Lets a caller name a lavapipe ICD outside the paths vla_eval.render knows.
 LAVAPIPE_ICD_ENV_VAR = "MANISKILL2_LAVAPIPE_ICD"
 
 
@@ -62,12 +61,7 @@ class ManiSkill2Benchmark(StepBenchmark):
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
 
-    # SAPIEN rasterizes through Vulkan, so cpu means Mesa lavapipe rather than a
-    # simulator-side flag. The image carries a Mesa new enough to run it; see
-    # configure_render below and docker/Dockerfile.maniskill2.
     render_backends = frozenset({"gpu", "cpu"})
-
-    # Set by configure_render so reset() knows whether to assert the renderer.
     _render_mode: ClassVar[str] = DEFAULT_RENDER_MODE
 
     @classmethod
