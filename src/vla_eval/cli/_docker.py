@@ -121,9 +121,14 @@ def resolve_runtime(config: dict[str, Any], override: str | None = None) -> str:
     return name
 
 
-def prepare_container_config(config: dict[str, Any]) -> tuple[str, str]:
+def prepare_container_config(config: dict[str, Any], *, own_dir: bool = False) -> tuple[str, str]:
     """Write the eval config the container reads, output paths remapped to the mount point.
-    Returns ``(host_results_dir, temp_config_path)``; the caller unlinks the temp file."""
+    Returns ``(host_results_dir, temp_config_path)``; the caller unlinks the temp file.
+
+    With *own_dir* the config lands in a fresh directory of its own instead of a bare temp
+    file, so a runtime whose guest ``/tmp`` is the host's can bind it at a path no other
+    concurrent run uses (Charliecloud; see :func:`_charliecloud.container_config_path`).
+    The caller removes that directory."""
     import tempfile
 
     results_dir = str(Path(config.get("output_dir", "./results")).resolve())
@@ -150,6 +155,12 @@ def prepare_container_config(config: dict[str, Any]) -> tuple[str, str]:
         remapped.append(entry)
     container_config["benchmarks"] = remapped
 
+    if own_dir:
+        path = str(Path(tempfile.mkdtemp(prefix="vla-eval-container-")) / Path(CONTAINER_CONFIG).name)
+        with open(path, "w") as f:
+            yaml.safe_dump(container_config, f)
+        return results_dir, path
+
     fd, path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-container-")
     try:
         with os.fdopen(fd, "w") as f:
@@ -160,9 +171,16 @@ def prepare_container_config(config: dict[str, Any]) -> tuple[str, str]:
     return results_dir, path
 
 
-def inner_run_args(*, shard_id: int | None, num_shards: int | None, eval_id: str | None, no_save: bool) -> list[str]:
+def inner_run_args(
+    *,
+    shard_id: int | None,
+    num_shards: int | None,
+    eval_id: str | None,
+    no_save: bool,
+    config_path: str = CONTAINER_CONFIG,
+) -> list[str]:
     """``vla-eval`` arguments executed inside the container."""
-    args = ["run", "--no-docker", "--config", CONTAINER_CONFIG]
+    args = ["run", "--no-docker", "--config", config_path]
     if shard_id is not None:
         args.extend(["--shard-id", str(shard_id), "--num-shards", str(num_shards)])
     if eval_id:

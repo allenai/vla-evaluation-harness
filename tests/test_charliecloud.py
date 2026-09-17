@@ -43,15 +43,19 @@ def test_image_dir_mangles_like_ch_image(tmp_path: Path) -> None:
 
 def test_build_ch_run_cmd(tmp_path: Path) -> None:
     img = _fake_image(tmp_path)
+    container_cfg = "/tmp/vla-eval-container-abc123/eval_config.yaml"
     cmd = ch.build_ch_run_cmd(
         img,
         ch_run="/opt/ch-run",
         results_dir="/host/results",
-        config_path="/host/cfg.yaml",
+        config_path="/host/tmp/vla-eval-container-abc123/eval_config.yaml",
+        container_config=container_cfg,
         env={"VLA_EVAL_HOST_OUTPUT_DIR": "/host/results", "CUDA_VISIBLE_DEVICES": "1"},
         volumes=["/data:/data:ro", "/x:/y"],
         dev_mount=["-v", "/src:/workspace/src"],
-        inner_args=inner_run_args(shard_id=None, num_shards=None, eval_id="e1", no_save=False),
+        inner_args=inner_run_args(
+            shard_id=None, num_shards=None, eval_id="e1", no_save=False, config_path=container_cfg
+        ),
     )
     assert cmd[:4] == ["/opt/ch-run", "--write-fake", "--unset-env=*", "--set-env"]
     assert "--set-env=HOME=/root" in cmd
@@ -60,7 +64,7 @@ def test_build_ch_run_cmd(tmp_path: Path) -> None:
     binds = [cmd[i + 1] for i, tok in enumerate(cmd) if tok == "-b"]
     assert binds == [
         f"/host/results:{CONTAINER_RESULTS}",
-        f"/host/cfg.yaml:{CONTAINER_CONFIG}",
+        "/host/tmp/vla-eval-container-abc123:/tmp/vla-eval-container-abc123",  # the dir, not the file
         "/src:/workspace/src",
         "/data:/data",
         "/x:/y",
@@ -76,7 +80,7 @@ def test_build_ch_run_cmd(tmp_path: Path) -> None:
         "run",
         "--no-docker",
         "--config",
-        CONTAINER_CONFIG,
+        container_cfg,
         "--eval-id",
         "e1",
     ]
@@ -88,13 +92,22 @@ def test_build_ch_run_cmd_without_root_dir(tmp_path: Path) -> None:
         img,
         ch_run="ch-run",
         results_dir="/r",
-        config_path="/c",
+        config_path="/c/eval_config.yaml",
+        container_config="/tmp/c/eval_config.yaml",
         env={},
         volumes=[],
         dev_mount=None,
         inner_args=["run"],
     )
     assert "--set-env=HOME=/root" not in cmd
+
+
+def test_container_config_path_is_per_run(tmp_path: Path) -> None:
+    """ch-run binds the host's /tmp at the guest's, so the destination must not be shared."""
+    a = ch.container_config_path("/tmp/vla-eval-container-aaa/eval_config.yaml")
+    b = ch.container_config_path("/tmp/vla-eval-container-bbb/eval_config.yaml")
+    assert a == "/tmp/vla-eval-container-aaa/eval_config.yaml" and a != b
+    assert a != CONTAINER_CONFIG  # the old fixed path every shard collided on
 
 
 def test_gpu_env_none_all_and_shards(monkeypatch) -> None:
@@ -175,8 +188,10 @@ def test_run_via_charliecloud_env_and_cleanup(tmp_path: Path, monkeypatch) -> No
     assert "--set-env=CUDA_VISIBLE_DEVICES=" in cmd
     assert f"--set-env=VLA_EVAL_HOST_OUTPUT_DIR={(tmp_path / 'out').resolve()}" in cmd
     assert "/a:/b" in cmd and "--no-save" in cmd
-    cfg_bind = next(b for b in cmd if b.endswith(f":{CONTAINER_CONFIG}"))
-    assert not os.path.exists(cfg_bind.split(":")[0])  # temp config removed after the run
+    cfg_bind = cmd[cmd.index("-b", cmd.index("-b") + 1) + 1]  # second bind: the config directory
+    host_dir, container_dir = cfg_bind.split(":")
+    assert cmd[cmd.index("--config") + 1] == f"{container_dir}/eval_config.yaml"
+    assert not os.path.exists(host_dir)  # temp config directory removed after the run
 
 
 def test_gpu_env_inherits_scheduler_mask(monkeypatch) -> None:
@@ -263,3 +278,114 @@ def test_ensure_image_dir_builds_from_dockerfile(tmp_path: Path, monkeypatch) ->
     ch.ensure_image_dir("x:local", auto_yes=False, gpu=False, tools=tools, build=build, force_build=True)
     assert [c[0] for c in calls] == ["ch-image", "ch-convert"]
     assert not stale_gpu.exists()
+
+
+def test_concurrent_runs_never_share_a_bind_destination(tmp_path: Path, monkeypatch) -> None:
+    """Two shards in flight at once must bind distinct in-container paths.
+
+    The fixed ``/tmp/eval_config.yaml`` destination was a *host* path (ch-run bind-mounts
+    the host's /tmp at the guest's), so whichever shard lost the O_CREAT|O_EXCL race died
+    with "can't bind: can't create destination file: ... File exists".
+    """
+    import threading
+
+    img_root = tmp_path / "home"
+    monkeypatch.setattr(ch.dirs, "home", lambda: img_root)
+    img = ch.image_dir_for("reg/img:tag")
+    (img / "ch").mkdir(parents=True)
+    (img / "ch" / "metadata.json").write_text(json.dumps({"entrypoint": ["vla-eval"], "cwd": "/workspace"}))
+    monkeypatch.setattr(ch, "find_tools", lambda: {t: t for t in ch.TOOLS})
+    monkeypatch.setattr("vla_eval.docker_resources._detect_runtime", lambda: "cuda")
+
+    both_live = threading.Barrier(2, timeout=10)
+    seen: dict[int, list[str]] = {}
+
+    def fake_exec(cmd, stop):
+        shard = int(cmd[cmd.index("--shard-id") + 1])
+        seen[shard] = cmd
+        both_live.wait()  # hold each run open until the other's temp config also exists
+        return 0
+
+    monkeypatch.setattr("vla_eval.cli._docker.exec_child", fake_exec)
+
+    def run(shard: int) -> None:
+        ch.run_via_charliecloud(
+            {
+                "output_dir": str(tmp_path / "out"),
+                "render": "cpu",
+                "docker": {"image": "reg/img:tag", "gpus": "none"},
+                "benchmarks": [{"benchmark": f"x:Shard{shard}"}],
+            },
+            shard_id=shard,
+            num_shards=2,
+            eval_id="e",
+        )
+
+    threads = [threading.Thread(target=run, args=(i,)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    cfg_args = {s: cmd[cmd.index("--config") + 1] for s, cmd in seen.items()}
+    assert len(seen) == 2
+    assert cfg_args[0] != cfg_args[1], "concurrent shards must not share an in-container config path"
+    assert CONTAINER_CONFIG not in cfg_args.values()
+
+    host_dirs = []
+    for shard, cmd in seen.items():
+        host_dir, container_dir = cmd[cmd.index("-b", cmd.index("-b") + 1) + 1].split(":")
+        assert Path(container_dir).name == Path(host_dir).name  # dir bound under its own name
+        assert cfg_args[shard] == f"{container_dir}/eval_config.yaml"
+        host_dirs.append(host_dir)
+    assert len(set(host_dirs)) == 2
+    assert not any(Path(d).exists() for d in host_dirs)  # both cleaned up
+
+
+def test_concurrent_runs_each_read_their_own_config(tmp_path: Path, monkeypatch) -> None:
+    """The per-run destination must carry that run's config, not another shard's."""
+    import threading
+
+    import yaml
+
+    img_root = tmp_path / "home"
+    monkeypatch.setattr(ch.dirs, "home", lambda: img_root)
+    img = ch.image_dir_for("reg/img:tag")
+    (img / "ch").mkdir(parents=True)
+    (img / "ch" / "metadata.json").write_text(json.dumps({"entrypoint": ["vla-eval"], "cwd": "/workspace"}))
+    monkeypatch.setattr(ch, "find_tools", lambda: {t: t for t in ch.TOOLS})
+    monkeypatch.setattr("vla_eval.docker_resources._detect_runtime", lambda: "cuda")
+
+    both_live = threading.Barrier(2, timeout=10)
+    contents: dict[int, str] = {}
+
+    def fake_exec(cmd, stop):
+        shard = int(cmd[cmd.index("--shard-id") + 1])
+        host_dir = cmd[cmd.index("-b", cmd.index("-b") + 1) + 1].split(":")[0]
+        both_live.wait()
+        # What the container would see through the bind, while the other shard is live.
+        loaded = yaml.safe_load(Path(host_dir, "eval_config.yaml").read_text())
+        contents[shard] = loaded["benchmarks"][0]["benchmark"]
+        return 0
+
+    monkeypatch.setattr("vla_eval.cli._docker.exec_child", fake_exec)
+
+    def run(shard: int) -> None:
+        ch.run_via_charliecloud(
+            {
+                "output_dir": str(tmp_path / "out"),
+                "render": "cpu",
+                "docker": {"image": "reg/img:tag", "gpus": "none"},
+                "benchmarks": [{"benchmark": f"x:Shard{shard}"}],
+            },
+            shard_id=shard,
+            num_shards=2,
+        )
+
+    threads = [threading.Thread(target=run, args=(i,)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert contents == {0: "x:Shard0", 1: "x:Shard1"}

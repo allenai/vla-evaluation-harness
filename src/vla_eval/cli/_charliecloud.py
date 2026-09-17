@@ -133,6 +133,21 @@ def read_metadata(img_dir: Path) -> dict[str, Any]:
         return json.load(f)
 
 
+def container_config_path(host_config_path: str) -> str:
+    """In-container path for the eval config, unique per run.
+
+    ``ch-run`` bind-mounts the host's ``$TMPDIR`` (default ``/tmp``) at the guest's
+    ``/tmp``, so a fixed destination like ``/tmp/eval_config.yaml`` is a *host* path
+    shared by every concurrent run. ``ch-run`` creates a missing destination with
+    ``O_CREAT|O_EXCL``, so shards racing to start died with "can't bind: can't create
+    destination file: ... File exists". Naming the destination after the run's own temp
+    directory gives each run its own path; under the default ``/tmp`` bind that path is
+    the host directory itself, so nothing is created and nothing is left behind.
+    """
+    host = Path(host_config_path)
+    return f"/tmp/{host.parent.name}/{host.name}"
+
+
 def _bind(spec: str) -> list[str]:
     """Docker ``-v host:container[:ro]`` to ``ch-run -b host:container`` (always rw)."""
     parts = spec.split(":")
@@ -147,13 +162,14 @@ def build_ch_run_cmd(
     ch_run: str,
     results_dir: str,
     config_path: str,
+    container_config: str,
     env: dict[str, str],
     volumes: list[str],
     dev_mount: list[str] | None,
     inner_args: list[str],
 ) -> list[str]:
     """Assemble the ``ch-run`` command line (pure, unit-tested without Charliecloud)."""
-    from vla_eval.cli._docker import CONTAINER_CONFIG, CONTAINER_RESULTS
+    from vla_eval.cli._docker import CONTAINER_RESULTS
 
     meta = read_metadata(img_dir)
     # Writable overlay for mount points; start from the image's env (as Docker does), not the host's.
@@ -163,7 +179,9 @@ def build_ch_run_cmd(
     cmd.extend(f"--set-env={k}={v}" for k, v in env.items())
     cmd.extend(["--cd", meta.get("cwd") or "/workspace"])
     cmd.extend(_bind(f"{results_dir}:{CONTAINER_RESULTS}"))
-    cmd.extend(_bind(f"{config_path}:{CONTAINER_CONFIG}"))
+    # Bind the config's directory, not the file: the destination then already exists
+    # under the default /tmp bind, so ch-run creates no shared mount point.
+    cmd.extend(_bind(f"{Path(config_path).parent}:{Path(container_config).parent}"))
     if dev_mount:
         cmd.extend(_bind(dev_mount[1]))
     for vol in volumes:
@@ -228,7 +246,8 @@ def run_via_charliecloud(
             print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)
 
-    results_dir, config_path = prepare_container_config(config)
+    results_dir, config_path = prepare_container_config(config, own_dir=True)
+    container_config = container_config_path(config_path)
     env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir}
     if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
         env["VLA_EVAL_WATCHDOG_TIMEOUT_S"] = os.environ["VLA_EVAL_WATCHDOG_TIMEOUT_S"]
@@ -244,10 +263,17 @@ def run_via_charliecloud(
         ch_run=tools["ch-run"],
         results_dir=results_dir,
         config_path=config_path,
+        container_config=container_config,
         env=env,
         volumes=docker_cfg.volumes,
         dev_mount=dev_mount,
-        inner_args=inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
+        inner_args=inner_run_args(
+            shard_id=shard_id,
+            num_shards=num_shards,
+            eval_id=eval_id,
+            no_save=no_save,
+            config_path=container_config,
+        ),
     )
     logger.info("Running via Charliecloud: %s", " ".join(cmd))
 
@@ -262,4 +288,4 @@ def run_via_charliecloud(
     try:
         return exec_child(cmd, _stop)
     finally:
-        Path(config_path).unlink(missing_ok=True)
+        shutil.rmtree(Path(config_path).parent, ignore_errors=True)
