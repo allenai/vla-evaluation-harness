@@ -295,18 +295,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
 
 def cmd_merge(args: argparse.Namespace) -> None:
-    """Materialize per-episode jsonl + aggregate JSON from a recording SQLite.
-
-    Two ways to specify which DB to merge:
-
-    - ``--config / -c <yaml>`` or ``--output-dir <dir>``: the YAML supplies
-      ``output_dir`` (``--output-dir`` overrides it, and stands alone when
-      there is no config to hand). ``--eval-id <id>`` then picks a specific
-      DB; without it every ``recording-*.sqlite`` under the directory is
-      merged. The launcher script (``run_sharded.sh``) passes config + id.
-    - ``--db <path>``: direct DB path. Output goes to
-      ``--output-dir`` (or the DB's parent dir).
-    """
+    """Materialize recordings selected by config, output directory, or DB path."""
     from vla_eval.results.merge import merge_db, print_merge_summary
     from vla_eval.tracking import call_each, get_reporting_trackers
 
