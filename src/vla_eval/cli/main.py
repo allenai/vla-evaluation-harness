@@ -20,7 +20,7 @@ from vla_eval.cli._docker import (
     run_in_container as _run_in_container,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
-from vla_eval.config import DockerConfig
+from vla_eval.config import DockerConfig, merge_benchmark_overrides
 from vla_eval.orchestrator import Orchestrator
 from vla_eval.render import (
     RENDER_MODES,
@@ -53,6 +53,43 @@ def _exec_subprocess(cmd: list[str]) -> None:
         sys.exit(anyio.run(_run))
     except KeyboardInterrupt:
         sys.exit(130)
+
+
+def _dotlist_to_dict(items: list[str]) -> dict[str, Any]:
+    """``["a.b=1"]`` -> ``{"a": {"b": 1}}``, values YAML-typed by OmegaConf.
+
+    Raises ``ValueError`` on anything malformed: without ``=`` OmegaConf would
+    silently yield ``None`` (so a dropped value reads as "use the default"), and
+    a broken value raises a yaml error that is not a ``ValueError``.
+    """
+    from omegaconf import OmegaConf
+
+    for item in items:
+        if "=" not in item:
+            raise ValueError(f"override must be KEY=VALUE, got {item!r} (use '{item}=' to set null)")
+    try:
+        parsed = OmegaConf.to_container(OmegaConf.from_dotlist(items))
+    except ValueError:
+        raise
+    except Exception as exc:  # yaml ParserError/ScannerError, omegaconf GrammarParseError
+        raise ValueError(f"could not parse override {items}: {exc}") from exc
+    if not isinstance(parsed, dict):  # from_dotlist always yields a mapping
+        raise ValueError(f"could not parse overrides: {items}")
+    # to_container widens the key type; dotlist keys are strings by construction.
+    return {str(key): value for key, value in parsed.items()}
+
+
+def _apply_benchmark_overrides(config: dict[str, Any], params: list[str] | None, fields: list[str] | None) -> None:
+    """Apply ``--param`` then ``--benchmark-field`` to every benchmark entry.
+
+    ``--param k=v`` is exactly ``--benchmark-field params.k=v``; both go through
+    :func:`~vla_eval.config.merge_benchmark_overrides`, so the CLI and the Python
+    API's ``benchmark_overrides`` cannot drift apart.
+    """
+    if params:
+        merge_benchmark_overrides(config, {"params": _dotlist_to_dict(params)})
+    if fields:
+        merge_benchmark_overrides(config, _dotlist_to_dict(fields))
 
 
 def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> None:
@@ -92,14 +129,12 @@ def cmd_run(args: argparse.Namespace) -> None:
     if output_dir is not None:
         config["output_dir"] = output_dir
 
-    # CLI overrides for benchmark params (applied to all benchmark entries)
-    param_overrides = getattr(args, "param", None)
-    if param_overrides:
-        from omegaconf import OmegaConf
-
-        overrides = OmegaConf.to_container(OmegaConf.from_dotlist(param_overrides))
-        for bench in config.get("benchmarks", []):
-            bench.setdefault("params", {}).update(overrides)
+    # CLI overrides applied to every benchmark entry
+    try:
+        _apply_benchmark_overrides(config, getattr(args, "param", None), getattr(args, "benchmark_field", None))
+    except ValueError as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
 
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
@@ -632,6 +667,18 @@ execution flow:
     is used (e.g. libero_spatial=220, libero_10=520).
     Setting max_steps explicitly in config always takes precedence.
 
+  benchmark overrides (--param / --benchmark-field):
+    Both apply to every entry in benchmarks[], so one config serves several
+    variants instead of a copy per variant. --param writes into params:
+      --param send_wrist_image=true
+    --benchmark-field writes any entry field, params included:
+      --benchmark-field max_steps=200 --benchmark-field subname=transport
+    Values are YAML-typed (200 is an int, true is a bool). Dotted keys nest,
+    so --param k=v is exactly --benchmark-field params.k=v. params.* merges
+    key by key; every other key replaces, matching the Python API's
+    benchmark_overrides. Entry fields are not validated: the schema is open,
+    and keys like action_dim are read by other commands (vla-eval test).
+
   sharding (--shard-id / --num-shards):
     Work items (task × episode pairs) are distributed round-robin across shards.
     All shards share a single recording-<eval-id>.sqlite via WAL mode.
@@ -675,6 +722,15 @@ execution flow:
         metavar="KEY=VALUE",
         help="Override benchmark params (applied to all benchmarks). Repeatable. "
         "e.g. --param send_wrist_image=true --param send_state=true",
+    )
+    run_parser.add_argument(
+        "--benchmark-field",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override any benchmark entry field, not just params (applied to all benchmarks). "
+        "Repeatable, values YAML-typed. e.g. --benchmark-field max_steps=200 "
+        "--benchmark-field episodes_per_task=5. Dotted keys nest; 'params.*' merges, "
+        "every other key replaces.",
     )
     run_parser.add_argument(
         "--no-docker", action="store_true", help="Run directly without Docker (for dev/debug or inside-container use)"

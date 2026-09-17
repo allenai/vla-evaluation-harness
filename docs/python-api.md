@@ -36,7 +36,7 @@ The body of `vla-eval run`. Returns one `BenchmarkResult` dict per `benchmarks[]
 | `docker` | `None` (default): container when `docker.image` is set, in-process otherwise. `False` forces in-process, `True` requires an image |
 | `pull` | Allow pulling a missing image without a prompt. Off by default: images are tens of GB |
 | `no_save` | In-memory results only. In-process runs only; Docker runs report through the recording |
-| `benchmark_overrides` | Applied to every benchmark entry, e.g. `{"episodes_per_task": 10, "max_tasks": 1, "params": {"seed": 3}}`. `params` merges, other keys replace |
+| `benchmark_overrides` | Applied to every benchmark entry, e.g. `{"episodes_per_task": 10, "max_tasks": 1, "params": {"seed": 3}}`. `params` merges, other keys replace. Same rule, same code as `vla-eval run --benchmark-field max_steps=200` |
 | `watchdog_timeout_s` | Arms the stall watchdog. It `os._exit`s the process, so leave it unset inside a training loop |
 
 Docker runs use `--network host`, so the in-process server on `127.0.0.1` is reachable from the

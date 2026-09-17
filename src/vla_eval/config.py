@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, MutableMapping
 
 logger = logging.getLogger(__name__)
 
@@ -229,3 +229,29 @@ class EvalConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def merge_benchmark_overrides(config: dict[str, Any], overrides: Mapping[str, Any]) -> None:
+    """Apply *overrides* to every ``benchmarks[]`` entry of a raw (pre-:class:`EvalConfig`) config.
+
+    ``params`` merges key by key; every other key replaces the entry's value.
+    Shared by ``vla_eval.run(benchmark_overrides=...)`` and ``vla-eval run``'s
+    ``--param`` / ``--benchmark-field``, so the two agree by construction.
+
+    Entry keys are deliberately not validated against :class:`EvalConfig`: the
+    schema is open, and checked-in configs carry keys other consumers read
+    (e.g. ``action_dim``, used by ``vla-eval test``'s echo server).
+    """
+    for idx, entry in enumerate(config.get("benchmarks") or []):
+        # MutableMapping, not dict: a config handed to vla_eval.run() as an
+        # OmegaConf DictConfig still has DictConfig entries after dict(config).
+        if not isinstance(entry, MutableMapping):
+            raise ValueError(f"benchmarks[{idx}] must be a mapping")
+        for key, value in overrides.items():
+            if key == "params" and isinstance(value, Mapping):
+                params = entry.setdefault("params", {})
+                if not isinstance(params, MutableMapping):
+                    raise ValueError(f"benchmarks[{idx}].params must be a mapping")
+                params.update(value)
+            else:
+                entry[key] = value
