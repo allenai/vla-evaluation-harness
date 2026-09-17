@@ -154,7 +154,9 @@ vla-eval run -c configs/benchmarks/libero/spatial.yaml --shard-id 0 --num-shards
 vla-eval run -c configs/benchmarks/libero/spatial.yaml --shard-id 1 --num-shards 4 &
 # ... (each shard is a separate process)
 wait
-vla-eval merge -c configs/benchmarks/libero/spatial.yaml -o results/libero_spatial.json
+vla-eval merge -c configs/benchmarks/libero/spatial.yaml
+# ...or name the results directory directly, without the config:
+vla-eval merge --output-dir results/libero_spatial --eval-id <eval-id>
 ```
 
 Work items are shuffled with a fixed seed before the round-robin split, so no shard ends up holding a single episode index across every task; each shard then runs its slice task by task. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
