@@ -70,7 +70,7 @@ pip install vla-eval
 Or from source (pinned to the latest stable release):
 
 ```bash
-git clone --branch v0.6.0 https://github.com/allenai/vla-evaluation-harness.git
+git clone --branch v0.7.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
 uv sync --python 3.11 --all-extras --dev --group leaderboard
 ```
