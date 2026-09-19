@@ -77,6 +77,17 @@ def test_evaluate_records_and_merges(tmp_path) -> None:
     assert json.loads(aggregates[0].read_text())["mean_success"] == 1.0
 
 
+def test_recording_failure_aborts_evaluation(monkeypatch, tmp_path) -> None:
+    from vla_eval.recording import RecordingError, RecordingStore
+
+    def fail(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(RecordingStore, "upsert_episode_result", fail)
+    with pytest.raises(RecordingError, match="Failed to save episode"):
+        evaluate(EchoModelServer(), _stub_config(), docker=False, output_dir=tmp_path)
+
+
 def test_run_rejects_docker_without_image() -> None:
     with pytest.raises(ValueError, match="docker.image"):
         run(_stub_config(), docker=True, no_save=True)

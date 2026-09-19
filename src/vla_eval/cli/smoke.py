@@ -7,7 +7,6 @@ delegation to other CLI subcommands.
 
 from __future__ import annotations
 
-import glob as _glob
 import json
 import logging
 import os
@@ -17,6 +16,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import ExitStack
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -569,20 +570,10 @@ def run_benchmark_test(
     except ValueError as exc:
         return SmokeResult(test, "fail", str(exc))
 
-    # Resolve the --dev mount before any resource (echo server, temp files) is allocated.
-    dev_mount: list[str] = []
-    if dev:
-        from vla_eval.cli._docker import dev_src_mount_flags
-
-        try:
-            dev_mount = dev_src_mount_flags()
-        except RuntimeError as exc:
-            return SmokeResult(test, "fail", str(exc))
-
     # Write temp config: 1 task, 1 episode, capped steps, pointing to echo server
-    smoke_config = dict(config)
+    smoke_config = deepcopy(config)
     smoke_config["server"] = {"url": f"ws://127.0.0.1:{port}"}
-    smoke_config.pop("docker", None)
+    smoke_config["docker"]["gpus"] = gpu_spec
     smoke_config["render"] = effective_render
     for bench in smoke_config.get("benchmarks", []):
         bench["episodes_per_task"] = 1
@@ -590,93 +581,51 @@ def run_benchmark_test(
         if bench.get("max_steps") is None or bench["max_steps"] > 50:
             bench["max_steps"] = 50
 
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".yaml", prefix="vla-eval-smoke-")
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            yaml.dump(smoke_config, f)
-    except Exception:
-        os.close(tmp_fd)
-        raise
-
+    from vla_eval.cli._docker import build_docker_command, prepare_container_config
     from vla_eval.model_servers.serve import serve_async
-
-    echo_server = _make_echo_server(action_dim)
-
-    # Suppress websocket noise
-    logging.getLogger("websockets").setLevel(logging.CRITICAL)
-
-    # Echo server on a portal thread; cancel its future before exiting, a clean portal exit waits.
     from anyio.from_thread import start_blocking_portal
 
-    portal_cm = start_blocking_portal()
-    try:  # start_task returns once the port is bound
-        server_future, _ = portal_cm.__enter__().start_task(serve_async, echo_server, "0.0.0.0", port)
-    except Exception as exc:
-        portal_cm.__exit__(type(exc), exc, exc.__traceback__)
-        Path(tmp_path).unlink(missing_ok=True)
-        return SmokeResult(test, "fail", f"echo server failed to start: {exc}")
-
-    # Run Docker container
-    results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
-    container_name = f"vla-eval-test-{os.getpid()}-{test.name}"
-
-    from vla_eval.docker_resources import gpu_docker_flag
-
-    # fmt: off
-    docker_cmd: list[str] = [
-        docker, "run", "--rm",
-        "--name", container_name,
-        "--network", "host",
-        "-v", f"{results_dir}:/workspace/results",
-        "-v", f"{tmp_path}:/tmp/eval_config.yaml:ro",
-    ]
-    # fmt: on
-    docker_cmd.extend(dev_mount)
-    for vol in docker_cfg.volumes:
-        docker_cmd.extend(["-v", vol])
-    for env_str in docker_cfg.env:
-        docker_cmd.extend(["-e", env_str])
-    # After docker_cfg.env, matching run_via_docker: for duplicate -e docker keeps the
-    # last one, and a config env like NVIDIA_VISIBLE_DEVICES must not beat cpu's "void".
-    docker_cmd.extend(gpu_docker_flag(gpu_spec))
-    docker_cmd.extend([docker_cfg.image, "run", "--no-docker", "--config", "/tmp/eval_config.yaml"])
-
     try:
-        result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
-        rc = result.returncode
+        with ExitStack() as stack:
+            results_dir = tempfile.mkdtemp(prefix="vla-eval-test-")
+            stack.callback(shutil.rmtree, results_dir, ignore_errors=True)
+            smoke_config["output_dir"] = results_dir
+            _, tmp_path = prepare_container_config(smoke_config)
+            stack.callback(Path(tmp_path).unlink, missing_ok=True)
+            container_name = f"vla-eval-test-{os.getpid()}-{test.name}"
+            docker_cmd = build_docker_command(
+                docker, smoke_config, results_dir, tmp_path, container_name, dev=dev, interactive=False
+            )
+            portal = stack.enter_context(start_blocking_portal())
+            server_future, _ = portal.start_task(serve_async, _make_echo_server(action_dim), "0.0.0.0", port)
+            stack.callback(server_future.cancel)
+            try:
+                result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
+            except BaseException:
+                subprocess.run([docker, "rm", "-f", container_name], capture_output=True, timeout=15)
+                raise
+
+            dt = time.monotonic() - t0
+            if result.returncode != 0:
+                tail = result.stderr.strip().splitlines()[-5:] or [f"exit code {result.returncode}"]
+                return SmokeResult(test, "fail", "\n    ".join(tail), dt, stderr=result.stderr)
+
+            json_files = sorted(Path(results_dir).glob("*_aggregate.json"))
+            if json_files:
+                aggregates = [json.loads(p.read_text()) for p in json_files]
+                errored = [line for agg in aggregates for line in _errored_episodes(agg)]
+                if errored:
+                    more = f" (+{len(errored) - 1} more)" if len(errored) > 1 else ""
+                    return SmokeResult(test, "fail", f"episode errored{more}: {errored[0]}", dt, stderr=result.stderr)
+                rate = aggregates[0].get("mean_success", 0)
+                return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
+            output = result.stderr.strip() or result.stdout.strip()
+            tail = "\n    ".join(output.splitlines()[-5:]) if output else "no output captured"
+            return SmokeResult(test, "fail", f"completed without result JSON\n    {tail}", dt, stderr=result.stderr)
     except subprocess.TimeoutExpired:
-        dt = time.monotonic() - t0
-        return SmokeResult(test, "fail", f"docker timeout after {timeout}s", dt)
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-        server_future.cancel()
-        portal_cm.__exit__(None, None, None)
-
-    dt = time.monotonic() - t0
-
-    try:
-        if rc != 0:
-            err_lines = result.stderr.strip().splitlines()
-            tail = err_lines[-5:] if err_lines else [f"exit code {rc}"]
-            msg = "\n    ".join(tail)
-            return SmokeResult(test, "fail", msg, dt, stderr=result.stderr)
-
-        json_files = sorted(_glob.glob(os.path.join(results_dir, "*.json")))
-        if json_files:
-            aggregates = [json.loads(Path(j).read_text()) for j in json_files]
-            errored = [line for agg in aggregates for line in _errored_episodes(agg)]
-            if errored:
-                more = f" (+{len(errored) - 1} more)" if len(errored) > 1 else ""
-                return SmokeResult(test, "fail", f"episode errored{more}: {errored[0]}", dt, stderr=result.stderr)
-            rate = aggregates[0].get("mean_success", 0)
-            return SmokeResult(test, "pass", f"success_rate={rate:.0%}", dt)
-        # rc == 0 with no aggregate JSON in the mounted results dir means results were
-        # silently lost (e.g. mis-resolved output_dir) — a failure, not a pass.
-        output = result.stderr.strip() or result.stdout.strip()
-        tail = "\n    ".join(output.splitlines()[-5:]) if output else "no output captured"
-        return SmokeResult(test, "fail", f"completed without result JSON\n    {tail}", dt, stderr=result.stderr)
-    finally:
-        shutil.rmtree(results_dir, ignore_errors=True)
+        return SmokeResult(test, "fail", f"docker timeout after {timeout}s", time.monotonic() - t0)
+    except Exception as exc:
+        return SmokeResult(test, "fail", str(exc), time.monotonic() - t0)
 
 
 # ---------------------------------------------------------------------------

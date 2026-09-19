@@ -129,14 +129,3 @@ def test_cmd_serve_list_and_dict_round_trip_as_json(monkeypatch, tmp_path):
         assert json.loads(token.split("=", 1)[1]) == {"x": 0.1}
     finally:
         yaml_path.unlink()
-
-
-def test_smoke_reuses_serve_helpers():
-    """``cli/smoke.py`` and ``cmd_serve`` share the cmd builder so paths can't drift."""
-    import vla_eval.cli.smoke as smoke
-
-    src = Path(smoke.__file__).read_text()
-    assert "_build_serve_cmd" in src, (
-        "smoke.py must import the shared cmd builder from cli.main; otherwise the "
-        "jsonargparse routing in production won't apply to `vla-eval test --server`."
-    )

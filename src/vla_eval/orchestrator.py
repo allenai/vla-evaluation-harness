@@ -24,6 +24,7 @@ from vla_eval.recording import (
     EpisodeRecorder,
     EpisodeStatus,
     NullEpisodeRecorder,
+    RecordingError,
     RecordingStore,
     db_path_for_eval,
     recording_filename_context,
@@ -217,6 +218,10 @@ class Orchestrator:
         cfg = EvalConfig.from_dict(bench_cfg)
         name = cfg.resolved_name()
         safe_name = _SAFE_NAME_RE.sub("_", name)
+        if self._store is not None:
+            self._store.set_shard_complete(
+                f"{self._eval_id}-{safe_name}", self.shard_id or 0, self.num_shards or 1, complete=False
+            )
 
         logger.info("Starting benchmark: %s (mode=%s)", name, cfg.mode)
         if self._live_tracking:
@@ -397,6 +402,8 @@ class Orchestrator:
                     self._update_progress(item_idx + 1, total_items, collector.error_count)
                     close_recorder(ep_dict, "success" if success else "fail")
                     continue
+                except RecordingError:
+                    raise
                 except ConnectionError as exc:
                     logger.error(
                         "  [%d/%d] %s ep%d: server unreachable, aborting benchmark",
@@ -496,7 +503,7 @@ class Orchestrator:
             eval_id=bench_eval_id,
             output_dir=rec_cfg.get("output_dir") or str(self._output_dir / "episodes"),
             filename_stem=rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM,
-            context=serializable_task_kwargs(task),
+            context={**serializable_task_kwargs(task), "task_idx": task_idx},
             filename_context=recording_filename_context(
                 benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
             ),
@@ -554,6 +561,11 @@ class Orchestrator:
             output["partial"] = True
         if self.num_shards is not None and self.shard_id is not None:
             output["shard"] = {"id": self.shard_id, "total": self.num_shards}
+
+        if self._store is not None:
+            self._store.set_shard_complete(
+                f"{self._eval_id}-{safe_name}", self.shard_id or 0, self.num_shards or 1, complete=not partial
+            )
 
         if self._progress_path is not None and self._progress_path.exists():
             self._progress_path.unlink()

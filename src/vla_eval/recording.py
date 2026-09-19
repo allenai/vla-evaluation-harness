@@ -34,6 +34,10 @@ if sqlite3.sqlite_version_info < _MIN_SQLITE:
 EpisodeStatus = Literal["success", "fail", "error"]
 
 
+class RecordingError(RuntimeError):
+    """Required recording data could not be persisted."""
+
+
 def _json_default(obj: Any) -> Any:
     """JSON fallback that turns numpy arrays/scalars into native Python via ``.tolist()``."""
     if hasattr(obj, "tolist"):
@@ -54,6 +58,14 @@ CREATE TABLE IF NOT EXISTS eval_metadata (
     eval_id    TEXT PRIMARY KEY,
     safe_name  TEXT NOT NULL,
     metadata   TEXT NOT NULL  -- JSON: benchmark, mode, config, harness_version, server_info, metric_keys
+);
+
+CREATE TABLE IF NOT EXISTS eval_shards (
+    eval_id TEXT NOT NULL,
+    shard_id INTEGER NOT NULL,
+    num_shards INTEGER NOT NULL,
+    complete INTEGER NOT NULL,
+    PRIMARY KEY (eval_id, shard_id)
 );
 
 CREATE TABLE IF NOT EXISTS episode_results (
@@ -102,7 +114,7 @@ def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
 
 
 def recording_filename_context(*, benchmark_safe_name: str, task_idx: int, episode_id: int) -> dict[str, Any]:
-    """Filename-template keys injected by the orchestrator; kept out of the persisted episode context."""
+    """Filename-template keys injected by the orchestrator."""
     return {"benchmark_safe_name": benchmark_safe_name[:96], "task_idx": task_idx, "episode_id": episode_id}
 
 
@@ -193,6 +205,13 @@ class RecordingStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def set_shard_complete(self, eval_id: str, shard_id: int, num_shards: int, *, complete: bool) -> None:
+        with self.transaction():
+            self._conn.execute(
+                "INSERT OR REPLACE INTO eval_shards VALUES (?, ?, ?, ?)",
+                (eval_id, shard_id, num_shards, complete),
+            )
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
         """Keep the first metadata; flag renderer disagreement between shards."""
@@ -455,8 +474,8 @@ class EpisodeRecorder:
                     failure_reason=failure_reason,
                     failure_detail=failure_detail,
                 )
-        except Exception:
-            logger.exception("Failed to upsert episode result for sid=%s eid=%s", self._sid, self._eid)
+        except Exception as exc:
+            raise RecordingError(f"Failed to save episode sid={self._sid} eid={self._eid}") from exc
 
 
 class NullEpisodeRecorder(EpisodeRecorder):
@@ -540,9 +559,10 @@ class StepRecorder:
         self._closed = True
         try:
             self._store.upsert_step_rows(self._sid, self._eid, self._steps)
-        except Exception:
-            logger.exception("StepRecorder: failed to upsert step rows for sid=%s eid=%s", self._sid, self._eid)
-        self._store.close()
+        except Exception as exc:
+            raise RecordingError(f"Failed to save steps sid={self._sid} eid={self._eid}") from exc
+        finally:
+            self._store.close()
 
     def __enter__(self) -> "StepRecorder":
         return self

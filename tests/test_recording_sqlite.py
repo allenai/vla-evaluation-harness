@@ -1,14 +1,4 @@
-"""Tests for the SQLite recording path: store, EpisodeRecorder, StepRecorder,
-and ``vla-eval export``.
-
-The most important test here is :func:`test_multi_writer_field_union` — it
-exercises the contract that two processes (orchestrator + model server, or
-two shards) can independently insert step rows for the same
-``(sid, eid, step_id)`` with disjoint or overlapping field sets and have
-the daemon-less store merge them atomically via ``json_patch`` UPSERT.
-That contract is the entire reason we chose SQLite over a per-file
-filesystem layout.
-"""
+"""Recording transactions, multi-writer field merging, and result export."""
 
 from __future__ import annotations
 
@@ -23,6 +13,7 @@ from vla_eval.recording import (
     DEFAULT_FILENAME_STEM,
     EpisodeRecorder,
     NullEpisodeRecorder,
+    RecordingError,
     RecordingStore,
     StepRecorder,
     db_path_for_eval,
@@ -365,7 +356,7 @@ def _write_sample_db(tmp_path: Path) -> tuple[Path, str]:
             metrics={"success": status == "success"},
             steps=2,
             elapsed_sec=0.1,
-            context={"env_id": "demo", "episode_idx": i},
+            context={"env_id": "demo", "episode_idx": i, "task_idx": 0},
             jsonl_path=str(tmp_path / f"demo_ep{i:04d}_{status}.jsonl"),
             failure_reason=None,
             failure_detail=None,
@@ -405,6 +396,63 @@ def test_export_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None
     assert agg_path.exists()
     on_disk = json.loads(agg_path.read_text())
     assert on_disk["benchmark"] == "demo_bench"
+
+
+@pytest.mark.parametrize("identified", [False, True])
+def test_export_selects_last_committed_attempt(tmp_path, identified):
+    db, eval_id = _write_sample_db(tmp_path)
+    store = RecordingStore(db)
+    try:
+        if not identified:
+            store._conn.execute("UPDATE episode_results SET context = json_remove(context, '$.task_idx')")
+        recorder = EpisodeRecorder(
+            store=store,
+            sid="retry",
+            eid="retry",
+            eval_id=eval_id,
+            output_dir=tmp_path,
+            filename_stem="retry",
+            context={"task_idx": 0} if identified else {},
+        )
+        recorder.record_step(reward=99)
+        recorder.close(status="success", metrics={"success": True}, task_name="taskA", episode_id=2)
+        aggregate = export_db(db, tmp_path)[0]
+        assert aggregate["num_episodes_total"] == (3 if identified else 4)
+        assert aggregate["mean_success"] == (1 if identified else 0.75)
+        assert json.loads((tmp_path / "retry.jsonl").read_text())["reward"] == 99
+        assert store._conn.execute("SELECT COUNT(*) FROM episode_results").fetchone()[0] == 4
+        # Same display name and episode number, but a distinct work item (e.g. another RoboTwin seed).
+        other = EpisodeRecorder(
+            store=store,
+            sid="other",
+            eid="other",
+            eval_id=eval_id,
+            output_dir=tmp_path,
+            filename_stem="other",
+            context={"task_idx": 1},
+        )
+        other.close(status="fail", metrics={"success": False}, task_name="taskA", episode_id=2)
+        aggregate = export_db(db, tmp_path)[0]
+        assert aggregate["num_episodes_total"] == (4 if identified else 5)
+        assert aggregate["mean_success"] == (0.75 if identified else 0.6)
+    finally:
+        store.close()
+
+
+def test_export_tracks_missing_interrupted_and_retried_shards(tmp_path):
+    db, eval_id = _write_sample_db(tmp_path)
+    store = RecordingStore(db)
+    try:
+        store.set_shard_complete(eval_id, 0, 2, complete=True)
+        assert export_db(db, tmp_path)[0]["partial"] is True
+        store.set_shard_complete(eval_id, 1, 2, complete=False)
+        assert export_db(db, tmp_path)[0]["partial"] is True
+        store.set_shard_complete(eval_id, 1, 2, complete=True)
+        assert "partial" not in export_db(db, tmp_path)[0]
+        store.set_shard_complete(eval_id, 0, 2, complete=False)
+        assert export_db(db, tmp_path)[0]["partial"] is True
+    finally:
+        store.close()
 
 
 def test_export_eval_wrapper(tmp_path: Path) -> None:
@@ -560,7 +608,8 @@ def test_episode_result_failure_rolls_back_steps(tmp_path, monkeypatch):
 
     monkeypatch.setattr(store, "upsert_episode_result", fail)
     try:
-        recorder.close(status="success", metrics={})
+        with pytest.raises(RecordingError, match="Failed to save episode"):
+            recorder.close(status="success", metrics={})
         assert store._conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0] == 0
     finally:
         store.close()
