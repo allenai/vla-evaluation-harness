@@ -137,6 +137,6 @@ A single-shard 10-episode run took **~76 min** (vla-eval) / **~55 min** (native 
 
 - Launch two `MolmoBotModelServer` instances, one pinned to each GPU via `CUDA_VISIBLE_DEVICES`, on separate ports.
 - Launch N `vla-eval run --shard-id {i} --num-shards N --server-url ws://localhost:{port}` processes; alternate shards between the two servers (even IDs → GPU 0, odd IDs → GPU 1).
-- Merge results with `vla-eval merge configs/... -o merged.json`.
+- Export results with `vla-eval export results/recording-<eval-id>.sqlite -o exported/`.
 
 With N=16 shards on 2× A100 80GB the 200-episode pick-and-place run completes in approximately 3 hours. GPU utilization stays around 15–25 % because per-call inference is the bottleneck and there is no request batching; throughput scales roughly linearly with the number of GPUs rather than the number of shards above ~8.

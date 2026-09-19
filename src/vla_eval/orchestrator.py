@@ -151,13 +151,13 @@ class Orchestrator:
 
         # Trackers are instantiated on every shard so config errors surface
         # fast, but live emission only fires when there's a single writer —
-        # ``vla-eval merge`` owns the aggregate push for sharded runs.
+        # ``vla-eval export`` owns the aggregate push for sharded runs.
         self._trackers: list[Tracker] = get_reporting_trackers((config.get("tracking") or {}).get("report_to"))
         self._live_tracking = num_shards is None
         if self._trackers and not self._live_tracking:
             logger.warning(
                 "tracking.report_to set with sharding active; per-episode and eval-end "
-                "emission deferred to `vla-eval merge`."
+                "emission deferred to `vla-eval export`."
             )
 
     @property
@@ -179,6 +179,7 @@ class Orchestrator:
         """Run all benchmarks defined in config."""
         if not self.no_save:
             self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
+            self._store.set_run_metadata(self._eval_id, self.config)
 
         if self._live_tracking:
             call_each(self._trackers, "on_eval_begin", self._eval_id, self.config)

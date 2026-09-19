@@ -196,20 +196,17 @@ def cmd_run(args: argparse.Namespace) -> None:
         tail = f"  (⚠ {errs} episodes errored)" if errs else ""
         print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}{tail}")
 
-    # Single-shard runs auto-merge: write per-episode jsonl + aggregate JSON from
-    # the SQLite recording, since there are no other shard processes to coordinate
-    # with. Sharded runs leave the merge to the launcher (run_sharded.sh) so it
-    # only runs once after all shards exit.
+    # Single-shard runs export immediately; the sharded launcher exports after wait.
     if not no_save and shard_id is None:
-        from vla_eval.results.merge import merge_eval
+        from vla_eval.results.export import export_eval
 
         output_dir = Path(config.get("output_dir", "./results")).resolve()
         try:
-            merge_eval(output_dir, orchestrator.eval_id)
+            export_eval(output_dir, orchestrator.eval_id)
         except FileNotFoundError:
-            logger.info("No recording DB to merge")
+            logger.info("No recording DB to export")
         except Exception:
-            logger.exception("vla-eval merge failed for eval_id=%s", orchestrator.eval_id)
+            logger.exception("vla-eval export failed for eval_id=%s", orchestrator.eval_id)
 
 
 # yaml convention puts these under ``args:`` but they belong to the WS server,
@@ -294,71 +291,18 @@ def cmd_serve(args: argparse.Namespace) -> None:
     _exec_subprocess(cmd)
 
 
-def cmd_merge(args: argparse.Namespace) -> None:
-    """Materialize recordings selected by config, output directory, or DB path."""
-    from vla_eval.results.merge import merge_db, print_merge_summary
-    from vla_eval.tracking import call_each, get_reporting_trackers
+def cmd_export(args: argparse.Namespace) -> None:
+    """Export one recording database using its saved run metadata."""
+    from vla_eval.results.export import export_db, print_export_summary
 
-    db_paths: list[Path] = []
-    output_dir: Path
-    config: dict[str, Any] = {}
-
-    if getattr(args, "db", None):
-        db_paths = [Path(args.db)]
-        output_dir = Path(getattr(args, "output_dir", None) or db_paths[0].parent).resolve()
-    elif getattr(args, "config", None) or getattr(args, "output_dir", None):
-        if getattr(args, "config", None):
-            config = _load_config(args.config)
-        output_dir = Path(getattr(args, "output_dir", None) or config.get("output_dir", "./results")).resolve()
-        if getattr(args, "eval_id", None):
-            from vla_eval.recording import db_path_for_eval
-
-            db_paths = [db_path_for_eval(output_dir, args.eval_id)]
-        else:
-            db_paths = sorted(output_dir.glob("recording-*.sqlite"))
-            if not db_paths:
-                _stderr_console().print(f"[red]ERROR: no recording-*.sqlite found under {output_dir}[/red]")
-                sys.exit(1)
-    else:
-        _stderr_console().print(
-            "[red]ERROR: pass --config / -c <yaml> or --output-dir <dir> "
-            "(either one optionally with --eval-id), or --db <path>[/red]"
-        )
+    db = Path(args.db)
+    output_dir = Path(args.output_dir or db.parent).resolve()
+    try:
+        aggregates = export_db(db, output_dir, report=True)
+    except Exception as exc:
+        _stderr_console().print(f"[red]ERROR exporting {db}: {exc}[/red]")
         sys.exit(1)
-
-    # Tracker run identity needs the same eval_id the orchestrator used so
-    # id+resume converges live + merge on one run. Sniff from the DB filename
-    # if --eval-id wasn't passed; skip emission entirely otherwise (orphan
-    # hooks would raise on backends that require init first).
-    from vla_eval.recording import eval_id_from_db_path
-
-    trackers = get_reporting_trackers((config.get("tracking") or {}).get("report_to"))
-    eval_id_for_trackers = getattr(args, "eval_id", None)
-    if trackers and not eval_id_for_trackers and db_paths:
-        eval_id_for_trackers = eval_id_from_db_path(db_paths[0])
-    if not eval_id_for_trackers:
-        trackers = []
-    call_each(trackers, "on_eval_begin", eval_id_for_trackers, config)
-
-    all_aggregates: list[dict[str, Any]] = []
-    for db in db_paths:
-        try:
-            aggs = merge_db(db, output_dir)
-        except FileNotFoundError:
-            _stderr_console().print(f"[yellow]WARNING: skipping missing DB {db}[/yellow]")
-            continue
-        except Exception as exc:
-            _stderr_console().print(f"[red]ERROR merging {db}: {exc}[/red]")
-            sys.exit(1)
-        for agg in aggs:
-            call_each(trackers, "on_benchmark_begin", agg.get("benchmark", ""), {})
-            call_each(trackers, "on_benchmark_end", agg.get("benchmark", ""), agg)
-        all_aggregates.extend(aggs)
-
-    call_each(trackers, "on_eval_end", all_aggregates)
-    call_each(trackers, "close")
-
-    print_merge_summary(all_aggregates)
+    print_export_summary(aggregates)
 
 
 def cmd_test(args: argparse.Namespace) -> None:
@@ -626,15 +570,15 @@ execution flow:
 
   sharding (--shard-id / --num-shards):
     Work items (task × episode pairs) are distributed round-robin across shards.
-    All shards share a single recording-<eval-id>.sqlite via WAL mode.
-    Pass the same --eval-id to every shard, then run 'vla-eval merge' once at
+    All shards share a single recording-<eval-id>.sqlite via SQLite write transactions.
+    Pass the same --eval-id to every shard, then run 'vla-eval export' once at
     the end (scripts/run_sharded.sh does this for you).
 
   recording:
     By default, benchmark entries write episode results + step rows to
     <output_dir>/recording-<eval-id>.sqlite with videos off. A recording:
     block overrides those defaults per benchmark; use --record-video to
-    enable per-episode mp4s for the run. Single-shard runs auto-merge.
+    enable per-episode mp4s for the run. Single-shard runs auto-export.
     Use --no-save for in-memory summary only.
 
   render backend (render: gpu|cpu, --render):
@@ -784,49 +728,16 @@ server-level key (host/port).
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)
 
-    # merge command
-    merge_parser = sub.add_parser(
-        "merge",
-        help="Materialize per-episode jsonl + aggregate JSON from a recording SQLite",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-Reads <output_dir>/recording-<eval-id>.sqlite written by `vla-eval run` and
-emits the human-readable per-episode jsonl + per-benchmark aggregate JSON.
-
-Multi-shard runs all write to one DB (same --eval-id). Run merge once after
-all shards exit (run_sharded.sh does this automatically). Single-shard `vla-eval
-run` invokes merge inline at the end, so manual merge is only needed for sharded
-runs or to re-render outputs.
-
---config and --output-dir are interchangeable ways to name the directory holding
-the DBs; pass --output-dir on its own when the config is not at hand.
-
-examples:
-  vla-eval merge -c configs/benchmarks/libero/spatial.yaml --eval-id abc
-  vla-eval merge -c configs/benchmarks/libero/spatial.yaml  # merge every DB
-  vla-eval merge --output-dir ./results --eval-id abc
-  vla-eval merge --db /path/to/recording-abc.sqlite
-""",
+    export_parser = sub.add_parser(
+        "export",
+        help="Export episode JSONL and aggregate JSON from one recording SQLite",
+        description="Export episode JSONL and aggregate JSON from a consistent snapshot, and report aggregates "
+        "to configured trackers. Rerun to include subsequently recorded episodes.",
     )
-    merge_parser.add_argument("--config", "-c", default=None, help="Config YAML (provides output_dir)")
-    merge_parser.add_argument(
-        "--eval-id",
-        default=None,
-        help="Specific eval id (= specific DB file). Omit to merge every DB under output_dir.",
-    )
-    merge_parser.add_argument(
-        "--db",
-        default=None,
-        help="Direct path to a recording-*.sqlite. Bypasses --config.",
-    )
-    merge_parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="Directory holding the recording DBs, and where materialised files land. Usable without "
-        "--config (default: config output_dir or DB parent).",
-    )
-    merge_parser.add_argument("--verbose", "-v", action="store_true")
-    merge_parser.set_defaults(func=cmd_merge)
+    export_parser.add_argument("db", help="Recording SQLite path")
+    export_parser.add_argument("-o", "--output-dir", help="Artifact directory (default: DB parent)")
+    export_parser.add_argument("--verbose", "-v", action="store_true")
+    export_parser.set_defaults(func=cmd_export)
 
     # test command
     test_parser = sub.add_parser(

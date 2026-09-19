@@ -4,7 +4,7 @@ Covers the dispatch / availability / robustness pieces directly, and runs an
 end-to-end wandb integration test in offline mode (``WANDB_MODE=offline``) when
 the ``wandb`` package is installed. The offline test asserts the on-disk run
 artifact exists and that the harness-injected ``eval_id`` flowed through —
-the same convergence handle the orchestrator and ``vla-eval merge`` rely on.
+the same convergence handle the orchestrator and ``vla-eval export`` rely on.
 """
 
 from __future__ import annotations

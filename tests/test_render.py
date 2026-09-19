@@ -396,14 +396,14 @@ class TestSmokeErroredEpisodes:
 def _write_metadata(tmp_path, *renders: dict[str, Any]):
     """Simulate N shards writing bench metadata under one eval_id; return the merged aggregate."""
     from vla_eval.recording import RecordingStore, db_path_for_eval
-    from vla_eval.results.merge import merge_db
+    from vla_eval.results.export import export_db
 
     db = db_path_for_eval(tmp_path, "ev")
     for render in renders:
         store = RecordingStore(db)  # each shard is its own process/connection
         store.upsert_eval_metadata("ev", "demo", {"benchmark": "demo", "render": render})
         store.close()
-    return merge_db(db, tmp_path)[0]
+    return export_db(db, tmp_path)[0]
 
 
 def test_render_provenance_reaches_the_merge_aggregate(tmp_path):

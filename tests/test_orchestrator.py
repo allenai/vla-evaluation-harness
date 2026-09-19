@@ -3,7 +3,7 @@
 With the SQLite-recording model, the orchestrator no longer writes JSON
 files itself — its outputs are (1) the in-memory return value and (2) a
 ``recording-<eval-id>.sqlite`` file when ``no_save=False``. These tests
-assert against the in-memory return value; ``vla-eval merge`` is tested
+assert against the in-memory return value; ``vla-eval export`` is tested
 separately in ``tests/test_recording_sqlite.py``.
 """
 

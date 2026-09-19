@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import ctypes
 import json
 import logging
 import os
 import sqlite3
-import sys
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -43,9 +42,13 @@ def _json_default(obj: Any) -> Any:
 
 
 SCHEMA_SQL = """
-PRAGMA journal_mode=WAL;
-PRAGMA synchronous=NORMAL;
-PRAGMA busy_timeout=60000;  -- 60s, consistent with connect(timeout=60); SCHEMA_SQL runs last so this is the effective post-init value
+BEGIN IMMEDIATE;
+
+CREATE TABLE IF NOT EXISTS run_metadata (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    eval_id TEXT NOT NULL,
+    config TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS eval_metadata (
     eval_id    TEXT PRIMARY KEY,
@@ -64,7 +67,7 @@ CREATE TABLE IF NOT EXISTS episode_results (
     steps           INTEGER,
     elapsed_sec     REAL,
     context         TEXT,            -- JSON
-    jsonl_path      TEXT,            -- resolved final filename for ``vla-eval merge``
+    jsonl_path      TEXT,            -- resolved final filename for ``vla-eval export``
     failure_reason  TEXT,
     failure_detail  TEXT,
     PRIMARY KEY (sid, eid)
@@ -78,6 +81,7 @@ CREATE TABLE IF NOT EXISTS step_rows (
     fields   TEXT NOT NULL,  -- JSON document; multi-writer field-union via json_patch
     PRIMARY KEY (sid, eid, step_id)
 );
+COMMIT;
 """
 
 
@@ -108,14 +112,8 @@ def recording_filename_context(*, benchmark_safe_name: str, task_idx: int, episo
 
 
 def db_path_for_eval(output_dir: str | Path, eval_id: str) -> Path:
-    """Canonical SQLite path for an eval. All shards on one host point here."""
+    """Canonical SQLite path for an eval. All writers for an evaluation point here."""
     return Path(output_dir) / f"recording-{eval_id}.sqlite"
-
-
-def eval_id_from_db_path(path: str | Path) -> str | None:
-    """Inverse of :func:`db_path_for_eval`: ``recording-<id>.sqlite`` → ``<id>`` or ``None``."""
-    stem = Path(path).stem
-    return stem[len("recording-") :] if stem.startswith("recording-") else None
 
 
 def _host_translate(path: Path) -> Path:
@@ -132,141 +130,73 @@ def _host_translate(path: Path) -> Path:
     return Path(host_root) / rel
 
 
-# ---------------------------------------------------------------------------
-# Network/parallel filesystem detection (WAL safety)
-# ---------------------------------------------------------------------------
-
-# SQLite WAL coordinates writers through a memory-mapped ``-shm`` index plus POSIX
-# advisory locks that network/parallel filesystems do not provide with the coherence
-# SQLite assumes, so concurrent multi-process writes can corrupt the DB ("database
-# disk image is malformed"). A shared multi-writer sink can't be transparently
-# relocated like a per-process cache, so we warn and let the caller place it on local
-# storage. Detection mirrors pixi's ``detect_network_filesystem`` (prefix-dev/pixi,
-# crates/pixi_config): ``statfs(2)`` f_type compared against known magics.
-_NETWORK_FS_MAGICS: dict[int, str] = {
-    0x6969: "nfs",  # NFS_SUPER_MAGIC
-    0x517B: "smb",  # SMB_SUPER_MAGIC (smbfs)
-    0xFF534D42: "cifs",  # fs/smb/client/cifsfs.h
-    0x65735546: "fuse",  # FUSE_SUPER_MAGIC
-    0x0187: "autofs",  # AUTOFS_SUPER_MAGIC
-    0x19830326: "beegfs",  # BeeGFS / fhgfs
-    0x0BD00BD0: "lustre",  # Lustre LL_SUPER_MAGIC
-    0x47504653: "gpfs",  # GPFS / IBM Spectrum Scale ("GPFS")
-    0x00C36400: "ceph",  # CephFS CEPH_SUPER_MAGIC
-}
-
-
-def _statfs_f_type(path: str) -> int | None:
-    """``statfs(2)`` f_type magic (low 32 bits) for *path*, or None if unavailable. Linux-only:
-    ``struct statfs`` layout is platform-specific, so other OSes return None rather than misread."""
-    if sys.platform != "linux":
-        return None
-    try:
-        libc = ctypes.CDLL(None, use_errno=True)
-        statfs = libc.statfs
-        statfs.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
-        statfs.restype = ctypes.c_int
-        buf = ctypes.create_string_buffer(256)  # >= sizeof(struct statfs) on Linux
-        if statfs(os.fsencode(path), buf) != 0:
-            return None
-        # f_type is the first field of ``struct statfs`` (__fsword_t == long on Linux).
-        return ctypes.c_long.from_buffer_copy(buf).value & 0xFFFFFFFF
-    except (OSError, ValueError, AttributeError):  # best-effort: never break recording
-        return None
-
-
-def _nearest_existing(path: Path) -> Path | None:
-    """Closest ancestor of *path* that exists (the DB file may not exist yet)."""
-    p = path
-    while True:
-        try:
-            if p.exists():
-                return p
-        except OSError:  # unreadable ancestor → give up (best-effort)
-            return None
-        if p.parent == p:
-            return None
-        p = p.parent
-
-
-def _detect_network_fs(path: Path) -> str | None:
-    """Name of the network/parallel filesystem *path* lives on (where SQLite WAL is unsafe),
-    else None. Mirrors pixi: ``statfs(2)`` f_type vs known magics. Best-effort, Linux-only
-    (None when it can't tell). Set ``VLA_EVAL_DISABLE_NETFS_WARNING`` to skip."""
-    if os.environ.get("VLA_EVAL_DISABLE_NETFS_WARNING"):
-        return None
-    existing = _nearest_existing(path)
-    if existing is None:
-        return None
-    f_type = _statfs_f_type(str(existing))
-    return _NETWORK_FS_MAGICS.get(f_type) if f_type is not None else None
-
-
-# RecordingStore is constructed many times (per shard, and per episode by an external
-# StepRecorder), so warn about a network filesystem at most once per DB path.
-_checked_netfs_paths: set[str] = set()
-
-
 class RecordingStore:
-    """SQLite connection holder. One per process; same-file concurrency via WAL."""
+    """One connection per process; SQLite serializes recording transactions."""
 
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        key = str(self.db_path)
-        if key not in _checked_netfs_paths:
-            _checked_netfs_paths.add(key)
-            netfs = _detect_network_fs(self.db_path.parent)
-            if netfs is not None:
-                logger.warning(
-                    "Recording DB %s is on a %r filesystem. SQLite WAL relies on coherent shared "
-                    "memory + advisory locks that network/parallel filesystems do not reliably "
-                    "provide, so concurrent multi-writer recording can corrupt it ('database disk "
-                    "image is malformed'). Place the recording output on node-local storage (e.g. "
-                    "/dev/shm or a local disk) and copy the finished file out, or use a single writer.",
-                    self.db_path,
-                    netfs,
-                )
+        if not os.access(self.db_path.parent, os.W_OK | os.X_OK):
+            raise PermissionError(
+                f"Recording directory must be writable to create rollback journals: {self.db_path.parent}. "
+                "Use docker.user: host or grant all writers directory access through a shared group."
+            )
         self._conn = sqlite3.connect(str(self.db_path), isolation_level=None, timeout=60.0)
-        # journal_mode=WAL (SCHEMA_SQL line 1) switches under an exclusive lock
-        # SQLite won't reliably retry; arm busy_timeout first + retry so N shards
-        # opening one fresh DB at once don't lose the race ("database is locked").
-        self._conn.execute("PRAGMA busy_timeout=60000")
-        self._init_schema()
-        # Mode 666 on main + WAL/SHM so external writers (different uid) can
-        # co-write via field-union upsert. SQLite WAL needs SHM writable.
-        for suffix in ("", "-wal", "-shm"):
+        try:
+            self._init_schema()
+            # Different-UID writers also need directory write access for rollback journals.
             try:
-                os.chmod(str(self.db_path) + suffix, 0o666)
+                os.chmod(self.db_path, 0o666)
             except OSError:
                 pass
+        except BaseException:
+            self._conn.close()
+            raise
 
     def _init_schema(self) -> None:
-        """Run the idempotent schema script, retrying the WAL-switch lock race
-        that surfaces when many writers open a fresh DB concurrently."""
+        """Retry contention during startup, including conversion of an idle WAL database."""
         for attempt in range(40):
             try:
+                mode = self._conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+                if mode != "delete":
+                    raise RuntimeError(f"Expected DELETE journal mode, got {mode}")
+                self._conn.execute("PRAGMA synchronous=EXTRA")
                 self._conn.executescript(SCHEMA_SQL)
                 return
             except sqlite3.OperationalError as exc:
+                self._conn.rollback()
                 if "locked" not in str(exc).lower() or attempt == 39:
                     raise
                 time.sleep(min(1.0, 0.1 * (attempt + 1)))
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Allow a caller to commit step rows and episode results together."""
+        if self._conn.in_transaction:
+            yield
+            return
+        with self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            yield
+
+    def set_run_metadata(self, eval_id: str, config: dict[str, Any]) -> None:
+        # Persist only reporting settings; resolved docker.env can contain credentials.
+        reporting = {"tracking": {"report_to": (config.get("tracking") or {}).get("report_to")}}
+        with self.transaction():
+            self._conn.execute(
+                "INSERT OR IGNORE INTO run_metadata (singleton, eval_id, config) VALUES (1, ?, ?)",
+                (eval_id, json.dumps(reporting, default=_json_default)),
+            )
+            stored_id = self._conn.execute("SELECT eval_id FROM run_metadata").fetchone()[0]
+            if stored_id != eval_id:
+                raise ValueError(f"Recording belongs to evaluation {stored_id}, not {eval_id}")
 
     def close(self) -> None:
         self._conn.close()
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
-        """First-writer-wins, except that a later shard disagreeing about the renderer is
-        flagged rather than dropped.
-
-        Shards all write this row under one eval_id. Renderer provenance is the one field
-        that can legitimately differ between them (RoboMME probes the native Vulkan path per
-        process), and silently keeping the first answer would attribute one shard's renderer
-        to every episode in the merged output. On disagreement the stored row gains
-        ``render.divergent = true``, which flows through ``vla-eval merge`` unchanged.
-        """
-        with self._conn:
+        """Keep the first metadata; flag renderer disagreement between shards."""
+        with self.transaction():
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO eval_metadata (eval_id, safe_name, metadata) VALUES (?, ?, ?)",
                 (eval_id, safe_name, json.dumps(metadata, default=_json_default)),
@@ -312,7 +242,7 @@ class RecordingStore:
         failure_detail: str | None,
     ) -> None:
         """Insert-or-replace; safe under orchestrator retry with the same (sid, eid)."""
-        with self._conn:
+        with self.transaction():
             self._conn.execute(
                 """
                 INSERT OR REPLACE INTO episode_results
@@ -343,7 +273,7 @@ class RecordingStore:
         if not rows:
             return
         payload = [(sid, eid, step_id, json.dumps(fields, default=_json_default)) for step_id, fields in rows.items()]
-        with self._conn:
+        with self.transaction():
             self._conn.executemany(
                 """
                 INSERT INTO step_rows (sid, eid, step_id, fields)
@@ -499,10 +429,7 @@ class EpisodeRecorder:
         except Exception:
             logger.exception("filename_stem render failed; using fallback name")
             jsonl_name = f"{self._sid}-{self._eid}_{status}.jsonl"
-        # Store the path RELATIVE to the SQLite file's directory whenever
-        # possible so that `vla-eval merge` resolves it correctly whether the
-        # run happens inside Docker (where output_dir = /workspace/results)
-        # and merge happens on the host (different absolute prefix).
+        # Relative paths let host-side export resolve recordings made inside containers.
         abs_jsonl = (self._output_dir / jsonl_name).resolve()
         db_dir = Path(self._store.db_path).resolve().parent
         try:
@@ -511,26 +438,23 @@ class EpisodeRecorder:
             jsonl_path = str(abs_jsonl)
 
         try:
-            self._store.upsert_step_rows(self._sid, self._eid, self._steps)
-        except Exception:
-            logger.exception("Failed to upsert step rows for sid=%s eid=%s", self._sid, self._eid)
-
-        try:
-            self._store.upsert_episode_result(
-                sid=self._sid,
-                eid=self._eid,
-                eval_id=self._eval_id,
-                task_name=task_name,
-                episode_id=episode_id,
-                status=status,
-                metrics=metrics,
-                steps=steps,
-                elapsed_sec=elapsed_sec,
-                context=self._context,
-                jsonl_path=jsonl_path,
-                failure_reason=failure_reason,
-                failure_detail=failure_detail,
-            )
+            with self._store.transaction():
+                self._store.upsert_step_rows(self._sid, self._eid, self._steps)
+                self._store.upsert_episode_result(
+                    sid=self._sid,
+                    eid=self._eid,
+                    eval_id=self._eval_id,
+                    task_name=task_name,
+                    episode_id=episode_id,
+                    status=status,
+                    metrics=metrics,
+                    steps=steps,
+                    elapsed_sec=elapsed_sec,
+                    context=self._context,
+                    jsonl_path=jsonl_path,
+                    failure_reason=failure_reason,
+                    failure_detail=failure_detail,
+                )
         except Exception:
             logger.exception("Failed to upsert episode result for sid=%s eid=%s", self._sid, self._eid)
 

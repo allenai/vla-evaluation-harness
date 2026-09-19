@@ -1,5 +1,5 @@
 """Tests for the SQLite recording path: store, EpisodeRecorder, StepRecorder,
-and ``vla-eval merge``.
+and ``vla-eval export``.
 
 The most important test here is :func:`test_multi_writer_field_union` — it
 exercises the contract that two processes (orchestrator + model server, or
@@ -25,11 +25,10 @@ from vla_eval.recording import (
     NullEpisodeRecorder,
     RecordingStore,
     StepRecorder,
-    _detect_network_fs,
     db_path_for_eval,
     recording_filename_context,
 )
-from vla_eval.results.merge import merge_db, merge_eval
+from vla_eval.results.export import export_db, export_eval
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +133,7 @@ def test_step_rows_handle_numpy(tmp_path: Path) -> None:
 
 def test_jsonl_path_is_relative_to_db_dir(tmp_path: Path) -> None:
     """Regression: ``jsonl_path`` must be stored relative to the DB dir so that
-    ``vla-eval merge`` resolves it correctly when the run happened in Docker
+    ``vla-eval export`` resolves it correctly when the run happened in Docker
     (output_dir=/workspace/results) but the merge happens on the host
     (output_dir=/mnt/host/...).
     """
@@ -301,7 +300,7 @@ def test_episode_recorder_close_writes_steps_and_result(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(tmp_path / "recording.sqlite"))
     er = conn.execute("SELECT task_name, status, jsonl_path FROM episode_results").fetchone()
-    # jsonl_path is stored relative to the SQLite directory so vla-eval merge
+    # jsonl_path is stored relative to the SQLite directory so vla-eval export
     # works regardless of host-vs-container path differences.
     assert er == ("demo_task", "success", "demo_ep0003_success.jsonl")
     step_rows = [json.loads(f) for (_, f) in conn.execute("SELECT step_id, fields FROM step_rows ORDER BY step_id")]
@@ -331,7 +330,7 @@ def test_episode_recorder_close_idempotent(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# vla-eval merge
+# vla-eval export
 # ---------------------------------------------------------------------------
 
 
@@ -375,9 +374,9 @@ def _write_sample_db(tmp_path: Path) -> tuple[Path, str]:
     return db, "ev"
 
 
-def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
+def test_export_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     db, eval_id = _write_sample_db(tmp_path)
-    aggregates = merge_db(db, tmp_path)
+    aggregates = export_db(db, tmp_path)
 
     # Per-episode jsonls
     for i, status in enumerate(["success", "success", "fail"]):
@@ -408,14 +407,14 @@ def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     assert on_disk["benchmark"] == "demo_bench"
 
 
-def test_merge_eval_wrapper(tmp_path: Path) -> None:
+def test_export_eval_wrapper(tmp_path: Path) -> None:
     db, eval_id = _write_sample_db(tmp_path)
-    aggregates = merge_eval(tmp_path, eval_id)
+    aggregates = export_eval(tmp_path, eval_id)
     assert len(aggregates) == 1
     assert aggregates[0]["eval_id"] == "ev"
 
 
-def test_merge_handles_missing_jsonl_path(tmp_path: Path) -> None:
+def test_export_handles_missing_jsonl_path(tmp_path: Path) -> None:
     """Episode without a step buffer still produces an aggregate row, no jsonl."""
     db = db_path_for_eval(tmp_path, "ev")
     store = RecordingStore(db)
@@ -438,7 +437,7 @@ def test_merge_handles_missing_jsonl_path(tmp_path: Path) -> None:
     )
     store.close()
 
-    aggregates = merge_db(db, tmp_path)
+    aggregates = export_db(db, tmp_path)
     assert aggregates[0]["mean_success"] == 0.0
     # No step rows → no per-episode jsonl was written.
     assert not (tmp_path / "x_ep0000_error.jsonl").exists()
@@ -481,100 +480,208 @@ def test_host_translate_leaves_unrelated_path_alone(monkeypatch, tmp_path):
     assert _host_translate(p) == p
 
 
-def test_recording_store_chmods_db_world_writable(tmp_path):
-    """Main + WAL + SHM are mode 666 so external (different-uid) writers can upsert."""
-    from vla_eval.recording import RecordingStore
-
+def test_recording_store_rollback_journal(tmp_path):
     db = tmp_path / "rec.sqlite"
     store = RecordingStore(db)
     try:
-        for suffix in ("", "-wal", "-shm"):
-            f = tmp_path / ("rec.sqlite" + suffix)
-            assert f.exists(), f"missing {f.name}"
-            mode = f.stat().st_mode & 0o777
-            assert mode == 0o666, f"{f.name}: expected 0o666, got {oct(mode)}"
+        assert store._conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+        assert store._conn.execute("PRAGMA synchronous").fetchone()[0] == 3
+        assert db.stat().st_mode & 0o777 == 0o666
+        store.upsert_step_rows("s", "e", {0: {"x": 1}})
+        assert not Path(str(db) + "-wal").exists()
+        assert not Path(str(db) + "-shm").exists()
     finally:
         store.close()
 
 
-# ---------------------------------------------------------------------------
-# Network/parallel filesystem detection (WAL-safety warning)
-# ---------------------------------------------------------------------------
-
-
-def test_network_fs_magics_known() -> None:
-    import vla_eval.recording as rec
-
-    # magic→name table mirrors pixi's `detect_network_filesystem` set
-    assert rec._NETWORK_FS_MAGICS[0x00C36400] == "ceph"
-    assert rec._NETWORK_FS_MAGICS[0x6969] == "nfs"
-    assert rec._NETWORK_FS_MAGICS[0x0BD00BD0] == "lustre"
-    assert rec._NETWORK_FS_MAGICS[0x47504653] == "gpfs"
-
-
-def test_statfs_f_type_smoke(tmp_path: Path) -> None:
-    import vla_eval.recording as rec
-
-    # real statfs on a local dir returns an int magic (tmpfs/ext4/xfs/…), or None off-Linux
-    ft = rec._statfs_f_type(str(tmp_path))
-    assert ft is None or isinstance(ft, int)
-
-
-def test_detect_network_fs_real(tmp_path: Path) -> None:
-    # exercises the real statfs path; result is either None (local) or a known network-fs
-    # name — never garbage / never raises. (Avoids a hard ``is None`` assert that would flake
-    # if the CI runner's tmp dir is itself NFS-backed.)
-    import vla_eval.recording as rec
-
-    res = _detect_network_fs(tmp_path)
-    assert res is None or res in set(rec._NETWORK_FS_MAGICS.values())
-
-
-def test_detect_network_fs_flags_known_magic(tmp_path: Path, monkeypatch) -> None:
-    import vla_eval.recording as rec
-
-    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0x00C36400)  # CephFS magic
-    assert _detect_network_fs(tmp_path) == "ceph"
-
-
-def test_detect_network_fs_ignores_local_magic(tmp_path: Path, monkeypatch) -> None:
-    import vla_eval.recording as rec
-
-    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0xEF53)  # ext4 — not network
-    assert _detect_network_fs(tmp_path) is None
-
-
-def test_detect_network_fs_disabled_by_env(tmp_path: Path, monkeypatch) -> None:
-    import vla_eval.recording as rec
-
-    monkeypatch.setattr(rec, "_statfs_f_type", lambda _p: 0x00C36400)  # would be ceph
-    monkeypatch.setenv("VLA_EVAL_DISABLE_NETFS_WARNING", "1")
-    assert _detect_network_fs(tmp_path) is None
-
-
-def test_recordingstore_warns_on_network_fs(tmp_path: Path, monkeypatch, caplog) -> None:
-    import logging
-
-    import vla_eval.recording as rec
-
-    monkeypatch.setattr(rec, "_detect_network_fs", lambda _p: "ceph")
-    with caplog.at_level(logging.WARNING, logger="vla_eval.recording"):
-        store = rec.RecordingStore(tmp_path / "rec.sqlite")
+def test_failed_step_batch_rolls_back(tmp_path):
+    store = RecordingStore(tmp_path / "rec.sqlite")
     try:
-        assert any("network/parallel" in r.getMessage() for r in caplog.records)
+        store._conn.execute(
+            "CREATE TRIGGER reject_step BEFORE INSERT ON step_rows "
+            "WHEN NEW.step_id = 1 BEGIN SELECT RAISE(ABORT, 'rejected'); END"
+        )
+        with pytest.raises(sqlite3.IntegrityError, match="rejected"):
+            store.upsert_step_rows("s", "e", {0: {"x": 1}, 1: {"x": 2}})
+        assert store._conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0] == 0
+        store.upsert_step_rows("s", "e", {2: {"x": 3}})
     finally:
         store.close()
 
 
-def test_recordingstore_silent_on_local_fs(tmp_path: Path, monkeypatch, caplog) -> None:
-    import logging
-
-    import vla_eval.recording as rec
-
-    monkeypatch.setattr(rec, "_detect_network_fs", lambda _p: None)
-    with caplog.at_level(logging.WARNING, logger="vla_eval.recording"):
-        store = rec.RecordingStore(tmp_path / "rec.sqlite")
+def test_run_metadata_keeps_identity_and_original_config(tmp_path):
+    store = RecordingStore(tmp_path / "rec.sqlite")
     try:
-        assert not any("network/parallel" in r.getMessage() for r in caplog.records)
+        store.set_run_metadata("original", {"tracking": {"report_to": "none"}})
+        store.set_run_metadata("original", {"tracking": {"report_to": "wandb"}})
+        with pytest.raises(ValueError, match="belongs to evaluation original"):
+            store.set_run_metadata("different", {})
+        row = store._conn.execute("SELECT eval_id, config FROM run_metadata").fetchone()
+        assert row == ("original", json.dumps({"tracking": {"report_to": "none"}}))
     finally:
         store.close()
+
+
+def test_run_metadata_excludes_resolved_credentials(tmp_path):
+    db = tmp_path / "rec.sqlite"
+    store = RecordingStore(db)
+    try:
+        store.set_run_metadata(
+            "original",
+            {
+                "docker": {"env": ["API_KEY=secret-docker-value"]},
+                "server": {"url": "ws://user:secret-server-value@example"},
+                "tracking": {"report_to": "wandb", "api_key": "secret-tracker-value"},
+                "custom_token": "secret-custom-value",
+            },
+        )
+        config = json.loads(store._conn.execute("SELECT config FROM run_metadata").fetchone()[0])
+        assert config == {"tracking": {"report_to": "wandb"}}
+    finally:
+        store.close()
+    assert b"secret-" not in db.read_bytes()
+
+
+def test_episode_result_failure_rolls_back_steps(tmp_path, monkeypatch):
+    store = RecordingStore(tmp_path / "rec.sqlite")
+    recorder = EpisodeRecorder(
+        store=store,
+        sid="s",
+        eid="e",
+        eval_id="ev",
+        output_dir=tmp_path,
+        filename_stem="ep_{status}",
+        context={},
+    )
+    recorder.record_step(reward=1)
+
+    def fail(**kwargs):
+        raise RuntimeError("result failed")
+
+    monkeypatch.setattr(store, "upsert_episode_result", fail)
+    try:
+        recorder.close(status="success", metrics={})
+        assert store._conn.execute("SELECT COUNT(*) FROM step_rows").fetchone()[0] == 0
+    finally:
+        store.close()
+
+
+def _concurrent_writer(db, index, start):
+    store = RecordingStore(db)
+    try:
+        start.wait(20)
+        for episode in range(8):
+            store.upsert_step_rows("shared", str(episode), {step: {str(index): step} for step in range(10)})
+    finally:
+        store.close()
+
+
+def test_concurrent_processes_preserve_fields(tmp_path):
+    import multiprocessing
+
+    ctx = multiprocessing.get_context("spawn")
+    start = ctx.Event()
+    db = tmp_path / "rec.sqlite"
+    processes = [ctx.Process(target=_concurrent_writer, args=(db, i, start)) for i in range(4)]
+    try:
+        for process in processes:
+            process.start()
+        start.set()
+        for process in processes:
+            process.join(30)
+            assert process.exitcode == 0
+        with sqlite3.connect(db) as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            rows = conn.execute("SELECT step_id, fields FROM step_rows").fetchall()
+            assert len(rows) == 80
+            for step, fields in rows:
+                assert json.loads(fields) == {str(i): step for i in range(4)}
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+            process.join()
+
+
+def _crash_writer(db):
+    import os
+
+    store = RecordingStore(db)
+    store.upsert_step_rows("s", "committed", {0: {"x": 1}})
+    with store.transaction():
+        store.upsert_step_rows("s", "uncommitted", {0: {"x": 2}})
+        os._exit(7)
+
+
+def test_process_crash_preserves_only_committed_rows(tmp_path):
+    import multiprocessing
+
+    db = tmp_path / "rec.sqlite"
+    process = multiprocessing.get_context("spawn").Process(target=_crash_writer, args=(db,))
+    process.start()
+    try:
+        process.join(30)
+        assert process.exitcode == 7
+        store = RecordingStore(db)
+        try:
+            assert store._conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert store._conn.execute("SELECT eid FROM step_rows").fetchall() == [("committed",)]
+        finally:
+            store.close()
+    finally:
+        if process.is_alive():
+            process.terminate()
+        process.join()
+
+
+def test_export_releases_db_before_artifact_writes(tmp_path, monkeypatch):
+    from vla_eval.results import export
+
+    db, _ = _write_sample_db(tmp_path)
+    original = export._write_jsonl_atomic
+    calls = []
+
+    def write(path, rows):
+        with sqlite3.connect(db, timeout=0) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("UPDATE episode_results SET metrics = ?", (json.dumps({"success": False}),))
+        calls.append(path)
+        original(path, rows)
+
+    monkeypatch.setattr(export, "_write_jsonl_atomic", write)
+    aggregates = export.export_db(db, tmp_path)
+    assert calls
+    assert aggregates[0]["mean_success"] == pytest.approx(2 / 3, abs=1e-4)
+    assert export.export_db(db, tmp_path)[0]["mean_success"] == 0
+
+
+def test_idle_wal_database_can_be_reopened(tmp_path):
+    db = tmp_path / "legacy.sqlite"
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE preserved (value INTEGER)")
+        conn.execute("INSERT INTO preserved VALUES (42)")
+    conn.close()
+    store = RecordingStore(db)
+    try:
+        assert store._conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+        assert store._conn.execute("SELECT value FROM preserved").fetchone()[0] == 42
+    finally:
+        store.close()
+
+
+def test_readonly_directory_reports_journal_permission_requirement(tmp_path):
+    import os
+
+    if os.geteuid() == 0:
+        pytest.skip()
+    directory = tmp_path / "recording"
+    directory.mkdir()
+    db = directory / "rec.sqlite"
+    RecordingStore(db).close()
+    directory.chmod(0o555)
+    try:
+        with pytest.raises(PermissionError, match="rollback journals"):
+            RecordingStore(db)
+    finally:
+        directory.chmod(0o755)

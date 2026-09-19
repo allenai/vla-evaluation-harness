@@ -6,6 +6,9 @@ import json
 import logging
 import os
 import sqlite3
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,28 +36,60 @@ def _write_json_atomic(path: Path, body: dict[str, Any]) -> None:
     os.replace(str(tmp), str(path))
 
 
-def merge_db(db_path: Path, output_dir: Path) -> list[dict[str, Any]]:
-    """Walk one recording SQLite and emit per-episode jsonl + per-benchmark
-    aggregate JSON. Returns the list of per-benchmark aggregates."""
-    if not db_path.exists():
+def export_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[dict[str, Any]]:
+    """Read one consistent snapshot, then write artifacts and optionally report metrics."""
+    if not db_path.is_file():
         raise FileNotFoundError(f"Recording DB not found: {db_path}")
-
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    try:
-        aggregates: list[dict[str, Any]] = []
+    aggregates: list[dict[str, Any]] = []
+    run = None
+    with _recording_snapshot(db_path) as conn:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='run_metadata'").fetchone():
+            run = conn.execute("SELECT eval_id, config FROM run_metadata WHERE singleton=1").fetchone()
         for row in conn.execute("SELECT eval_id, safe_name, metadata FROM eval_metadata"):
-            eval_id = row["eval_id"]
-            safe_name = row["safe_name"]
             metadata = json.loads(row["metadata"])
-            aggregate = _build_aggregate(conn, eval_id, safe_name, metadata, output_dir)
-            agg_path = output_dir / f"{safe_name}_aggregate.json"
-            _write_json_atomic(agg_path, aggregate)
-            logger.info("Wrote aggregate: %s (%d episodes)", agg_path, aggregate.get("num_episodes_total", 0))
+            aggregate = _build_aggregate(conn, row["eval_id"], row["safe_name"], metadata, output_dir)
+            path = output_dir / f"{row['safe_name']}_aggregate.json"
+            _write_json_atomic(path, aggregate)
+            logger.info("Wrote aggregate: %s (%d episodes)", path, aggregate.get("num_episodes_total", 0))
             aggregates.append(aggregate)
-        return aggregates
+    if report and run:
+        _report_aggregates(run["eval_id"], json.loads(run["config"]), aggregates)
+    return aggregates
+
+
+@contextmanager
+def _recording_snapshot(db_path: Path) -> Iterator[sqlite3.Connection]:
+    """Release source locks before exporting, without buffering all steps in RAM."""
+    with tempfile.TemporaryDirectory(prefix="vla-eval-export-") as directory:
+        snapshot = sqlite3.connect(str(Path(directory) / "snapshot.sqlite"))
+        try:
+            source = sqlite3.connect(db_path.resolve().as_uri() + "?mode=rw", uri=True, timeout=60.0)
+            try:
+                source.execute("BEGIN")
+                # Establish the read snapshot with the connection's bounded busy timeout.
+                source.execute("SELECT name FROM sqlite_master LIMIT 1").fetchall()
+                source.backup(snapshot)
+            finally:
+                source.close()
+            snapshot.row_factory = sqlite3.Row
+            yield snapshot
+        finally:
+            snapshot.close()
+
+
+def _report_aggregates(eval_id: str, config: dict[str, Any], aggregates: list[dict[str, Any]]) -> None:
+    from vla_eval.tracking import call_each, get_reporting_trackers
+
+    trackers = get_reporting_trackers((config.get("tracking") or {}).get("report_to"))
+    try:
+        call_each(trackers, "on_eval_begin", eval_id, config)
+        for aggregate in aggregates:
+            name = aggregate.get("benchmark", "")
+            call_each(trackers, "on_benchmark_begin", name, {})
+            call_each(trackers, "on_benchmark_end", name, aggregate)
+        call_each(trackers, "on_eval_end", aggregates)
     finally:
-        conn.close()
+        call_each(trackers, "close")
 
 
 def _build_aggregate(
@@ -107,7 +142,9 @@ def _build_aggregate(
             jsonl_p = Path(er["jsonl_path"])
             if not jsonl_p.is_absolute():
                 jsonl_p = output_dir / jsonl_p
-            _write_episode_jsonl(conn, er["sid"], er["eid"], jsonl_p)
+            rows = _read_episode_steps(conn, er["sid"], er["eid"])
+            if rows:
+                _write_jsonl_atomic(jsonl_p, rows)
 
     tasks_out: list[Any] = []
     for task_name in sorted(tasks_acc):
@@ -137,7 +174,7 @@ def _build_aggregate(
     return body
 
 
-def _write_episode_jsonl(conn: sqlite3.Connection, sid: str, eid: str, path: Path) -> None:
+def _read_episode_steps(conn: sqlite3.Connection, sid: str, eid: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for sr in conn.execute(
         "SELECT step_id, fields FROM step_rows WHERE sid = ? AND eid = ? ORDER BY step_id",
@@ -155,17 +192,15 @@ def _write_episode_jsonl(conn: sqlite3.Connection, sid: str, eid: str, path: Pat
             )
             continue
         rows.append(row)
-    if not rows:
-        return
-    _write_jsonl_atomic(path, rows)
+    return rows
 
 
-def merge_eval(output_dir: Path, eval_id: str) -> list[dict[str, Any]]:
-    """Convenience wrapper: ``merge_db(db_path_for_eval(output_dir, eval_id), output_dir)``."""
-    return merge_db(db_path_for_eval(output_dir, eval_id), output_dir)
+def export_eval(output_dir: Path, eval_id: str) -> list[dict[str, Any]]:
+    """Convenience wrapper: ``export_db(db_path_for_eval(output_dir, eval_id), output_dir)``."""
+    return export_db(db_path_for_eval(output_dir, eval_id), output_dir)
 
 
-def print_merge_summary(aggregates: list[dict[str, Any]]) -> None:
+def print_export_summary(aggregates: list[dict[str, Any]]) -> None:
     """Reuse the collector's task table for the final printed summary."""
     from rich.console import Console
 

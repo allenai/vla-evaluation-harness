@@ -101,7 +101,7 @@ def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) 
 
 
 def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) -> None:
-    """Print per-task summary table with error annotations. Shared by collector and merge."""
+    """Print per-task summary table with error annotations. Shared by collector and export."""
     total_errors = 0
     for task in tasks:
         n = task["num_episodes"]

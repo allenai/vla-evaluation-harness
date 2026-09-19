@@ -6,7 +6,7 @@ usage() {
 Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output_dir>] [--record-video|--no-record-video] [--render gpu|cpu]
 
 Spawn N shards of \`vla-eval run\` against the same SQLite recording, then
-call \`vla-eval merge\` once after all shards exit. Shards share an eval id
+call \`vla-eval export\` once after all shards exit. Shards share an eval id
 (default: a fresh uuid) so they all write to one
 \`<output_dir>/recording-<eval_id>.sqlite\`.
 
@@ -15,7 +15,7 @@ Options:
   -n <num_shards>      Number of shards (default: 50)
   -e <eval_id>         Eval id (default: fresh uuid)
   -o <output_dir>      Override the config's output_dir (passed to each shard
-                       AND to merge so the SQLite + materialised outputs land
+                       AND to export so the SQLite + materialised outputs land
                        in the same place)
   --record-video       Enable per-episode mp4 recording for all shard runs
   --no-record-video    Disable per-episode mp4 recording for all shard runs
@@ -86,13 +86,17 @@ if [[ -n "$OUTPUT_DIR" ]]; then
 fi
 echo ""
 
-# Build the shared CLI args once so the run and merge invocations stay in sync.
-RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
-MERGE_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
-if [[ -n "$OUTPUT_DIR" ]]; then
-  RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
-  MERGE_OPTS+=(--output-dir "$OUTPUT_DIR")
+# Resolve the output directory once for both recording and export.
+if [[ -z "$OUTPUT_DIR" ]]; then
+  OUTPUT_DIR="$(python3 - "$CONFIG" <<'PY'
+import sys
+from vla_eval.cli.config_loader import load_config
+print(load_config(sys.argv[1]).get("output_dir") or "./results")
+PY
+)"
 fi
+RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
+RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
 if [[ -n "$RECORD_VIDEO_FLAG" ]]; then
   RUN_OPTS+=("$RECORD_VIDEO_FLAG")
 fi
@@ -116,15 +120,15 @@ for pid in "${pids[@]}"; do
     failed=$((failed + 1))
   fi
 done
-pids=()  # all shards reaped; keep the trap from signaling reused PIDs during merge
+pids=()  # all shards reaped; keep the trap from signaling reused PIDs during export
 
 if [[ "$failed" -gt 0 ]]; then
   echo "ERROR: $failed of $NUM_SHARDS shards failed." >&2
 fi
 
-echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval merge'..."
-vla-eval merge "${MERGE_OPTS[@]}" || {
-  echo "WARNING: merge failed; the SQLite recording still has the raw data — rerun 'vla-eval merge' manually." >&2
+echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval export'..."
+vla-eval export "$OUTPUT_DIR/recording-$EVAL_ID.sqlite" || {
+  echo "WARNING: export failed; the SQLite recording still has the raw data — rerun 'vla-eval export' manually." >&2
   echo "         If it failed with 'Permission denied', the shard containers ran as root; set 'docker.user: host' in the config." >&2
 }
 

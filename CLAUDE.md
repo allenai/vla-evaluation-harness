@@ -52,7 +52,7 @@ CLI (cli/main.py)
 - **Episode-level error isolation**: One episode failure never aborts the entire evaluation.
 - **anyio-based async**: asyncio-compatible, not trio. Use anyio primitives for new async code.
 - **Parallel evaluation**: Environment parallelism via episode sharding + inference parallelism via batch forward passes.
-- **Recording goes through SQLite**: per-episode step rows + episode results + per-eval metadata live in `<output_dir>/recording-<eval_id>.sqlite`. WAL mode + `json_patch` UPSERT lets shards AND the model server (e.g. a training pipeline) write concurrently and field-union step rows for the same `(sid, eid, step_id)`. `vla-eval merge` materialises the human-readable per-episode jsonl + per-benchmark aggregate JSON from that DB.
+- **Recording goes through SQLite**: one `recording-<eval_id>.sqlite` stores run identity/reporting settings, benchmark metadata, episodes, and steps. DELETE journaling + EXTRA sync and explicit transactions serialize shard/model-server writes; `json_patch` unions fields for the same `(sid, eid, step_id)`. Shared storage must support SQLite file locks and sync.
 
 ### Recording flow
 
@@ -62,12 +62,12 @@ Benchmark entries write raw rows to `<output_dir>/recording-<eval_id>.sqlite` by
 - Benchmark calls `recorder.record_video(frame)` / `recorder.record_step(row)`; the recorder buffers per-episode and flushes in one transaction at episode end.
 - `filename_stem` (default `"{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}"`) is a `str.format` template against the task dict's serializable fields + `{status}` plus orchestrator-injected keys (`benchmark_safe_name`, `task_idx`, `episode_id`). `task_idx` is assigned before shard filtering, and `episode_id` is the raw run episode id. The orchestrator validates it against the first task at startup so a typo fails fast.
 - Model server (optional, used by external callers like a training pipeline) receives `(sid, eid, eval_id, db_path)` in the `EPISODE_START` WS payload and opens a `vla_eval.recording.StepRecorder` to push its own step rows. Field-union with the benchmark's rows is automatic via SQLite `json_patch`.
-- `vla-eval merge -c <config> [--eval-id <id>]` (or `--output-dir <dir>` in place of the config) reads the DB and emits per-episode jsonl + a `BenchmarkResult`-shaped aggregate JSON. Single-shard `vla-eval run` invokes this inline; sharded runs delegate to `scripts/run_sharded.sh` which calls `vla-eval merge` once after `wait`.
+- `vla-eval export DB [-o DIR]` exports a consistent snapshot to episode JSONL and aggregate JSON (default: DB parent). Saved run metadata supplies tracker identity/config. Single-shard runs export automatically; `scripts/run_sharded.sh` exports after `wait`.
 - Use `vla-eval run --record-video` to enable mp4s for all benchmarks without editing YAML.
 - `vla-eval run --no-save` skips recording entirely (in-memory only).
 
 ### Tracking
 
-Optional sibling to recording: top-level `tracking.report_to: wandb` (or list / `"all"`) in the eval YAML mirrors aggregate metrics to wandb/trackio. Backend settings come from native env vars (`WANDB_*`, `TRACKIO_*`); the harness only injects `eval_id` + `resume="allow"` so live and merge paths converge on the same run. Per-episode tracking fires on the live path only; sharded mode defers aggregate emission to `vla-eval merge`. See the README "Observability" section.
+Optional sibling to recording: top-level `tracking.report_to: wandb` (or list / `"all"`) in the eval YAML mirrors aggregate metrics to wandb/trackio. Backend settings come from native env vars (`WANDB_*`, `TRACKIO_*`); the harness only injects `eval_id` + `resume="allow"` so live and export paths converge on the same run. Per-episode tracking fires on the live path only; sharded mode defers aggregate emission to `vla-eval export`. See the README "Observability" section.
 
 Read `CONTRIBUTING.md` before any integration work (adding benchmarks/model servers, PR workflow).

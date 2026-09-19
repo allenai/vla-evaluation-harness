@@ -7,7 +7,7 @@ Mirrors the patterns in ``transformers.integrations.integration_utils``:
 - Dict dispatch by name; ``report_to`` accepts ``"all"`` / ``"none"`` / str / list.
 - Backend settings live in the backends' own env vars (``WANDB_PROJECT``,
   ``TRACKIO_PROJECT``, etc.). The harness only injects what the lib cannot
-  derive from env: the ``eval_id`` (for converging live + merge writers onto
+  derive from env: the ``eval_id`` (for converging live + export writers onto
   the same run) and the YAML config dict.
 """
 
@@ -90,7 +90,7 @@ class WandbTracker(Tracker):
     All wandb settings (``project`` default ``"vla-eval"``, ``entity``, ``name``,
     ``group``, ``tags``, ``mode``, ``dir``, ``api_key``) come from the standard
     ``WANDB_*`` env vars. The tracker only injects ``id=eval_id`` + ``resume="allow"``
-    so the orchestrator (live path) and ``vla-eval merge`` (sharded summary path)
+    so the orchestrator (live path) and ``vla-eval export`` (sharded summary path)
     converge on the same wandb run.
     """
 

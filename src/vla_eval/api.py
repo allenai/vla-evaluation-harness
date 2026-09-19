@@ -181,7 +181,7 @@ def run(
         if no_save:
             raise ValueError("no_save is not available for Docker runs: results come back through the recording")
         from vla_eval.cli._docker import run_in_container
-        from vla_eval.results.merge import merge_eval
+        from vla_eval.results.export import export_eval
 
         eval_id = eval_id or str(uuid.uuid4())
         env_key, previous = "VLA_EVAL_WATCHDOG_TIMEOUT_S", os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S")
@@ -201,7 +201,7 @@ def run(
                     os.environ[env_key] = previous
         if rc != 0:
             raise RuntimeError(f"benchmark container exited with status {rc}")
-        return merge_eval(Path(cfg["output_dir"]), eval_id)
+        return export_eval(Path(cfg["output_dir"]), eval_id)
 
     if watchdog_timeout_s is not None:
         watchdog.start(watchdog_timeout_s)
@@ -213,10 +213,10 @@ def run(
             watchdog.stop()  # it would otherwise os._exit the caller once the run goes quiet
     if no_save:
         return results
-    # Same shape and source as the Docker path: what ``vla-eval merge`` materialised from the recording.
-    from vla_eval.results.merge import merge_eval
+    # Same shape and source as the Docker path: what ``vla-eval export`` materialised from the recording.
+    from vla_eval.results.export import export_eval
 
-    return merge_eval(Path(cfg["output_dir"]), orchestrator.eval_id)
+    return export_eval(Path(cfg["output_dir"]), orchestrator.eval_id)
 
 
 def evaluate(

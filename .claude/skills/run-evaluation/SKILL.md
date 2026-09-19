@@ -86,7 +86,7 @@ wait
 
 Sharding details:
 - Work items distributed **round-robin** (deterministic, reproducible)
-- Each shard writes `{name}_shard{id}of{total}.json`
+- Shards share `recording-<eval-id>.sqlite`; pass the same `--eval-id` to each.
 - GPU assigned round-robin (shard 0 → GPU 0, shard 1 → GPU 1, …)
 - CPU cores partitioned evenly; `OMP_NUM_THREADS=1` per container
 
@@ -100,12 +100,12 @@ See `docs/tuning-guide.md` for how to derive optimal `num_shards`, `max_batch_si
 ## 5. Merge shard results
 
 ```bash
-vla-eval merge -c configs/<benchmark>.yaml -o results/merged.json
-# or manually:
-vla-eval merge results/*_shard*of4.json -o results/merged.json
+vla-eval export results/recording-<eval-id>.sqlite
+# Optional destination directory:
+vla-eval export results/recording-<eval-id>.sqlite -o exported/
 ```
 
-Missing shards are allowed — the merged result is marked partial.
+Merge exports committed results so far; it does not certify that all shards completed.
 
 ## 6. Understand results
 
