@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
 from typing import Any
 
@@ -14,9 +15,13 @@ from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags
 from vla_eval.registry import resolve_import_string
 from vla_eval.render import (
     apply_render_mode,
+    assert_lavapipe_vulkan,
     check_run_render_support,
+    configure_sapien_render,
+    lavapipe_cpu_env,
     mujoco_cpu_env,
     normalize_render_mode,
+    resolve_lavapipe_icd,
     resolve_run_render_mode,
     supports_render_mode,
 )
@@ -35,6 +40,12 @@ MUJOCO_CPU_BENCHMARKS = [
 ]
 
 GPU_ONLY_BENCHMARK = "vla_eval.benchmarks.mikasa.benchmark:MIKASABenchmark"
+
+# SAPIEN 2.2.2 adapters that render through lavapipe.
+SAPIEN_CPU_BENCHMARKS = [
+    "vla_eval.benchmarks.maniskill2.benchmark:ManiSkill2Benchmark",
+    "vla_eval.benchmarks.simpler.benchmark:SimplerEnvBenchmark",
+]
 
 
 @pytest.fixture
@@ -469,3 +480,207 @@ class TestNoGpuDockerFlags:
         # CPU partitioning and thread caps still apply.
         assert "--cpuset-cpus" in flags
         assert "OMP_NUM_THREADS=1" in flags
+
+
+# ---------------------------------------------------------------------------
+# SAPIEN software Vulkan (lavapipe)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def unbound_sapien_renderer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bound-renderer cache is process-wide by design; each test starts unbound."""
+    monkeypatch.setattr("vla_eval.render._sapien_render_env", None)
+
+
+@pytest.fixture
+def lavapipe_icd(tmp_path, preserve_env: None) -> str:
+    """A real ICD manifest on disk, named the way Mesa names lavapipe's."""
+    icd = tmp_path / "lvp_icd.x86_64.json"
+    icd.write_text('{"ICD": {"library_path": "/opt/lavapipe-env/lib/libvulkan_lvp.so"}}')
+    os.environ["TEST_LAVAPIPE_ICD"] = str(icd)
+    return str(icd)
+
+
+class TestConfigureSapienRender:
+    def test_gpu_leaves_the_image_default_in_place(self, preserve_env: None):
+        assert configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD") == {}
+
+    def test_cpu_applies_loader_and_thread_settings(self, lavapipe_icd: str):
+        applied = configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+        assert applied == {
+            **lavapipe_cpu_env(lavapipe_icd),
+            "VK_DRIVER_FILES": lavapipe_icd,
+        }
+        assert {key: os.environ[key] for key in applied} == applied
+
+    def test_an_existing_thread_setting_wins(self, lavapipe_icd: str):
+        os.environ["LP_NUM_THREADS"] = "16"
+
+        assert configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")["LP_NUM_THREADS"] == "16"
+
+    def test_a_missing_icd_raises_rather_than_rendering_on_the_gpu(self, preserve_env: None):
+        os.environ["TEST_LAVAPIPE_ICD"] = "/nonexistent/lvp_icd.json"
+
+        with pytest.raises(RuntimeError, match="lavapipe"):
+            configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+    def test_an_unknown_mode_is_refused(self, preserve_env: None):
+        with pytest.raises(NotImplementedError):
+            configure_sapien_render("osmesa", "TEST_LAVAPIPE_ICD")
+
+    def test_cpu_after_sapien_is_imported_raises(self, lavapipe_icd: str, monkeypatch):
+        monkeypatch.setitem(sys.modules, "sapien.core", object())
+
+        with pytest.raises(RuntimeError, match="imported"):
+            configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+
+class TestMultiEntryConfigs:
+    """Benchmark entries share one process-bound renderer."""
+
+    def test_later_entries_replay_the_applied_env(self, lavapipe_icd: str, monkeypatch):
+        first = configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+        assert first["VK_DRIVER_FILES"] == lavapipe_icd
+        # Entry 1 built its simulator, so sapien is imported by the time entry 2 configures.
+        monkeypatch.setitem(sys.modules, "sapien.core", object())
+
+        assert [configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD") for _ in range(3)] == [first] * 3
+
+    def test_gpu_entries_stay_empty(self, preserve_env: None):
+        assert [configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD") for _ in range(3)] == [{}, {}, {}]
+
+    def test_cpu_after_the_process_bound_the_gpu_path_raises(self, lavapipe_icd: str):
+        configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD")
+
+        with pytest.raises(RuntimeError, match="already bound SAPIEN to the gpu path"):
+            configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+    def test_gpu_after_the_process_bound_lavapipe_raises(self, lavapipe_icd: str):
+        configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+        with pytest.raises(RuntimeError, match="already bound SAPIEN to the cpu path"):
+            configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD")
+
+
+class TestResolveLavapipeIcd:
+    @pytest.mark.parametrize("name", ["lvp_icd.json", "lvp_icd.x86_64.json"])
+    def test_both_manifest_spellings_resolve(self, name, tmp_path, monkeypatch, preserve_env: None):
+        """Mesa's distro packages dropped the arch suffix at 26; conda-forge kept it."""
+        icd = tmp_path / name
+        icd.write_text("{}")
+        monkeypatch.setattr("vla_eval.render._LAVAPIPE_ICD_CANDIDATES", (str(icd),))
+        os.environ.pop("TEST_LAVAPIPE_ICD", None)
+
+        assert resolve_lavapipe_icd("TEST_LAVAPIPE_ICD") == str(icd)
+
+    def test_the_image_stash_outranks_the_bind_mountable_system_path(self, preserve_env: None):
+        """A config mounting the host's /usr/share/vulkan/icd.d over the image's must not
+        be able to shadow the ICD the adapter curated."""
+        from vla_eval.render import _LAVAPIPE_ICD_CANDIDATES
+
+        opt = [i for i, p in enumerate(_LAVAPIPE_ICD_CANDIDATES) if p.startswith("/opt/lavapipe/")]
+        system = [i for i, p in enumerate(_LAVAPIPE_ICD_CANDIDATES) if p.startswith("/usr/share/")]
+
+        assert opt and system and max(opt) < min(system)
+
+
+class TestLavapipeGuard:
+    """Check driver manifests because SAPIEN 2.x has no device-query API."""
+
+    def test_passes_when_the_loader_is_pinned_to_lavapipe(self, lavapipe_icd: str):
+        configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+
+        assert assert_lavapipe_vulkan("Bench") == lavapipe_icd
+
+    def test_an_unset_loader_raises(self, preserve_env: None):
+        os.environ.pop("VK_DRIVER_FILES", None)
+        os.environ.pop("VK_ICD_FILENAMES", None)
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_gpu_icd_raises(self, preserve_env: None):
+        os.environ.pop("VK_ICD_FILENAMES", None)
+        os.environ["VK_DRIVER_FILES"] = "/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_gpu_icd_alongside_lavapipe_raises(self, lavapipe_icd: str):
+        """The loader enumerates every listed ICD, so one GPU entry is enough to put the
+        device back within reach."""
+        os.environ["VK_DRIVER_FILES"] = os.pathsep.join([lavapipe_icd, "/x/nvidia_icd.json"])
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_config_env_entry_overriding_the_hook_is_caught(self, lavapipe_icd: str):
+        """docker env: lands after configure_render, so the applied env can be undone."""
+        configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+        os.environ["VK_DRIVER_FILES"] = "/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_gpu_icd_in_the_other_loader_variable_raises(self, lavapipe_icd: str):
+        """Which variable the loader honors depends on its version, so a config pinning
+        lavapipe in one and the GPU in the other must not pass."""
+        os.environ["VK_DRIVER_FILES"] = lavapipe_icd
+        os.environ["VK_ICD_FILENAMES"] = "/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_gpu_manifest_at_the_lavapipe_path_raises(self, tmp_path, preserve_env: None):
+        """Bind-mounting a GPU ICD over /opt/lavapipe/lvp_icd.json is the override this
+        guard exists for, so the name must not be what identifies the driver."""
+        icd = tmp_path / "lvp_icd.json"
+        icd.write_text('{"ICD": {"library_path": "libGLX_nvidia.so.0"}}')
+        os.environ["VK_DRIVER_FILES"] = str(icd)
+        os.environ.pop("VK_ICD_FILENAMES", None)
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_an_unreadable_manifest_raises(self, tmp_path, preserve_env: None):
+        os.environ["VK_DRIVER_FILES"] = str(tmp_path / "lvp_icd.json")
+        os.environ.pop("VK_ICD_FILENAMES", None)
+
+        with pytest.raises(RuntimeError, match="not restricted to lavapipe"):
+            assert_lavapipe_vulkan("Bench")
+
+    def test_a_renamed_manifest_is_read_for_its_library(self, tmp_path, preserve_env: None):
+        """Identity comes from the driver the manifest names, not the file name."""
+        icd = tmp_path / "software.json"
+        icd.write_text('{"ICD": {"library_path": "/opt/lavapipe-env/lib/libvulkan_lvp.so"}}')
+        os.environ["VK_DRIVER_FILES"] = str(icd)
+        os.environ.pop("VK_ICD_FILENAMES", None)
+
+        assert assert_lavapipe_vulkan("Bench") == str(icd)
+
+
+@pytest.mark.parametrize("import_path", SAPIEN_CPU_BENCHMARKS, ids=lambda p: p.rsplit(":", 1)[-1])
+def test_sapien_adapters_switch_to_lavapipe(import_path: str, lavapipe_icd: str, monkeypatch):
+    """Declaring cpu without implementing the hook would raise NotImplementedError here."""
+    benchmark_cls = resolve_import_string(import_path)
+    monkeypatch.setattr(benchmark_cls, "_render_mode", "gpu")
+    monkeypatch.setattr(f"{benchmark_cls.__module__}.LAVAPIPE_ICD_ENV_VAR", "TEST_LAVAPIPE_ICD", raising=True)
+
+    applied = apply_render_mode(benchmark_cls, "cpu", "fake")
+
+    assert applied["VK_DRIVER_FILES"] == lavapipe_icd
+    assert benchmark_cls._render_mode == "cpu"
+
+
+@pytest.mark.parametrize("import_path", SAPIEN_CPU_BENCHMARKS, ids=lambda p: p.rsplit(":", 1)[-1])
+def test_sapien_gpu_mode_leaves_the_image_defaults_in_place(import_path: str, preserve_env: None):
+    benchmark_cls = resolve_import_string(import_path)
+
+    assert benchmark_cls.configure_render("gpu") == {}
+    assert benchmark_cls._render_mode == "gpu"
+
+
+def test_sapien_benchmarks_pass_the_run_level_capability_check():
+    check_run_render_support({"benchmarks": [{"benchmark": p} for p in SAPIEN_CPU_BENCHMARKS]}, "cpu")

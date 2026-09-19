@@ -14,11 +14,12 @@ Key details:
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.render import DEFAULT_RENDER_MODE, assert_lavapipe_vulkan, configure_sapien_render
 from vla_eval.specs import GRIPPER_CLOSE_NEG, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_EULER, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -35,6 +36,8 @@ TASK_GOALS: dict[str, str] = {
 }
 
 DEFAULT_TASKS = list(TASK_GOALS.keys())
+
+LAVAPIPE_ICD_ENV_VAR = "MANISKILL2_LAVAPIPE_ICD"
 
 
 class ManiSkill2Benchmark(StepBenchmark):
@@ -57,6 +60,15 @@ class ManiSkill2Benchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+
+    render_backends = frozenset({"gpu", "cpu"})
+    _render_mode: ClassVar[str] = DEFAULT_RENDER_MODE
+
+    @classmethod
+    def configure_render(cls, mode: str) -> dict[str, str]:
+        applied = configure_sapien_render(mode, LAVAPIPE_ICD_ENV_VAR)
+        cls._render_mode = mode
+        return applied
 
     def __init__(
         self,
@@ -90,6 +102,9 @@ class ManiSkill2Benchmark(StepBenchmark):
         return [{"name": t, "env_name": t} for t in self.tasks]
 
     def reset(self, task: Task) -> Any:
+        if self._render_mode == "cpu":
+            assert_lavapipe_vulkan(type(self).__name__)
+
         import gymnasium as gym
         import mani_skill2.envs  # noqa: F401 — register envs
 
@@ -182,7 +197,7 @@ class ManiSkill2Benchmark(StepBenchmark):
         return {"success": bool(step_result.info.get("success", False))}
 
     def get_metadata(self) -> dict[str, Any]:
-        return {"max_steps": self.max_episode_steps}
+        return {"max_steps": self.max_episode_steps, "render_mode": self._render_mode}
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {

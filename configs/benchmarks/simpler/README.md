@@ -32,3 +32,17 @@ camera angles, table textures) with explicit position grids.
 | `google_robot_move_near_va.yaml` | Move Near VA | 10 | 60/variant |
 | `google_robot_drawer_va.yaml` | Open/Close Drawer VA | 42 | varies |
 | `google_robot_put_in_drawer_va.yaml` | Put in Drawer VA | 7 | varies |
+
+## Rendering without a GPU
+
+`--render cpu` uses Mesa lavapipe and starts the container without a GPU:
+
+```bash
+vla-eval run --render cpu -c configs/benchmarks/simpler/widowx_vm.yaml
+```
+
+The image carries a compatible lavapipe ICD at `/opt/lavapipe/lvp_icd.json`. Set
+`SIMPLER_LAVAPIPE_ICD` to use another manifest; missing or non-lavapipe ICDs fail fast.
+
+See [docs/render-backends.md](../../../docs/render-backends.md) for the mode's interaction with
+`docker.gpus`, and for every benchmark's support.

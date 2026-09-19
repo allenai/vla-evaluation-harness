@@ -11,8 +11,10 @@ an adapter's override is one line.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import sys
 from collections.abc import Mapping
 from typing import Any, Final
 
@@ -24,10 +26,15 @@ logger = logging.getLogger(__name__)
 RENDER_MODES: Final = ("gpu", "cpu")
 DEFAULT_RENDER_MODE: Final = "gpu"
 
+# Prefer the image-curated ICD; Mesa packages use both manifest spellings.
 _LAVAPIPE_ICD_CANDIDATES: Final = (
     "/opt/lavapipe/lvp_icd.json",
+    "/opt/lavapipe/lvp_icd.x86_64.json",
     "/usr/share/vulkan/icd.d/lvp_icd.x86_64.json",
+    "/usr/share/vulkan/icd.d/lvp_icd.json",
 )
+
+_LAVAPIPE_LIBRARY_MARK: Final = "lvp"
 
 
 def normalize_render_mode(value: object) -> str:
@@ -120,6 +127,76 @@ def lavapipe_cpu_env(icd: str) -> dict[str, str]:
     for key, default in (("LP_NUM_THREADS", "4"), ("OMP_NUM_THREADS", "1"), ("MKL_NUM_THREADS", "1")):
         env[key] = os.environ.get(key, default)
     return env
+
+
+# None until SAPIEN is bound; {} represents the native GPU path.
+_sapien_render_env: dict[str, str] | None = None
+
+
+def configure_sapien_render(mode: str, icd_override_env: str) -> dict[str, str]:
+    """Configure SAPIEN for native GPU rendering or lavapipe software Vulkan."""
+    global _sapien_render_env
+
+    if _sapien_render_env is not None:
+        bound = "cpu" if _sapien_render_env else "gpu"
+        if mode != bound:
+            raise RuntimeError(
+                f"render: {mode} requested after this process already bound SAPIEN to the "
+                f"{bound} path; the Vulkan ICD binds at the first sapien import and cannot "
+                "be re-bound."
+            )
+        return dict(_sapien_render_env)
+
+    if mode == "gpu":
+        _sapien_render_env = {}
+        return {}
+    if mode != "cpu":
+        raise NotImplementedError(f"No SAPIEN render backend for {mode!r}")
+
+    # Vulkan selects its ICD at the first SAPIEN import and cannot be rebound.
+    already = sorted(m for m in ("sapien", "sapien.core", "sapien.render") if m in sys.modules)
+    if already:
+        raise RuntimeError(
+            f"render: cpu requested after {', '.join(already)} was imported; the Vulkan ICD "
+            "binds at that import and cannot be re-bound. Configure the render mode first."
+        )
+
+    icd = resolve_lavapipe_icd(icd_override_env)
+    if icd is None:
+        raise RuntimeError(
+            "render: cpu needs the Mesa lavapipe Vulkan ICD, which is not installed here. "
+            f"Install mesa-vulkan-drivers (Mesa >= 24.3), or set {icd_override_env} to its JSON path."
+        )
+    env = lavapipe_cpu_env(icd)
+    # Vulkan loader 1.3.207 renamed this variable; set both for old images.
+    env["VK_DRIVER_FILES"] = env["VK_ICD_FILENAMES"]
+    _sapien_render_env = apply_env(env)
+    return dict(_sapien_render_env)
+
+
+def _icd_names_lavapipe(path: str) -> bool:
+    """Return whether an ICD manifest names a lavapipe library."""
+    try:
+        with open(path) as fh:
+            library = json.load(fh).get("ICD", {}).get("library_path", "")
+    except (OSError, ValueError):
+        return False
+    return _LAVAPIPE_LIBRARY_MARK in os.path.basename(str(library))
+
+
+def assert_lavapipe_vulkan(benchmark: str) -> str:
+    """Require every configured Vulkan ICD to name lavapipe and return its path."""
+    listed = {name: os.environ[name] for name in ("VK_DRIVER_FILES", "VK_ICD_FILENAMES") if os.environ.get(name)}
+    entries = [e for value in listed.values() for e in value.split(os.pathsep) if e]
+    if not entries or any(not _icd_names_lavapipe(e) for e in entries):
+        shown = ", ".join(f"{k}={v!r}" for k, v in listed.items()) or "both unset"
+        raise RuntimeError(
+            f"{benchmark} is in render: cpu, but the Vulkan loader is not restricted to "
+            f"lavapipe ({shown}); a GPU device is still reachable, so this run would render "
+            "on the device cpu mode exists to release. Check for a docker env: entry or an "
+            "ICD bind-mount overriding what configure_render set."
+        )
+    return entries[0]
 
 
 # ---------------------------------------------------------------------------

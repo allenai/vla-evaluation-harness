@@ -133,11 +133,8 @@ episodes must have stepped. (`vla-eval test` fails on errored episodes, but read
 provenance is what proves the backend engaged rather than something else working by
 accident.)
 
-SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
-like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds demand
-the Vulkan device extension `VK_KHR_external_semaphore_fd`, which lavapipe does not
-implement (verified through Mesa 25). The simulator family is not the answer — the
-measurement is.
+Verify the benchmark's image, not just its simulator version: SAPIEN rendering also
+depends on the Mesa driver. See [render backends](docs/render-backends.md).
 
 ## Adding a Model Server
 

@@ -9,6 +9,14 @@ RUN conda create -n maniskill2 python=3.10 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "maniskill2", "/bin/bash", "-c"]
 
+# ── Software Vulkan for `--render cpu` ────────────────────────────────
+# SAPIEN 2.2.2 needs VK_KHR_external_semaphore_fd, available in lavapipe >= 24.3.
+# Keep it isolated so other benchmarks continue using the system Mesa.
+RUN conda create -y -p /opt/lavapipe-env -c conda-forge "mesa-lavapipe==26.2.1" \
+    && conda clean -afy \
+    && mkdir -p /opt/lavapipe \
+    && cp /opt/lavapipe-env/share/vulkan/icd.d/lvp_icd.x86_64.json /opt/lavapipe/lvp_icd.json
+
 # ── PyTorch with CUDA 12.1 ────────────────────────────────────────────
 RUN uv pip install --no-cache-dir "torch==2.1.0" \
         --torch-backend cu121
