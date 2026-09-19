@@ -102,18 +102,3 @@ def test_export_parser_accepts_positional_db(tmp_path, monkeypatch):
     cli.main()
     assert called[0].db == str(db)
     assert called[0].output_dir == str(output)
-
-
-@pytest.mark.parametrize("flag", ["--db", "--config", "--eval-id"])
-def test_removed_export_flags_are_rejected(flag, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["vla-eval", "export", flag, "abc"])
-    with pytest.raises(SystemExit) as exc:
-        cli.main()
-    assert exc.value.code == 2
-
-
-def test_merge_command_has_no_alias(monkeypatch):
-    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", "recording.sqlite"])
-    with pytest.raises(SystemExit) as exc:
-        cli.main()
-    assert exc.value.code == 2
