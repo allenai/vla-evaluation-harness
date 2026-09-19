@@ -372,7 +372,7 @@ def test_storage_lock_failure_stops_preparation(tmp_path: Path, monkeypatch, cap
         return original_flock(lock, operation)
 
     def unexpected_call(*args, **kwargs):
-        pytest.fail("image preparation started without the storage lock")
+        raise AssertionError("image preparation started without the storage lock")
 
     monkeypatch.setattr(fcntl, "flock", fail_storage_lock)
     monkeypatch.setattr(ch.subprocess, "call", unexpected_call)

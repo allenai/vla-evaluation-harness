@@ -225,12 +225,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         from vla_eval.results.export import export_eval
 
         output_dir = Path(config.get("output_dir", "./results")).resolve()
-        try:
-            export_eval(output_dir, orchestrator.eval_id)
-        except FileNotFoundError:
-            logger.info("No recording DB to export")
-        except Exception:
-            logger.exception("vla-eval export failed for eval_id=%s", orchestrator.eval_id)
+        export_eval(output_dir, orchestrator.eval_id)
 
 
 # yaml convention puts these under ``args:`` but they belong to the WS server,

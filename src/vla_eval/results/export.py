@@ -107,12 +107,17 @@ def _build_aggregate(
     all_episodes: list[dict[str, Any]] = []
     episode_count = 0
 
+    # Last committed work item wins; legacy rows without task indices remain distinct.
     for er in conn.execute(
         """
         SELECT sid, eid, task_name, episode_id, status, metrics, steps, elapsed_sec,
                context, jsonl_path, failure_reason, failure_detail
         FROM episode_results
-        WHERE eval_id = ?
+        WHERE rowid IN (
+            SELECT MAX(rowid) FROM episode_results WHERE eval_id = ?
+            GROUP BY task_name, episode_id, json_extract(context, '$.task_idx'),
+                     CASE WHEN json_extract(context, '$.task_idx') IS NULL THEN rowid END
+        )
         ORDER BY task_name, episode_id, sid, eid
         """,
         (eval_id,),
@@ -163,6 +168,14 @@ def _build_aggregate(
         body["server_info"] = metadata["server_info"]
     if "render" in metadata:
         body["render"] = metadata["render"]
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='eval_shards'").fetchone():
+        shards = conn.execute("SELECT * FROM eval_shards WHERE eval_id = ?", (eval_id,)).fetchall()
+        if shards:
+            expected = max(s["num_shards"] for s in shards)
+            if len(shards) < expected or not all(s["complete"] for s in shards):
+                body["partial"] = True
+            if len(shards) == 1 and expected > 1:
+                body["shard"] = {"id": shards[0]["shard_id"], "total": expected}
     seed = _extract_seed(config)
     if seed is not None:
         body["seed"] = seed

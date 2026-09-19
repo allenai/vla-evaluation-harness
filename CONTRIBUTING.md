@@ -24,7 +24,7 @@ We're also open to contributions that improve the harness itself, including new 
 # Clone and install (requires uv: https://docs.astral.sh/uv/)
 git clone https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
-uv sync --python 3.11 --all-extras --dev
+uv sync --python 3.11 --all-extras --dev --group leaderboard
 ```
 
 ## Running Tests
@@ -45,7 +45,8 @@ vla-eval test --server                                  # smoke-test all model s
 vla-eval test --benchmark                               # smoke-test all benchmarks
 vla-eval test -c configs/model_servers/cogact.yaml      # smoke-test a specific config
 vla-eval test --dry-run                                 # preview what would run
-vla-eval test                                           # run all available tests
+vla-eval test                                           # fast config validation
+vla-eval test --all                                     # run all available categories
 ```
 
 Server tests require `uv` + model weights + GPU. Benchmark tests require Docker + the benchmark image (pulled via `docker pull`). Unavailable tests are auto-skipped.

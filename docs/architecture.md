@@ -28,7 +28,7 @@ Status markers: ✅ implemented, 🚧 partial, 🔜 planned.
 | **Protocol** | WebSocket + msgpack serialization, message schema, numpy codec | ✅ |
 | **Model Server** | Runs model inference. User implements `predict()`. | ✅ |
 | **Connection** | Client library for benchmark→server communication. Framework-provided. | ✅ |
-| **Benchmark** | Environment interface ABC (reset, step, make_obs, is_done). User implements per benchmark. | ✅ |
+| **Benchmark** | Async environment interface; StepBenchmark supplies synchronous reset/step helpers. | ✅ |
 | **EpisodeRunner** | Episode execution strategy. Combines Benchmark + Connection. | ✅ Sync, ✅ Live |
 | **Orchestrator** | Coordinates evaluation: config parsing, benchmark creation, episode iteration, result saving. | ✅ |
 | **ResultCollector** | Aggregates episode→task→benchmark metrics. JSON output + summary table. | ✅ |
@@ -124,7 +124,7 @@ ModelServer (ABC)                    ← Advanced: async on_observation()
 
 **`PredictModelServer`** wraps `predict()` in `run_in_executor` and manages action chunk buffers automatically. Supports `chunk_size`, `action_ensemble` ("newest", "average", "ema", callable), and `ema_alpha`.
 
-The server runner (`server/runner.py`) wraps any `ModelServer` into a WebSocket server with `serve(model_server, host, port)`.
+The server runner (`model_servers/serve.py`) wraps any `ModelServer` into a WebSocket server with `serve(model_server, host, port)`.
 
 ## Configuration
 
@@ -171,11 +171,11 @@ BenchmarkResult:
     mode: str                        # "sync" | "live"
     harness_version: str
     tasks: list[TaskResult]          # per-task success rate, avg steps
-    overall_success_rate: float
+    mean_success: float
     config: dict                     # config snapshot for reproducibility
 ```
 
-Results are saved as JSON and printed as a human-readable summary table.
+Results and step fields are stored in one SQLite DB per evaluation. Export produces episode JSONL and aggregate JSON, selecting the last committed attempt per task/episode. Shard completion records preserve partial-run status. Optional episode videos are saved separately as MP4.
 
 ## Error Handling
 
@@ -192,7 +192,6 @@ All failures are recorded in structured results with `failure_reason`.
 
 ## Planned Features
 
-- **Video / trajectory recording**: Per-episode video via `Benchmark.render()` and trajectory logs in msgpack format.
 - **Reference score comparison**: Regression testing against known model+benchmark scores.
 
 ## Design Background

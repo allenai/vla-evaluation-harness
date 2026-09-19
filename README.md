@@ -72,7 +72,7 @@ Or from source (pinned to the latest stable release):
 ```bash
 git clone --branch v0.6.0 https://github.com/allenai/vla-evaluation-harness.git
 cd vla-evaluation-harness
-uv sync --python 3.11 --all-extras --dev
+uv sync --python 3.11 --all-extras --dev --group leaderboard
 ```
 
 ---
@@ -161,7 +161,7 @@ wait
 vla-eval export "results/recording-$EVAL_ID.sqlite"
 ```
 
-Work items are shuffled with a fixed seed before the round-robin split, so no shard ends up holding a single episode index across every task; each shard then runs its slice task by task. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
+Work items are shuffled with a fixed seed before the round-robin split; each shard then runs its slice task by task. Re-run failed shards with the same eval ID and config: new recordings retain task indices and shard status so export selects the last committed attempt per work item and marks unfinished evaluations as partial.
 
 Benchmark containers run as root by default, so `output_dir` ends up root-owned and the host-side `vla-eval export` fails with `Permission denied`. Set `docker.user: host` in the eval YAML (or an explicit `"<uid>:<gid>"`) to run the containers as the invoking user.
 

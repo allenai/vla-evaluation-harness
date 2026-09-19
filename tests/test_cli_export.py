@@ -71,6 +71,29 @@ def test_export_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
     assert events[-1] == ("close",)
 
 
+def test_run_propagates_export_failure(tmp_path, monkeypatch):
+    from vla_eval.results import export
+
+    class FinishedRun:
+        eval_id = "test"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self):
+            return []
+
+    def fail(*args):
+        raise OSError("output unavailable")
+
+    monkeypatch.setattr(cli, "_load_config", lambda _: {"benchmarks": [], "output_dir": str(tmp_path)})
+    monkeypatch.setattr(cli, "Orchestrator", FinishedRun)
+    monkeypatch.setattr(cli.watchdog, "start", lambda _: None)
+    monkeypatch.setattr(export, "export_eval", fail)
+    with pytest.raises(OSError, match="output unavailable"):
+        cli.cmd_run(argparse.Namespace(config="unused"))
+
+
 def test_missing_db_fails_without_creating_it(tmp_path):
     db = tmp_path / "missing.sqlite"
     with pytest.raises(SystemExit) as exc:

@@ -266,6 +266,45 @@ def run_via_docker(
 
     results_dir, docker_config_path = prepare_container_config(config)
     container_name = f"vla-eval-{os.getpid()}"
+    try:
+        cmd = build_docker_command(
+            docker,
+            config,
+            results_dir,
+            docker_config_path,
+            container_name,
+            dev=dev,
+            shard_id=shard_id,
+            num_shards=num_shards,
+            accept_license=accept_license,
+            eval_id=eval_id,
+            no_save=no_save,
+        )
+        logger.info("Running via Docker: %s", " ".join(cmd))
+        return exec_docker(docker, cmd, container_name)
+    finally:
+        Path(docker_config_path).unlink(missing_ok=True)
+
+
+def build_docker_command(
+    docker: str,
+    config: dict[str, Any],
+    results_dir: str,
+    config_path: str,
+    container_name: str,
+    *,
+    dev: bool = False,
+    shard_id: int | None = None,
+    num_shards: int | None = None,
+    accept_license: list[str] | None = None,
+    eval_id: str | None = None,
+    no_save: bool = False,
+    interactive: bool = True,
+) -> list[str]:
+    """Container arguments shared by production runs and smoke tests."""
+    docker_cfg = DockerConfig.from_dict(config.get("docker"))
+    if docker_cfg.image is None:
+        raise ValueError("docker.image must be set")
 
     from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags, tty_docker_flags
 
@@ -275,7 +314,7 @@ def run_via_docker(
         "--name", container_name,
         "--network", "host",
         "-v", f"{results_dir}:{CONTAINER_RESULTS}",
-        "-v", f"{docker_config_path}:{CONTAINER_CONFIG}:ro",
+        "-v", f"{config_path}:{CONTAINER_CONFIG}:ro",
     ]
     # fmt: on
 
@@ -299,15 +338,12 @@ def run_via_docker(
         cmd.extend(["-e", f"VLA_EVAL_WATCHDOG_TIMEOUT_S={os.environ['VLA_EVAL_WATCHDOG_TIMEOUT_S']}"])
 
     # Forward stdin/TTY for in-container licence prompts.
-    cmd.extend(tty_docker_flags())
+    if interactive:
+        cmd.extend(tty_docker_flags())
 
     # Dev mode: mount host src/ into container (requires editable install in image).
     if dev:
-        try:
-            mount = dev_src_mount_flags()
-        except RuntimeError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            sys.exit(1)
+        mount = dev_src_mount_flags()
         cmd.extend(mount)
         logger.info("Dev mode: mounting %s -> /workspace/src", mount[1].split(":", 1)[0])
 
@@ -331,8 +367,4 @@ def run_via_docker(
     cmd.append(docker_cfg.image)
     cmd.extend(inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save))
 
-    logger.info("Running via Docker: %s", " ".join(cmd))
-    try:
-        return exec_docker(docker, cmd, container_name)
-    finally:
-        Path(docker_config_path).unlink(missing_ok=True)
+    return cmd

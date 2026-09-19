@@ -130,6 +130,7 @@ echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval export'..."
 vla-eval export "$OUTPUT_DIR/recording-$EVAL_ID.sqlite" || {
   echo "WARNING: export failed; the SQLite recording still has the raw data — rerun 'vla-eval export' manually." >&2
   echo "         If it failed with 'Permission denied', the shard containers ran as root; set 'docker.user: host' in the config." >&2
+  exit 1
 }
 
 if [[ "$failed" -gt 0 ]]; then

@@ -1,11 +1,4 @@
-"""Tests for Orchestrator: integration and error handling paths.
-
-With the SQLite-recording model, the orchestrator no longer writes JSON
-files itself — its outputs are (1) the in-memory return value and (2) a
-``recording-<eval-id>.sqlite`` file when ``no_save=False``. These tests
-assert against the in-memory return value; ``vla-eval export`` is tested
-separately in ``tests/test_recording_sqlite.py``.
-"""
+"""Orchestrator integration, recording, and error handling."""
 
 from __future__ import annotations
 
@@ -145,7 +138,8 @@ async def test_orchestrator_runs_to_completion(echo_server, tmp_path):
 
 
 @pytest.mark.anyio
-async def test_orchestrator_returns_partial_on_server_death(tmp_path):
+@pytest.mark.parametrize("no_save", [False, True])
+async def test_orchestrator_returns_partial_on_server_death(tmp_path, no_save):
     """Connection failure mid-run → return value carries partial=True."""
 
     call_count = 0
@@ -198,13 +192,19 @@ async def test_orchestrator_returns_partial_on_server_death(tmp_path):
         "vla_eval.orchestrator.Connection",
         FlakyConnection,
     ):
-        orchestrator = Orchestrator(config, no_save=True)
+        orchestrator = Orchestrator(config, no_save=no_save)
         results = await orchestrator.run()
 
     assert len(results) == 1
     assert results[0].get("partial") is True
     total_episodes = sum(len(t["episodes"]) for t in results[0]["tasks"])
     assert total_episodes == 4
+    if not no_save:
+        from vla_eval.results.export import export_eval
+
+        exported = export_eval(tmp_path, orchestrator.eval_id)[0]
+        assert exported["partial"] is True
+        assert exported["num_episodes_total"] == total_episodes
 
 
 @pytest.mark.anyio
@@ -421,7 +421,7 @@ async def test_orchestrator_default_recording_paths_do_not_collide_across_benchm
     assert all(
         "task_safe_name" not in context
         and "benchmark_safe_name" not in context
-        and "task_idx" not in context
+        and isinstance(context["task_idx"], int)
         and "episode_id" not in context
         for context in contexts
     )
