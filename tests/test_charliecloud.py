@@ -5,12 +5,18 @@ from __future__ import annotations
 import json
 import shutil
 import os
+import time
 from pathlib import Path
 
 import pytest
 
 from vla_eval.cli import _charliecloud as ch
 from vla_eval.cli._docker import CONTAINER_CONFIG, CONTAINER_RESULTS, inner_run_args, resolve_runtime
+
+
+@pytest.fixture(autouse=True)
+def _isolated_ch_image_storage(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("CH_IMAGE_STORAGE", str(tmp_path / "ch-image-storage"))
 
 
 def _fake_image(tmp_path: Path, *, with_root: bool = True) -> Path:
@@ -267,3 +273,109 @@ def test_ensure_image_dir_builds_from_dockerfile(tmp_path: Path, monkeypatch) ->
     ch.ensure_image_dir("x:local", auto_yes=False, gpu=False, tools=tools, build=build, force_build=True)
     assert [c[0] for c in calls] == ["ch-image", "ch-convert"]
     assert not stale_gpu.exists()
+
+
+def test_storage_lock_serialises_ch_image_across_images(tmp_path: Path, monkeypatch) -> None:
+    """Different images still serialize on their shared ch-image storage."""
+    import threading
+
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path)
+    monkeypatch.setattr(ch, "_stored_images", lambda ch_image: [])
+    live = 0
+    peak = 0
+    guard = threading.Lock()
+
+    def fake_call(cmd, *a, **kw):
+        nonlocal live, peak
+        if cmd[0] in ("ch-image", "ch-convert"):
+            with guard:
+                live += 1
+                peak = max(peak, live)
+            time.sleep(0.15)
+            with guard:
+                live -= 1
+        if cmd[0] == "ch-convert":
+            _fake_image(Path(cmd[-1]).parent).rename(Path(cmd[-1]))
+        return 0
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    from vla_eval.config import BuildConfig
+
+    tools = {t: t for t in ch.TOOLS}
+    errors: list[BaseException] = []
+
+    def build(name: str) -> None:
+        try:
+            ch.ensure_image_dir(name, auto_yes=True, gpu=False, tools=tools, build=BuildConfig(context="/ctx"))
+        except BaseException as exc:  # surfaced after join
+            errors.append(exc)
+
+    threads = [threading.Thread(target=build, args=(f"img{i}:tag",)) for i in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+    assert not any(t.is_alive() for t in threads) and not errors
+    assert peak == 1, f"{peak} concurrent users of the ch-image storage; build and export must serialise"
+
+
+def test_storage_lock_refuses_symlink(tmp_path: Path) -> None:
+    victim = tmp_path / "bashrc"
+    victim.write_text("keep")
+    storage = tmp_path / "storage"
+    planted = Path(f"{storage}.vla-eval-lock")
+    planted.symlink_to(victim)
+    with pytest.raises(OSError):
+        ch._open_storage_lock(storage)
+    assert victim.read_text() == "keep"
+
+
+def test_storage_lock_stays_on_sidecar_after_initialization(tmp_path: Path) -> None:
+    storage = tmp_path / "storage"
+    first = ch._open_storage_lock(storage)
+    first_inode = os.fstat(first.fileno()).st_ino
+    first.close()
+    storage.mkdir()
+    (storage / "version").write_text("7\n")
+    second = ch._open_storage_lock(storage)
+    sidecar = Path(f"{storage}.vla-eval-lock")
+    assert first_inode == os.fstat(second.fileno()).st_ino == sidecar.stat().st_ino
+    second.close()
+
+
+def test_storage_lock_does_not_fall_back_inside_existing_storage(tmp_path: Path, monkeypatch) -> None:
+    storage = tmp_path / "storage"
+    storage.mkdir()
+    version = storage / "version"
+    version.write_text("7\n")
+
+    def deny_sidecar(*args, **kwargs):
+        raise PermissionError
+
+    monkeypatch.setattr(ch.os, "open", deny_sidecar)
+    with pytest.raises(PermissionError):
+        ch._open_storage_lock(storage)
+
+
+def test_storage_lock_failure_stops_preparation(tmp_path: Path, monkeypatch, capsys) -> None:
+    import fcntl
+
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path)
+    original_flock = fcntl.flock
+    failed_locks = []
+
+    def fail_storage_lock(lock, operation):
+        if isinstance(lock.name, int):
+            failed_locks.append(lock)
+            raise OSError("storage locking unavailable")
+        return original_flock(lock, operation)
+
+    def unexpected_call(*args, **kwargs):
+        pytest.fail("image preparation started without the storage lock")
+
+    monkeypatch.setattr(fcntl, "flock", fail_storage_lock)
+    monkeypatch.setattr(ch.subprocess, "call", unexpected_call)
+    with pytest.raises(SystemExit, match="1"):
+        ch.ensure_image_dir("reg/img:tag", auto_yes=True, gpu=False, tools={t: t for t in ch.TOOLS})
+    assert "cannot lock ch-image storage" in capsys.readouterr().err
+    assert len(failed_locks) == 1 and failed_locks[0].closed

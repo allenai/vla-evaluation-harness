@@ -39,6 +39,33 @@ def image_dir_for(image: str, root: Path | None = None, driver: str | None = Non
     return root / (f"{name}+nvidia-{driver}" if driver else name)
 
 
+def _storage_path(ch_image: str) -> Path:
+    storage = os.environ.get("CH_IMAGE_STORAGE")
+    if not storage:
+        result = subprocess.run([ch_image, "gestalt", "storage-path"], capture_output=True, text=True)
+        storage = result.stdout.strip()
+    if not storage:
+        raise RuntimeError("ch-image did not report its storage path")
+    return Path(os.path.realpath(storage))
+
+
+def _open_storage_lock(storage: Path) -> Any:
+    """Acquire the dedicated sidecar lock without changing its identity on failure."""
+    import fcntl
+
+    path = Path(f"{storage}.vla-eval-lock")
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    lock = os.fdopen(fd, "r+")
+    try:
+        if os.fstat(fd).st_uid != os.getuid():
+            raise PermissionError(f"lock belongs to another user: {path}")
+        fcntl.flock(lock, fcntl.LOCK_EX)
+    except BaseException:
+        lock.close()
+        raise
+    return lock
+
+
 def ensure_image_dir(
     image: str,
     *,
@@ -72,25 +99,31 @@ def ensure_image_dir(
         if gpu and shutil.which("nvidia-container-cli") is None:
             con.print("[red]ERROR: GPU rendering needs nvidia-container-cli on the host, or use --render cpu.[/red]")
             sys.exit(1)
-        if build is None:
-            pulled = _pull_with_mirror(tools["ch-image"], image)
-        elif rebuild or image not in _stored_images(tools["ch-image"]):
-            con.print(f"Building {image} from {build.dockerfile_path} with ch-image ...", soft_wrap=True)
-            cmd = [tools["ch-image"], "build", "-t", image, "-f", build.dockerfile_path, build.context]
-            pulled = image if subprocess.call(cmd) == 0 else None
-        else:
-            pulled = image  # already in storage; only this export variant is missing
-        if pulled is None:
-            con.print(f"[red]ERROR: ch-image {'build' if build else 'pull'} failed for {image}.[/red]")
-            sys.exit(1)
-        if rebuild:  # other cached exports of this image are now stale
-            base = image_dir_for(image, img_dir.parent).name
-            for d in img_dir.parent.glob(f"{base}*"):
-                if d != img_dir and (d.name == base or d.name.startswith(f"{base}+nvidia-")):
-                    shutil.rmtree(d, ignore_errors=True)
         tmp_dir = Path(f"{img_dir}.tmp-{os.getpid()}")  # ch-run cannot use ch-image's storage directly
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        ok = subprocess.call([tools["ch-convert"], "-i", "ch-image", "-o", "dir", pulled, str(tmp_dir)]) == 0
+        try:
+            storage_lock = _open_storage_lock(_storage_path(tools["ch-image"]))
+        except (OSError, RuntimeError) as exc:
+            con.print(f"[red]ERROR: cannot lock ch-image storage: {exc}[/red]")
+            sys.exit(1)
+        with storage_lock:
+            if build is None:
+                pulled = _pull_with_mirror(tools["ch-image"], image)
+            elif rebuild or image not in _stored_images(tools["ch-image"]):
+                con.print(f"Building {image} from {build.dockerfile_path} with ch-image ...", soft_wrap=True)
+                cmd = [tools["ch-image"], "build", "-t", image, "-f", build.dockerfile_path, build.context]
+                pulled = image if subprocess.call(cmd) == 0 else None
+            else:
+                pulled = image  # already in storage; only this export variant is missing
+            if pulled is None:
+                con.print(f"[red]ERROR: ch-image {'build' if build else 'pull'} failed for {image}.[/red]")
+                sys.exit(1)
+            if rebuild:  # other cached exports of this image are now stale
+                base = image_dir_for(image, img_dir.parent).name
+                for d in img_dir.parent.glob(f"{base}*"):
+                    if d != img_dir and (d.name == base or d.name.startswith(f"{base}+nvidia-")):
+                        shutil.rmtree(d, ignore_errors=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            ok = subprocess.call([tools["ch-convert"], "-i", "ch-image", "-o", "dir", pulled, str(tmp_dir)]) == 0
         ok = ok and (not gpu or subprocess.call([tools["ch-fromhost"], "--nvidia", str(tmp_dir)]) == 0)
         if not ok:
             shutil.rmtree(tmp_dir, ignore_errors=True)

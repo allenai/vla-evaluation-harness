@@ -20,8 +20,12 @@ vla-eval run --runtime charliecloud --yes -c configs/benchmarks/libero/smoke_tes
 
 First use pulls with `ch-image` (public-mirror fallback like Docker), exports a directory with `ch-convert`,
 injects the driver, and renames it into place under a per-directory lock. GPU exports are separate per host
-driver version and never modified afterwards. `ch-run` starts from the image's own environment and binds the
-same paths as the Docker path.
+driver version and never modified afterwards. Image preparation is serialized per export and shared
+`ch-image` storage. `ch-run` starts from the image's own environment and binds the same paths as the Docker path.
+
+Storage locking uses `<storage>.vla-eval-lock`, owned by the current user and opened read/write.
+The storage parent must allow creating it, or an administrator must provision it with those permissions.
+Keep this file in place; locking failures stop image preparation. Direct `ch-image` invocations do not use this lock.
 
 Sites that disable unprivileged user namespaces (`user.max_user_namespaces=0`, Debian's
 `kernel.unprivileged_userns_clone=0`, Ubuntu 24.04's AppArmor restriction) can only run containers through a
