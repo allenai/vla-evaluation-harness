@@ -95,6 +95,29 @@ class BuildConfig:
         raise ValueError("docker.build must be a context path or {context, dockerfile}")
 
 
+CH_IMAGE_FORMATS = ("auto", "dir", "squashfs")
+
+
+@dataclass
+class CharliecloudConfig:
+    """Charliecloud format selection; auto prefers SquashFS when supported."""
+
+    image_format: str = "auto"
+
+    @classmethod
+    def from_value(cls, value: Any) -> CharliecloudConfig:
+        if value is None:
+            return cls()
+        if not isinstance(value, dict):
+            raise ValueError("docker.charliecloud must be a mapping")
+        fmt = str(value.get("image_format") or cls.image_format).strip().lower()
+        if fmt not in CH_IMAGE_FORMATS:
+            raise ValueError(
+                f"docker.charliecloud.image_format must be one of {', '.join(CH_IMAGE_FORMATS)}, not {fmt!r}"
+            )
+        return cls(image_format=fmt)
+
+
 @dataclass
 class DockerConfig:
     """Docker execution settings.
@@ -114,6 +137,7 @@ class DockerConfig:
         runtime: ``"docker"`` (default) or ``"charliecloud"``; ``--runtime`` / ``$VLA_EVAL_RUNTIME`` override.
         build: Compose-style ``{context, dockerfile}`` (or a context string). ``image`` is the tag
             (default ``<parent>-<dir>:vla-eval``); built when missing locally, or always with ``--build``.
+        charliecloud: :class:`CharliecloudConfig`; ignored under Docker.
     """
 
     image: str | None = None
@@ -124,12 +148,14 @@ class DockerConfig:
     user: str | None = None
     runtime: str | None = None
     build: BuildConfig | None = None
+    charliecloud: CharliecloudConfig = field(default_factory=CharliecloudConfig)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> DockerConfig:
         if not data:
             return cls()
         build = BuildConfig.from_value(data.get("build"))
+        charliecloud = CharliecloudConfig.from_value(data.get("charliecloud"))
         return cls(
             image=data.get("image") or (build.default_image if build else None),
             volumes=data.get("volumes", []),
@@ -139,6 +165,7 @@ class DockerConfig:
             user=data.get("user") or None,
             runtime=data.get("runtime") or None,
             build=build,
+            charliecloud=charliecloud,
         )
 
     def to_dict(self) -> dict[str, Any]:

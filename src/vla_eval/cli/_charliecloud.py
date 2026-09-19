@@ -2,22 +2,30 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from vla_eval import dirs
 from vla_eval.cli._console import stderr_console as _stderr_console
-from vla_eval.config import BuildConfig, DockerConfig
+from vla_eval.config import BuildConfig, CharliecloudConfig, DockerConfig
 
 logger = logging.getLogger(__name__)
 
 TOOLS = ("ch-image", "ch-run", "ch-convert", "ch-fromhost")
+# Mount externally because some ch-run builds lack SquashFUSE support.
+SQUASHFUSE_TOOLS = ("squashfuse_ll", "squashfuse")
+FUSERMOUNT_TOOLS = ("fusermount3", "fusermount")
+IMAGE_FORMAT_ENV = "VLA_EVAL_CH_IMAGE_FORMAT"
+SQFS_SUFFIX = ".sqfs"
 
 
 def find_tools() -> dict[str, str]:
@@ -32,11 +40,60 @@ def find_tools() -> dict[str, str]:
     return {t: str(path) for t, path in found.items()}
 
 
-def image_dir_for(image: str, root: Path | None = None, driver: str | None = None) -> Path:
-    """Export directory; GPU exports are keyed by host driver version and never modified after publish."""
+def image_dir_for(image: str, root: Path | None = None, driver: str | None = None, image_format: str = "dir") -> Path:
+    """Export path, keyed by image, host driver and format."""
     root = root or dirs.home() / "charliecloud"
     name = image.replace("/", "%").replace(":", "+")
-    return root / (f"{name}+nvidia-{driver}" if driver else name)
+    name = f"{name}+nvidia-{driver}" if driver else name
+    return root / ".squashfs" / (name + SQFS_SUFFIX) if image_format == "squashfs" else root / name
+
+
+def resolve_image_format(docker_cfg: DockerConfig | None = None) -> str:
+    """``$VLA_EVAL_CH_IMAGE_FORMAT`` > config > ``"auto"``."""
+    fmt = os.environ.get(IMAGE_FORMAT_ENV) or (docker_cfg.charliecloud.image_format if docker_cfg else None)
+    return CharliecloudConfig.from_value({"image_format": fmt}).image_format
+
+
+def _fuse_available() -> bool:
+    try:
+        fd = os.open("/dev/fuse", os.O_RDWR | os.O_CLOEXEC)
+    except OSError:
+        return False
+    os.close(fd)
+    return True
+
+
+def select_image_format(
+    requested: str, image: str, *, gpu: bool, rebuild: bool = False
+) -> tuple[str, tuple[str, str] | None]:
+    """Choose a format and discover its mount tools once, before preparing an image."""
+    if requested == "dir":
+        return "dir", None
+    mount = next((p for t in SQUASHFUSE_TOOLS if (p := shutil.which(t))), None)
+    unmount = next((p for t in FUSERMOUNT_TOOLS if (p := shutil.which(t))), None)
+    issues = [f"{name} is unavailable" for name, path in (("squashfuse", mount), ("fusermount", unmount)) if not path]
+    if requested == "auto":
+        sqfs = image_dir_for(image, driver=host_driver_version() if gpu else None, image_format="squashfs")
+        if (rebuild or not sqfs.is_file()) and shutil.which("mksquashfs") is None:
+            issues.append("mksquashfs is unavailable")
+        if not _fuse_available():
+            issues.append("/dev/fuse is unavailable")
+    if issues:
+        reason = "; ".join(issues)
+        if requested == "squashfs":
+            raise ValueError(f"{reason}; install squashfuse and fuse3, or use image_format dir")
+        logger.info("Charliecloud image format auto: using dir (%s)", reason)
+        return "dir", None
+    assert mount is not None and unmount is not None
+    return "squashfs", (mount, unmount)
+
+
+def _remove(path: Path) -> None:
+    """Remove an export, whichever shape it has."""
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path, ignore_errors=True)
+    else:
+        path.unlink(missing_ok=True)
 
 
 def _storage_path(ch_image: str) -> Path:
@@ -74,17 +131,19 @@ def ensure_image_dir(
     tools: dict[str, str] | None = None,
     build: BuildConfig | None = None,
     force_build: bool = False,
+    image_format: str = "dir",
 ) -> Path:
     """Pull or build, export and (when *gpu*) inject the driver on first use, under a per-directory lock."""
     import fcntl
 
     tools = tools or find_tools()
-    img_dir = image_dir_for(image, driver=host_driver_version() if gpu else None)
+    squash = image_format == "squashfs"
+    img_dir = image_dir_for(image, driver=host_driver_version() if gpu else None, image_format=image_format)
     img_dir.parent.mkdir(parents=True, exist_ok=True)
     with open(f"{img_dir}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         rebuild = force_build and build is not None
-        if (img_dir / "ch" / "metadata.json").is_file() and not rebuild:
+        if (img_dir.is_file() if squash else (img_dir / "ch" / "metadata.json").is_file()) and not rebuild:
             return img_dir
         con = _stderr_console()
         if build is None and not auto_yes:
@@ -98,6 +157,9 @@ def ensure_image_dir(
                 sys.exit(0)
         if gpu and shutil.which("nvidia-container-cli") is None:
             con.print("[red]ERROR: GPU rendering needs nvidia-container-cli on the host, or use --render cpu.[/red]")
+            sys.exit(1)
+        if squash and shutil.which("mksquashfs") is None:
+            con.print("[red]ERROR: image_format squashfs needs mksquashfs (squashfs-tools) on the host.[/red]")
             sys.exit(1)
         tmp_dir = Path(f"{img_dir}.tmp-{os.getpid()}")  # ch-run cannot use ch-image's storage directly
         try:
@@ -117,21 +179,64 @@ def ensure_image_dir(
             if pulled is None:
                 con.print(f"[red]ERROR: ch-image {'build' if build else 'pull'} failed for {image}.[/red]")
                 sys.exit(1)
-            if rebuild:  # other cached exports of this image are now stale
-                base = image_dir_for(image, img_dir.parent).name
-                for d in img_dir.parent.glob(f"{base}*"):
-                    if d != img_dir and (d.name == base or d.name.startswith(f"{base}+nvidia-")):
-                        shutil.rmtree(d, ignore_errors=True)
+            if rebuild:  # other cached exports of this image, in either format, are now stale
+                for fmt in ("dir", "squashfs"):
+                    base_path = image_dir_for(image, image_format=fmt)
+                    base = base_path.stem if fmt == "squashfs" else base_path.name
+                    for d in base_path.parent.glob(f"{base}*"):
+                        suffix = d.name[len(base) :]
+                        if suffix.endswith(".lock") or ".tmp-" in suffix:
+                            continue
+                        stem = d.stem if fmt == "squashfs" and d.suffix == SQFS_SUFFIX else d.name
+                        if d != img_dir and (stem == base or stem.startswith(f"{base}+nvidia-")):
+                            _remove(d)
             shutil.rmtree(tmp_dir, ignore_errors=True)
             ok = subprocess.call([tools["ch-convert"], "-i", "ch-image", "-o", "dir", pulled, str(tmp_dir)]) == 0
+        # Inject the driver before packing the read-only SquashFS image.
         ok = ok and (not gpu or subprocess.call([tools["ch-fromhost"], "--nvidia", str(tmp_dir)]) == 0)
+        tmp_out = tmp_dir
+        if ok and squash:
+            tmp_out = Path(f"{tmp_dir}{SQFS_SUFFIX}")
+            tmp_out.unlink(missing_ok=True)
+            ok = subprocess.call([tools["ch-convert"], "-i", "dir", "-o", "squash", str(tmp_dir), str(tmp_out)]) == 0
+            shutil.rmtree(tmp_dir, ignore_errors=True)  # the tree is what the .sqfs is there to avoid
         if not ok:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            _remove(tmp_dir)
+            _remove(tmp_out)
             con.print(f"[red]ERROR: exporting {image} failed.[/red]")
             sys.exit(1)
-        shutil.rmtree(img_dir, ignore_errors=True)
-        os.rename(tmp_dir, img_dir)
+        _remove(img_dir)
+        os.rename(tmp_out, img_dir)
     return img_dir
+
+
+@contextlib.contextmanager
+def mount_image(img: Path, squashfuse: tuple[str, str] | None) -> Iterator[Path]:
+    """Mount a SquashFS export for this run and release it on every exit path."""
+    if img.is_dir():
+        yield img
+        return
+    assert squashfuse is not None
+    mount_tool, fusermount = squashfuse
+    mnt = Path(tempfile.mkdtemp(prefix="vla-eval-ch-"))
+    mounted = False
+    try:
+        options = f"ro,uid={os.getuid()},gid={os.getgid()}"
+        mounted = subprocess.call([mount_tool, "-o", options, str(img), str(mnt)]) == 0
+        if not mounted:
+            raise OSError(f"{mount_tool} could not mount {img}; check /dev/fuse access")
+        if not (mnt / "ch" / "metadata.json").is_file():
+            raise ValueError(f"{img} is not a Charliecloud image (no ch/metadata.json)")
+        yield mnt
+    finally:
+        if mounted:
+            for extra in ((), ("-z",)):  # Retry a busy mount with lazy unmount.
+                if subprocess.call([fusermount, "-u", *extra, str(mnt)], stderr=subprocess.DEVNULL) == 0:
+                    break
+            else:
+                logger.warning("could not unmount %s; run %s -u when free", mnt, fusermount)
+        with contextlib.suppress(OSError):
+            mnt.rmdir()
 
 
 def _stored_images(ch_image: str) -> list[str]:
@@ -249,10 +354,23 @@ def run_via_charliecloud(
         logger.info("docker.user / docker.cpus are ignored under Charliecloud (runs as the caller, no cpuset)")
 
     gpu = not is_no_gpu_spec(docker_cfg.gpus) and str(config.get("render", "gpu")).lower() != "cpu"
+    try:
+        requested_format = resolve_image_format(docker_cfg)
+        image_format, squashfuse = select_image_format(
+            requested_format, docker_cfg.image, gpu=gpu, rebuild=force_build and docker_cfg.build is not None
+        )
+    except ValueError as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
     img_dir = ensure_image_dir(
-        docker_cfg.image, auto_yes=auto_yes, gpu=gpu, tools=tools, build=docker_cfg.build, force_build=force_build
+        docker_cfg.image,
+        auto_yes=auto_yes,
+        gpu=gpu,
+        tools=tools,
+        build=docker_cfg.build,
+        force_build=force_build,
+        image_format=image_format,
     )
-
     dev_mount: list[str] | None = None
     if dev:
         try:
@@ -261,38 +379,55 @@ def run_via_charliecloud(
             print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)
 
-    results_dir, config_path = prepare_container_config(config)
-    env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir}
-    if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
-        env["VLA_EVAL_WATCHDOG_TIMEOUT_S"] = os.environ["VLA_EVAL_WATCHDOG_TIMEOUT_S"]
-    for env_str in docker_cfg.env:
-        key, has_value, value = env_str.partition("=")
-        env[key] = value if has_value else os.environ.get(key, "")
-    if accept_license:
-        env["VLA_EVAL_ACCEPTED_LICENSES"] = ",".join(accept_license)
-    env.update(_gpu_env(docker_cfg.gpus, shard_id, num_shards))
+    with contextlib.ExitStack() as cleanup:
+        try:
+            img_dir = cleanup.enter_context(mount_image(img_dir, squashfuse))
+        except OSError as exc:
+            if requested_format != "auto" or image_format != "squashfs":
+                _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+                sys.exit(1)
+            logger.warning("SquashFS mount failed; using directory export: %s", exc)
+            img_dir = ensure_image_dir(
+                docker_cfg.image,
+                auto_yes=auto_yes,
+                gpu=gpu,
+                tools=tools,
+                build=docker_cfg.build,
+                image_format="dir",
+            )
+        except ValueError as exc:
+            _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+            sys.exit(1)
+        results_dir, config_path = prepare_container_config(config)
+        cleanup.callback(Path(config_path).unlink, missing_ok=True)
+        env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir}
+        if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
+            env["VLA_EVAL_WATCHDOG_TIMEOUT_S"] = os.environ["VLA_EVAL_WATCHDOG_TIMEOUT_S"]
+        for env_str in docker_cfg.env:
+            key, has_value, value = env_str.partition("=")
+            env[key] = value if has_value else os.environ.get(key, "")
+        if accept_license:
+            env["VLA_EVAL_ACCEPTED_LICENSES"] = ",".join(accept_license)
+        env.update(_gpu_env(docker_cfg.gpus, shard_id, num_shards))
 
-    cmd = build_ch_run_cmd(
-        img_dir,
-        ch_run=tools["ch-run"],
-        results_dir=results_dir,
-        config_path=config_path,
-        env=env,
-        volumes=docker_cfg.volumes,
-        dev_mount=dev_mount,
-        inner_args=inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
-    )
-    logger.info("Running via Charliecloud: %s", " ".join(cmd))
+        cmd = build_ch_run_cmd(
+            img_dir,
+            ch_run=tools["ch-run"],
+            results_dir=results_dir,
+            config_path=config_path,
+            env=env,
+            volumes=docker_cfg.volumes,
+            dev_mount=dev_mount,
+            inner_args=inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
+        )
+        logger.info("Running via Charliecloud: %s", " ".join(cmd))
 
-    def _stop(proc: Any) -> None:
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
+        def _stop(proc: Any) -> None:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
 
-    try:
         return exec_child(cmd, _stop)
-    finally:
-        Path(config_path).unlink(missing_ok=True)
