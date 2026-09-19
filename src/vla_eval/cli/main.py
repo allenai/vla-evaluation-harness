@@ -295,17 +295,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
 
 
 def cmd_merge(args: argparse.Namespace) -> None:
-    """Materialize per-episode jsonl + aggregate JSON from a recording SQLite.
-
-    Two ways to specify which DB to merge:
-
-    - ``--config -c <yaml>``: derive ``output_dir`` from the YAML, then
-      either use ``--eval-id <id>`` to pick a specific DB or merge every
-      ``recording-*.sqlite`` under it. The launcher script
-      (``run_sharded.sh``) calls this with both.
-    - ``--db <path>``: direct DB path. Output goes to
-      ``--output-dir`` (or the DB's parent dir).
-    """
+    """Materialize recordings selected by config, output directory, or DB path."""
     from vla_eval.results.merge import merge_db, print_merge_summary
     from vla_eval.tracking import call_each, get_reporting_trackers
 
@@ -316,8 +306,9 @@ def cmd_merge(args: argparse.Namespace) -> None:
     if getattr(args, "db", None):
         db_paths = [Path(args.db)]
         output_dir = Path(getattr(args, "output_dir", None) or db_paths[0].parent).resolve()
-    elif getattr(args, "config", None):
-        config = _load_config(args.config)
+    elif getattr(args, "config", None) or getattr(args, "output_dir", None):
+        if getattr(args, "config", None):
+            config = _load_config(args.config)
         output_dir = Path(getattr(args, "output_dir", None) or config.get("output_dir", "./results")).resolve()
         if getattr(args, "eval_id", None):
             from vla_eval.recording import db_path_for_eval
@@ -330,7 +321,8 @@ def cmd_merge(args: argparse.Namespace) -> None:
                 sys.exit(1)
     else:
         _stderr_console().print(
-            "[red]ERROR: pass --config / -c <yaml> (optionally with --eval-id) or --db <path>[/red]"
+            "[red]ERROR: pass --config / -c <yaml> or --output-dir <dir> "
+            "(either one optionally with --eval-id), or --db <path>[/red]"
         )
         sys.exit(1)
 
@@ -806,9 +798,13 @@ all shards exit (run_sharded.sh does this automatically). Single-shard `vla-eval
 run` invokes merge inline at the end, so manual merge is only needed for sharded
 runs or to re-render outputs.
 
+--config and --output-dir are interchangeable ways to name the directory holding
+the DBs; pass --output-dir on its own when the config is not at hand.
+
 examples:
   vla-eval merge -c configs/benchmarks/libero/spatial.yaml --eval-id abc
   vla-eval merge -c configs/benchmarks/libero/spatial.yaml  # merge every DB
+  vla-eval merge --output-dir ./results --eval-id abc
   vla-eval merge --db /path/to/recording-abc.sqlite
 """,
     )
@@ -816,7 +812,7 @@ examples:
     merge_parser.add_argument(
         "--eval-id",
         default=None,
-        help="Specific eval id (= specific DB file). Omit with --config to merge every DB under output_dir.",
+        help="Specific eval id (= specific DB file). Omit to merge every DB under output_dir.",
     )
     merge_parser.add_argument(
         "--db",
@@ -826,7 +822,8 @@ examples:
     merge_parser.add_argument(
         "--output-dir",
         default=None,
-        help="Override the directory the materialised files land in (default: config output_dir or DB parent).",
+        help="Directory holding the recording DBs, and where materialised files land. Usable without "
+        "--config (default: config output_dir or DB parent).",
     )
     merge_parser.add_argument("--verbose", "-v", action="store_true")
     merge_parser.set_defaults(func=cmd_merge)
