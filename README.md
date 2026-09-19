@@ -60,6 +60,9 @@ See [Architecture](docs/architecture.md) for how the pieces connect.
 
 ## Installation
 
+Requires Python 3.8+ and SQLite 3.24+ with JSON support for recording. A uv-managed
+Python build includes a suitable SQLite; system Python builds may not.
+
 ```bash
 pip install vla-eval
 ```

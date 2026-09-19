@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import shutil
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from vla_eval.cli._docker import CONTAINER_CONFIG, CONTAINER_RESULTS, inner_run_
 @pytest.fixture(autouse=True)
 def _isolated_ch_image_storage(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("CH_IMAGE_STORAGE", str(tmp_path / "ch-image-storage"))
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, "dir")
 
 
 def _fake_image(tmp_path: Path, *, with_root: bool = True) -> Path:
@@ -379,3 +380,233 @@ def test_storage_lock_failure_stops_preparation(tmp_path: Path, monkeypatch, cap
         ch.ensure_image_dir("reg/img:tag", auto_yes=True, gpu=False, tools={t: t for t in ch.TOOLS})
     assert "cannot lock ch-image storage" in capsys.readouterr().err
     assert len(failed_locks) == 1 and failed_locks[0].closed
+
+
+@pytest.fixture
+def squash_host(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path)
+    monkeypatch.setattr(ch.shutil, "which", lambda name: name)
+    monkeypatch.setattr(ch, "_fuse_available", lambda: True)
+    monkeypatch.setattr(ch, "host_driver_version", lambda: "580.95")
+    monkeypatch.setattr(ch.tempfile, "tempdir", str(tmp_path))
+    calls: list[list[str]] = []
+
+    def fake_call(cmd, *args, **kwargs):
+        calls.append(list(cmd))
+        target = Path(cmd[-1])
+        if cmd[0] == "ch-convert":
+            if cmd[cmd.index("-o") + 1] == "dir":
+                _fake_image(target.parent).rename(target)
+            else:
+                assert (Path(cmd[-2]) / "ch/metadata.json").is_file()
+                target.write_bytes(b"hsqs")
+        elif cmd[0] in ch.SQUASHFUSE_TOOLS:
+            (target / "ch").mkdir()
+            (target / "ch/metadata.json").write_text('{"entrypoint": ["vla-eval"]}')
+        elif cmd[0] in ch.FUSERMOUNT_TOOLS:
+            shutil.rmtree(target / "ch")
+        return 0
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    return calls
+
+
+@pytest.fixture
+def cached_run(tmp_path: Path, squash_host):
+    sqfs = ch.image_dir_for("x:tag", image_format="squashfs")
+    sqfs.parent.mkdir(parents=True)
+    sqfs.write_bytes(b"hsqs")
+    _fake_image(tmp_path).rename(ch.image_dir_for("x:tag"))
+    return {"docker": {"image": "x:tag", "gpus": "none"}, "render": "cpu", "output_dir": str(tmp_path / "out")}
+
+
+def test_image_format_precedence_and_validation(monkeypatch) -> None:
+    from vla_eval.config import DockerConfig
+
+    monkeypatch.delenv(ch.IMAGE_FORMAT_ENV, raising=False)
+    assert ch.resolve_image_format() == "auto"
+    cfg = DockerConfig.from_dict({"image": "x", "charliecloud": {"image_format": " SQUASHFS "}})
+    assert cfg.to_dict()["charliecloud"] == {"image_format": "squashfs"}
+    assert ch.resolve_image_format(cfg) == "squashfs"
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, " DIR ")
+    assert ch.resolve_image_format(cfg) == "dir"
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, "cpio")
+    with pytest.raises(ValueError, match="image_format must be one of"):
+        ch.resolve_image_format(cfg)
+    with pytest.raises(ValueError, match="image_format must be one of"):
+        DockerConfig.from_dict({"charliecloud": {"image_format": "tar"}})
+    with pytest.raises(ValueError, match="must be a mapping"):
+        DockerConfig.from_dict({"charliecloud": "squashfs"})
+
+
+def test_auto_image_format_prefers_squashfs_and_falls_back(squash_host, monkeypatch, caplog) -> None:
+    caplog.set_level("INFO")
+    assert ch.select_image_format("auto", "x:tag", gpu=True) == ("squashfs", ("squashfuse_ll", "fusermount3"))
+    monkeypatch.setattr(ch.shutil, "which", lambda name: None if name == "mksquashfs" else name)
+    assert ch.select_image_format("auto", "x:tag", gpu=False) == ("dir", None)
+    assert "mksquashfs is unavailable" in caplog.text
+    cached = ch.image_dir_for("x:tag", image_format="squashfs")
+    cached.parent.mkdir(parents=True)
+    cached.touch()
+    assert ch.select_image_format("auto", "x:tag", gpu=False)[0] == "squashfs"
+    assert ch.select_image_format("auto", "x:tag", gpu=False, rebuild=True)[0] == "dir"
+    monkeypatch.setattr(ch, "_fuse_available", lambda: False)
+    assert ch.select_image_format("auto", "x:tag", gpu=False)[0] == "dir"
+    assert "/dev/fuse is unavailable" in caplog.text
+
+
+def test_missing_mount_tools_fail_only_in_explicit_squashfs(squash_host, monkeypatch, capsys) -> None:
+    monkeypatch.setattr(ch.shutil, "which", lambda name: None if "squashfuse" in name else name)
+    assert ch.select_image_format("dir", "x:tag", gpu=False) == ("dir", None)
+    assert ch.select_image_format("auto", "x:tag", gpu=False) == ("dir", None)
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, "squashfs")
+    with pytest.raises(SystemExit, match="1"):
+        ch.run_via_charliecloud({"docker": {"image": "x:tag", "gpus": "none"}})
+    assert "install squashfuse and fuse3" in capsys.readouterr().err
+    assert not squash_host
+
+
+def test_fuse_available_opens_device(monkeypatch) -> None:
+    closed: list[int] = []
+    monkeypatch.setattr(ch.os, "open", lambda path, flags: 42)
+    monkeypatch.setattr(ch.os, "close", closed.append)
+    assert ch._fuse_available() and closed == [42]
+
+    def denied(path, flags):
+        raise PermissionError
+
+    monkeypatch.setattr(ch.os, "open", denied)
+    assert not ch._fuse_available()
+
+
+def test_ensure_image_squashfs_injects_driver_then_packs_one_file(squash_host) -> None:
+    img = ch.ensure_image_dir("x:tag", auto_yes=True, gpu=True, image_format="squashfs")
+    assert img == ch.image_dir_for("x:tag", driver="580.95", image_format="squashfs") and img.is_file()
+    assert [c[0] for c in squash_host] == ["ch-image", "ch-convert", "ch-fromhost", "ch-convert"]
+    temporary = squash_host[1][-1]
+    assert squash_host[2][-1] == temporary
+    assert squash_host[3][1:] == ["-i", "dir", "-o", "squash", temporary, f"{temporary}.sqfs"]
+    assert sorted(p.name for p in img.parent.iterdir()) == [img.name, f"{img.name}.lock"]
+    squash_host.clear()
+    assert ch.ensure_image_dir("x:tag", auto_yes=True, gpu=True, image_format="squashfs") == img
+    assert not squash_host
+
+
+@pytest.mark.parametrize("failure", ["missing-packer", "packing"])
+def test_failed_pack_leaves_no_partial_export(squash_host, monkeypatch, failure: str) -> None:
+    original = ch.subprocess.call
+
+    def fail_pack(cmd, *args, **kwargs):
+        if cmd[0] == "ch-convert" and "squash" in cmd:
+            Path(cmd[-1]).write_bytes(b"partial")
+            return 1
+        return original(cmd, *args, **kwargs)
+
+    if failure == "missing-packer":
+        monkeypatch.setattr(ch.shutil, "which", lambda name: None if name == "mksquashfs" else name)
+    else:
+        monkeypatch.setattr(ch.subprocess, "call", fail_pack)
+    with pytest.raises(SystemExit):
+        ch.ensure_image_dir("x:tag", auto_yes=True, gpu=False, image_format="squashfs")
+    assert [p.name for p in ch.image_dir_for("x:tag", image_format="squashfs").parent.iterdir()] == ["x+tag.sqfs.lock"]
+
+
+@pytest.mark.parametrize("tag", ["local", "local.tmp-build", "local.sqfs", "local.lock"])
+def test_rebuild_drops_stale_exports_of_both_formats(tmp_path: Path, squash_host, tag: str) -> None:
+    from vla_eval.config import BuildConfig
+
+    image = f"x:{tag}"
+    stale = [
+        ch.image_dir_for(image),
+        ch.image_dir_for(image, driver="1.2"),
+        ch.image_dir_for(image, driver="1.2", image_format="squashfs"),
+    ]
+    stale[2].parent.mkdir(parents=True)
+    for p in stale[:2]:
+        _fake_image(tmp_path).rename(p)
+    stale[2].touch()
+    keep = [ch.image_dir_for(f"x:{tag}-other"), Path(f"{stale[2]}.lock")]
+    for p in keep:
+        p.touch()
+    img = ch.ensure_image_dir(
+        image, auto_yes=True, gpu=False, build=BuildConfig(context="/ctx"), force_build=True, image_format="squashfs"
+    )
+    assert img.is_file() and not any(p.exists() for p in stale) and all(p.exists() for p in keep)
+
+
+def test_mount_image_dir_is_passthrough(tmp_path: Path) -> None:
+    img = _fake_image(tmp_path)
+    with ch.mount_image(img, None) as mounted:
+        assert mounted == img
+
+
+@pytest.mark.parametrize("busy", [False, True])
+def test_mount_and_unmount(squash_host, cached_run, monkeypatch, busy: bool) -> None:
+    original = ch.subprocess.call
+
+    def fake_call(cmd, *args, **kwargs):
+        if busy and cmd[0] == "fusermount3" and "-z" not in cmd:
+            squash_host.append(list(cmd))
+            return 1
+        return original(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    sqfs = ch.image_dir_for("x:tag", image_format="squashfs")
+    with ch.mount_image(sqfs, ("squashfuse_ll", "fusermount3")) as mnt:
+        assert (mnt / "ch/metadata.json").is_file()
+        assert squash_host == [["squashfuse_ll", "-o", f"ro,uid={os.getuid()},gid={os.getgid()}", str(sqfs), str(mnt)]]
+    assert squash_host[1] == ["fusermount3", "-u", str(mnt)]
+    if busy:
+        assert squash_host[2] == ["fusermount3", "-u", "-z", str(mnt)]
+    assert not mnt.exists()
+
+
+@pytest.mark.parametrize("failure", ["config", "interrupt"])
+def test_run_releases_mount_on_failure(squash_host, cached_run, monkeypatch, failure: str) -> None:
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, "squashfs")
+
+    def fail(*args, **kwargs):
+        if failure == "config":
+            raise OSError("cannot prepare config")
+        cmd = args[0]
+        assert Path(cmd[cmd.index("--") - 1], "ch/metadata.json").is_file()
+        raise KeyboardInterrupt
+
+    target = "prepare_container_config" if failure == "config" else "exec_child"
+    monkeypatch.setattr(f"vla_eval.cli._docker.{target}", fail)
+    with pytest.raises(OSError if failure == "config" else KeyboardInterrupt):
+        ch.run_via_charliecloud(cached_run)
+    assert [c[0] for c in squash_host] == ["squashfuse_ll", "fusermount3"]
+    assert not Path(squash_host[0][-1]).exists()
+
+
+@pytest.mark.parametrize("requested", ["auto", "squashfs"])
+def test_mount_failure_falls_back_only_in_auto_mode(
+    squash_host, cached_run, monkeypatch, caplog, requested: str
+) -> None:
+    monkeypatch.setenv(ch.IMAGE_FORMAT_ENV, requested)
+    runs: list[list[str]] = []
+
+    def fail_mount(cmd, *args, **kwargs):
+        assert cmd[0] == "squashfuse_ll"
+        squash_host.append(list(cmd))
+        return 1
+
+    monkeypatch.setattr(ch.subprocess, "call", fail_mount)
+    monkeypatch.setattr("vla_eval.cli._docker.exec_child", lambda cmd, stop: runs.append(cmd) or 0)
+    if requested == "auto":
+        assert ch.run_via_charliecloud(cached_run) == 0
+        assert runs[0][runs[0].index("--") - 1] == str(ch.image_dir_for("x:tag"))
+        assert "SquashFS mount failed; using directory export" in caplog.text
+    else:
+        with pytest.raises(SystemExit, match="1"):
+            ch.run_via_charliecloud(cached_run)
+        assert not runs
+    assert len(squash_host) == 1 and not Path(squash_host[0][-1]).exists()
+
+
+@pytest.mark.parametrize("reference", ["repo:tag.sqfs", "squashfs"])
+def test_squashfs_cache_does_not_collide_with_directory_exports(tmp_path: Path, reference: str) -> None:
+    directory = ch.image_dir_for(reference, root=tmp_path)
+    squash = ch.image_dir_for("repo:tag", root=tmp_path, image_format="squashfs")
+    assert directory != squash and directory not in squash.parents

@@ -19,18 +19,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# ``json_patch`` was added in SQLite 3.38.0 (Feb 2022). Check once at import
-# rather than at first write so old libsqlite3 fails fast with a useful message
-# (Ubuntu 22.04 ships 3.37.2; uv-bundled Python ships a much newer sqlite).
-_MIN_SQLITE = (3, 38, 0)
-if sqlite3.sqlite_version_info < _MIN_SQLITE:
-    raise RuntimeError(
-        f"vla_eval.recording requires SQLite >= {'.'.join(map(str, _MIN_SQLITE))} "
-        f"(json_patch); detected {sqlite3.sqlite_version}. "
-        "Upgrade libsqlite3 or run via uv-bundled Python."
-    )
-
-
 EpisodeStatus = Literal["success", "fail", "error"]
 
 
@@ -146,6 +134,8 @@ class RecordingStore:
     """One connection per process; SQLite serializes recording transactions."""
 
     def __init__(self, db_path: str | Path) -> None:
+        if sqlite3.sqlite_version_info < (3, 24, 0):
+            raise RuntimeError("Recording requires SQLite >= 3.24 (UPSERT). Use a uv-managed Python build.")
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         if not os.access(self.db_path.parent, os.W_OK | os.X_OK):
@@ -155,6 +145,11 @@ class RecordingStore:
             )
         self._conn = sqlite3.connect(str(self.db_path), isolation_level=None, timeout=60.0)
         try:
+            # JSON1 was optional before SQLite 3.38; check capabilities, not its version.
+            try:
+                self._conn.execute("SELECT json_set(json_patch('{}', '{}'), '$.ok', json('true'))")
+            except sqlite3.OperationalError as exc:
+                raise RuntimeError("Recording requires SQLite JSON support. Use a uv-managed Python build.") from exc
             self._init_schema()
             # Different-UID writers also need directory write access for rollback journals.
             try:

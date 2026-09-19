@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -25,6 +26,33 @@ from vla_eval.results.export import export_db, export_eval
 # ---------------------------------------------------------------------------
 # Schema / store
 # ---------------------------------------------------------------------------
+
+
+def test_store_accepts_pre_338_sqlite_with_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sqlite3, "sqlite_version_info", (3, 31, 1))
+    store = RecordingStore(tmp_path / "recording.sqlite")
+    try:
+        store.upsert_step_rows("s", "e", {0: {"reward": 1}})
+        store.upsert_step_rows("s", "e", {0: {"success": True}})
+        fields = store._conn.execute("SELECT fields FROM step_rows").fetchone()[0]
+        assert json.loads(fields) == {"reward": 1, "success": True}
+    finally:
+        store.close()
+
+
+def test_store_rejects_sqlite_without_upsert(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sqlite3, "sqlite_version_info", (3, 23, 0))
+    with pytest.raises(RuntimeError, match="SQLite >= 3.24"):
+        RecordingStore(tmp_path / "recording.sqlite")
+
+
+def test_store_rejects_missing_json_and_closes_connection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    conn = Mock()
+    conn.execute.side_effect = sqlite3.OperationalError("no such function: json_patch")
+    monkeypatch.setattr(sqlite3, "connect", Mock(return_value=conn))
+    with pytest.raises(RuntimeError, match="SQLite JSON support"):
+        RecordingStore(tmp_path / "recording.sqlite")
+    conn.close.assert_called_once_with()
 
 
 def test_default_filename_stem_renders_from_filename_context() -> None:

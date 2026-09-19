@@ -52,9 +52,9 @@ path.
 | RoboMME | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Shipped configs default to `render: cpu`; `--render gpu` opts into the native path, which hangs on a small subset of hosts. See below |
 | CALVIN | PyBullet | ✅ | ✅ | TinyRenderer | The EGL plugin aborts the whole process with no GPU, so cpu swaps it for PyBullet's built-in rasterizer — frames are close to, but not pixel-identical with, the GPU path's |
 | Kinetix | JAX (no GL) | ✅ | ✅ | `JAX_PLATFORMS=cpu` | No GL: frames are computed as JAX arrays, so the device switch is the whole backend |
-| SimplerEnv | SAPIEN 2.2.2 | ✅ | ❌ | — | SAPIEN requires the Vulkan extension `VK_KHR_external_semaphore_fd` at device creation; lavapipe does not implement it (verified on Mesa 23.2 and 25.0) |
-| ManiSkill2 | SAPIEN 2.2.2 | ✅ | ❌ | — | same |
-| RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
+| SimplerEnv | SAPIEN 2.2.2 | ✅ | ✅ | lavapipe (software Vulkan) | Needs a lavapipe from Mesa >= 24.3, which the image installs from conda-forge into its own prefix. See below |
+| ManiSkill2 | SAPIEN 2.2.2 | ✅ | ✅ | lavapipe (software Vulkan) | same |
+| RoboTwin | SAPIEN 3.0.0b1 | ✅ | ❌ | — | Fails on the image's Mesa 23.2 lavapipe with `ErrorExtensionNotPresent`. Not re-measured against a newer Mesa |
 | MIKASA-Robo | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
 | BEHAVIOR-1K | OmniGibson (Isaac Sim) | ✅ | ❌ | — | Isaac Sim dumps core during extension startup with no GPU |
 | RoboDojo | Isaac Lab | ✅ | ❌ | — | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
@@ -75,12 +75,17 @@ Failing is deliberate. Falling back to the GPU would reinstate the crash the fla
 exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
-SAPIEN splits by version rather than by family: 3.0.3 (RoboMME) renders through
-lavapipe with no GPU, while 2.2.2 and 3.0.0b1 demand `VK_KHR_external_semaphore_fd`
-at `vkCreateDevice` — before any shader or scene configuration — and lavapipe does
-not implement that extension. A newer Mesa does not close the gap (the same failure
-reproduces against Mesa 25.0 lavapipe); 3.0.3 dropped the hard requirement. Those
-four are not waiting on harness work — they need newer SAPIEN builds.
+### SAPIEN software rendering
+
+SAPIEN 2.2.2 requires `VK_KHR_external_semaphore_fd`, available in lavapipe since
+[Mesa 24.3](https://docs.mesa3d.org/relnotes/24.3.0.html). The ManiSkill2 and SimplerEnv
+images install Mesa 26.2.1 in `/opt/lavapipe-env`, leaving system libraries unchanged.
+CPU mode selects `/opt/lavapipe/lvp_icd.json` through both Vulkan loader variables,
+`VK_ICD_FILENAMES` and `VK_DRIVER_FILES`, and checks the manifests before creating
+the simulator to catch overrides that would expose a GPU.
+
+RoboTwin and MIKASA-Robo remain unsupported: they fail with the shipped Mesa 23.2
+and have not been tested with newer lavapipe.
 
 RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
 unlike every other benchmark: the native path hangs at the first capture on a small

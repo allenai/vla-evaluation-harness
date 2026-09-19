@@ -134,11 +134,8 @@ episodes must have stepped. (`vla-eval test` fails on errored episodes, but read
 provenance is what proves the backend engaged rather than something else working by
 accident.)
 
-SimplerEnv, ManiSkill2, RoboTwin and MIKASA-Robo are the worked examples: all four look
-like RoboMME, which renders fine through lavapipe, but their older SAPIEN builds demand
-the Vulkan device extension `VK_KHR_external_semaphore_fd`, which lavapipe does not
-implement (verified through Mesa 25). The simulator family is not the answer — the
-measurement is.
+Verify the benchmark's image, not just its simulator version: SAPIEN rendering also
+depends on the Mesa driver. See [render backends](docs/render-backends.md).
 
 ## Adding a Model Server
 
@@ -155,6 +152,13 @@ measurement is.
 6. Smoke-test: `vla-eval test -c configs/model_servers/<name>/<name>.yaml`
 
 See `model_servers/cogact.py` for a complete reference implementation.
+
+`ctx.session_id` can span multiple episodes; use `ctx.episode_id` to identify an episode.
+Reset policy-owned history, action queues, and other episode state in `on_episode_start`,
+then `await super().on_episode_start(config, ctx)` to preserve the base lifecycle.
+For concurrent clients, keep that state per session and reset only the starting session.
+The base class resets its own chunk buffers, not your policy's internal state.
+See [the Push-T example](examples/pusht_train_eval/train.py) for a single-session policy reset.
 
 ## Config Conventions
 
