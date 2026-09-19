@@ -23,9 +23,6 @@ injects the driver, and renames it into place under a per-directory lock. GPU ex
 driver version and never modified afterwards. `ch-run` starts from the image's own environment and binds the
 same paths as the Docker path.
 
-Charliecloud shares the host's `$TMPDIR` as guest `/tmp`. The eval config therefore uses a unique directory
-per run; custom `docker.volumes` should avoid missing targets under `/tmp` for the same reason.
-
 Sites that disable unprivileged user namespaces (`user.max_user_namespaces=0`, Debian's
 `kernel.unprivileged_userns_clone=0`, Ubuntu 24.04's AppArmor restriction) can only run containers through a
 setuid Apptainer, which vla-eval does not drive.

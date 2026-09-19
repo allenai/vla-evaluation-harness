@@ -133,12 +133,6 @@ def read_metadata(img_dir: Path) -> dict[str, Any]:
         return json.load(f)
 
 
-def container_config_path(host_config_path: str) -> str:
-    """Return a per-run guest path under Charliecloud's host-shared ``/tmp``."""
-    host = Path(host_config_path)
-    return f"/tmp/{host.parent.name}/{host.name}"
-
-
 def _bind(spec: str) -> list[str]:
     """Docker ``-v host:container[:ro]`` to ``ch-run -b host:container`` (always rw)."""
     parts = spec.split(":")
@@ -153,14 +147,13 @@ def build_ch_run_cmd(
     ch_run: str,
     results_dir: str,
     config_path: str,
-    container_config: str,
     env: dict[str, str],
     volumes: list[str],
     dev_mount: list[str] | None,
     inner_args: list[str],
 ) -> list[str]:
     """Assemble the ``ch-run`` command line (pure, unit-tested without Charliecloud)."""
-    from vla_eval.cli._docker import CONTAINER_RESULTS
+    from vla_eval.cli._docker import CONTAINER_CONFIG, CONTAINER_RESULTS
 
     meta = read_metadata(img_dir)
     # Writable overlay for mount points; start from the image's env (as Docker does), not the host's.
@@ -170,8 +163,7 @@ def build_ch_run_cmd(
     cmd.extend(f"--set-env={k}={v}" for k, v in env.items())
     cmd.extend(["--cd", meta.get("cwd") or "/workspace"])
     cmd.extend(_bind(f"{results_dir}:{CONTAINER_RESULTS}"))
-    # A unique directory avoids concurrent creation of one shared file target.
-    cmd.extend(_bind(f"{Path(config_path).parent}:{Path(container_config).parent}"))
+    cmd.extend(_bind(f"{config_path}:{CONTAINER_CONFIG}"))
     if dev_mount:
         cmd.extend(_bind(dev_mount[1]))
     for vol in volumes:
@@ -236,8 +228,7 @@ def run_via_charliecloud(
             print(f"ERROR: {exc}", file=sys.stderr)
             sys.exit(1)
 
-    results_dir, config_path = prepare_container_config(config, own_dir=True)
-    container_config = container_config_path(config_path)
+    results_dir, config_path = prepare_container_config(config)
     env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir}
     if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
         env["VLA_EVAL_WATCHDOG_TIMEOUT_S"] = os.environ["VLA_EVAL_WATCHDOG_TIMEOUT_S"]
@@ -253,17 +244,10 @@ def run_via_charliecloud(
         ch_run=tools["ch-run"],
         results_dir=results_dir,
         config_path=config_path,
-        container_config=container_config,
         env=env,
         volumes=docker_cfg.volumes,
         dev_mount=dev_mount,
-        inner_args=inner_run_args(
-            shard_id=shard_id,
-            num_shards=num_shards,
-            eval_id=eval_id,
-            no_save=no_save,
-            config_path=container_config,
-        ),
+        inner_args=inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
     )
     logger.info("Running via Charliecloud: %s", " ".join(cmd))
 
@@ -278,4 +262,4 @@ def run_via_charliecloud(
     try:
         return exec_child(cmd, _stop)
     finally:
-        shutil.rmtree(Path(config_path).parent, ignore_errors=True)
+        Path(config_path).unlink(missing_ok=True)
