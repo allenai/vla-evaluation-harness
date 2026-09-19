@@ -67,7 +67,7 @@ def test_merge_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
     assert json.loads((output / "demo_aggregate.json").read_text())["mean_success"] == 1
     assert json.loads((output / "episode.jsonl").read_text()) == {"step": 0, "reward": 1}
     assert events[0][0:2] == ("begin", "original-id")
-    assert events[0][2]["output_dir"] == "old-results"
+    assert events[0][2] == {"tracking": {"report_to": "wandb"}}
     assert events[-1] == ("close",)
 
 

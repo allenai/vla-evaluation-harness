@@ -522,6 +522,26 @@ def test_run_metadata_keeps_identity_and_original_config(tmp_path):
         store.close()
 
 
+def test_run_metadata_excludes_resolved_credentials(tmp_path):
+    db = tmp_path / "rec.sqlite"
+    store = RecordingStore(db)
+    try:
+        store.set_run_metadata(
+            "original",
+            {
+                "docker": {"env": ["API_KEY=secret-docker-value"]},
+                "server": {"url": "ws://user:secret-server-value@example"},
+                "tracking": {"report_to": "wandb", "api_key": "secret-tracker-value"},
+                "custom_token": "secret-custom-value",
+            },
+        )
+        config = json.loads(store._conn.execute("SELECT config FROM run_metadata").fetchone()[0])
+        assert config == {"tracking": {"report_to": "wandb"}}
+    finally:
+        store.close()
+    assert b"secret-" not in db.read_bytes()
+
+
 def test_episode_result_failure_rolls_back_steps(tmp_path, monkeypatch):
     store = RecordingStore(tmp_path / "rec.sqlite")
     recorder = EpisodeRecorder(

@@ -52,7 +52,7 @@ CLI (cli/main.py)
 - **Episode-level error isolation**: One episode failure never aborts the entire evaluation.
 - **anyio-based async**: asyncio-compatible, not trio. Use anyio primitives for new async code.
 - **Parallel evaluation**: Environment parallelism via episode sharding + inference parallelism via batch forward passes.
-- **Recording goes through SQLite**: one `recording-<eval_id>.sqlite` stores run configuration, benchmark metadata, episodes, and steps. DELETE journaling + EXTRA sync and explicit transactions serialize shard/model-server writes; `json_patch` unions fields for the same `(sid, eid, step_id)`. Shared storage must support SQLite file locks and sync.
+- **Recording goes through SQLite**: one `recording-<eval_id>.sqlite` stores run identity/reporting settings, benchmark metadata, episodes, and steps. DELETE journaling + EXTRA sync and explicit transactions serialize shard/model-server writes; `json_patch` unions fields for the same `(sid, eid, step_id)`. Shared storage must support SQLite file locks and sync.
 
 ### Recording flow
 

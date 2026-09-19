@@ -263,6 +263,8 @@ Writers share one SQLite using `journal_mode=DELETE`, `synchronous=EXTRA`, and e
 
 Every writer needs write access to both the DB and its parent directory to create/delete rollback journals. A world-writable DB alone is insufficient; use `docker.user: host` or a shared writable group directory for external model servers.
 
+Run metadata stores only the evaluation ID and `tracking.report_to`, not the resolved environment or server credentials. Benchmark configurations remain in benchmark metadata.
+
 Export uses a temporary SQLite snapshot (under the system temporary directory), then streams episode files from it. Temporary disk space scales with the recording size; step data is buffered only one episode at a time.
 
 `vla-eval merge DB [-o DIR]` reads a consistent snapshot and releases the DB before writing artifacts. During evaluation it exports the recorded results so far; rerun to include later commits. Run identity and tracking configuration come from the DB, even if it is renamed. Older DBs without run metadata still export files but do not emit tracking events. This replaces merge's former `--config`, `--eval-id`, and `--db` options.

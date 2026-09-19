@@ -180,10 +180,12 @@ class RecordingStore:
             yield
 
     def set_run_metadata(self, eval_id: str, config: dict[str, Any]) -> None:
+        # Persist only reporting settings; resolved docker.env can contain credentials.
+        reporting = {"tracking": {"report_to": (config.get("tracking") or {}).get("report_to")}}
         with self.transaction():
             self._conn.execute(
                 "INSERT OR IGNORE INTO run_metadata (singleton, eval_id, config) VALUES (1, ?, ?)",
-                (eval_id, json.dumps(config, default=_json_default)),
+                (eval_id, json.dumps(reporting, default=_json_default)),
             )
             stored_id = self._conn.execute("SELECT eval_id FROM run_metadata").fetchone()[0]
             if stored_id != eval_id:
