@@ -26,6 +26,8 @@ Some benchmark simulators (notably LIBERO/robosuite) have internal state that co
 
 ## Design
 
+Historical design below: shard JSON files were replaced by one recording SQLite per evaluation. The current command is `vla-eval merge DB [-o DIR]`; see the README's Observability section.
+
 ### CLI Interface
 
 ```bash
@@ -148,4 +150,3 @@ Total: ~230 lines of new/changed code.
 ## Future Work
 
 - **`vla-eval run-parallel`**: Convenience wrapper that spawns N shard processes + auto-merges. Not needed for v1; shell scripts suffice.
-

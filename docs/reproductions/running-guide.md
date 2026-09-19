@@ -36,19 +36,19 @@ curl -s --max-time 2 "http://GPU-NODE:8001/config"
 
 # 4. Run sharded evaluation
 SHARDS=10  NODE=GPU-NODE  MODEL=xvla
+EVAL_ID=$(uuidgen)
 for i in $(seq 0 $((SHARDS-1))); do
   uv run vla-eval run -c configs/benchmarks/libero/all.yaml \
     --server-url ws://${NODE}:8001 \
-    --shard-id $i --num-shards $SHARDS --yes &
+    --eval-id "$EVAL_ID" --shard-id $i --num-shards $SHARDS --yes &
 done
 wait
 
 # 5. Archive + merge
-mkdir -p docs/reproductions/data/${MODEL}-libero/shards
-cp results/LIBEROBenchmark_*shard*of${SHARDS}.json docs/reproductions/data/${MODEL}-libero/shards/
-uv run vla-eval merge results/LIBEROBenchmark_*_shard*of${SHARDS}.json \
-  -o docs/reproductions/data/${MODEL}-libero/merged.json
-rm results/LIBEROBenchmark_*shard*of${SHARDS}.json
+mkdir -p docs/reproductions/data/${MODEL}-libero
+cp "results/recording-$EVAL_ID.sqlite" docs/reproductions/data/${MODEL}-libero/
+uv run vla-eval merge "results/recording-$EVAL_ID.sqlite" \
+  -o docs/reproductions/data/${MODEL}-libero/
 ```
 
 **Notes:**

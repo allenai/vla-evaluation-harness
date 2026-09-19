@@ -86,13 +86,17 @@ if [[ -n "$OUTPUT_DIR" ]]; then
 fi
 echo ""
 
-# Build the shared CLI args once so the run and merge invocations stay in sync.
-RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
-MERGE_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
-if [[ -n "$OUTPUT_DIR" ]]; then
-  RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
-  MERGE_OPTS+=(--output-dir "$OUTPUT_DIR")
+# Resolve the output directory once for both recording and export.
+if [[ -z "$OUTPUT_DIR" ]]; then
+  OUTPUT_DIR="$(python3 - "$CONFIG" <<'PY'
+import sys
+from vla_eval.cli.config_loader import load_config
+print(load_config(sys.argv[1]).get("output_dir") or "./results")
+PY
+)"
 fi
+RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
+RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
 if [[ -n "$RECORD_VIDEO_FLAG" ]]; then
   RUN_OPTS+=("$RECORD_VIDEO_FLAG")
 fi
@@ -123,7 +127,7 @@ if [[ "$failed" -gt 0 ]]; then
 fi
 
 echo "Materializing per-episode jsonl + aggregate JSON via 'vla-eval merge'..."
-vla-eval merge "${MERGE_OPTS[@]}" || {
+vla-eval merge "$OUTPUT_DIR/recording-$EVAL_ID.sqlite" || {
   echo "WARNING: merge failed; the SQLite recording still has the raw data — rerun 'vla-eval merge' manually." >&2
   echo "         If it failed with 'Permission denied', the shard containers ran as root; set 'docker.user: host' in the config." >&2
 }

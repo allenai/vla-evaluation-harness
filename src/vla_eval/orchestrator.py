@@ -179,6 +179,7 @@ class Orchestrator:
         """Run all benchmarks defined in config."""
         if not self.no_save:
             self._store = RecordingStore(db_path_for_eval(self._output_dir, self._eval_id))
+            self._store.set_run_metadata(self._eval_id, self.config)
 
         if self._live_tracking:
             call_each(self._trackers, "on_eval_begin", self._eval_id, self.config)

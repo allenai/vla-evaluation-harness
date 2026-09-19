@@ -1,93 +1,112 @@
-"""How `vla-eval merge` picks the recording DBs to materialize."""
+"""Recording export selects one DB and resumes tracking from saved metadata."""
 
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+import json
+import sqlite3
 
 import pytest
 
 from vla_eval.cli import main as cli
+from vla_eval.recording import RecordingStore
 
 
-def _args(**kwargs: object) -> argparse.Namespace:
-    base: dict[str, object] = {"db": None, "config": None, "output_dir": None, "eval_id": None, "verbose": False}
-    base.update(kwargs)
-    return argparse.Namespace(**base)
+def _database(path):
+    store = RecordingStore(path)
+    store.set_run_metadata("original-id", {"tracking": {"report_to": "wandb"}, "output_dir": "old-results"})
+    store.upsert_eval_metadata("original-id-demo", "demo", {"benchmark": "demo", "metric_keys": {"success": "mean"}})
+    store.upsert_episode_result(
+        sid="s",
+        eid="e",
+        eval_id="original-id-demo",
+        task_name="task",
+        episode_id=0,
+        status="success",
+        metrics={"success": True},
+        steps=1,
+        elapsed_sec=0.1,
+        context={},
+        jsonl_path="episode.jsonl",
+        failure_reason=None,
+        failure_detail=None,
+    )
+    store.upsert_step_rows("s", "e", {0: {"reward": 1}})
+    store.close()
 
 
-@pytest.fixture
-def merged(monkeypatch) -> list[tuple[Path, Path]]:
-    """Capture (db_path, output_dir) per merge_db call instead of touching SQLite."""
-    calls: list[tuple[Path, Path]] = []
+@pytest.mark.parametrize("override", [False, True])
+def test_merge_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
+    db = tmp_path / "renamed.sqlite"
+    _database(db)
+    events = []
 
-    def fake_merge_db(db_path: Path, output_dir: Path) -> list[dict[str, object]]:
-        calls.append((db_path, output_dir))
-        return []
+    class Tracker:
+        def on_eval_begin(self, eval_id, config):
+            events.append(("begin", eval_id, config))
 
-    monkeypatch.setattr("vla_eval.results.merge.merge_db", fake_merge_db)
-    return calls
+        def on_benchmark_begin(self, *args):
+            pass
 
+        def on_benchmark_end(self, *args):
+            pass
 
-def test_output_dir_with_eval_id_needs_no_config(tmp_path, merged) -> None:
-    db = tmp_path / "recording-abc.sqlite"
-    db.touch()
+        def on_eval_end(self, aggregates):
+            events.append(("end", aggregates))
 
-    cli.cmd_merge(_args(output_dir=str(tmp_path), eval_id="abc"))
+        def close(self):
+            events.append(("close",))
 
-    assert merged == [(db, tmp_path.resolve())]
+    def trackers(report_to):
+        assert report_to == "wandb"
+        return [Tracker()]
 
-
-def test_output_dir_without_eval_id_merges_every_db(tmp_path, merged) -> None:
-    (tmp_path / "recording-a.sqlite").touch()
-    (tmp_path / "recording-b.sqlite").touch()
-    (tmp_path / "unrelated.sqlite").touch()
-
-    cli.cmd_merge(_args(output_dir=str(tmp_path)))
-
-    assert [db.name for db, _ in merged] == ["recording-a.sqlite", "recording-b.sqlite"]
-
-
-def test_output_dir_overrides_config_output_dir(tmp_path, monkeypatch, merged) -> None:
-    override = tmp_path / "override"
-    override.mkdir()
-    (override / "recording-abc.sqlite").touch()
-    monkeypatch.setattr(cli, "_load_config", lambda _path: {"output_dir": str(tmp_path / "from-config")})
-
-    cli.cmd_merge(_args(config="eval.yaml", output_dir=str(override), eval_id="abc"))
-
-    assert merged == [(override / "recording-abc.sqlite", override.resolve())]
+    monkeypatch.setattr("vla_eval.tracking.get_reporting_trackers", trackers)
+    output = tmp_path / "exported" if override else tmp_path
+    cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=str(output) if override else None))
+    assert json.loads((output / "demo_aggregate.json").read_text())["mean_success"] == 1
+    assert json.loads((output / "episode.jsonl").read_text()) == {"step": 0, "reward": 1}
+    assert events[0][0:2] == ("begin", "original-id")
+    assert events[0][2]["output_dir"] == "old-results"
+    assert events[-1] == ("close",)
 
 
-def test_config_with_eval_id_still_resolves_db_from_config_output_dir(tmp_path, monkeypatch, merged) -> None:
-    (tmp_path / "recording-abc.sqlite").touch()
-    monkeypatch.setattr(cli, "_load_config", lambda _path: {"output_dir": str(tmp_path)})
-
-    cli.cmd_merge(_args(config="eval.yaml", eval_id="abc"))
-
-    assert merged == [(tmp_path / "recording-abc.sqlite", tmp_path.resolve())]
-
-
-def test_db_path_still_wins_and_defaults_output_dir_to_its_parent(tmp_path, merged) -> None:
-    db = tmp_path / "recording-abc.sqlite"
-    db.touch()
-
-    cli.cmd_merge(_args(db=str(db)))
-
-    assert merged == [(db, tmp_path.resolve())]
-
-
-def test_no_source_arguments_exits_with_usage_error(capsys) -> None:
+def test_missing_db_fails_without_creating_it(tmp_path):
+    db = tmp_path / "missing.sqlite"
     with pytest.raises(SystemExit) as exc:
-        cli.cmd_merge(_args())
-
+        cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=None))
     assert exc.value.code == 1
-    assert "--output-dir" in capsys.readouterr().err
+    assert not db.exists()
 
 
-def test_output_dir_without_any_recording_db_exits(tmp_path, capsys) -> None:
+def test_legacy_database_exports_without_tracking(tmp_path, monkeypatch):
+    db = tmp_path / "legacy.sqlite"
+    _database(db)
+    with sqlite3.connect(db) as conn:
+        conn.execute("DROP TABLE run_metadata")
+
+    def unexpected(*args):
+        raise AssertionError("Legacy database must not invent tracker settings")
+
+    monkeypatch.setattr("vla_eval.tracking.get_reporting_trackers", unexpected)
+    cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=None))
+    assert (tmp_path / "demo_aggregate.json").exists()
+
+
+def test_merge_parser_accepts_positional_db(tmp_path, monkeypatch):
+    db = tmp_path / "input.sqlite"
+    output = tmp_path / "exported"
+    called = []
+    monkeypatch.setattr(cli, "cmd_merge", lambda args: called.append(args))
+    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", str(db), "-o", str(output)])
+    cli.main()
+    assert called[0].db == str(db)
+    assert called[0].output_dir == str(output)
+
+
+@pytest.mark.parametrize("flag", ["--db", "--config", "--eval-id"])
+def test_removed_merge_flags_are_rejected(flag, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", flag, "abc"])
     with pytest.raises(SystemExit) as exc:
-        cli.cmd_merge(_args(output_dir=str(tmp_path)))
-
-    assert exc.value.code == 1
-    assert "no recording-*.sqlite" in capsys.readouterr().err
+        cli.main()
+    assert exc.value.code == 2
