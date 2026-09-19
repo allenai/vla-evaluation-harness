@@ -152,6 +152,13 @@ depends on the Mesa driver. See [render backends](docs/render-backends.md).
 
 See `model_servers/cogact.py` for a complete reference implementation.
 
+`ctx.session_id` can span multiple episodes; use `ctx.episode_id` to identify an episode.
+Reset policy-owned history, action queues, and other episode state in `on_episode_start`,
+then `await super().on_episode_start(config, ctx)` to preserve the base lifecycle.
+For concurrent clients, keep that state per session and reset only the starting session.
+The base class resets its own chunk buffers, not your policy's internal state.
+See [the Push-T example](examples/pusht_train_eval/train.py) for a single-session policy reset.
+
 ## Config Conventions
 
 YAML configs are parsed into typed dataclasses in `config.py`. When adding config fields:

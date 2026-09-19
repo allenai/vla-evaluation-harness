@@ -30,6 +30,11 @@ the same without a Docker daemon (it implies `--docker`). Metrics go to `outputs
 The two specs are compared before the first episode; a mismatch between what the policy emits
 and what the environment expects is warned about up front instead of showing up as a 0% run.
 
+`PolicyServer.on_episode_start` calls `policy.reset()` to clear observation history and queued
+actions between episodes, then awaits the base hook. A WebSocket session spans episodes;
+initializing state only once per `ctx.session_id` would leak it into the next episode.
+This example shares one policy with one evaluation session; concurrent sessions need isolated state.
+
 ## The call in the training loop
 
 ```python
