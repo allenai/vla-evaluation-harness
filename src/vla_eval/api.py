@@ -31,7 +31,7 @@ from anyio.abc import TaskStatus
 from anyio.from_thread import start_blocking_portal
 
 from vla_eval import watchdog
-from vla_eval.config import DockerConfig
+from vla_eval.config import DockerConfig, merge_benchmark_overrides
 from vla_eval.model_servers.base import ModelServer
 from vla_eval.model_servers.serve import serve_async
 from vla_eval.orchestrator import Orchestrator
@@ -105,16 +105,6 @@ async def _serve_or_timeout(
         raise TimeoutError(f"model server did not start listening within {ready_timeout}s")
 
 
-def _merge_benchmark_overrides(config: dict[str, Any], overrides: Mapping[str, Any]) -> None:
-    """Apply *overrides* to every ``benchmarks[]`` entry; ``params`` merges instead of replacing."""
-    for entry in config.get("benchmarks") or []:
-        for key, value in overrides.items():
-            if key == "params" and isinstance(value, Mapping):
-                entry.setdefault("params", {}).update(value)
-            else:
-                entry[key] = value
-
-
 def run(
     config: str | Path | Mapping[str, Any],
     *,
@@ -145,6 +135,8 @@ def run(
         build: Rebuild ``docker.image`` from ``docker.build`` even if it exists locally.
         benchmark_overrides: Keys applied to every benchmark entry, e.g.
             ``{"episodes_per_task": 10, "max_tasks": 1, "params": {"seed": 3}}``.
+            ``params`` merges; other keys replace. Same rule as ``vla-eval run
+            --benchmark-field``.
         watchdog_timeout_s: Stall watchdog for this run only: in-process it is disarmed on return,
             in a container it is forwarded as ``VLA_EVAL_WATCHDOG_TIMEOUT_S``. It ``os._exit``s
             the *whole process* on a stall, so leave it off inside a training loop.
@@ -161,7 +153,7 @@ def run(
     if output_dir is not None:
         cfg["output_dir"] = str(output_dir)
     if benchmark_overrides:
-        _merge_benchmark_overrides(cfg, benchmark_overrides)
+        merge_benchmark_overrides(cfg, benchmark_overrides)
     cfg["output_dir"] = str(Path(cfg.get("output_dir") or "./results").resolve())
 
     render_mode = resolve_run_render_mode(cfg, None, None)

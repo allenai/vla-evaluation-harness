@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, MutableMapping
 
 logger = logging.getLogger(__name__)
 
@@ -229,3 +229,18 @@ class EvalConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def merge_benchmark_overrides(config: dict[str, Any], overrides: Mapping[str, Any]) -> None:
+    """Apply entry overrides to every benchmark, merging ``params`` by key."""
+    for idx, entry in enumerate(config.get("benchmarks") or []):
+        if not isinstance(entry, MutableMapping):
+            raise ValueError(f"benchmarks[{idx}] must be a mapping")
+        for key, value in overrides.items():
+            if key == "params" and isinstance(value, Mapping):
+                params = entry.setdefault("params", {})
+                if not isinstance(params, MutableMapping):
+                    raise ValueError(f"benchmarks[{idx}].params must be a mapping")
+                params.update(value)
+            else:
+                entry[key] = value

@@ -9,7 +9,8 @@ import anyio
 import pytest
 
 import vla_eval
-from vla_eval.api import _merge_benchmark_overrides, evaluate, run, serve_background
+from vla_eval.api import evaluate, run, serve_background
+from vla_eval.config import merge_benchmark_overrides
 from vla_eval.connection import Connection
 
 from tests.conftest import EchoModelServer
@@ -83,7 +84,7 @@ def test_run_rejects_docker_without_image() -> None:
 
 def test_benchmark_overrides_merge_params_and_replace_others() -> None:
     cfg = _stub_config(max_tasks=5)
-    _merge_benchmark_overrides(cfg, {"max_tasks": 1, "params": {"seed": 9}})
+    merge_benchmark_overrides(cfg, {"max_tasks": 1, "params": {"seed": 9}})
     entry = cfg["benchmarks"][0]
     assert entry["max_tasks"] == 1
     assert entry["params"] == {"done_at_step": 3, "seed": 9}
