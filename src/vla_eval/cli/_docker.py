@@ -105,7 +105,8 @@ def ensure_image_local(
 
 RUNTIMES = ("docker", "charliecloud")
 CONTAINER_RESULTS = "/workspace/results"
-CONTAINER_CONFIG = "/tmp/eval_config.yaml"
+# Charliecloud bind-mounts the host temp directory at /tmp.
+CONTAINER_CONFIG = "/etc/vla-eval.yaml"
 
 
 def inside_docker() -> bool:

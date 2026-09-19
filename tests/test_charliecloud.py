@@ -97,6 +97,10 @@ def test_build_ch_run_cmd_without_root_dir(tmp_path: Path) -> None:
     assert "--set-env=HOME=/root" not in cmd
 
 
+def test_container_config_avoids_charliecloud_shared_tmp() -> None:
+    assert not CONTAINER_CONFIG.startswith("/tmp/")
+
+
 def test_gpu_env_none_all_and_shards(monkeypatch) -> None:
     monkeypatch.setattr("vla_eval.docker_resources._detect_runtime", lambda: "cuda")
     monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
