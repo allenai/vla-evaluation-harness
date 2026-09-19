@@ -75,39 +75,17 @@ Failing is deliberate. Falling back to the GPU would reinstate the crash the fla
 exists to avoid, and a backend that is declared but doesn't engage is worse than
 one that isn't offered.
 
-### SAPIEN splits by Mesa version, not by SAPIEN version
+### SAPIEN software rendering
 
-SAPIEN 2.2.2 asks for the Vulkan device extension `VK_KHR_external_semaphore_fd` at
-`vkCreateDevice`, before any shader or scene configuration; its binary carries CUDA
-external-semaphore interop symbols, which is the likely reason the requirement is
-unconditional. Mesa's lavapipe gained that extension in 24.3
-("lavapipe: Implement VK_KHR_external_*_fd", [24.3.0 release
-notes](https://docs.mesa3d.org/relnotes/24.3.0.html)). Ubuntu 22.04, which the base image is
-built on, ships Mesa 23.2, so the system lavapipe fails with
-`ErrorExtensionNotPresent` and SAPIEN never reaches a frame.
+SAPIEN 2.2.2 requires `VK_KHR_external_semaphore_fd`, available in lavapipe since
+[Mesa 24.3](https://docs.mesa3d.org/relnotes/24.3.0.html). The ManiSkill2 and SimplerEnv
+images install Mesa 26.2.1 in `/opt/lavapipe-env`, leaving system libraries unchanged.
+CPU mode selects `/opt/lavapipe/lvp_icd.json` through both Vulkan loader variables,
+`VK_ICD_FILENAMES` and `VK_DRIVER_FILES`, and checks the manifests before creating
+the simulator to catch overrides that would expose a GPU.
 
-Measured both ways on the same SAPIEN 2.2.2 build: Mesa 23.2 lavapipe raises
-`vk::PhysicalDevice::createDeviceUnique: ErrorExtensionNotPresent`, and Mesa 26.2.1
-lavapipe renders a frame. So the fix is the driver, not the simulator. The two
-SAPIEN 2.2.2 images install `mesa-lavapipe` from conda-forge, which is built against
-an old sysroot and therefore runs on the image's Ubuntu 22.04, into
-`/opt/lavapipe-env`. Its own prefix keeps it off every library path, so the system
-Mesa the OSMesa benchmarks render through is untouched; only the ICD manifest stashed
-at `/opt/lavapipe/lvp_icd.json` reaches it, and only when `cpu` mode names it in
-`VK_ICD_FILENAMES` / `VK_DRIVER_FILES`.
-
-RoboTwin and MIKASA-Robo (SAPIEN 3.0.0b1) fail the same way on their images' Mesa
-23.2. They have not been re-measured against a current lavapipe, so they stay
-undeclared; the cause above makes them worth a look.
-
-Because SAPIEN 2.x exposes no device-query API — no `sapien.Device`, no device
-accessor on `SapienRenderer` — there is no way to ask, after the fact, which device
-a render landed on. What decides it is the loader's ICD list, so the adapters read
-that back just before building the simulator and refuse to start unless every listed
-ICD is a lavapipe manifest. While that holds, no GPU device is enumerable. The check
-exists because a container `env:` entry or an ICD bind-mount lands after
-`configure_render` and would otherwise restore the GPU silently, leaving the run
-reporting `cpu` while using the device the mode exists to release.
+RoboTwin and MIKASA-Robo remain unsupported: they fail with the shipped Mesa 23.2
+and have not been tested with newer lavapipe.
 
 RoboMME carries two caveats. First, its shipped configs default to `render: cpu`,
 unlike every other benchmark: the native path hangs at the first capture on a small

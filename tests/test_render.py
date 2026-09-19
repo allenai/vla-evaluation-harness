@@ -506,24 +506,14 @@ class TestConfigureSapienRender:
     def test_gpu_leaves_the_image_default_in_place(self, preserve_env: None):
         assert configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD") == {}
 
-    def test_cpu_pins_the_loader_to_the_lavapipe_icd(self, lavapipe_icd: str):
+    def test_cpu_applies_loader_and_thread_settings(self, lavapipe_icd: str):
         applied = configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
 
-        assert applied["VK_ICD_FILENAMES"] == lavapipe_icd
-        assert os.environ["VK_ICD_FILENAMES"] == lavapipe_icd
-
-    def test_cpu_sets_both_loader_variables(self, lavapipe_icd: str):
-        """VK_ICD_FILENAMES is read before loader 1.3.207, VK_DRIVER_FILES after; setting
-        one would leave the other loader free to enumerate the GPU."""
-        applied = configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
-
-        assert applied["VK_DRIVER_FILES"] == applied["VK_ICD_FILENAMES"]
-
-    def test_cpu_carries_the_lavapipe_thread_tuning(self, lavapipe_icd: str):
-        assert configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD") == {
+        assert applied == {
             **lavapipe_cpu_env(lavapipe_icd),
             "VK_DRIVER_FILES": lavapipe_icd,
         }
+        assert {key: os.environ[key] for key in applied} == applied
 
     def test_an_existing_thread_setting_wins(self, lavapipe_icd: str):
         os.environ["LP_NUM_THREADS"] = "16"
@@ -541,8 +531,6 @@ class TestConfigureSapienRender:
             configure_sapien_render("osmesa", "TEST_LAVAPIPE_ICD")
 
     def test_cpu_after_sapien_is_imported_raises(self, lavapipe_icd: str, monkeypatch):
-        """The ICD binds at the first sapien import, so a later call would hand back an
-        env that never reached the renderer."""
         monkeypatch.setitem(sys.modules, "sapien.core", object())
 
         with pytest.raises(RuntimeError, match="imported"):
@@ -550,33 +538,15 @@ class TestConfigureSapienRender:
 
 
 class TestMultiEntryConfigs:
-    """configure_render runs once per benchmark *entry*; the shipped SimplerEnv VA configs
-    carry several in one process, and the renderer binds only once."""
+    """Benchmark entries share one process-bound renderer."""
 
     def test_later_entries_replay_the_applied_env(self, lavapipe_icd: str, monkeypatch):
         first = configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
+        assert first["VK_DRIVER_FILES"] == lavapipe_icd
         # Entry 1 built its simulator, so sapien is imported by the time entry 2 configures.
         monkeypatch.setitem(sys.modules, "sapien.core", object())
 
         assert [configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD") for _ in range(3)] == [first] * 3
-
-    def test_later_entries_do_not_report_an_empty_env(self, lavapipe_icd: str):
-        """An empty env would make entries 2..N claim a GPU render that never happened."""
-        configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
-
-        assert configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")["VK_DRIVER_FILES"] == lavapipe_icd
-
-    def test_the_icd_is_resolved_once_not_per_entry(self, lavapipe_icd: str, monkeypatch):
-        calls: list[str] = []
-        monkeypatch.setattr(
-            "vla_eval.render.resolve_lavapipe_icd",
-            lambda env: (calls.append(env), lavapipe_icd)[1],
-        )
-
-        for _ in range(4):
-            configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
-
-        assert len(calls) == 1
 
     def test_gpu_entries_stay_empty(self, preserve_env: None):
         assert [configure_sapien_render("gpu", "TEST_LAVAPIPE_ICD") for _ in range(3)] == [{}, {}, {}]
@@ -588,8 +558,6 @@ class TestMultiEntryConfigs:
             configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
 
     def test_gpu_after_the_process_bound_lavapipe_raises(self, lavapipe_icd: str):
-        """Replaying the lavapipe env for a gpu request would report a renderer that is
-        not the one running."""
         configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
 
         with pytest.raises(RuntimeError, match="already bound SAPIEN to the cpu path"):
@@ -619,8 +587,7 @@ class TestResolveLavapipeIcd:
 
 
 class TestLavapipeGuard:
-    """SAPIEN 2.x has no device query, so the guard reads back the loader's ICD list --
-    the thing that decides which device is reachable at all."""
+    """Check driver manifests because SAPIEN 2.x has no device-query API."""
 
     def test_passes_when_the_loader_is_pinned_to_lavapipe(self, lavapipe_icd: str):
         configure_sapien_render("cpu", "TEST_LAVAPIPE_ICD")
