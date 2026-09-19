@@ -1,5 +1,5 @@
 """Tests for the SQLite recording path: store, EpisodeRecorder, StepRecorder,
-and ``vla-eval merge``.
+and ``vla-eval export``.
 
 The most important test here is :func:`test_multi_writer_field_union` — it
 exercises the contract that two processes (orchestrator + model server, or
@@ -28,7 +28,7 @@ from vla_eval.recording import (
     db_path_for_eval,
     recording_filename_context,
 )
-from vla_eval.results.merge import merge_db, merge_eval
+from vla_eval.results.export import export_db, export_eval
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ def test_step_rows_handle_numpy(tmp_path: Path) -> None:
 
 def test_jsonl_path_is_relative_to_db_dir(tmp_path: Path) -> None:
     """Regression: ``jsonl_path`` must be stored relative to the DB dir so that
-    ``vla-eval merge`` resolves it correctly when the run happened in Docker
+    ``vla-eval export`` resolves it correctly when the run happened in Docker
     (output_dir=/workspace/results) but the merge happens on the host
     (output_dir=/mnt/host/...).
     """
@@ -300,7 +300,7 @@ def test_episode_recorder_close_writes_steps_and_result(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(tmp_path / "recording.sqlite"))
     er = conn.execute("SELECT task_name, status, jsonl_path FROM episode_results").fetchone()
-    # jsonl_path is stored relative to the SQLite directory so vla-eval merge
+    # jsonl_path is stored relative to the SQLite directory so vla-eval export
     # works regardless of host-vs-container path differences.
     assert er == ("demo_task", "success", "demo_ep0003_success.jsonl")
     step_rows = [json.loads(f) for (_, f) in conn.execute("SELECT step_id, fields FROM step_rows ORDER BY step_id")]
@@ -330,7 +330,7 @@ def test_episode_recorder_close_idempotent(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# vla-eval merge
+# vla-eval export
 # ---------------------------------------------------------------------------
 
 
@@ -374,9 +374,9 @@ def _write_sample_db(tmp_path: Path) -> tuple[Path, str]:
     return db, "ev"
 
 
-def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
+def test_export_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     db, eval_id = _write_sample_db(tmp_path)
-    aggregates = merge_db(db, tmp_path)
+    aggregates = export_db(db, tmp_path)
 
     # Per-episode jsonls
     for i, status in enumerate(["success", "success", "fail"]):
@@ -407,14 +407,14 @@ def test_merge_db_emits_per_episode_jsonl_and_aggregate(tmp_path: Path) -> None:
     assert on_disk["benchmark"] == "demo_bench"
 
 
-def test_merge_eval_wrapper(tmp_path: Path) -> None:
+def test_export_eval_wrapper(tmp_path: Path) -> None:
     db, eval_id = _write_sample_db(tmp_path)
-    aggregates = merge_eval(tmp_path, eval_id)
+    aggregates = export_eval(tmp_path, eval_id)
     assert len(aggregates) == 1
     assert aggregates[0]["eval_id"] == "ev"
 
 
-def test_merge_handles_missing_jsonl_path(tmp_path: Path) -> None:
+def test_export_handles_missing_jsonl_path(tmp_path: Path) -> None:
     """Episode without a step buffer still produces an aggregate row, no jsonl."""
     db = db_path_for_eval(tmp_path, "ev")
     store = RecordingStore(db)
@@ -437,7 +437,7 @@ def test_merge_handles_missing_jsonl_path(tmp_path: Path) -> None:
     )
     store.close()
 
-    aggregates = merge_db(db, tmp_path)
+    aggregates = export_db(db, tmp_path)
     assert aggregates[0]["mean_success"] == 0.0
     # No step rows → no per-episode jsonl was written.
     assert not (tmp_path / "x_ep0000_error.jsonl").exists()
@@ -634,11 +634,11 @@ def test_process_crash_preserves_only_committed_rows(tmp_path):
         process.join()
 
 
-def test_merge_releases_db_before_artifact_writes(tmp_path, monkeypatch):
-    from vla_eval.results import merge
+def test_export_releases_db_before_artifact_writes(tmp_path, monkeypatch):
+    from vla_eval.results import export
 
     db, _ = _write_sample_db(tmp_path)
-    original = merge._write_jsonl_atomic
+    original = export._write_jsonl_atomic
     calls = []
 
     def write(path, rows):
@@ -648,11 +648,11 @@ def test_merge_releases_db_before_artifact_writes(tmp_path, monkeypatch):
         calls.append(path)
         original(path, rows)
 
-    monkeypatch.setattr(merge, "_write_jsonl_atomic", write)
-    aggregates = merge.merge_db(db, tmp_path)
+    monkeypatch.setattr(export, "_write_jsonl_atomic", write)
+    aggregates = export.export_db(db, tmp_path)
     assert calls
     assert aggregates[0]["mean_success"] == pytest.approx(2 / 3, abs=1e-4)
-    assert merge.merge_db(db, tmp_path)[0]["mean_success"] == 0
+    assert export.export_db(db, tmp_path)[0]["mean_success"] == 0
 
 
 def test_idle_wal_database_can_be_reopened(tmp_path):

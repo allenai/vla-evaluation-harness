@@ -151,7 +151,7 @@ def test_run_forwards_watchdog_timeout_to_container(monkeypatch, tmp_path) -> No
         return 0
 
     monkeypatch.setattr("vla_eval.cli._docker.run_in_container", fake_run_in_container)
-    monkeypatch.setattr("vla_eval.results.merge.merge_eval", lambda *a, **k: [])
+    monkeypatch.setattr("vla_eval.results.export.export_eval", lambda *a, **k: [])
     monkeypatch.delenv("VLA_EVAL_WATCHDOG_TIMEOUT_S", raising=False)
     cfg = {**_stub_config(), "docker": {"image": "img:tag"}}
     run(cfg, docker=True, output_dir=tmp_path, watchdog_timeout_s=42)

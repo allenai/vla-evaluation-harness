@@ -503,7 +503,7 @@ def _resolve_smoke_render(
 
 
 def _errored_episodes(aggregate: dict[str, Any]) -> list[str]:
-    """Episode error summaries from a merge aggregate.
+    """Episode error summaries from an exported aggregate.
 
     Episode failures are isolated by design, so a run where every episode errored
     still exits 0 and writes an aggregate — a smoke pass has to mean episodes

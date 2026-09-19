@@ -196,20 +196,17 @@ def cmd_run(args: argparse.Namespace) -> None:
         tail = f"  (⚠ {errs} episodes errored)" if errs else ""
         print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}{tail}")
 
-    # Single-shard runs auto-merge: write per-episode jsonl + aggregate JSON from
-    # the SQLite recording, since there are no other shard processes to coordinate
-    # with. Sharded runs leave the merge to the launcher (run_sharded.sh) so it
-    # only runs once after all shards exit.
+    # Single-shard runs export immediately; the sharded launcher exports after wait.
     if not no_save and shard_id is None:
-        from vla_eval.results.merge import merge_eval
+        from vla_eval.results.export import export_eval
 
         output_dir = Path(config.get("output_dir", "./results")).resolve()
         try:
-            merge_eval(output_dir, orchestrator.eval_id)
+            export_eval(output_dir, orchestrator.eval_id)
         except FileNotFoundError:
-            logger.info("No recording DB to merge")
+            logger.info("No recording DB to export")
         except Exception:
-            logger.exception("vla-eval merge failed for eval_id=%s", orchestrator.eval_id)
+            logger.exception("vla-eval export failed for eval_id=%s", orchestrator.eval_id)
 
 
 # yaml convention puts these under ``args:`` but they belong to the WS server,
@@ -294,18 +291,18 @@ def cmd_serve(args: argparse.Namespace) -> None:
     _exec_subprocess(cmd)
 
 
-def cmd_merge(args: argparse.Namespace) -> None:
+def cmd_export(args: argparse.Namespace) -> None:
     """Export one recording database using its saved run metadata."""
-    from vla_eval.results.merge import merge_db, print_merge_summary
+    from vla_eval.results.export import export_db, print_export_summary
 
     db = Path(args.db)
     output_dir = Path(args.output_dir or db.parent).resolve()
     try:
-        aggregates = merge_db(db, output_dir, report=True)
+        aggregates = export_db(db, output_dir, report=True)
     except Exception as exc:
-        _stderr_console().print(f"[red]ERROR merging {db}: {exc}[/red]")
+        _stderr_console().print(f"[red]ERROR exporting {db}: {exc}[/red]")
         sys.exit(1)
-    print_merge_summary(aggregates)
+    print_export_summary(aggregates)
 
 
 def cmd_test(args: argparse.Namespace) -> None:
@@ -574,14 +571,14 @@ execution flow:
   sharding (--shard-id / --num-shards):
     Work items (task × episode pairs) are distributed round-robin across shards.
     All shards share a single recording-<eval-id>.sqlite via SQLite write transactions.
-    Pass the same --eval-id to every shard, then run 'vla-eval merge' once at
+    Pass the same --eval-id to every shard, then run 'vla-eval export' once at
     the end (scripts/run_sharded.sh does this for you).
 
   recording:
     By default, benchmark entries write episode results + step rows to
     <output_dir>/recording-<eval-id>.sqlite with videos off. A recording:
     block overrides those defaults per benchmark; use --record-video to
-    enable per-episode mp4s for the run. Single-shard runs auto-merge.
+    enable per-episode mp4s for the run. Single-shard runs auto-export.
     Use --no-save for in-memory summary only.
 
   render backend (render: gpu|cpu, --render):
@@ -731,15 +728,16 @@ server-level key (host/port).
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)
 
-    merge_parser = sub.add_parser(
-        "merge",
+    export_parser = sub.add_parser(
+        "export",
         help="Export episode JSONL and aggregate JSON from one recording SQLite",
-        description="Export a consistent snapshot; rerun to include subsequently recorded episodes.",
+        description="Export episode JSONL and aggregate JSON from a consistent snapshot, and report aggregates "
+        "to configured trackers. Rerun to include subsequently recorded episodes.",
     )
-    merge_parser.add_argument("db", help="Recording SQLite path")
-    merge_parser.add_argument("-o", "--output-dir", help="Artifact directory (default: DB parent)")
-    merge_parser.add_argument("--verbose", "-v", action="store_true")
-    merge_parser.set_defaults(func=cmd_merge)
+    export_parser.add_argument("db", help="Recording SQLite path")
+    export_parser.add_argument("-o", "--output-dir", help="Artifact directory (default: DB parent)")
+    export_parser.add_argument("--verbose", "-v", action="store_true")
+    export_parser.set_defaults(func=cmd_export)
 
     # test command
     test_parser = sub.add_parser(

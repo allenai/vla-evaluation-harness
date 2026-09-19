@@ -41,7 +41,7 @@ The body of `vla-eval run`. Returns one `BenchmarkResult` dict per `benchmarks[]
 
 Docker runs use `--network host`, so the in-process server on `127.0.0.1` is reachable from the
 container. Sharding is not wrapped; launch `run` once per shard with the same `eval_id` and call
-`vla_eval.results.merge.merge_eval` afterwards, as `scripts/run_sharded.sh` does.
+`vla_eval.results.export.export_eval` afterwards, as `scripts/run_sharded.sh` does.
 
 ## `serve_background(model_server, *, host="127.0.0.1", port=0)`
 

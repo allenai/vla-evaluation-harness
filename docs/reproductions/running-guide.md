@@ -47,7 +47,7 @@ wait
 # 5. Archive + merge
 mkdir -p docs/reproductions/data/${MODEL}-libero
 cp "results/recording-$EVAL_ID.sqlite" docs/reproductions/data/${MODEL}-libero/
-uv run vla-eval merge "results/recording-$EVAL_ID.sqlite" \
+uv run vla-eval export "results/recording-$EVAL_ID.sqlite" \
   -o docs/reproductions/data/${MODEL}-libero/
 ```
 

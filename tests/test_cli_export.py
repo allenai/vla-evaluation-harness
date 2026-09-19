@@ -36,7 +36,7 @@ def _database(path):
 
 
 @pytest.mark.parametrize("override", [False, True])
-def test_merge_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
+def test_export_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
     db = tmp_path / "renamed.sqlite"
     _database(db)
     events = []
@@ -63,7 +63,7 @@ def test_merge_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
 
     monkeypatch.setattr("vla_eval.tracking.get_reporting_trackers", trackers)
     output = tmp_path / "exported" if override else tmp_path
-    cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=str(output) if override else None))
+    cli.cmd_export(argparse.Namespace(db=str(db), output_dir=str(output) if override else None))
     assert json.loads((output / "demo_aggregate.json").read_text())["mean_success"] == 1
     assert json.loads((output / "episode.jsonl").read_text()) == {"step": 0, "reward": 1}
     assert events[0][0:2] == ("begin", "original-id")
@@ -74,7 +74,7 @@ def test_merge_exports_and_reports_saved_run(tmp_path, monkeypatch, override):
 def test_missing_db_fails_without_creating_it(tmp_path):
     db = tmp_path / "missing.sqlite"
     with pytest.raises(SystemExit) as exc:
-        cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=None))
+        cli.cmd_export(argparse.Namespace(db=str(db), output_dir=None))
     assert exc.value.code == 1
     assert not db.exists()
 
@@ -89,24 +89,31 @@ def test_legacy_database_exports_without_tracking(tmp_path, monkeypatch):
         raise AssertionError("Legacy database must not invent tracker settings")
 
     monkeypatch.setattr("vla_eval.tracking.get_reporting_trackers", unexpected)
-    cli.cmd_merge(argparse.Namespace(db=str(db), output_dir=None))
+    cli.cmd_export(argparse.Namespace(db=str(db), output_dir=None))
     assert (tmp_path / "demo_aggregate.json").exists()
 
 
-def test_merge_parser_accepts_positional_db(tmp_path, monkeypatch):
+def test_export_parser_accepts_positional_db(tmp_path, monkeypatch):
     db = tmp_path / "input.sqlite"
     output = tmp_path / "exported"
     called = []
-    monkeypatch.setattr(cli, "cmd_merge", lambda args: called.append(args))
-    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", str(db), "-o", str(output)])
+    monkeypatch.setattr(cli, "cmd_export", lambda args: called.append(args))
+    monkeypatch.setattr("sys.argv", ["vla-eval", "export", str(db), "-o", str(output)])
     cli.main()
     assert called[0].db == str(db)
     assert called[0].output_dir == str(output)
 
 
 @pytest.mark.parametrize("flag", ["--db", "--config", "--eval-id"])
-def test_removed_merge_flags_are_rejected(flag, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", flag, "abc"])
+def test_removed_export_flags_are_rejected(flag, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["vla-eval", "export", flag, "abc"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 2
+
+
+def test_merge_command_has_no_alias(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["vla-eval", "merge", "recording.sqlite"])
     with pytest.raises(SystemExit) as exc:
         cli.main()
     assert exc.value.code == 2

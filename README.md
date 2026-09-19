@@ -146,7 +146,7 @@ A full evaluation takes hours sequentially. Two layers of parallelism bring this
 ### Episode Sharding (environment parallelism)
 
 ```bash
-# Option A: use the helper script (launches all shards + auto-merges)
+# Option A: use the helper script (launches all shards + auto-exports)
 ./scripts/run_sharded.sh -c configs/benchmarks/libero/spatial.yaml -n 50
 
 # Option B: manual launch
@@ -155,14 +155,14 @@ vla-eval run -c configs/benchmarks/libero/spatial.yaml --eval-id "$EVAL_ID" --sh
 vla-eval run -c configs/benchmarks/libero/spatial.yaml --eval-id "$EVAL_ID" --shard-id 1 --num-shards 4 &
 # ... (each shard is a separate process)
 wait
-vla-eval merge "results/recording-$EVAL_ID.sqlite"
+vla-eval export "results/recording-$EVAL_ID.sqlite"
 # Optionally export to another directory:
-vla-eval merge "results/recording-$EVAL_ID.sqlite" -o exported/
+vla-eval export "results/recording-$EVAL_ID.sqlite" -o exported/
 ```
 
 Work items are shuffled with a fixed seed before the round-robin split, so no shard ends up holding a single episode index across every task; each shard then runs its slice task by task. Results merge with episode-level deduplication; if a shard fails, re-run only that shard.
 
-Benchmark containers run as root by default, so `output_dir` ends up root-owned and the host-side `vla-eval merge` fails with `Permission denied`. Set `docker.user: host` in the eval YAML (or an explicit `"<uid>:<gid>"`) to run the containers as the invoking user.
+Benchmark containers run as root by default, so `output_dir` ends up root-owned and the host-side `vla-eval export` fails with `Permission denied`. Set `docker.user: host` in the eval YAML (or an explicit `"<uid>:<gid>"`) to run the containers as the invoking user.
 
 ### Batch Model Server (GPU parallelism)
 
@@ -257,7 +257,7 @@ benchmarks:
       video_fps: 10
 ```
 
-Recording writes `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. `vla-eval merge` materializes per-episode JSONL + aggregate JSON from the DB. Single-shard runs auto-merge; sharded runs call `vla-eval merge` once after all shards exit. `--no-save` skips recording entirely.
+Recording writes `<output_dir>/recording-<eval_id>.sqlite`: per-step rows, episode results, and eval metadata. `vla-eval export` materializes per-episode JSONL + aggregate JSON from the DB. Single-shard runs auto-export; sharded runs call `vla-eval export` once after all shards exit. `--no-save` skips recording entirely.
 
 Writers share one SQLite using `journal_mode=DELETE`, `synchronous=EXTRA`, and explicit write transactions. Shared filesystems must provide working SQLite-compatible file locks and sync semantics. Upgrade every writer together; stop old WAL writers before reopening an existing recording with the new version.
 
@@ -267,7 +267,7 @@ Run metadata stores only the evaluation ID and `tracking.report_to`, not the res
 
 Export uses a temporary SQLite snapshot (under the system temporary directory), then streams episode files from it. Temporary disk space scales with the recording size; step data is buffered only one episode at a time.
 
-`vla-eval merge DB [-o DIR]` reads a consistent snapshot and releases the DB before writing artifacts. During evaluation it exports the recorded results so far; rerun to include later commits. Run identity and tracking configuration come from the DB, even if it is renamed. Older DBs without run metadata still export files but do not emit tracking events. This replaces merge's former `--config`, `--eval-id`, and `--db` options.
+`vla-eval export DB [-o DIR]` reads a consistent snapshot and releases the DB before writing artifacts. During evaluation it exports the recorded results so far; rerun to include later commits. Run identity and tracking configuration come from the DB, even if it is renamed. Older DBs without run metadata still export files but do not emit tracking events. This replaces `merge` and its former `--config`, `--eval-id`, and `--db` options; no `merge` alias is provided.
 
 When `filename_stem` is omitted, per-episode artifacts use a benchmark-scoped path:
 `{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}`. Custom stems can still reference serializable task fields such as `{name}` plus `{status}`.
@@ -281,9 +281,9 @@ tracking:
   report_to: wandb           # "wandb" | ["wandb", "trackio"] | "all" | "none"
 ```
 
-The harness injects `id=<eval_id>` + `resume="allow"` so live (`vla-eval run`) and merge (`vla-eval merge`) paths converge on the same run. All other settings, including project, entity, and API key, come from the backend's native env vars (`WANDB_*`, `TRACKIO_*`). See the [W&B env reference](https://docs.wandb.ai/guides/track/environment-variables) for details. Install the backend yourself: `pip install wandb` / `pip install trackio`.
+The harness injects `id=<eval_id>` + `resume="allow"` so live (`vla-eval run`) and export (`vla-eval export`) paths converge on the same run. All other settings, including project, entity, and API key, come from the backend's native env vars (`WANDB_*`, `TRACKIO_*`). See the [W&B env reference](https://docs.wandb.ai/guides/track/environment-variables) for details. Install the backend yourself: `pip install wandb` / `pip install trackio`.
 
-Under sharding, aggregate emission defers to `vla-eval merge`; per-episode tracking is live-path only.
+Under sharding, aggregate emission defers to `vla-eval export`; per-episode tracking is live-path only.
 
 ---
 

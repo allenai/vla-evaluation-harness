@@ -1,4 +1,4 @@
-"""The launcher passes the same recording location to run and merge."""
+"""The launcher passes the same recording location to run and export."""
 
 import json
 import os
@@ -10,7 +10,7 @@ import pytest
 
 
 @pytest.mark.parametrize("override", [False, True])
-def test_launcher_resolves_merge_db(tmp_path, override):
+def test_launcher_resolves_export_db(tmp_path, override):
     base = tmp_path / "base.yaml"
     base.write_text("output_dir: inherited results\n")
     config = tmp_path / "eval.yaml"
@@ -20,7 +20,7 @@ def test_launcher_resolves_merge_db(tmp_path, override):
         f"#!{sys.executable}\n"
         "import json, pathlib, sys\n"
         "args = sys.argv[1:]\n"
-        "name = args[args.index('--shard-id') + 1] if args[0] == 'run' else 'merge'\n"
+        "name = args[args.index('--shard-id') + 1] if args[0] == 'run' else 'export'\n"
         "pathlib.Path(name + '.json').write_text(json.dumps(args))\n"
     )
     executable.chmod(0o755)
@@ -37,7 +37,7 @@ def test_launcher_resolves_merge_db(tmp_path, override):
         timeout=30,
     )
     output = "override results" if override else "inherited results"
-    assert json.loads((tmp_path / "merge.json").read_text()) == ["merge", f"{output}/recording-abc.sqlite"]
+    assert json.loads((tmp_path / "export.json").read_text()) == ["export", f"{output}/recording-abc.sqlite"]
     for shard in range(2):
         args = json.loads((tmp_path / f"{shard}.json").read_text())
         assert args[args.index("--output-dir") + 1] == output

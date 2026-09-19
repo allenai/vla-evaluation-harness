@@ -100,9 +100,9 @@ See `docs/tuning-guide.md` for how to derive optimal `num_shards`, `max_batch_si
 ## 5. Merge shard results
 
 ```bash
-vla-eval merge results/recording-<eval-id>.sqlite
+vla-eval export results/recording-<eval-id>.sqlite
 # Optional destination directory:
-vla-eval merge results/recording-<eval-id>.sqlite -o exported/
+vla-eval export results/recording-<eval-id>.sqlite -o exported/
 ```
 
 Merge exports committed results so far; it does not certify that all shards completed.

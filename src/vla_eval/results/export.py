@@ -36,7 +36,7 @@ def _write_json_atomic(path: Path, body: dict[str, Any]) -> None:
     os.replace(str(tmp), str(path))
 
 
-def merge_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[dict[str, Any]]:
+def export_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[dict[str, Any]]:
     """Read one consistent snapshot, then write artifacts and optionally report metrics."""
     if not db_path.is_file():
         raise FileNotFoundError(f"Recording DB not found: {db_path}")
@@ -60,7 +60,7 @@ def merge_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[d
 @contextmanager
 def _recording_snapshot(db_path: Path) -> Iterator[sqlite3.Connection]:
     """Release source locks before exporting, without buffering all steps in RAM."""
-    with tempfile.TemporaryDirectory(prefix="vla-eval-merge-") as directory:
+    with tempfile.TemporaryDirectory(prefix="vla-eval-export-") as directory:
         snapshot = sqlite3.connect(str(Path(directory) / "snapshot.sqlite"))
         try:
             source = sqlite3.connect(db_path.resolve().as_uri() + "?mode=rw", uri=True, timeout=60.0)
@@ -195,12 +195,12 @@ def _read_episode_steps(conn: sqlite3.Connection, sid: str, eid: str) -> list[di
     return rows
 
 
-def merge_eval(output_dir: Path, eval_id: str) -> list[dict[str, Any]]:
-    """Convenience wrapper: ``merge_db(db_path_for_eval(output_dir, eval_id), output_dir)``."""
-    return merge_db(db_path_for_eval(output_dir, eval_id), output_dir)
+def export_eval(output_dir: Path, eval_id: str) -> list[dict[str, Any]]:
+    """Convenience wrapper: ``export_db(db_path_for_eval(output_dir, eval_id), output_dir)``."""
+    return export_db(db_path_for_eval(output_dir, eval_id), output_dir)
 
 
-def print_merge_summary(aggregates: list[dict[str, Any]]) -> None:
+def print_export_summary(aggregates: list[dict[str, Any]]) -> None:
     """Reuse the collector's task table for the final printed summary."""
     from rich.console import Console
 

@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS episode_results (
     steps           INTEGER,
     elapsed_sec     REAL,
     context         TEXT,            -- JSON
-    jsonl_path      TEXT,            -- resolved final filename for ``vla-eval merge``
+    jsonl_path      TEXT,            -- resolved final filename for ``vla-eval export``
     failure_reason  TEXT,
     failure_detail  TEXT,
     PRIMARY KEY (sid, eid)
@@ -429,10 +429,7 @@ class EpisodeRecorder:
         except Exception:
             logger.exception("filename_stem render failed; using fallback name")
             jsonl_name = f"{self._sid}-{self._eid}_{status}.jsonl"
-        # Store the path RELATIVE to the SQLite file's directory whenever
-        # possible so that `vla-eval merge` resolves it correctly whether the
-        # run happens inside Docker (where output_dir = /workspace/results)
-        # and merge happens on the host (different absolute prefix).
+        # Relative paths let host-side export resolve recordings made inside containers.
         abs_jsonl = (self._output_dir / jsonl_name).resolve()
         db_dir = Path(self._store.db_path).resolve().parent
         try:
