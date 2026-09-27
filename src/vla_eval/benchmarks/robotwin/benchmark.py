@@ -179,6 +179,21 @@ def _patched_render_setup(enabled: bool):
             setattr(sapien_render, name, func)
 
 
+def _restore_play_once_attributes(env: Any, task_name: str) -> None:
+    """Set what these tasks' check_success reads but only play_once assigns (eval_policy.py runs play_once on the same
+    env first); play_once derives it from the initial scene, so the same expressions after setup_demo match."""
+    if task_name == "open_laptop":
+        from envs.utils import ArmTag, get_face_prod
+
+        env.arm_tag = ArmTag("left" if get_face_prod(env.laptop.get_pose().q, [1, 0, 0], [1, 0, 0]) > 0 else "right")
+    elif task_name in ("place_object_scale", "put_object_cabinet"):
+        from envs.utils import ArmTag
+
+        env.arm_tag = ArmTag("right" if env.object.get_pose().p[0] > 0 else "left")
+        if task_name == "put_object_cabinet":
+            env.origin_z = env.object.get_pose().p[2]
+
+
 class RoboTwinBenchmark(StepBenchmark):
     """RoboTwin dual-arm manipulation benchmark (SAPIEN/CuRobo).
 
@@ -399,6 +414,7 @@ class RoboTwinBenchmark(StepBenchmark):
                 is_test=True,
                 **self._args,
             )
+        _restore_play_once_attributes(self._env, self.task_name)
         self._env.set_instruction(instruction=task["instruction"])
         raw_obs = self._env.get_obs()
         self._recorder.record_video(self._extract_frame(raw_obs))
