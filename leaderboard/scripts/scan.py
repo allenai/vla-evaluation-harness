@@ -6,7 +6,8 @@ and write both
 
 - data/scan_results.json — per-benchmark `all_citing_ids` pool (the list
   consumed by extract.py's `run --from-scan`),
-- data/coverage.json — counts for the leaderboard site.
+- data/coverage.json — counts for the leaderboard site (external_only
+  benchmarks excluded).
 
 `--check` mode: don't hit the S2 API; just re-derive data/coverage.json
 from whatever is already on disk (existing scan_results.json pools and
@@ -215,6 +216,8 @@ def main():
         )
         print(f"Wrote {SCAN_RESULTS_PATH}")
 
+    # external_only benchmarks carry no rows here, so they get no coverage entry either.
+    benchmarks = {k: v for k, v in benchmarks.items() if not v.get("external_only")}
     reviewed_by_bm = load_reviewed_by_benchmark(benchmarks, scan_by_bm)
     all_reviewed: set[str] = set()
     for papers in reviewed_by_bm.values():

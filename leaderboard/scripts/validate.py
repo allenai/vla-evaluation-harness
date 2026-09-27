@@ -203,7 +203,7 @@ def validate_aggregation_rules(data: dict) -> list[str]:
 
     Two shapes of rule live in benchmarks.json (sourced from md frontmatter):
 
-    - ``"forbidden"`` — overall_score MUST be null (e.g. simpler_env, robotwin_v2).
+    - ``"forbidden"`` — overall_score MUST be null (e.g. simpler_env, robocasa).
     - ``{"container": "suite_scores"|"task_scores", "keys": [...]}`` — if all
       required keys are present on the entry, overall_score must match their
       arithmetic mean within a small tolerance. Entries missing any key are

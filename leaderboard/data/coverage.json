@@ -1,8 +1,8 @@
 {
   "last_updated": "2026-09-01",
-  "total_models": 3475,
-  "total_results": 3971,
-  "total_papers_reviewed": 2504,
+  "total_models": 3160,
+  "total_results": 3576,
+  "total_papers_reviewed": 2386,
   "benchmarks": {
     "calvin": {
       "display_name": "CALVIN",
@@ -68,14 +68,6 @@
       "leaderboard_entries": 20,
       "papers_reviewed": 26
     },
-    "molmospaces": {
-      "display_name": "MolmoSpaces-Bench",
-      "arxiv_id": "2602.11337",
-      "citing_papers": 12,
-      "arxiv_citing_papers": 12,
-      "leaderboard_entries": 0,
-      "papers_reviewed": 9
-    },
     "rlbench": {
       "display_name": "RLBench",
       "arxiv_id": "1909.12271",
@@ -83,14 +75,6 @@
       "arxiv_citing_papers": 789,
       "leaderboard_entries": 208,
       "papers_reviewed": 584
-    },
-    "roboarena": {
-      "display_name": "RoboArena",
-      "arxiv_id": "2506.18123",
-      "citing_papers": 73,
-      "arxiv_citing_papers": 67,
-      "leaderboard_entries": 0,
-      "papers_reviewed": 62
     },
     "robocasa": {
       "display_name": "RoboCasa",
@@ -100,14 +84,6 @@
       "leaderboard_entries": 271,
       "papers_reviewed": 379
     },
-    "robocasa365": {
-      "display_name": "RoboCasa365",
-      "arxiv_id": "2603.04356",
-      "citing_papers": 57,
-      "arxiv_citing_papers": 55,
-      "leaderboard_entries": 0,
-      "papers_reviewed": 46
-    },
     "robocerebra": {
       "display_name": "RoboCerebra",
       "arxiv_id": "2506.06677",
@@ -115,22 +91,6 @@
       "arxiv_citing_papers": 27,
       "leaderboard_entries": 10,
       "papers_reviewed": 25
-    },
-    "robochallenge": {
-      "display_name": "RoboChallenge",
-      "arxiv_id": "2510.17950",
-      "citing_papers": 30,
-      "arxiv_citing_papers": 30,
-      "leaderboard_entries": 0,
-      "papers_reviewed": 22
-    },
-    "robodojo": {
-      "display_name": "RoboDojo",
-      "arxiv_id": "2607.04434",
-      "citing_papers": 8,
-      "arxiv_citing_papers": 9,
-      "leaderboard_entries": 0,
-      "papers_reviewed": 6
     },
     "robomme": {
       "display_name": "RoboMME",
@@ -147,14 +107,6 @@
       "arxiv_citing_papers": 87,
       "leaderboard_entries": 50,
       "papers_reviewed": 75
-    },
-    "robotwin_v2": {
-      "display_name": "RoboTwin 2.0",
-      "arxiv_id": "2506.18088",
-      "citing_papers": 414,
-      "arxiv_citing_papers": 392,
-      "leaderboard_entries": 395,
-      "papers_reviewed": 335
     },
     "simpler_env": {
       "display_name": "SimplerEnv",

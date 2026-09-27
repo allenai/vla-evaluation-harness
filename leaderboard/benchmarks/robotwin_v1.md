@@ -58,7 +58,7 @@ detail_notes: "RoboTwin 1.0 (ECCV 2024). Task counts vary by paper (4–17). Sco
 ## Checks
 - Does the task count match the original RoboTwin v1 paper's exact set? If not → `overall_score = null`.
 - Is the task count recorded in `notes`?
-- Is this v1 (not v2)? v2 results must go to `robotwin_v2`.
+- Is this v1 (not v2)? v2 is external-only (`robotwin_v2`); reject v2 rows entirely.
 
 ## Methodology axes (record in `notes`, do not null)
 - Task count: varies across papers (4–17 tasks on v1). Entries with different counts are not comparable; record the exact count.
