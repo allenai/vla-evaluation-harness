@@ -20,6 +20,8 @@ two upstream releases are not API-compatible.
 from __future__ import annotations
 
 import os
+import tempfile
+import xml.etree.ElementTree as ET
 from typing import Any
 
 import numpy as np
@@ -30,6 +32,8 @@ from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROT
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 ACTION_DIM = 7
+# the first 9 dims of the released demonstrations' proprio
+STATE_KEYS = ("robot0_base_to_eef_pos", "robot0_base_to_eef_quat", "robot0_gripper_qpos")
 
 # The benchmark's 24 atomic tasks: robocasa's ``SINGLE_STAGE_TASK_DATASETS``
 # minus ``NavigateKitchen``, which is locomotion rather than manipulation.
@@ -68,6 +72,36 @@ ATOMIC_TASKS = [
 EVAL_LAYOUT_AND_STYLE_IDS = ((1, 1), (2, 2), (4, 4), (6, 9), (7, 10))
 
 
+def _patch_mjcf_object_for_read_only_assets() -> None:
+    """RoboCasa writes a temporary copy of each object MJCF next to it, which fails in a read-only image (Charliecloud);
+    then hand it a copy in a temporary directory, with the asset paths made absolute."""
+    from robocasa.models.objects.objects import MJCFObject
+
+    if getattr(MJCFObject, "_vla_eval_patched", False):
+        return
+    original_init, tmp_dir = MJCFObject.__init__, tempfile.mkdtemp(prefix="robocasa_mjcf_")
+
+    def __init__(self, name, mjcf_path, *args, **kwargs):
+        folder = os.path.dirname(mjcf_path)
+        if os.access(folder, os.W_OK):
+            return original_init(self, name, mjcf_path, *args, **kwargs)
+        root = ET.parse(mjcf_path).getroot()
+        for elem in root.iter():
+            path = elem.get("file")
+            if path is not None and not os.path.isabs(path):
+                elem.set("file", os.path.normpath(os.path.join(folder, path)))
+        fd, copy = tempfile.mkstemp(suffix=".xml", dir=tmp_dir)
+        with os.fdopen(fd, "wb") as f:
+            ET.ElementTree(root).write(f)
+        try:
+            original_init(self, name, copy, *args, **kwargs)
+        finally:
+            os.remove(copy)
+
+    MJCFObject.__init__ = __init__
+    MJCFObject._vla_eval_patched = True
+
+
 def _task_horizon(task_name: str) -> int:
     from robocasa.utils.dataset_registry import MULTI_STAGE_TASK_DATASETS, SINGLE_STAGE_TASK_DATASETS
 
@@ -95,6 +129,7 @@ class RoboCasaBenchmark(StepBenchmark):
             evaluation scenes.  Disable to sample the full scene distribution.
         seed: Base seed; episode ``i`` of each task runs at ``seed + i``.
             ``None`` leaves the environment unseeded.
+        send_state: Add ``states`` (9-D: base-frame eef position and quaternion, gripper qpos) to observations.
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
@@ -115,6 +150,7 @@ class RoboCasaBenchmark(StepBenchmark):
         obj_instance_split: str | None = "B",
         eval_scenes: bool = True,
         seed: int | None = None,
+        send_state: bool = False,
     ) -> None:
         super().__init__()
         if obj_instance_split not in {"A", "B", None}:
@@ -132,6 +168,7 @@ class RoboCasaBenchmark(StepBenchmark):
         self._obj_instance_split = obj_instance_split
         self._eval_scenes = eval_scenes
         self._seed = seed
+        self.send_state = send_state
         self._env: Any = None
         self._current_task: str | None = None
         self._lang: str = ""
@@ -157,6 +194,7 @@ class RoboCasaBenchmark(StepBenchmark):
         os.environ.setdefault("MUJOCO_GL", "egl")
         from robocasa.utils.env_utils import create_env
 
+        _patch_mjcf_object_for_read_only_assets()
         return create_env(
             env_name=task_name,
             robots=self._robot,
@@ -235,10 +273,10 @@ class RoboCasaBenchmark(StepBenchmark):
             if key in raw_obs:
                 # RoboCasa images are upside-down — flip vertically
                 images[cam] = np.ascontiguousarray(raw_obs[key][::-1])
-        return {
-            "images": images,
-            "task_description": self._lang,
-        }
+        obs: Observation = {"images": images, "task_description": self._lang}
+        if self.send_state:
+            obs["states"] = np.concatenate([np.asarray(raw_obs[k], dtype=np.float32) for k in STATE_KEYS])
+        return obs
 
     def check_done(self, step_result: StepResult) -> bool:
         return step_result.done or step_result.info.get("success", False)
@@ -265,10 +303,10 @@ class RoboCasaBenchmark(StepBenchmark):
         }
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
-        return {
-            "robot0_agentview_left": IMAGE_RGB,
-            "language": LANGUAGE,
-        }
+        spec = {"robot0_agentview_left": IMAGE_RGB, "language": LANGUAGE}
+        if self.send_state:
+            spec["state"] = DimSpec("state", 9, "base_frame_eef_pos3_quat4_gripper2")
+        return spec
 
     def render(self) -> np.ndarray | None:
         try:
