@@ -10,7 +10,7 @@ import random
 import re
 import traceback
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -318,7 +318,9 @@ class Orchestrator:
         work_items = [
             (task_idx, task, ep) for task_idx, task in enumerate(tasks) for ep in range(cfg.episodes_per_task)
         ]
-        if self.num_shards is not None and self.shard_id is not None:
+        # Shards with a recording DB take items from a shared queue as they free up; without one, a fixed split.
+        dynamic = self._store is not None and self.num_shards is not None and self.shard_id is not None
+        if self.num_shards is not None and self.shard_id is not None and not dynamic:
             work_items = _shard_work_items(work_items, self.num_shards, self.shard_id)
             logger.info("Shard %d/%d: %d episodes assigned", self.shard_id, self.num_shards, len(work_items))
 
@@ -371,8 +373,20 @@ class Orchestrator:
             if self._live_tracking:
                 call_each(self._trackers, "on_episode_end", name, task_name, ep_dict, status)
 
+        def my_items() -> Iterator[tuple[int, Any, int]]:
+            if not dynamic:
+                yield from work_items
+                return
+            assert self._store is not None and self.shard_id is not None
+            self._store.seed_queue(bench_eval_id, [t for t, _, _ in work_items])
+            task_idx = None
+            while (item := self._store.claim(bench_eval_id, self.shard_id, task_idx)) is not None:
+                yield work_items[item]
+                self._store.finish(bench_eval_id, item)  # not reached when the loop aborts: a rerun redoes it
+                task_idx = work_items[item][0]
+
         try:
-            for item_idx, (task_idx, task, ep) in enumerate(work_items):
+            for item_idx, (task_idx, task, ep) in enumerate(my_items()):
                 task_name = task.get("name", str(task))
                 watchdog.pet(f"{safe_name} {task_name} ep{ep}")
                 recorder: EpisodeRecorder = NullEpisodeRecorder()

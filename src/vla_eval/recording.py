@@ -74,6 +74,15 @@ CREATE TABLE IF NOT EXISTS episode_results (
 );
 CREATE INDEX IF NOT EXISTS idx_episode_results_eval ON episode_results(eval_id);
 
+CREATE TABLE IF NOT EXISTS work_queue (
+    eval_id  TEXT NOT NULL,
+    item     INTEGER NOT NULL,  -- index into the entry's work items, identical on every shard
+    task_idx INTEGER NOT NULL,
+    shard_id INTEGER,           -- claimant; NULL while unclaimed
+    done     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (eval_id, item)
+);
+
 CREATE TABLE IF NOT EXISTS step_rows (
     sid      TEXT NOT NULL,
     eid      TEXT NOT NULL,
@@ -207,6 +216,34 @@ class RecordingStore:
                 "INSERT OR REPLACE INTO eval_shards VALUES (?, ?, ?, ?)",
                 (eval_id, shard_id, num_shards, complete),
             )
+
+    def seed_queue(self, eval_id: str, task_idxs: list[int]) -> None:
+        """Add an entry's work items once; every shard computes the same list."""
+        with self.transaction():
+            self._conn.executemany(
+                "INSERT OR IGNORE INTO work_queue (eval_id, item, task_idx) VALUES (?, ?, ?)",
+                [(eval_id, i, t) for i, t in enumerate(task_idxs)],
+            )
+
+    def claim(self, eval_id: str, shard_id: int, task_idx: int | None) -> int | None:
+        """Next item for ``shard_id``: its own unfinished items first (a rerun after a crash), then unclaimed items
+        of ``task_idx`` (the loaded env), then any unclaimed item. Marks nothing done; see ``finish``."""
+        with self.transaction():
+            row = self._conn.execute(
+                "SELECT item FROM work_queue WHERE eval_id = ? AND done = 0 AND (shard_id = ? OR shard_id IS NULL) "
+                "ORDER BY shard_id IS NULL, task_idx IS NOT ?, item LIMIT 1",
+                (eval_id, shard_id, task_idx),
+            ).fetchone()
+            if row is None:
+                return None
+            self._conn.execute(
+                "UPDATE work_queue SET shard_id = ? WHERE eval_id = ? AND item = ?", (shard_id, eval_id, row[0])
+            )
+            return row[0]
+
+    def finish(self, eval_id: str, item: int) -> None:
+        with self.transaction():
+            self._conn.execute("UPDATE work_queue SET done = 1 WHERE eval_id = ? AND item = ?", (eval_id, item))
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
         """Keep the first metadata; flag renderer disagreement between shards."""

@@ -762,3 +762,21 @@ def test_readonly_directory_reports_journal_permission_requirement(tmp_path):
             RecordingStore(db)
     finally:
         directory.chmod(0o755)
+
+
+def test_work_queue_claims(tmp_path: Path) -> None:
+    """Two shards share one queue: no item twice, the loaded task first, a rerun resumes its own unfinished item."""
+    db = tmp_path / "q.sqlite"
+    a, b = RecordingStore(db), RecordingStore(db)
+    for store in (a, b):
+        store.seed_queue("ev", [0, 0, 1, 1])  # idempotent
+    assert a.claim("ev", 0, None) == 0
+    assert b.claim("ev", 1, 1) == 2  # prefers its loaded task
+    assert a.claim("ev", 0, None) == 0  # item 0 unfinished: a rerun of shard 0 gets it back
+    a.finish("ev", 0)
+    assert a.claim("ev", 0, 0) == 1
+    b.finish("ev", 2)
+    assert b.claim("ev", 1, 1) == 3
+    a.finish("ev", 1)
+    b.finish("ev", 3)
+    assert a.claim("ev", 0, 0) is None and b.claim("ev", 1, None) is None

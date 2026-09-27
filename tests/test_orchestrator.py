@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import json
 import logging
 import sqlite3
@@ -239,6 +241,29 @@ async def test_orchestrator_sharding_splits_work(echo_server, tmp_path):
 
     assert len(all_episode_keys) == 6
     assert len(set(all_episode_keys)) == 6
+
+
+@pytest.mark.anyio
+async def test_orchestrator_shards_share_a_work_queue(echo_server, tmp_path):
+    """Concurrent shards with a recording DB take episodes from one queue: every episode runs exactly once."""
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "queue_test",
+                "episodes_per_task": 3,
+                "max_steps": 50,
+                "params": {"done_at_step": 2, "num_tasks": 2},
+            }
+        ],
+    }
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=StubBenchmark):
+        runs = [Orchestrator(config, shard_id=i, num_shards=3, eval_id="ev-q", no_save=False) for i in range(3)]
+        results = await asyncio.gather(*(orch.run() for orch in runs))
+    keys = [(t["task"], ep["episode_id"]) for r in results for t in r[0]["tasks"] for ep in t["episodes"]]
+    assert sorted(keys) == sorted({(f"task_{t}", e) for t in range(2) for e in range(3)})
 
 
 @pytest.mark.anyio
