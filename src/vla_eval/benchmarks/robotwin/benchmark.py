@@ -357,7 +357,13 @@ class RoboTwinBenchmark(StepBenchmark):
         episode_idx = 0
         logger.info("Running expert checks from seed %d ...", st_seed)
 
+        # a broken planner install fails every seed; the worst demo_clean task needs about 5 seeds per solvable one
+        max_seeds = 20 * self.test_num
         while len(tasks) < self.test_num:
+            if now_seed - st_seed >= max_seeds:
+                raise RuntimeError(
+                    f"{self.task_name}: {len(tasks)}/{self.test_num} solvable seeds in {max_seeds} tries"
+                )
             try:
                 env.setup_demo(
                     now_ep_num=episode_idx,
@@ -468,7 +474,7 @@ class RoboTwinBenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {
-            "max_steps": 400,
+            "max_steps": 1700,  # step() ends each episode at its task's step_lim, at most 1700
             "task_name": self.task_name,
             "action_dim": 14,
             "max_episodes_per_task": self.test_num,
