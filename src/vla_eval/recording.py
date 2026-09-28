@@ -225,21 +225,45 @@ class RecordingStore:
                 [(eval_id, i, t) for i, t in enumerate(task_idxs)],
             )
 
-    def claim(self, eval_id: str, shard_id: int, task_idx: int | None) -> int | None:
-        """Next item for ``shard_id``: its own unfinished items first (a rerun after a crash), then unclaimed items
-        of ``task_idx`` (the loaded env), then any unclaimed item. Marks nothing done; see ``finish``."""
+    def claim(self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int) -> int | None:
+        """Next item for ``shard_id``. Items are task-sorted and shard k's home block is those with
+        ``item * num_shards // n == k``. Order: its own unfinished item (a rerun after a crash), the loaded task
+        (own block forward, else others' from the end), its own block forward, then the end of the block with
+        the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task."""
         with self.transaction():
-            row = self._conn.execute(
-                "SELECT item FROM work_queue WHERE eval_id = ? AND done = 0 AND (shard_id = ? OR shard_id IS NULL) "
-                "ORDER BY shard_id IS NULL, task_idx IS NOT ?, item LIMIT 1",
-                (eval_id, shard_id, task_idx),
-            ).fetchone()
-            if row is None:
+            n = self._conn.execute("SELECT COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)).fetchone()[0]
+            rows = self._conn.execute(
+                "SELECT item, task_idx, shard_id FROM work_queue WHERE eval_id = ? AND done = 0 "
+                "AND (shard_id = ? OR shard_id IS NULL)",
+                (eval_id, shard_id),
+            ).fetchall()
+            mine = [i for i, _, s in rows if s == shard_id]
+            free = [(i, t) for i, t, s in rows if s is None]
+            if mine:
+                return min(mine)
+            if not free:
                 return None
+
+            def home(i: int) -> int:
+                return i * num_shards // n
+
+            same = [i for i, t in free if t == task_idx]
+            own = [i for i, _ in free if home(i) == shard_id]
+            same_own = [i for i in same if home(i) == shard_id]
+            if same:
+                item = min(same_own) if same_own else max(same)
+            elif own:
+                item = min(own)
+            else:
+                left: dict[int, int] = {}
+                for i, _ in free:
+                    left[home(i)] = left.get(home(i), 0) + 1
+                victim = max(left, key=lambda h: (left[h], h))
+                item = max(i for i, _ in free if home(i) == victim)
             self._conn.execute(
-                "UPDATE work_queue SET shard_id = ? WHERE eval_id = ? AND item = ?", (shard_id, eval_id, row[0])
+                "UPDATE work_queue SET shard_id = ? WHERE eval_id = ? AND item = ?", (shard_id, eval_id, item)
             )
-            return row[0]
+            return item
 
     def finish(self, eval_id: str, item: int) -> None:
         with self.transaction():

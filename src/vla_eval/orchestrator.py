@@ -377,10 +377,10 @@ class Orchestrator:
             if not dynamic:
                 yield from work_items
                 return
-            assert self._store is not None and self.shard_id is not None
+            assert self._store is not None and self.shard_id is not None and self.num_shards is not None
             self._store.seed_queue(bench_eval_id, [t for t, _, _ in work_items])
             task_idx = None
-            while (item := self._store.claim(bench_eval_id, self.shard_id, task_idx)) is not None:
+            while (item := self._store.claim(bench_eval_id, self.shard_id, task_idx, self.num_shards)) is not None:
                 yield work_items[item]
                 self._store.finish(bench_eval_id, item)  # not reached when the loop aborts: a rerun redoes it
                 task_idx = work_items[item][0]

@@ -765,18 +765,45 @@ def test_readonly_directory_reports_journal_permission_requirement(tmp_path):
 
 
 def test_work_queue_claims(tmp_path: Path) -> None:
-    """Two shards share one queue: no item twice, the loaded task first, a rerun resumes its own unfinished item."""
+    """Two shards share a queue: each works its own block forward, no item runs twice, the loaded task comes first,
+    an idle shard steals from the end of another block, and a rerun resumes its own unfinished item."""
     db = tmp_path / "q.sqlite"
     a, b = RecordingStore(db), RecordingStore(db)
     for store in (a, b):
-        store.seed_queue("ev", [0, 0, 1, 1])  # idempotent
-    assert a.claim("ev", 0, None) == 0
-    assert b.claim("ev", 1, 1) == 2  # prefers its loaded task
-    assert a.claim("ev", 0, None) == 0  # item 0 unfinished: a rerun of shard 0 gets it back
-    a.finish("ev", 0)
-    assert a.claim("ev", 0, 0) == 1
-    b.finish("ev", 2)
-    assert b.claim("ev", 1, 1) == 3
-    a.finish("ev", 1)
-    b.finish("ev", 3)
-    assert a.claim("ev", 0, 0) is None and b.claim("ev", 1, None) is None
+        store.seed_queue("ev", [0, 0, 0, 1, 1, 1])  # idempotent; blocks 0-2 and 3-5
+    assert a.claim("ev", 0, None, 2) == 0
+    assert b.claim("ev", 1, None, 2) == 3
+    assert a.claim("ev", 0, 0, 2) == 0  # item 0 unfinished: a rerun of shard 0 gets it back
+    for item in (0, 3):
+        a.finish("ev", item)
+    for item in (1, 2):
+        assert a.claim("ev", 0, 0, 2) == item
+        a.finish("ev", item)
+    assert a.claim("ev", 0, 0, 2) == 5  # own block done: steal from the end of shard 1's
+    assert b.claim("ev", 1, 1, 2) == 4
+    for item in (4, 5):
+        a.finish("ev", item)
+    assert a.claim("ev", 0, 1, 2) is None and b.claim("ev", 1, 1, 2) is None
+
+
+def test_work_queue_idle_shards_help_the_most_behind(tmp_path: Path) -> None:
+    """Idle shards take from the block with the most unclaimed items, so they spread instead of piling up."""
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0] * 3 + [1] * 3 + [2] * 3 + [3] * 3)  # 4 shards, blocks of 3, one task each
+    for item in (9, 10):  # shard 3 is nearly done; shards 1 and 2 have not started
+        store.claim("ev", 3, None, 4)
+        store.finish("ev", item)
+    for item in range(3):  # shard 0 finishes its own block
+        assert store.claim("ev", 0, 0, 4) == item
+        store.finish("ev", item)
+    assert store.claim("ev", 0, 0, 4) == 8  # blocks 1 and 2 tie (3 left each): the later one, from its end
+    assert store.claim("ev", 3, 3, 4) == 11  # shard 3 finishes its own block first
+    store.finish("ev", 11)
+    assert store.claim("ev", 3, 3, 4) == 5  # block 1 now has the most left (3 vs 2)
+
+
+def test_work_queue_empty_block_steals(tmp_path: Path) -> None:
+    """With fewer items than shards a shard's block can be empty; it then takes from the end of another."""
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0, 1])
+    assert store.claim("ev", 2, None, 3) == 1
