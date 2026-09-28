@@ -210,6 +210,42 @@ def ensure_image_dir(
     return img_dir
 
 
+_MOUNT_PREFIX = "vla-eval-ch-"
+
+
+def reap_stale_mounts(fusermount: str, tmp: Path | None = None, min_age_s: float = 60.0) -> int:
+    """Release leftover mount points: a shard killed with SIGKILL (a scheduler time limit, say) never reaches
+    the unmount. A dead FUSE mount reads as ENOTCONN and is lazily unmounted (fusermount refuses other users'
+    mounts); an empty directory is a mount that never happened, removed only when it is this user's and older
+    than ``min_age_s``, so a shard that is between mkdtemp and squashfuse keeps its directory."""
+    import errno
+    import time
+
+    reaped = 0
+    for mnt in (tmp or Path(tempfile.gettempdir())).glob(f"{_MOUNT_PREFIX}*"):
+        try:
+            entries = os.listdir(mnt)
+        except OSError as exc:
+            if exc.errno not in (errno.ENOTCONN, errno.EIO):
+                continue
+            subprocess.call([fusermount, "-u", "-z", str(mnt)], stderr=subprocess.DEVNULL)
+        else:
+            if entries:
+                continue  # a live mount
+            try:
+                st = mnt.stat()
+            except OSError:
+                continue
+            if st.st_uid != os.getuid() or time.time() - st.st_mtime < min_age_s:
+                continue
+        with contextlib.suppress(OSError):
+            mnt.rmdir()
+            reaped += 1
+    if reaped:
+        logger.info("Released %d stale image mount(s)", reaped)
+    return reaped
+
+
 @contextlib.contextmanager
 def mount_image(img: Path, squashfuse: tuple[str, str] | None) -> Iterator[Path]:
     """Mount a SquashFS export for this run and release it on every exit path."""
@@ -218,7 +254,8 @@ def mount_image(img: Path, squashfuse: tuple[str, str] | None) -> Iterator[Path]
         return
     assert squashfuse is not None
     mount_tool, fusermount = squashfuse
-    mnt = Path(tempfile.mkdtemp(prefix="vla-eval-ch-"))
+    reap_stale_mounts(fusermount)
+    mnt = Path(tempfile.mkdtemp(prefix=_MOUNT_PREFIX))
     mounted = False
     try:
         options = f"ro,uid={os.getuid()},gid={os.getgid()}"
