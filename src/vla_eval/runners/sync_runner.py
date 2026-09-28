@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 from typing import Any
 
+from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.base import EpisodeRunner
@@ -54,6 +55,7 @@ class SyncEpisodeRunner(EpisodeRunner):
         for step in steps:
             action = await conn.act(obs_dict)
             await benchmark.apply_action(action)
+            watchdog.pet()  # a slow simulator's episode can outlast the stall timeout
             if await benchmark.is_done():
                 break
             obs_dict = await benchmark.get_observation()

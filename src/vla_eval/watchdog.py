@@ -28,12 +28,13 @@ class ProgressWatchdog:
         self._phase = "startup"
         self._stopped = threading.Event()
 
-    def pet(self, phase: str) -> None:
-        """Record progress; phase is surfaced if the watchdog later panics."""
+    def pet(self, phase: str | None = None) -> None:
+        """Record progress; phase (kept when None) is surfaced if the watchdog later panics."""
         # No lock: each is a lone attribute store, atomic under the GIL — and
         # the watchdog only ever reads these fields, never read-modify-writes.
         self._last = time.monotonic()
-        self._phase = phase
+        if phase is not None:
+            self._phase = phase
 
     def idle_s(self) -> float:
         return time.monotonic() - self._last
@@ -76,8 +77,8 @@ def start(timeout_s: float) -> None:
         logger.info("Progress watchdog armed: %.0fs stall timeout.", timeout_s)
 
 
-def pet(phase: str) -> None:
-    """Pet the process-global watchdog; no-op if it was never armed."""
+def pet(phase: str | None = None) -> None:
+    """Pet the process-global watchdog (keeping the phase when None); no-op if it was never armed."""
     if _watchdog is not None:
         _watchdog.pet(phase)
 

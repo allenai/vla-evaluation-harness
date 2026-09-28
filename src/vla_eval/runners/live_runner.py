@@ -20,6 +20,7 @@ import anyio
 
 import numpy as np
 
+from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.action_buffer import ActionBuffer
@@ -120,6 +121,7 @@ class LiveEpisodeRunner(EpisodeRunner):
                 step_start = clock.time()
 
                 action = action_buffer.get()
+                watchdog.pet()
 
                 _t0 = _time.monotonic()
                 await benchmark.apply_action(action)

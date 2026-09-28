@@ -51,3 +51,13 @@ def test_stop_ends_the_thread() -> None:
     thread.join(1.0)
     assert not thread.is_alive()
     time.sleep(0.3)  # past the timeout: still here, so no os._exit fired
+
+
+def test_pet_without_phase_keeps_phase_and_refreshes_idle():
+    """Runners pet once per step without a phase: the orchestrator's phase text survives, the idle clock resets."""
+    dog = ProgressWatchdog(timeout_s=100)
+    dog.pet("bench task ep3")
+    dog._last -= 50
+    assert dog.idle_s() >= 50
+    dog.pet()
+    assert dog.idle_s() < 1 and dog.phase() == "bench task ep3"
