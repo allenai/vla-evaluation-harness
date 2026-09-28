@@ -38,7 +38,7 @@
 |:--|:--|
 | **Batch Parallel Evaluation** | Episode sharding + batched GPU inference → **47× throughput** (2 000 LIBERO episodes in 18 min on 1× H100). [Details](#batch-parallel-evaluation) |
 | **Zero Setup** | Benchmarks in Docker and model servers as single-file [uv scripts](https://docs.astral.sh/uv/guides/scripts/), avoiding dependency conflicts. |
-| **AI-Assisted Integration** | Built-in [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for [adding benchmarks](.claude/skills/add-benchmark/) and [model servers](.claude/skills/add-model-server/) help scaffold new integrations in minutes, not hours. |
+| **AI-Assisted Integration** | Shared agent skills for [adding benchmarks](skills/add-benchmark/), [model servers](skills/add-model-server/), and [running evaluations](skills/run-evaluation/). |
 | **[Leaderboard](https://allenai.github.io/vla-evaluation-harness/leaderboard/)** | The largest unified VLA comparison: 2,456 models × 18 benchmarks, aggregated from 2,087 papers. |
 
 ---
@@ -321,3 +321,21 @@ If you find this work useful, please cite:
 ## License
 
 Apache 2.0
+
+## Agent skills
+
+The skills in `skills/` support Codex, Claude Code, and other
+[npx skills](https://github.com/vercel-labs/skills) clients. Use them from a harness
+checkout; installing a skill does not install the harness or simulator dependencies.
+
+```bash
+# Discover available skills from this checkout.
+npx skills add . --list
+# Install into another project from a local checkout.
+npx skills add /path/to/vla-evaluation-harness --agent codex claude-code --skill '*'
+# Install a selected skill from the public repository after this change lands.
+npx skills add worv-ai/vla-evaluation-harness-public --agent codex --skill add-benchmark
+```
+
+`.agents/skills` and `.claude/skills` point to the same source. Shared repository
+instructions live in `AGENTS.md`; `CLAUDE.md` imports them for Claude Code.
