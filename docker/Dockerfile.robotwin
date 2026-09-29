@@ -7,9 +7,13 @@ ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── CUDA build tools (nvcc required by CuRobo CUDA extensions) ──────
+# nvcc 12.1 miscompiles CuRobo's kernels for H100 ("illegal instruction", NVlabs/curobo#481).
+# 12.6 fixes it; torch stays cu121, which only warns on a minor-version mismatch.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        cuda-nvcc-12-1 cuda-cudart-dev-12-1 ninja-build \
+        cuda-nvcc-12-6 cuda-cudart-dev-12-6 ninja-build \
     && rm -rf /var/lib/apt/lists/*
+ENV CUDA_HOME=/usr/local/cuda-12.6
+ENV PATH=/usr/local/cuda-12.6/bin:$PATH
 
 # ── Conda environment (Python 3.10 required by SAPIEN 3) ────────────
 RUN conda create -n robotwin python=3.10 pip -y && conda clean -afy
@@ -66,6 +70,8 @@ RUN mkdir -p /app/RoboTwin \
 # No GPU visible during build → must specify arch explicitly.
 ENV TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0+PTX"
 ARG CUROBO_REF=v0.7.8
+# CuRobo 0.7.8 uses `wp.torch`, gone since warp-lang 1.13; 1.12.0 is RoboTwin's pin.
+RUN uv pip install --no-cache-dir "warp-lang==1.12.0"
 RUN uv pip install --no-cache-dir wheel \
     && cd /app/RoboTwin/envs \
     && mkdir -p curobo \
