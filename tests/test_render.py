@@ -9,6 +9,8 @@ from typing import Any
 
 import pytest
 
+import vla_eval.render
+
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.cli import smoke
 from vla_eval.docker_resources import gpu_docker_flag, shard_docker_flags
@@ -487,10 +489,14 @@ class TestNoGpuDockerFlags:
 # ---------------------------------------------------------------------------
 
 
+_real_shm_usable = vla_eval.render._shm_usable
+
+
 @pytest.fixture(autouse=True)
 def unbound_sapien_renderer(monkeypatch: pytest.MonkeyPatch) -> None:
     """The bound-renderer cache is process-wide by design; each test starts unbound."""
     monkeypatch.setattr("vla_eval.render._sapien_render_env", None)
+    monkeypatch.setattr("vla_eval.render._shm_usable", lambda: False)  # no symlink under the host's /tmp
 
 
 @pytest.fixture
@@ -514,6 +520,57 @@ class TestConfigureSapienRender:
             "VK_DRIVER_FILES": lavapipe_icd,
         }
         assert {key: os.environ[key] for key in applied} == applied
+
+    def test_cpu_links_lavapipe_memory_files_to_tmpfs(self, tmp_path, monkeypatch):
+        """Mesa's fallback dir becomes a symlink into /dev/shm; a user's XDG_RUNTIME_DIR or a small /dev/shm leaves it."""
+        import vla_eval.render as render
+
+        shm, link = tmp_path / "shm", tmp_path / "xdg-runtime-mesa-1"
+        shm.mkdir()
+        monkeypatch.setattr(render, "_LAVAPIPE_SHM_DIR", str(shm))
+        monkeypatch.setattr(render, "_lavapipe_fallback_dir", lambda: str(link))
+        monkeypatch.setattr(render, "_shm_usable", lambda: True)
+        monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+        target = str(shm / "xdg-runtime-mesa-1")
+        assert render.keep_lavapipe_memory_on_tmpfs() == target
+        assert (
+            os.readlink(link) == target
+            and (link / "probe").write_text("x")
+            and (shm / "xdg-runtime-mesa-1" / "probe").exists()
+        )
+        assert render.keep_lavapipe_memory_on_tmpfs() == target  # idempotent (another shard, a second benchmark)
+        monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1")
+        assert render.keep_lavapipe_memory_on_tmpfs() is None
+        monkeypatch.delenv("XDG_RUNTIME_DIR")
+        monkeypatch.setattr(render, "_shm_usable", lambda: False)  # Docker's 64 MiB default, or a full /dev/shm
+        assert render.keep_lavapipe_memory_on_tmpfs() is None
+        assert not link.exists()  # our earlier link is withdrawn so Mesa falls back to disk again
+
+    def test_a_leftover_real_directory_is_replaced_only_when_empty(self, tmp_path, monkeypatch):
+        import vla_eval.render as render
+
+        shm, link = tmp_path / "shm", tmp_path / "xdg-runtime-mesa-1"
+        shm.mkdir()
+        monkeypatch.setattr(render, "_LAVAPIPE_SHM_DIR", str(shm))
+        monkeypatch.setattr(render, "_lavapipe_fallback_dir", lambda: str(link))
+        monkeypatch.setattr(render, "_shm_usable", lambda: True)
+        monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+        link.mkdir()
+        assert render.keep_lavapipe_memory_on_tmpfs() == str(shm / "xdg-runtime-mesa-1") and link.is_symlink()
+        link.unlink()
+        link.mkdir()
+        (link / "busy").write_text("x")
+        assert render.keep_lavapipe_memory_on_tmpfs() is None and not link.is_symlink()
+
+    def test_shm_usable_needs_room(self, monkeypatch):
+        class St:
+            def __init__(self, avail):
+                self.f_bavail, self.f_frsize = avail, 1
+
+        monkeypatch.setattr(os, "statvfs", lambda p: St(64 << 20))
+        assert _real_shm_usable() is False
+        monkeypatch.setattr(os, "statvfs", lambda p: St(8 << 30))
+        assert _real_shm_usable() is True
 
     def test_an_existing_thread_setting_wins(self, lavapipe_icd: str):
         os.environ["LP_NUM_THREADS"] = "16"

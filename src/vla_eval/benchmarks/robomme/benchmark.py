@@ -15,7 +15,7 @@ from typing import Any, Literal
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.render import apply_env, lavapipe_cpu_env, resolve_lavapipe_icd
+from vla_eval.render import apply_env, keep_lavapipe_memory_on_tmpfs, lavapipe_cpu_env, resolve_lavapipe_icd
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -203,6 +203,7 @@ class RoboMMEBenchmark(StepBenchmark):
             return None
 
         applied = apply_env(lavapipe_cpu_env(lavapipe_icd))
+        keep_lavapipe_memory_on_tmpfs()
         logger.info("SAPIEN rendering: using lavapipe software Vulkan (%s)", lavapipe_icd)
 
         import sapien.render as sr

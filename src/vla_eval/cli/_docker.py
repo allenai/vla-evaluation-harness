@@ -317,6 +317,10 @@ def build_docker_command(
         "-v", f"{config_path}:{CONTAINER_CONFIG}:ro",
     ]
     # fmt: on
+    from vla_eval.render import normalize_render_mode
+
+    if normalize_render_mode(config.get("render")) == "cpu":
+        cmd.extend(["--shm-size", docker_cfg.shm_size])  # software Vulkan keeps device memory on /dev/shm
 
     # Opt-in --user (see DockerConfig.user).
     if docker_cfg.user == "host":

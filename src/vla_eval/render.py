@@ -117,6 +117,50 @@ def resolve_lavapipe_icd(override_env: str) -> str | None:
     return None
 
 
+_LAVAPIPE_SHM_DIR: Final = "/dev/shm"
+_LAVAPIPE_SHM_MIN_FREE: Final = 4 << 30  # Docker's default /dev/shm is 64 MiB
+
+
+def _shm_usable() -> bool:
+    try:
+        st = os.statvfs(_LAVAPIPE_SHM_DIR)
+    except OSError:
+        return False
+    return st.f_bavail * st.f_frsize >= _LAVAPIPE_SHM_MIN_FREE
+
+
+def _lavapipe_fallback_dir() -> str:
+    return f"/tmp/xdg-runtime-mesa-{os.getuid()}"
+
+
+def keep_lavapipe_memory_on_tmpfs() -> str | None:
+    """Symlink lavapipe's device-memory directory into /dev/shm; returns the target, or None if left alone.
+
+    The conda-forge lavapipe lacks memfd_create, so Mesa backs every frame with files under $XDG_RUNTIME_DIR
+    or /tmp/xdg-runtime-mesa-<uid> (stat-checked only, so a symlink passes). On a disk that throttles at ~32 shards.
+    """
+    if os.environ.get("XDG_RUNTIME_DIR"):
+        return None
+    link = _lavapipe_fallback_dir()
+    target = os.path.join(_LAVAPIPE_SHM_DIR, os.path.basename(link))
+    if not _shm_usable():
+        if os.path.islink(link) and os.readlink(link) == target:
+            os.unlink(link)  # a link from an earlier run must not point at a full tmpfs
+        return None
+    os.makedirs(target, mode=0o700, exist_ok=True)
+    if os.path.isdir(link) and not os.path.islink(link):
+        try:
+            os.rmdir(link)  # Mesa unlinks its files, so an earlier run's directory is empty
+        except OSError:
+            logger.warning("%s is not empty; lavapipe keeps its device memory there", link)
+            return None
+    try:
+        os.symlink(target, link)
+    except FileExistsError:
+        pass  # another shard, or an earlier run
+    return target if os.path.realpath(link) == os.path.realpath(target) else None
+
+
 def lavapipe_cpu_env(icd: str) -> dict[str, str]:
     """Software-Vulkan env for SAPIEN adapters, pointing Vulkan dispatch at *icd*.
 
@@ -168,6 +212,7 @@ def configure_sapien_render(mode: str, icd_override_env: str) -> dict[str, str]:
             f"Install mesa-vulkan-drivers (Mesa >= 24.3), or set {icd_override_env} to its JSON path."
         )
     env = lavapipe_cpu_env(icd)
+    keep_lavapipe_memory_on_tmpfs()
     # Vulkan loader 1.3.207 renamed this variable; set both for old images.
     env["VK_DRIVER_FILES"] = env["VK_ICD_FILENAMES"]
     _sapien_render_env = apply_env(env)

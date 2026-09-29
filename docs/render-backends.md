@@ -77,6 +77,13 @@ one that isn't offered.
 
 ### SAPIEN software rendering
 
+The conda-forge lavapipe is built without `memfd_create`, so it backs device memory with unlinked files under
+`$XDG_RUNTIME_DIR`, or `/tmp/xdg-runtime-mesa-<uid>` when that is unset (Mesa `util/anon_file.c`). Every frame is
+then a file write; on a node-local disk that throttles on dirty pages once a few dozen shards render at once
+(SimplerEnv: 0.34 s/step at 16 shards, 6 s/step at 64). CPU mode therefore symlinks that fallback directory to
+`/dev/shm` (tmpfs) — only that path; a user's own `XDG_RUNTIME_DIR` is respected. Docker gets `--shm-size`
+(`docker.shm_size`, default `16g`) for `render: cpu`, since its default `/dev/shm` is 64 MiB.
+
 SAPIEN 2.2.2 requires `VK_KHR_external_semaphore_fd`, available in lavapipe since
 [Mesa 24.3](https://docs.mesa3d.org/relnotes/24.3.0.html). The ManiSkill2 and SimplerEnv
 images install Mesa 26.2.1 in `/opt/lavapipe-env`, leaving system libraries unchanged.

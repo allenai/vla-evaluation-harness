@@ -135,6 +135,8 @@ class DockerConfig:
             no flag (image-default user). ``"host"`` → ``$(id -u):$(id -g)``.
             ``"<uid>:<gid>"`` → explicit pin.
         runtime: ``"docker"`` (default) or ``"charliecloud"``; ``--runtime`` / ``$VLA_EVAL_RUNTIME`` override.
+        shm_size: ``docker run --shm-size`` for ``render: cpu`` runs (default ``"16g"``): lavapipe keeps its
+            device memory in files on ``/dev/shm``, and Docker's default is 64 MiB.
         build: Compose-style ``{context, dockerfile}`` (or a context string). ``image`` is the tag
             (default ``<parent>-<dir>:vla-eval``); built when missing locally, or always with ``--build``.
         charliecloud: :class:`CharliecloudConfig`; ignored under Docker.
@@ -147,6 +149,7 @@ class DockerConfig:
     gpus: str | None = None
     user: str | None = None
     runtime: str | None = None
+    shm_size: str = "16g"
     build: BuildConfig | None = None
     charliecloud: CharliecloudConfig = field(default_factory=CharliecloudConfig)
 
@@ -164,6 +167,7 @@ class DockerConfig:
             gpus=data.get("gpus"),
             user=data.get("user") or None,
             runtime=data.get("runtime") or None,
+            shm_size=str(data.get("shm_size") or "16g"),
             build=build,
             charliecloud=charliecloud,
         )
