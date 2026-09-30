@@ -269,6 +269,20 @@ class RecordingStore:
         with self.transaction():
             self._conn.execute("UPDATE work_queue SET done = 1 WHERE eval_id = ? AND item = ?", (eval_id, item))
 
+    def release(self, items: list[tuple[str, int]]) -> None:
+        """Put ``(eval_id, item)`` pairs back for any shard to claim."""
+        with self.transaction():
+            self._conn.executemany(
+                "UPDATE work_queue SET done = 0, shard_id = NULL WHERE eval_id = ? AND item = ?", items
+            )
+
+    def queue_progress(self, eval_id: str) -> tuple[int, int]:
+        """``(done, total)`` over every shard of the entry."""
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(done), 0), COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)
+        ).fetchone()
+        return int(row[0]), int(row[1])
+
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
         """Keep the first metadata; flag renderer disagreement between shards."""
         with self.transaction():

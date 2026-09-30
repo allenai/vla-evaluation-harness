@@ -161,7 +161,14 @@ def prepare_container_config(config: dict[str, Any]) -> tuple[str, str]:
     return results_dir, path
 
 
-def inner_run_args(*, shard_id: int | None, num_shards: int | None, eval_id: str | None, no_save: bool) -> list[str]:
+def inner_run_args(
+    *,
+    shard_id: int | None,
+    num_shards: int | None,
+    eval_id: str | None,
+    no_save: bool,
+    requeue_unhealthy: bool = False,
+) -> list[str]:
     """``vla-eval`` arguments executed inside the container."""
     args = ["run", "--no-docker", "--config", CONTAINER_CONFIG]
     if shard_id is not None:
@@ -170,6 +177,8 @@ def inner_run_args(*, shard_id: int | None, num_shards: int | None, eval_id: str
         args.extend(["--eval-id", eval_id])
     if no_save:
         args.append("--no-save")
+    if requeue_unhealthy:
+        args.append("--requeue-unhealthy")
     return args
 
 
@@ -242,6 +251,7 @@ def run_via_docker(
     accept_license: list[str] | None = None,
     eval_id: str | None = None,
     no_save: bool = False,
+    requeue_unhealthy: bool = False,
     force_build: bool = False,
 ) -> int:
     """Execute the evaluation inside a Docker container. Returns the container's exit code."""
@@ -279,6 +289,7 @@ def run_via_docker(
             accept_license=accept_license,
             eval_id=eval_id,
             no_save=no_save,
+            requeue_unhealthy=requeue_unhealthy,
         )
         logger.info("Running via Docker: %s", " ".join(cmd))
         return exec_docker(docker, cmd, container_name)
@@ -299,6 +310,7 @@ def build_docker_command(
     accept_license: list[str] | None = None,
     eval_id: str | None = None,
     no_save: bool = False,
+    requeue_unhealthy: bool = False,
     interactive: bool = True,
 ) -> list[str]:
     """Container arguments shared by production runs and smoke tests."""
@@ -369,6 +381,14 @@ def build_docker_command(
         cmd.extend(gpu_docker_flag(docker_cfg.gpus))
 
     cmd.append(docker_cfg.image)
-    cmd.extend(inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save))
+    cmd.extend(
+        inner_run_args(
+            shard_id=shard_id,
+            num_shards=num_shards,
+            eval_id=eval_id,
+            no_save=no_save,
+            requeue_unhealthy=requeue_unhealthy,
+        )
+    )
 
     return cmd

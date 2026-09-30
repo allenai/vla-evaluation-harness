@@ -752,3 +752,92 @@ async def test_orchestrator_fails_fast_on_bad_filename_template(echo_server, tmp
         orch = Orchestrator(config, eval_id="ev-bad", no_save=False)
         with pytest.raises(ValueError, match="filename_stem"):
             await orch.run()
+
+
+class BrokenAtReset(StubBenchmark):
+    """Every episode fails before its first step, as on a shard whose GPU is unusable."""
+
+    def reset(self, task):
+        raise RuntimeError("Failed to find a supported physical device")
+
+
+class BrokenAfterOne(StubBenchmark):
+    """The first episode works, every later reset fails: the shard proved healthy once, so it keeps going."""
+
+    calls = 0
+
+    def reset(self, task):
+        BrokenAfterOne.calls += 1
+        if BrokenAfterOne.calls > 1:
+            raise RuntimeError("renderer gone")
+        return super().reset(task)
+
+
+def _config(echo_server, tmp_path, name, episodes=3):
+    entry = {"benchmark": "tests.conftest:StubBenchmark", "episodes_per_task": episodes, "max_steps": 50, "params": {}}
+    return {"server": {"url": echo_server}, "output_dir": str(tmp_path), "benchmarks": [{**entry, "name": name}]}
+
+
+@pytest.mark.anyio
+async def test_unhealthy_shard_exits_and_its_errors_stand_by_default(echo_server, tmp_path):
+    from vla_eval.orchestrator import UnhealthyShardError
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, "u")
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=BrokenAtReset):
+        with pytest.raises(UnhealthyShardError):
+            await Orchestrator(config, shard_id=0, num_shards=2, eval_id="ev-u", no_save=False).run()
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=StubBenchmark):
+        (healthy,) = await Orchestrator(config, shard_id=1, num_shards=2, eval_id="ev-u", no_save=False).run()
+    assert sum(len(t["episodes"]) for t in healthy["tasks"]) == 3
+    (aggregate,) = export_db(tmp_path / "recording-ev-u.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 3
+    episodes = [ep for t in aggregate["tasks"] for ep in t["episodes"]]
+    assert {ep.get("failure_reason") for ep in episodes} == {None, "env_start"}
+
+
+@pytest.mark.anyio
+async def test_requeue_unhealthy_hands_the_items_to_other_shards(echo_server, tmp_path):
+    from vla_eval.orchestrator import UnhealthyShardError
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, "r")
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=BrokenAtReset):
+        with pytest.raises(UnhealthyShardError):
+            orch = Orchestrator(
+                config, shard_id=0, num_shards=2, eval_id="ev-r", no_save=False, requeue_unhealthy=True
+            )
+            await orch.run()
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=StubBenchmark):
+        (healthy,) = await Orchestrator(config, shard_id=1, num_shards=2, eval_id="ev-r", no_save=False).run()
+    assert sum(len(t["episodes"]) for t in healthy["tasks"]) == 6
+    (aggregate,) = export_db(tmp_path / "recording-ev-r.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
+
+
+@pytest.mark.anyio
+async def test_a_shard_with_one_success_is_never_unhealthy(echo_server, tmp_path):
+    BrokenAfterOne.calls = 0
+    config = _config(echo_server, tmp_path, "h", episodes=6)
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=BrokenAfterOne):
+        (result,) = await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-h", no_save=False).run()
+    assert sum(len(t["episodes"]) for t in result["tasks"]) == 12 and result["num_errors"] == 11
+
+
+@pytest.mark.anyio
+async def test_unsharded_runs_never_exit_unhealthy(echo_server, tmp_path):
+    config = _config(echo_server, tmp_path, "s", episodes=4)
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=BrokenAtReset):
+        (result,) = await Orchestrator(config, eval_id="ev-s", no_save=False).run()
+    assert result["num_errors"] == 8
+
+
+def test_episode_error_phases():
+    from vla_eval.runners.base import EnvStepError, ModelActError, phase
+
+    with pytest.raises(EnvStepError, match="ValueError: boom"):
+        with phase(EnvStepError):
+            raise ValueError("boom")
+    with pytest.raises(TimeoutError):  # transport errors keep their own handling
+        with phase(ModelActError):
+            raise TimeoutError()

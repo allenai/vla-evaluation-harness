@@ -48,6 +48,17 @@ def export_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[
         for row in conn.execute("SELECT eval_id, safe_name, metadata FROM eval_metadata"):
             metadata = json.loads(row["metadata"])
             aggregate = _build_aggregate(conn, row["eval_id"], row["safe_name"], metadata, output_dir)
+            unfinished = _unfinished_queue_items(conn, row["eval_id"])
+            if unfinished:
+                aggregate["partial"] = True
+                aggregate["queue_unfinished"] = unfinished
+                logger.warning(
+                    "%s: %d work item(s) never finished (shards %s; None = released, nobody left to retry); "
+                    "rerun with the same --eval-id to complete the evaluation",
+                    row["safe_name"],
+                    len(unfinished),
+                    sorted({u["shard_id"] for u in unfinished}, key=lambda s: (s is None, s or 0)),
+                )
             path = output_dir / f"{row['safe_name']}_aggregate.json"
             _write_json_atomic(path, aggregate)
             logger.info("Wrote aggregate: %s (%d episodes)", path, aggregate.get("num_episodes_total", 0))
@@ -55,6 +66,26 @@ def export_db(db_path: Path, output_dir: Path, *, report: bool = False) -> list[
     if report and run:
         _report_aggregates(run["eval_id"], json.loads(run["config"]), aggregates)
     return aggregates
+
+
+def _queue_counts(conn: sqlite3.Connection, eval_id: str) -> tuple[int, int] | None:
+    """``(done, total)`` of the entry's work queue, or None when the run did not use one."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='work_queue'").fetchone():
+        return None
+    row = conn.execute(
+        "SELECT COALESCE(SUM(done), 0), COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)
+    ).fetchone()
+    return (int(row[0]), int(row[1])) if row[1] else None
+
+
+def _unfinished_queue_items(conn: sqlite3.Connection, eval_id: str) -> list[dict[str, Any]]:
+    """Queue items nobody finished: claimed by a killed shard, or released and never picked up."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='work_queue'").fetchone():
+        return []
+    rows = conn.execute(
+        "SELECT item, task_idx, shard_id FROM work_queue WHERE eval_id = ? AND done = 0 ORDER BY item", (eval_id,)
+    )
+    return [{"item": r["item"], "task_idx": r["task_idx"], "shard_id": r["shard_id"]} for r in rows]
 
 
 @contextmanager
@@ -172,7 +203,12 @@ def _build_aggregate(
         shards = conn.execute("SELECT * FROM eval_shards WHERE eval_id = ?", (eval_id,)).fetchall()
         if shards:
             expected = max(s["num_shards"] for s in shards)
-            if len(shards) < expected or not all(s["complete"] for s in shards):
+            queue = _queue_counts(conn, eval_id)
+            if queue is not None:
+                # Shared queue: complete when every item is done, whichever shard did it.
+                if queue[0] < queue[1]:
+                    body["partial"] = True
+            elif len(shards) < expected or not all(s["complete"] for s in shards):
                 body["partial"] = True
             if len(shards) == 1 and expected > 1:
                 body["shard"] = {"id": shards[0]["shard_id"], "total": expected}

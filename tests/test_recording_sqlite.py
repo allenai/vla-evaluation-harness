@@ -807,3 +807,15 @@ def test_work_queue_empty_block_steals(tmp_path: Path) -> None:
     store = RecordingStore(tmp_path / "q.sqlite")
     store.seed_queue("ev", [0, 1])
     assert store.claim("ev", 2, None, 3) == 1
+
+
+def test_work_queue_release(tmp_path: Path) -> None:
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0, 0])
+    assert store.claim("ev", 0, None, 2) == 0
+    store.finish("ev", 0)
+    store.release([("ev", 0)])
+    assert store.queue_progress("ev") == (0, 2)
+    assert store.claim("ev", 1, None, 2) == 1
+    store.finish("ev", 1)
+    assert store.claim("ev", 1, None, 2) == 0

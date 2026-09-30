@@ -34,12 +34,20 @@ from vla_eval.registry import resolve_import_string
 from vla_eval.render import apply_render_mode, normalize_render_mode
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
+from vla_eval.runners.base import EpisodeError
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 from vla_eval.tracking import Tracker, call_each, get_reporting_trackers
 
 logger = logging.getLogger(__name__)
+
+UNHEALTHY_AFTER = 3  # errors from a shard's first episode on, with no success in between
+
+
+class UnhealthyShardError(RuntimeError):
+    pass
+
 
 _SAFE_NAME_RE = re.compile(r"[^\w\-.]")
 _DEFAULT_RECORDING_CONFIG: dict[str, Any] = {"record_step": True, "record_video": False}
@@ -137,6 +145,7 @@ class Orchestrator:
         num_shards: int | None = None,
         eval_id: str | None = None,
         no_save: bool = False,
+        requeue_unhealthy: bool = False,
     ) -> None:
         self.config = config
         self._server_cfg = ServerConfig.from_dict(config.get("server"))
@@ -144,6 +153,11 @@ class Orchestrator:
         self.shard_id = shard_id
         self.num_shards = num_shards
         self.no_save = no_save
+        self.requeue_unhealthy = requeue_unhealthy
+        self._episodes_ok = 0
+        self._errors_from_start = 0
+        self._failed_items: list[tuple[str, int]] = []  # (entry eval_id, queue item)
+        self._episode_errored = False
         self._eval_id = eval_id or str(uuid.uuid4())
         self._sid = str(uuid.uuid4())  # one per shard process
         self._progress_path: Path | None = None
@@ -201,6 +215,22 @@ class Orchestrator:
                 call_each(self._trackers, "close")
 
         return all_results
+
+    def _check_health(self, bench_eval_id: str | None, item: int) -> None:
+        """Exit a sharded run's shard whose first UNHEALTHY_AFTER episodes all errored (a dead GPU)."""
+        if self.num_shards is None or self._episodes_ok or not self._episode_errored:
+            return
+        self._errors_from_start += 1
+        if bench_eval_id is not None:
+            self._failed_items.append((bench_eval_id, item))
+        if self._errors_from_start < UNHEALTHY_AFTER:
+            return
+        if self.requeue_unhealthy and self._store is not None and self._failed_items:
+            self._store.release(self._failed_items)
+        raise UnhealthyShardError(
+            f"shard {self.shard_id}: its first {UNHEALTHY_AFTER} episodes all errored"
+            + ("; the items went back to the queue" if self.requeue_unhealthy and self._failed_items else "")
+        )
 
     def _update_progress(self, completed: int, total: int, errors: int) -> None:
         """Atomic per-shard progress file for live monitoring; skips no-op writes."""
@@ -355,6 +385,7 @@ class Orchestrator:
             }
             collector.record(task_name, cast(EpisodeResult, fail))
             self._update_progress(item_idx + 1, total_items, collector.error_count)
+            self._episode_errored = True
             return fail
 
         def close_recorder(ep_dict: dict[str, Any], status: EpisodeStatus) -> None:
@@ -373,20 +404,25 @@ class Orchestrator:
             if self._live_tracking:
                 call_each(self._trackers, "on_episode_end", name, task_name, ep_dict, status)
 
-        def my_items() -> Iterator[tuple[int, Any, int]]:
+        def my_items() -> Iterator[tuple[int, tuple[int, Any, int]]]:
             if not dynamic:
-                yield from work_items
+                for i, w in enumerate(work_items):
+                    yield i, w
+                    self._check_health(None, i)
                 return
             assert self._store is not None and self.shard_id is not None and self.num_shards is not None
-            self._store.seed_queue(bench_eval_id, [t for t, _, _ in work_items])
+            store, shard = self._store, self.shard_id
+            store.seed_queue(bench_eval_id, [t for t, _, _ in work_items])
             task_idx = None
-            while (item := self._store.claim(bench_eval_id, self.shard_id, task_idx, self.num_shards)) is not None:
-                yield work_items[item]
-                self._store.finish(bench_eval_id, item)  # not reached when the loop aborts: a rerun redoes it
+            while (item := store.claim(bench_eval_id, shard, task_idx, self.num_shards)) is not None:
+                yield store.queue_progress(bench_eval_id)[0], work_items[item]
+                store.finish(bench_eval_id, item)  # not reached when the loop aborts: a rerun redoes it
+                self._check_health(bench_eval_id, item)
                 task_idx = work_items[item][0]
 
         try:
-            for item_idx, (task_idx, task, ep) in enumerate(my_items()):
+            for item_idx, (task_idx, task, ep) in my_items():
+                self._episode_errored = False
                 task_name = task.get("name", str(task))
                 watchdog.pet(f"{safe_name} {task_name} ep{ep}")
                 recorder: EpisodeRecorder = NullEpisodeRecorder()
@@ -415,6 +451,7 @@ class Orchestrator:
                     )
                     self._update_progress(item_idx + 1, total_items, collector.error_count)
                     close_recorder(ep_dict, "success" if success else "fail")
+                    self._episodes_ok += 1
                     continue
                 except RecordingError:
                     raise
@@ -472,7 +509,7 @@ class Orchestrator:
                             collector, cfg, safe_name, partial=True, server_info=conn.server_info
                         )
                     continue
-                except Exception:
+                except Exception as exc:
                     logger.exception(
                         "  [%d/%d] %s ep%d: ERROR",
                         item_idx + 1,
@@ -480,7 +517,8 @@ class Orchestrator:
                         task_name,
                         ep,
                     )
-                    fail = record_failure("exception", traceback.format_exc())
+                    reason = exc.phase if isinstance(exc, EpisodeError) else "exception"
+                    fail = record_failure(reason, traceback.format_exc())
                     close_recorder(fail, "error")
                     continue
         finally:

@@ -125,3 +125,23 @@ def test_export_parser_accepts_positional_db(tmp_path, monkeypatch):
     cli.main()
     assert called[0].db == str(db)
     assert called[0].output_dir == str(output)
+
+
+def test_export_reports_queue_items_a_shard_never_finished(tmp_path, caplog):
+    """An item claimed by a killed shard is listed in the aggregate and the entry is marked partial."""
+    from vla_eval.results.export import export_db
+
+    db = tmp_path / "recording-q.sqlite"
+    _database(db)
+    store = RecordingStore(db)
+    store.seed_queue("original-id-demo", [0, 0])
+    assert store.claim("original-id-demo", 0, None, 1) == 0
+    store.finish("original-id-demo", 0)
+    assert store.claim("original-id-demo", 0, 0, 1) == 1  # never finished
+    assert store.queue_progress("original-id-demo") == (1, 2)
+    store.close()
+    with caplog.at_level("WARNING"):
+        (aggregate,) = export_db(db, tmp_path)
+    assert aggregate["partial"] is True
+    assert aggregate["queue_unfinished"] == [{"item": 1, "task_idx": 0, "shard_id": 0}]
+    assert "shards [0]" in caplog.text

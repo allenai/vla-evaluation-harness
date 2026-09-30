@@ -8,7 +8,7 @@ from typing import Any
 from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
-from vla_eval.runners.base import EpisodeRunner
+from vla_eval.runners.base import EnvStartError, EnvStepError, EpisodeRunner, ModelActError, phase
 from vla_eval.types import EpisodeResult, Task
 
 
@@ -37,8 +37,9 @@ class SyncEpisodeRunner(EpisodeRunner):
         recorder: EpisodeRecorder | None = None,
     ) -> EpisodeResult:
         """Run a synchronous episode."""
-        await benchmark.start_episode(task, recorder=recorder)
-        obs_dict = await benchmark.get_observation()
+        with phase(EnvStartError):
+            await benchmark.start_episode(task, recorder=recorder)
+            obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
         ep_payload: dict[str, Any] = {"task": task_info}
@@ -53,15 +54,18 @@ class SyncEpisodeRunner(EpisodeRunner):
 
         steps = range(max_steps) if max_steps is not None else itertools.count()
         for step in steps:
-            action = await conn.act(obs_dict)
-            await benchmark.apply_action(action)
-            watchdog.pet()  # a slow simulator's episode can outlast the stall timeout
-            if await benchmark.is_done():
-                break
-            obs_dict = await benchmark.get_observation()
+            with phase(ModelActError):
+                action = await conn.act(obs_dict)
+            with phase(EnvStepError):
+                await benchmark.apply_action(action)
+                watchdog.pet()  # a slow simulator's episode can outlast the stall timeout
+                if await benchmark.is_done():
+                    break
+                obs_dict = await benchmark.get_observation()
 
-        elapsed = await benchmark.get_time()
-        metrics = await benchmark.get_result()
+        with phase(EnvStepError):
+            elapsed = await benchmark.get_time()
+            metrics = await benchmark.get_result()
         episode_result: dict = {"metrics": metrics, "steps": step + 1, "elapsed_sec": round(elapsed, 3)}
 
         await conn.end_episode(episode_result)

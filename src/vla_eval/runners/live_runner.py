@@ -24,7 +24,7 @@ from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.action_buffer import ActionBuffer
-from vla_eval.runners.base import EpisodeRunner
+from vla_eval.runners.base import EnvStartError, EnvStepError, EpisodeRunner, phase
 from vla_eval.runners.clock import Clock
 from vla_eval.types import EpisodeResult, Task
 
@@ -73,8 +73,9 @@ class LiveEpisodeRunner(EpisodeRunner):
         clock = self.clock
 
         # --- Setup phase (not timed) ---
-        await benchmark.start_episode(task, recorder=recorder)
-        obs_dict = await benchmark.get_observation()
+        with phase(EnvStartError):
+            await benchmark.start_episode(task, recorder=recorder)
+            obs_dict = await benchmark.get_observation()
 
         task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
         ep_payload: dict[str, Any] = {"task": task_info, "mode": "live"}
@@ -124,12 +125,13 @@ class LiveEpisodeRunner(EpisodeRunner):
                 watchdog.pet()
 
                 _t0 = _time.monotonic()
-                await benchmark.apply_action(action)
-                step_times.append(_time.monotonic() - _t0)
-                step_count += 1
-                if await benchmark.is_done():
-                    break
-                obs_dict = await benchmark.get_observation()
+                with phase(EnvStepError):
+                    await benchmark.apply_action(action)
+                    step_times.append(_time.monotonic() - _t0)
+                    step_count += 1
+                    if await benchmark.is_done():
+                        break
+                    obs_dict = await benchmark.get_observation()
 
                 # Send next observation
                 await conn.send_observation(obs_dict)
@@ -138,7 +140,8 @@ class LiveEpisodeRunner(EpisodeRunner):
                 await clock.wait_until(step_start + step_period)
 
         elapsed = clock.time()
-        bench_metrics = await benchmark.get_result()
+        with phase(EnvStepError):
+            bench_metrics = await benchmark.get_result()
         episode_result: dict = {"metrics": bench_metrics, "steps": step_count, "elapsed_sec": round(elapsed, 3)}
 
         # Real-time metrics

@@ -21,7 +21,7 @@ from vla_eval.cli._docker import (
 )
 from vla_eval.cli.config_loader import load_config as _load_config
 from vla_eval.config import DockerConfig, merge_benchmark_overrides
-from vla_eval.orchestrator import Orchestrator
+from vla_eval.orchestrator import Orchestrator, UnhealthyShardError
 from vla_eval.render import (
     RENDER_MODES,
     check_run_render_support as _check_render_support,
@@ -129,6 +129,7 @@ def cmd_run(args: argparse.Namespace) -> None:
     num_shards = getattr(args, "num_shards", None)
     eval_id = getattr(args, "eval_id", None)
     no_save = getattr(args, "no_save", False)
+    requeue_unhealthy = getattr(args, "requeue_unhealthy", False)
 
     record_video_override = getattr(args, "record_video", None)
     if record_video_override and no_save:
@@ -192,6 +193,7 @@ def cmd_run(args: argparse.Namespace) -> None:
             accept_license=getattr(args, "accept_license", None),
             eval_id=eval_id,
             no_save=no_save,
+            requeue_unhealthy=requeue_unhealthy,
             force_build=getattr(args, "build", False),
         )
         if rc != 0:
@@ -211,8 +213,13 @@ def cmd_run(args: argparse.Namespace) -> None:
         num_shards=num_shards,
         eval_id=eval_id,
         no_save=no_save,
+        requeue_unhealthy=requeue_unhealthy,
     )
-    results = anyio.run(orchestrator.run)
+    try:
+        results = anyio.run(orchestrator.run)
+    except UnhealthyShardError as exc:
+        logger.error("%s", exc)
+        sys.exit(3)
 
     # Print final summary
     for r in results:
@@ -674,6 +681,11 @@ execution flow:
     )
     run_parser.add_argument(
         "--num-shards", type=int, default=None, help="Total number of shards. Must use with --shard-id."
+    )
+    run_parser.add_argument(
+        "--requeue-unhealthy",
+        action="store_true",
+        help="Give an unhealthy shard's items (its first 3 episodes all errored) to the other shards.",
     )
     run_parser.add_argument(
         "--gpus",

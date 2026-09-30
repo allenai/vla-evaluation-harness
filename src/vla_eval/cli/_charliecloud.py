@@ -376,6 +376,7 @@ def run_via_charliecloud(
     accept_license: list[str] | None = None,
     eval_id: str | None = None,
     no_save: bool = False,
+    requeue_unhealthy: bool = False,
     force_build: bool = False,
 ) -> int:
     """Execute the evaluation under ``ch-run``. Returns the exit code."""
@@ -455,7 +456,13 @@ def run_via_charliecloud(
             env=env,
             volumes=docker_cfg.volumes,
             dev_mount=dev_mount,
-            inner_args=inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
+            inner_args=inner_run_args(
+                shard_id=shard_id,
+                num_shards=num_shards,
+                eval_id=eval_id,
+                no_save=no_save,
+                requeue_unhealthy=requeue_unhealthy,
+            ),
         )
         logger.info("Running via Charliecloud: %s", " ".join(cmd))
 
