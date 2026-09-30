@@ -220,6 +220,11 @@ class RoboTwinBenchmark(StepBenchmark):
         fast_render: If ``True``, use SAPIEN's default camera shader instead of
             RoboTwin's ray-traced renderer. Faster, but observation fidelity may
             differ from the reference benchmark.
+        render_every: Render the cameras only every this many steps and at the
+            episode's end; the other steps' observations have no ``images``, so
+            a server that predicts from one fails. Set it to the server's action
+            chunk length when the whole chunk runs open loop. Videos then get a
+            frame every this many steps.
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
@@ -235,6 +240,7 @@ class RoboTwinBenchmark(StepBenchmark):
         fast_init: bool = True,
         fast_render: bool = False,
         use_bundled_expert_seeds: bool = True,
+        render_every: int = 1,
     ) -> None:
         import re
 
@@ -252,6 +258,8 @@ class RoboTwinBenchmark(StepBenchmark):
         self.fast_init = fast_init
         self.fast_render = fast_render
         self.use_bundled_expert_seeds = use_bundled_expert_seeds
+        self.render_every = render_every
+        self._steps = 0  # in the current episode
         self._env: Any = None
         self._env_done = False  # the env's last episode ended through done, so setup_demo can reuse it
         self._episodes_since_clear = 0
@@ -484,6 +492,7 @@ class RoboTwinBenchmark(StepBenchmark):
             )
         _restore_play_once_attributes(self._env, self.task_name)
         self._env.set_instruction(instruction=task["instruction"])
+        self._steps = 0
         raw_obs = self._env.get_obs()
         self._recorder.record_video(self._extract_frame(raw_obs))
         return raw_obs
@@ -498,10 +507,12 @@ class RoboTwinBenchmark(StepBenchmark):
         assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
 
         self._env.take_action(act, action_type="qpos")
-        raw_obs = self._env.get_obs()
+        self._steps += 1
         success = bool(self._env.eval_success)
         done = success or (self._env.take_action_cnt >= self._env.step_lim)
         self._env_done = done
+        # get_obs renders three ray-traced cameras, most of a step's time
+        raw_obs = self._env.get_obs() if done or self._steps % self.render_every == 0 else None
         self._recorder.record_video(self._extract_frame(raw_obs))
         self._recorder.record_step(reward=1.0 if success else 0.0, done=done, success=success)
         return StepResult(obs=raw_obs, reward=1.0 if success else 0.0, done=done, info={"success": success})
@@ -516,6 +527,8 @@ class RoboTwinBenchmark(StepBenchmark):
             return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
+        if raw_obs is None:  # a step render_every skipped
+            return {"task_description": task.get("instruction", "")}
         return {
             "images": {
                 "head_camera": raw_obs["observation"]["head_camera"]["rgb"],
