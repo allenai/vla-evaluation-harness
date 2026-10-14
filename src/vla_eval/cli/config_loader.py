@@ -9,7 +9,7 @@ import yaml
 
 
 def load_config(path: str) -> dict[str, Any]:
-    """Load a YAML config file, resolving ``extends`` chains and
+    """Load a UTF-8 YAML config file, resolving ``extends`` chains and
     ``${oc.env:VAR,default}`` interpolations.
 
     If the YAML contains ``extends: relative/path.yaml``, the base config is
@@ -17,7 +17,7 @@ def load_config(path: str) -> dict[str, Any]:
     """
     from omegaconf import OmegaConf
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
 
     extends = raw.pop("extends", None)
