@@ -256,6 +256,9 @@ class RoboTwinBenchmark(StepBenchmark):
         if action_type not in ("qpos", "ee"):
             raise ValueError(f"Invalid action_type: {action_type!r}")
         self.action_type = action_type
+        if action_type == "ee" and fast_init:
+            # EE planning goes through plan_path, which the fast-path disables.
+            fast_init = False
         self.task_name = task_name
         self.task_config = task_config
         self.seed = seed
