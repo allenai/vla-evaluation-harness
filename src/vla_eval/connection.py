@@ -64,6 +64,7 @@ class Connection:
         self.backoff_base = backoff_base
         self._ws: Any = None
         self._seq: int = 0
+        self._send_lock = anyio.Lock()
         self._action_callback: Callable[[Action], None] | None = None
         self._benchmark: str | None = None
         self.server_info: dict[str, Any] = {}
@@ -76,13 +77,14 @@ class Connection:
     async def connect(self, *, benchmark: str | None = None) -> None:
         """Establish WebSocket connection with retry, backoff, and HELLO handshake."""
         self._benchmark = benchmark
-        await self._connect_with_backoff()
-        await self._hello_handshake()
+        async with self._send_lock:
+            await self._connect_with_backoff()
+            await self._hello_handshake()
 
     async def _hello_handshake(self) -> None:
         """Exchange HELLO messages with the server."""
         payload = make_hello_payload(**({"benchmark": self._benchmark} if self._benchmark else {}))
-        await self.send(MessageType.HELLO, payload)
+        await self._send_connected(MessageType.HELLO, payload)
         reply = await self.recv(timeout=self.timeout)
         if reply.type != MessageType.HELLO:
             raise RuntimeError(f"Expected HELLO reply, got {reply.type}")
@@ -103,11 +105,9 @@ class Connection:
         Auto-reconnects if the connection was lost.
         Sequence numbers are managed internally — callers never set them.
         """
-        seq = self._next_seq()
-        msg = Message(type=msg_type, payload=payload, seq=seq)
-        await self._ensure_connected()
-        await self._ws.send(pack_message(msg))
-        return seq
+        async with self._send_lock:
+            await self._ensure_connected()
+            return await self._send_connected(msg_type, payload)
 
     async def recv(self, *, timeout: float | None = None) -> Message:
         """Receive the next message from the server.
@@ -133,9 +133,10 @@ class Connection:
         Raises:
             ConnectionError: If all retry attempts are exhausted.
         """
-        await self.close()
-        await self._connect_with_backoff()
-        await self._hello_handshake()
+        async with self._send_lock:
+            await self.close()
+            await self._connect_with_backoff()
+            await self._hello_handshake()
 
     async def start_episode(self, config: dict[str, Any]) -> None:
         """Signal episode start to the server."""
@@ -170,24 +171,46 @@ class Connection:
     @asynccontextmanager
     async def listening(self) -> AsyncIterator[None]:
         """Run the listener for the block's duration (live mode): ACTIONs go to ``on_action``."""
-        error: Exception | None = None
+        body_error: Exception | None = None
+        listener_error: Exception | None = None
+        cancelled = anyio.get_cancelled_exc_class()
         async with anyio.create_task_group() as tg:
-            tg.start_soon(self._run_listener)
+
+            async def run_listener() -> None:
+                nonlocal listener_error
+                try:
+                    await self._run_listener()
+                except cancelled:
+                    raise
+                except Exception as exc:
+                    listener_error = exc
+                    tg.cancel_scope.cancel()
+
+            tg.start_soon(run_listener)
             try:
                 yield
+            except cancelled:
+                if listener_error is None:
+                    raise
             except Exception as exc:
-                error = exc  # re-raised outside the group so callers see the bare type
-            tg.cancel_scope.cancel()
-        if error is not None:
-            raise error
+                body_error = exc  # re-raised outside the group so callers see the bare type
+            finally:
+                tg.cancel_scope.cancel()
+        if body_error is not None:
+            raise body_error
+        if listener_error is not None:
+            raise listener_error
 
     async def _run_listener(self) -> None:
         try:
             await self._listener_loop()
         except anyio.get_cancelled_exc_class():
             raise
+        except (ConnectionError, websockets.exceptions.ConnectionClosed):
+            raise
         except Exception:
             logger.exception("Listener loop crashed")
+            raise
 
     # ── Private helpers ──────────────────────────────────────────────
 
@@ -227,6 +250,13 @@ class Connection:
         await self._connect_with_backoff()
         await self._hello_handshake()
 
+    async def _send_connected(self, msg_type: MessageType, payload: dict[str, Any]) -> int:
+        """Send on the open socket while the caller holds ``_send_lock``."""
+        seq = self._next_seq()
+        msg = Message(type=msg_type, payload=payload, seq=seq)
+        await self._ws.send(pack_message(msg))
+        return seq
+
     async def _listener_loop(self) -> None:
         """Background loop: read messages and dispatch to on_action callback.
 
@@ -242,30 +272,34 @@ class Connection:
         """
         cancelled = anyio.get_cancelled_exc_class()
         _recv_count = 0
-        try:
-            while True:
-                try:
-                    msg = await self.recv()
-                    _recv_count += 1
-                    if msg.type == MessageType.ACTION and self._action_callback is not None:
-                        self._action_callback(msg.payload)
-                        if _recv_count <= 3:
-                            logger.info("Listener received ACTION #%d (seq=%s)", _recv_count, msg.seq)
-                    elif msg.type == MessageType.ERROR:
-                        logger.error("Server error in listener: %s", msg.payload)
-                    else:
-                        logger.debug("Listener received msg type=%s #%d", msg.type, _recv_count)
-                except cancelled:
-                    raise
-                except (ConnectionError, websockets.exceptions.ConnectionClosed):
-                    logger.warning(
-                        "Connection lost in listener loop, exiting listener (received %d msgs)", _recv_count
-                    )
-                    break
-                except Exception:
-                    logger.exception("Error processing message in listener loop, continuing")
-        except cancelled:
-            logger.debug("Listener cancelled after receiving %d msgs", _recv_count)
+        while True:
+            try:
+                msg = await self.recv()
+            except cancelled:
+                logger.debug("Listener cancelled after receiving %d msgs", _recv_count)
+                raise
+            except (ConnectionError, websockets.exceptions.ConnectionClosed):
+                logger.warning("Connection lost in listener loop after receiving %d msgs", _recv_count)
+                raise
+            except Exception:
+                logger.exception("Error receiving message in listener loop, continuing")
+                continue
+
+            _recv_count += 1
+            if msg.type == MessageType.ERROR:
+                logger.error("Server error in listener: %s", msg.payload)
+                continue
+            try:
+                if msg.type == MessageType.ACTION and self._action_callback is not None:
+                    self._action_callback(msg.payload)
+                    if _recv_count <= 3:
+                        logger.info("Listener received ACTION #%d (seq=%s)", _recv_count, msg.seq)
+                else:
+                    logger.debug("Listener received msg type=%s #%d", msg.type, _recv_count)
+            except cancelled:
+                raise
+            except Exception:
+                logger.exception("Error processing message in listener loop, continuing")
 
     def _next_seq(self) -> int:
         self._seq += 1
