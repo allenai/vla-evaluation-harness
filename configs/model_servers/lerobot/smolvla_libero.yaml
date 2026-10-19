@@ -1,0 +1,15 @@
+# SmolVLA (LeRobot) model server: LIBERO checkpoint.
+#
+# Checkpoint: lerobot/smolvla_libero (finetuned from lerobot/smolvla_base on lerobot/libero;
+# 7-D action, 8-D state, cameras camera1/camera2 mapped positionally from agentview/wrist).
+# Use revision a24f1f38 or later: earlier revisions declare smolvla_base's 6-D state / 3 cameras.
+#
+# chunk_size is explicit: the checkpoint default (n_action_steps=50) is the worst LIBERO
+# setting in the SmolVLA paper (Table 13), which replans after every action in simulation.
+
+extends: _base.yaml
+args:
+  policy_type: smolvla
+  checkpoint: lerobot/smolvla_libero
+  state_key: observation.state
+  chunk_size: 1
