@@ -6,6 +6,10 @@
 #
 # chunk_size is explicit: the checkpoint default (n_action_steps=50) is the worst LIBERO
 # setting in the SmolVLA paper (Table 13), which replans after every action in simulation.
+#
+# quat_no_antipodal: LeRobot's LIBERO env processor computes axis-angle without antipodal
+# normalization; the harness default flips it for w < 0, which puts state[3] near -3.1 instead
+# of +3.1 for much of an episode (see docs/reproductions/common-pitfalls.md).
 
 extends: _base.yaml
 args:
@@ -13,3 +17,4 @@ args:
   checkpoint: lerobot/smolvla_libero
   state_key: observation.state
   chunk_size: 1
+  quat_no_antipodal: true

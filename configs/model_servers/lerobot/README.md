@@ -19,7 +19,7 @@ Multi-obs-step policies (`diffusion`, `vqbet`, `multi_task_dit`, `tdmpc`) need a
 observation history that chunk buffering skips, so they are rejected at load.
 
 Verification, all at the pinned lerobot v0.6.0 (details in the
-[reproduction report](../../docs/reproductions/lerobot.md)): "reproduced" =
+[reproduction report](../../../docs/reproductions/lerobot.md)): "reproduced" =
 100 episodes (10 tasks x 10) on the suite the checkpoint targets vs LeRobot's
 published number; "smoke" = checkpoint load + stub-episode inference on an A100.
 
@@ -32,7 +32,7 @@ published number; "smoke" = checkpoint load + stub-episode inference on an A100.
 | `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | LIBERO-10 10/10 (10 eps, via `use_select_action`); no published score to compare |
 | `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested (`lerobot/pi0_libero_finetuned` scored 0/10 here and has no published score) |
 | `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke (base checkpoint; no benchmark-ready finetune published) |
-| `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke (base checkpoint; no benchmark-ready finetune published) |
+| `smolvla` | VLA | `smolvla_libero.yaml` | `lerobot/smolvla_libero` | reference score: LIBERO Spatial 85.4% (500 eps); no published score for this checkpoint, see [lerobot.md](../../../docs/reproductions/lerobot.md) |
 | `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; LIBERO-10 0/10. Upstream defect: LeRobot's own `lerobot-eval` with the documented command also scores 0/20 at v0.6.0 (and needs a `tokenizer_model_id` override just to load), so the published 94.0 is not reproducible at the tag |
 
 Other single-obs-step registry names (`act`, `pi0_fast`, `eo1`, `evo1`, `wall_x`)
@@ -52,6 +52,7 @@ load through the same path but ship no config here and are untested.
 | `policy_kwargs` | extra policy-config fields, e.g. GR00T's `embodiment_tag`, MolmoAct2's `norm_tag` / `inference_action_mode` |
 | `features` | input/output feature spec for original-format checkpoints that carry none (see `molmoact2_libero.yaml`) |
 | `preprocessor_overrides` | config overrides for the checkpoint's preprocessor steps, keyed by step name (LeRobot's `make_pre_post_processors(preprocessor_overrides=...)`), merged over the bridge's `device_processor` entry |
+| `quat_no_antipodal` | ask the benchmark for axis-angle without antipodal normalization (LeRobot's LIBERO convention); default `false` |
 
 A checkpoint's saved preprocessor may reference resources you cannot fetch, e.g.
 a tokenizer on a gated Hub repo. Point the step at a local copy instead:

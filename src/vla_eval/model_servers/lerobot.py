@@ -126,6 +126,7 @@ class LeRobotModelServer(PredictModelServer):
         features: dict[str, dict[str, Any]] | None = None,
         use_select_action: bool = False,
         preprocessor_overrides: dict[str, dict[str, Any]] | None = None,
+        quat_no_antipodal: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -162,12 +163,16 @@ class LeRobotModelServer(PredictModelServer):
                 so the policy sees every step's observation.
             preprocessor_overrides: Per-step config overrides forwarded to LeRobot's
                 ``make_pre_post_processors``; a ``device_processor`` entry replaces the bridge's.
+            quat_no_antipodal: Ask the benchmark for the robosuite axis-angle convention
+                (no antipodal normalization), as LeRobot's LIBERO env processor computes it.
+                Forwarded as an observation param; only benchmarks that accept it use it.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
         self.checkpoint = checkpoint
         self.state_key = None if state_key in (None, "None", "none") else state_key
         self.robot_type = robot_type
+        self._quat_no_antipodal = quat_no_antipodal
         self._image_keys_arg = image_keys
         self._logged_image_map = False
 
@@ -297,6 +302,8 @@ class LeRobotModelServer(PredictModelServer):
         # but consumes two views), so an explicit multi-camera mapping also counts.
         if len(self._expected_image_keys) > 1 or len(self._image_keys_arg or {}) > 1:
             params["send_wrist_image"] = True
+        if self._quat_no_antipodal:
+            params["quat_no_antipodal"] = True
         return params
 
     def get_action_spec(self) -> dict[str, DimSpec]:
