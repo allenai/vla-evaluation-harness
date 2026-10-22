@@ -79,3 +79,11 @@ def test_episode_idx_outside_counted_layouts_rejected() -> None:
     bench, _ = _bench(eval_num=6)
     with pytest.raises(ValueError, match="episode_idx 6"):
         _run(bench, [6])
+
+
+def test_consecutive_failures_capped() -> None:
+    # Every layout is broken, so the fallback must stop instead of draining all spares.
+    bench, env = _bench(total=40, eval_num=25, broken=set(range(40)))
+    with pytest.raises(RuntimeError, match="5 layouts in a row failed"):
+        _run(bench, [0])
+    assert len(env.reset_calls) == 5

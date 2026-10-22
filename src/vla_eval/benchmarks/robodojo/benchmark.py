@@ -54,6 +54,9 @@ ACTION_DIM = sum(ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
+# Consecutive reset failures tolerated for one episode before the episode errors out;
+# each failed reset leaks cameras and descriptors (see reset()).
+MAX_LAYOUT_ATTEMPTS = 5
 
 
 class _NoopModelClient:
@@ -300,12 +303,21 @@ class RoboDojoBenchmark(StepBenchmark):
         shard_id = int(task.get("shard_id", 0))
         num_shards = int(task.get("num_shards", 1))
         layout_id: int | None = episode_idx
+        failed = 0
         while layout_id is not None:
             raw_obs = self._try_layout(env, layout_id, task_name)
             if raw_obs is not None:
                 self._current_layout_id = layout_id
                 self._recorder.record_video(self._extract_frame(raw_obs))
                 return raw_obs
+            failed += 1
+            if failed >= MAX_LAYOUT_ATTEMPTS:
+                # Every failed reset leaks the episode's cameras and Vulkan descriptors; a
+                # dozen in a row ends in "Unable to allocate descriptor sets" and a Kit crash
+                # that only the 2h watchdog notices. Fail the episode instead.
+                raise RuntimeError(
+                    f"RoboDojo: {failed} layouts in a row failed for {task_name}; the environment is unusable"
+                )
             layout_id = self._next_spare_layout(total, shard_id, num_shards)
         raise RuntimeError(f"RoboDojo: shard {shard_id} exhausted its spare layouts for {task_name}")
 
