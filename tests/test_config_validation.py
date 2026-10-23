@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -63,3 +66,11 @@ def test_eval_config_rejects_non_mapping_recording() -> None:
     """The single validation point for 'recording:' type errors is EvalConfig.from_dict."""
     with pytest.raises(ValueError, match="'recording' must be a mapping or null"):
         EvalConfig.from_dict({"benchmark": "mod:Cls", "recording": "yes"})
+
+
+def test_configs_load_under_non_utf8_locale() -> None:
+    """Packaged configs are UTF-8 and must load regardless of the host locale (#135)."""
+    env = {**os.environ, "LC_ALL": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0"}
+    code = "import sys\nfrom vla_eval.cli.config_loader import load_config\nfor p in sys.argv[1:]: load_config(p)"
+    paths = [str(p) for p in [*MODEL_SERVER_CONFIGS, *BENCHMARK_CONFIGS]]
+    subprocess.run([sys.executable, "-c", code, *paths], env=env, check=True)
