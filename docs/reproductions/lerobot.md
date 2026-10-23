@@ -13,7 +13,7 @@ come from LeRobot's policy docs at the same tag.
 | GR00T N1.7 | LIBERO Object | **99.0%** (100 eps) | 81 | Reproduced (above reported) |
 | MolmoAct2 | LIBERO Goal | **97.0%** (100 eps) | 98.0 | Reproduced |
 | VLA-JEPA | LIBERO-10 | **96.0%** (100 eps) | 93.0 | Reproduced |
-| SmolVLA | LIBERO Spatial | **85.4%** (500 eps) | – | No official score for this checkpoint; community 82.7% ([lerobot#4614](https://github.com/huggingface/lerobot/issues/4614)), see below |
+| SmolVLA | LIBERO Spatial | **85.4%** (500 eps) | – | No official score (see below) |
 | LingBot-VA | LIBERO-10 | 10/10 (10 eps) | none published | Validated, no reference |
 | FastWAM | LIBERO-10 | 0% | 94.0 | Upstream defect (see below) |
 
