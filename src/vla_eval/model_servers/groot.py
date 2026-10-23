@@ -37,6 +37,7 @@ from vla_eval.specs import (
     LANGUAGE,
     POSITION_DELTA,
     RAW,
+    ROTATION_AA,
     ROTATION_EULER,
     DimSpec,
 )
@@ -46,6 +47,10 @@ from vla_eval.model_servers.base import SessionContext
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
+
+# How each embodiment's benchmark state maps onto its statistics.json layout;
+# unlisted tags pass state through unchanged.
+_STATE_LAYOUTS = {"OXE_GOOGLE": "simpler", "OXE_WIDOWX": "simpler", "LIBERO_PANDA": "libero"}
 
 
 class GR00TModelServer(PredictModelServer):
@@ -69,6 +74,9 @@ class GR00TModelServer(PredictModelServer):
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.model_path = model_path
         self.embodiment_tag = embodiment_tag
+        self._layout = _STATE_LAYOUTS.get(str(embodiment_tag).rsplit(".", 1)[-1].upper(), "passthrough")
+        logger.info("GR00T embodiment %s: %s state layout", embodiment_tag, self._layout)
+        self._dim_warned = False
         self.video_key = video_key  # None = auto-detect from modality config
         self.action_keys = action_keys
         self.invert_gripper = invert_gripper
@@ -174,16 +182,22 @@ class GR00TModelServer(PredictModelServer):
     def get_observation_params(self) -> dict[str, Any]:
         params: dict[str, Any] = {
             "send_state": True,
-            "max_episode_steps": 300,
             "success_mode": "accumulate",
             "deterministic_episodes": False,
         }
+        if self._layout == "libero":
+            # libero_panda trained on both views and robosuite's quat2axisangle (no antipodal flip).
+            params.update(send_wrist_image=True, quat_no_antipodal=True)
+        else:
+            params["max_episode_steps"] = 300  # LIBERO caps steps per suite and rejects this
         params.update(self._extra_obs_params)
         return params
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         gripper = GRIPPER_CLOSE_POS if self.invert_gripper else GRIPPER_01
-        return {"position": POSITION_DELTA, "rotation": ROTATION_EULER, "gripper": gripper}
+        # libero_panda's roll/pitch/yaw keys actually hold axis-angle.
+        rotation = ROTATION_AA if self._layout == "libero" else ROTATION_EULER
+        return {"position": POSITION_DELTA, "rotation": rotation, "gripper": gripper}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"image": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
@@ -211,15 +225,15 @@ class GR00TModelServer(PredictModelServer):
         for obs in obs_batch:
             images_dict = obs.get("images", {})
             img_values = list(images_dict.values()) if isinstance(images_dict, dict) else []
+            if len(img_values) < len(video_keys):
+                # Never zero-pad a missing view: that silently ran LIBERO with a black wrist camera.
+                raise RuntimeError(f"{self.embodiment_tag} needs views {video_keys}, got {len(img_values)} image(s)")
             for idx, vk in enumerate(video_keys):
-                if idx < len(img_values):
-                    img = np.asarray(img_values[idx], dtype=np.uint8)
-                    if self.image_resolution and img.shape[:2] != (self.image_resolution, self.image_resolution):
-                        img = cv2.resize(img, (self.image_resolution, self.image_resolution))
-                    if img.ndim == 3:
-                        img = img[np.newaxis, ...]  # (T=1, H, W, C)
-                else:
-                    img = np.zeros((1, 224, 224, 3), dtype=np.uint8)
+                img = np.asarray(img_values[idx], dtype=np.uint8)
+                if self.image_resolution and img.shape[:2] != (self.image_resolution, self.image_resolution):
+                    img = cv2.resize(img, (self.image_resolution, self.image_resolution))
+                if img.ndim == 3:
+                    img = img[np.newaxis, ...]  # (T=1, H, W, C)
                 per_key_imgs[vk].append(img)
             langs.append([obs.get("task_description", "")])
 
@@ -235,6 +249,7 @@ class GR00TModelServer(PredictModelServer):
         for sk in state_keys:
             dim = self._state_dims.get(sk, 1)
             observation["state"][sk] = np.zeros((B, 1, dim), dtype=np.float32)
+        expected_state_dim = sum(self._state_dims.get(sk, 1) for sk in state_keys)
 
         # Decompose flat state vector into per-key arrays
         for obs_idx, obs in enumerate(obs_batch):
@@ -243,9 +258,10 @@ class GR00TModelServer(PredictModelServer):
                 continue
             state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
 
-            # State transformation for SimplerEnv.
-            # eef_pos from ManiSkill2: [x, y, z, qw, qx, qy, qz, gripper_openness]
-            if len(state_arr) >= 8:
+            # SimplerEnv eef_pos is [xyz, quat_wxyz, gripper_openness]; rewrite it to the checkpoint's layout.
+            if self._layout == "simpler":
+                if len(state_arr) != 8:
+                    raise RuntimeError(f"{self.embodiment_tag} needs an 8-D eef_pos, got {len(state_arr)}")
                 if self.bridge_rotation:
                     # WidowX: convert quaternion to bridge-frame euler angles
                     quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
@@ -257,6 +273,15 @@ class GR00TModelServer(PredictModelServer):
                     quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
                     gripper_closedness = 1.0 - state_arr[7]
                     state_arr = np.array([*state_arr[:3], *quat_xyzw, gripper_closedness], dtype=np.float32)
+
+            # A mismatch zero-pads or shifts keys; fatal for verified layouts, warned once otherwise.
+            if len(state_arr) != expected_state_dim:
+                msg = f"{self.embodiment_tag} state has {len(state_arr)} dims, checkpoint expects {expected_state_dim}"
+                if self._layout != "passthrough":
+                    raise RuntimeError(msg)
+                if not self._dim_warned:
+                    logger.warning(msg)
+                    self._dim_warned = True
 
             offset = 0
             for sk in state_keys:
