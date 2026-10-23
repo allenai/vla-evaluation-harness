@@ -13,7 +13,7 @@ come from LeRobot's policy docs at the same tag.
 | GR00T N1.7 | LIBERO Object | **99.0%** (100 eps) | 81 | Reproduced (above reported) |
 | MolmoAct2 | LIBERO Goal | **97.0%** (100 eps) | 98.0 | Reproduced |
 | VLA-JEPA | LIBERO-10 | **96.0%** (100 eps) | 93.0 | Reproduced |
-| SmolVLA | LIBERO Spatial | **85.4%** (500 eps) | none for this checkpoint | Reference score (see below) |
+| SmolVLA | LIBERO Spatial | **85.4%** (500 eps) | – | No official score for this checkpoint; community 82.7% ([lerobot#4614](https://github.com/huggingface/lerobot/issues/4614)), see below |
 | LingBot-VA | LIBERO-10 | 10/10 (10 eps) | none published | Validated, no reference |
 | FastWAM | LIBERO-10 | 0% | 94.0 | Upstream defect (see below) |
 
@@ -125,8 +125,20 @@ LIBERO env processor computes it (no antipodal normalization); the harness defau
 | 50 (shipped defaults) | false | 30.0% | [26.1, 34.2] |
 
 500 episodes per arm, 0 errors, 220-step cap (runs used 280, LeRobot's Spatial cap; the 220 figure counts
-successes within 220 steps, which is exact because nothing in an episode depends on the cap). Paired
-differences (stratified bootstrap by task, exact McNemar): TBD. RTX PRO 6000, MuJoCo 3.2.3, lerobot 0.6.0.
+successes within 220 steps, which is exact because nothing in an episode depends on the cap). RTX PRO 6000,
+MuJoCo 3.2.3, lerobot 0.6.0.
+
+Paired differences (same task and initial state; bootstrap stratified by task, 10,000 resamples; exact McNemar):
+
+| Comparison | Difference | Paired 95% CI | McNemar p |
+|------------|:----------:|:-------------:|:---------:|
+| chunk_size 10 vs 50 (`quat_no_antipodal` true) | +18.4 pp | [14.0, 22.8] | 5.6e-15 |
+| chunk_size 1 vs 10 (`quat_no_antipodal` true) | +2.2 pp | [−1.4, 5.6] | 0.27 |
+| `quat_no_antipodal` true vs false (chunk_size 10) | +27.0 pp | [22.6, 31.4] | 3.1e-23 |
+| `quat_no_antipodal` true vs false (chunk_size 50) | +34.8 pp | [29.8, 39.6] | 1.1e-33 |
+| this config vs shipped defaults | +55.4 pp | [50.8, 59.8] | 1.0e-71 |
+
+The config keeps `chunk_size: 1`; 10 is ~2.4x faster, and on Spatial c1 − c10 = +2.2 pp [−1.4, 5.6].
 
 There is no published score for this checkpoint. The paper's 90 on Spatial ([arXiv:2506.01844](https://arxiv.org/abs/2506.01844),
 Table 2) is a different model: initialized from the VLM only and trained 4× longer at twice the batch size.

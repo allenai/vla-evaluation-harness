@@ -28,11 +28,11 @@ Systematic verification that vla-eval reproduces published VLA model scores acro
 | | GR00T N1.7 | ✅<br>**99.0%** / [81%](https://huggingface.co/nvidia/gr00t17-lerobot-libero_object-640)⁵ | · | · | · | · |
 | | [MolmoAct2](https://huggingface.co/allenai/MolmoAct2-LIBERO) | ✅<br>**97.0%** / [98.0%](https://huggingface.co/allenai/MolmoAct2-LIBERO)⁵ | · | · | · | · |
 | | VLA-JEPA | ✅<br>**96.0%** / [93.0%](https://huggingface.co/lerobot/VLA-JEPA-LIBERO)⁵ | · | · | · | · |
-| | [SmolVLA](https://arxiv.org/abs/2506.01844) | TBD<br>**85.4%** / –⁶ | · | · | · | · |
+| | [SmolVLA](https://arxiv.org/abs/2506.01844) | **85.4%** / –⁶ | · | · | · | · |
 
 SE = SimplerEnv. SE GR = Google Robot VM.
 
-¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). ⁴ Self-reported best rollout. Move Near 10 variants × 60 eps. ⁵ Single suite, 10 tasks × 10 eps (π₀.₅/GR00T: Object, MolmoAct2: Goal, VLA-JEPA: Long); see [lerobot.md](lerobot.md). ⁶ `lerobot/smolvla_libero`, Spatial only, 10 tasks × 50 eps; no published score for this checkpoint (the paper's 90 is a different model); see [lerobot.md](lerobot.md). † Checkpoint not publicly available on HuggingFace.
+¹ Community checkpoint (not official NVIDIA). ² Spatial suite only (reported 97.8%); 4-suite avg is 96.6%. ³ 4-suite LIBERO average (Spatial 98.2, Object 98.8, Goal 97.0, Long 93.6). ⁴ Self-reported best rollout. Move Near 10 variants × 60 eps. ⁵ Single suite, 10 tasks × 10 eps (π₀.₅/GR00T: Object, MolmoAct2: Goal, VLA-JEPA: Long); see [lerobot.md](lerobot.md). ⁶ `lerobot/smolvla_libero`, Spatial only, 10 tasks × 50 eps; no official score for this checkpoint (the paper's 90 is a different model). The community report [lerobot#4614](https://github.com/huggingface/lerobot/issues/4614) has 82.7% (chunk_size 1, 150 eps, 280-step cap), inside our 95% CI [82.0, 88.2]; see [lerobot.md](lerobot.md). † Checkpoint not publicly available on HuggingFace.
 
 ## Other Benchmarks
 
