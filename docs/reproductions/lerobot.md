@@ -143,9 +143,11 @@ The config keeps `chunk_size: 1`; 10 is ~2.4x faster to evaluate (on one RTX PRO
 There is no published score for this checkpoint. The paper's 90 on Spatial ([arXiv:2506.01844](https://arxiv.org/abs/2506.01844),
 Table 2) is a different model: initialized from the VLM only and trained 4× longer at twice the batch size.
 [lerobot#4614](https://github.com/huggingface/lerobot/issues/4614) reports 82.7% at chunk_size 1 (150 episodes,
-`lerobot-eval`, 280-step cap); ours at the same cap is 85.8%. Both pipelines use the same axis-angle
-convention. Most #4614 runs used MuJoCo 3.8.1, under which Spatial task 5 is broken
-([lerobot#4390](https://github.com/huggingface/lerobot/issues/4390)).
+`lerobot-eval`, 280-step cap); ours at the same cap is 85.8%, a difference of +3.1 pp (95% CI [−3.1, 10.5];
+independent samples, Newcombe hybrid score interval). Both pipelines use the same axis-angle convention, but two
+conditions are not aligned: most #4614 runs used MuJoCo 3.8.1, under which Spatial task 5 is broken
+([lerobot#4390](https://github.com/huggingface/lerobot/issues/4390)), and they predate the 2026-10-12 checkpoint
+metadata fix (we use `a24f1f38`). So the data show no detectable difference; they do not show that the two agree.
 
 ### LingBot-VA: LIBERO-10 (Long)
 
