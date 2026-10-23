@@ -138,7 +138,7 @@ Paired differences (same task and initial state; bootstrap stratified by task, 1
 | `quat_no_antipodal` true vs false (chunk_size 50) | +34.8 pp | [29.8, 39.6] | 1.1e-33 |
 | this config vs shipped defaults | +55.4 pp | [50.8, 59.8] | 1.0e-71 |
 
-The config keeps `chunk_size: 1`; 10 is ~2.4x faster, and on Spatial c1 − c10 = +2.2 pp [−1.4, 5.6].
+The config keeps `chunk_size: 1`; 10 is ~2.4x faster to evaluate (on one RTX PRO 6000, sync mode, wall clock; per-inference latency is unchanged), and on Spatial c1 − c10 = +2.2 pp [−1.4, 5.6].
 
 There is no published score for this checkpoint. The paper's 90 on Spatial ([arXiv:2506.01844](https://arxiv.org/abs/2506.01844),
 Table 2) is a different model: initialized from the VLM only and trained 4× longer at twice the batch size.
