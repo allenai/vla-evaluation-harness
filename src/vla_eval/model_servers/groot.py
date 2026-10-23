@@ -48,6 +48,10 @@ from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
 
+# How each embodiment's benchmark state maps onto its statistics.json layout;
+# unlisted tags pass state through unchanged.
+_STATE_LAYOUTS = {"OXE_GOOGLE": "simpler", "OXE_WIDOWX": "simpler", "LIBERO_PANDA": "libero"}
+
 
 class GR00TModelServer(PredictModelServer):
     """GR00T N1.6 model server using Isaac-GR00T Gr00tPolicy."""
@@ -70,9 +74,9 @@ class GR00TModelServer(PredictModelServer):
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.model_path = model_path
         self.embodiment_tag = embodiment_tag
-        tag_name = str(embodiment_tag).rsplit(".", 1)[-1].upper()
-        self._is_simpler = tag_name in self._SIMPLER_TAGS
-        self._is_libero = tag_name in self._LIBERO_TAGS
+        self._layout = _STATE_LAYOUTS.get(str(embodiment_tag).rsplit(".", 1)[-1].upper(), "passthrough")
+        logger.info("GR00T embodiment %s: %s state layout", embodiment_tag, self._layout)
+        self._dim_warned = False
         self.video_key = video_key  # None = auto-detect from modality config
         self.action_keys = action_keys
         self.invert_gripper = invert_gripper
@@ -88,14 +92,6 @@ class GR00TModelServer(PredictModelServer):
         self._state_dims: dict[str, int] = {}
 
         self._init_policy()
-
-    # Embodiment families that need benchmark-specific observation handling.
-    # SimplerEnv / ManiSkill2 report eef_pos as ``[xyz, quat_wxyz, gripper]``, which is
-    # not the ``statistics.json`` state layout and has to be rewritten in
-    # ``predict_batch``.  Every other embodiment (LIBERO, GR1, RoboCasa) already sends
-    # state in its own layout and must pass through untouched.
-    _SIMPLER_TAGS = frozenset({"OXE_GOOGLE", "OXE_WIDOWX"})
-    _LIBERO_TAGS = frozenset({"LIBERO_PANDA"})
 
     # Data files that Isaac-GR00T's pip package omits from Eagle backbone.
     _EAGLE_DATA_FILES = [
@@ -189,29 +185,18 @@ class GR00TModelServer(PredictModelServer):
             "success_mode": "accumulate",
             "deterministic_episodes": False,
         }
-        if self._is_libero:
-            # libero_panda was trained on IPEC-COMMUNITY/libero_*_no_noops_1.0.0_lerobot:
-            # two 256x256 views plus an 8-D proprio state
-            # ``[xyz3, axis_angle3, gripper_qpos2]``, where the axis-angle comes from
-            # robosuite's ``quat2axisangle`` (no antipodal normalization).  Dropping the
-            # wrist view, or switching to an antipodal-normalized axis-angle (its sign
-            # flips frame to frame once the gripper points down and ``w ~ 0``, so roll
-            # jumps between +-pi), silently shifts the input distribution.
-            params["send_wrist_image"] = True
-            params["quat_no_antipodal"] = True
+        if self._layout == "libero":
+            # libero_panda trained on both views and robosuite's quat2axisangle (no antipodal flip).
+            params.update(send_wrist_image=True, quat_no_antipodal=True)
         else:
-            # LIBEROBenchmark does not accept this parameter (it truncates with a
-            # per-suite ``max_steps`` of 220..520), so it only reaches benchmarks that
-            # cut episodes by step count (SimplerEnv, ManiSkill2, ...).
-            params["max_episode_steps"] = 300
+            params["max_episode_steps"] = 300  # LIBERO caps steps per suite and rejects this
         params.update(self._extra_obs_params)
         return params
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         gripper = GRIPPER_CLOSE_POS if self.invert_gripper else GRIPPER_01
-        # libero_panda names its rotation keys roll/pitch/yaw, but the values are
-        # axis-angle: the training set calls the same features axis_angle1..3.
-        rotation = ROTATION_AA if self._is_libero else ROTATION_EULER
+        # libero_panda's roll/pitch/yaw keys actually hold axis-angle.
+        rotation = ROTATION_AA if self._layout == "libero" else ROTATION_EULER
         return {"position": POSITION_DELTA, "rotation": rotation, "gripper": gripper}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
@@ -241,16 +226,8 @@ class GR00TModelServer(PredictModelServer):
             images_dict = obs.get("images", {})
             img_values = list(images_dict.values()) if isinstance(images_dict, dict) else []
             if len(img_values) < len(video_keys):
-                # Missing views used to be padded with a black image: the model still
-                # returns actions and the run still reports a score, which is how GR00T's
-                # wrist_image stayed black for a whole LIBERO sweep.  Fail loudly instead.
-                raise RuntimeError(
-                    f"embodiment {self.embodiment_tag} needs {len(video_keys)} views {video_keys}, "
-                    f"but the benchmark sent {len(img_values)}: "
-                    f"{list(images_dict) if isinstance(images_dict, dict) else images_dict}. "
-                    "Declare send_wrist_image=True in get_observation_params(), "
-                    "or narrow the model to a single view with video_key."
-                )
+                # Never zero-pad a missing view: that silently ran LIBERO with a black wrist camera.
+                raise RuntimeError(f"{self.embodiment_tag} needs views {video_keys}, got {len(img_values)} image(s)")
             for idx, vk in enumerate(video_keys):
                 img = np.asarray(img_values[idx], dtype=np.uint8)
                 if self.image_resolution and img.shape[:2] != (self.image_resolution, self.image_resolution):
@@ -281,20 +258,10 @@ class GR00TModelServer(PredictModelServer):
                 continue
             state_arr = np.asarray(raw_state, dtype=np.float32).flatten()
 
-            # SimplerEnv / ManiSkill2 only: eef_pos is
-            # [x, y, z, qw, qx, qy, qz, gripper_openness], which is not the
-            # statistics.json state layout and has to be rewritten.  Everything else
-            # passes through -- LIBERO sends [xyz3, axis_angle3, gripper_qpos2], which
-            # already lines up dimension by dimension with libero_panda's state keys
-            # (x, y, z, roll, pitch, yaw, gripper; the last one is 2-D).  The guard used
-            # to be `len(state_arr) >= 8`, which sliced LIBERO's axis-angle as if it were
-            # a quaternion: roll/pitch/yaw got qx, qy, qz and gripper got [qw, 1 - g].
-            if self._is_simpler:
-                if len(state_arr) < 8:
-                    raise RuntimeError(
-                        f"embodiment {self.embodiment_tag} needs an 8-D eef_pos "
-                        f"[xyz3, quat_wxyz4, gripper], got {len(state_arr)} dims"
-                    )
+            # SimplerEnv eef_pos is [xyz, quat_wxyz, gripper_openness]; rewrite it to the checkpoint's layout.
+            if self._layout == "simpler":
+                if len(state_arr) != 8:
+                    raise RuntimeError(f"{self.embodiment_tag} needs an 8-D eef_pos, got {len(state_arr)}")
                 if self.bridge_rotation:
                     # WidowX: convert quaternion to bridge-frame euler angles
                     quat_xyzw = quat_wxyz_to_xyzw(state_arr[3:7])
@@ -307,18 +274,14 @@ class GR00TModelServer(PredictModelServer):
                     gripper_closedness = 1.0 - state_arr[7]
                     state_arr = np.array([*state_arr[:3], *quat_xyzw, gripper_closedness], dtype=np.float32)
 
-            # A mismatch silently zero-pads or shifts every key past the short one.
-            # LIBERO is verified dimension by dimension, so a mismatch there means the
-            # benchmark contract changed: fail.  Other embodiments are not individually
-            # verified yet, so warn.
+            # A mismatch zero-pads or shifts keys; fatal for verified layouts, warned once otherwise.
             if len(state_arr) != expected_state_dim:
-                msg = (
-                    f"embodiment {self.embodiment_tag} state dim mismatch: statistics.json expects "
-                    f"{expected_state_dim} dims {list(state_keys)}, benchmark sent {len(state_arr)}"
-                )
-                if self._is_libero:
+                msg = f"{self.embodiment_tag} state has {len(state_arr)} dims, checkpoint expects {expected_state_dim}"
+                if self._layout != "passthrough":
                     raise RuntimeError(msg)
-                logger.warning("%s", msg)
+                if not self._dim_warned:
+                    logger.warning(msg)
+                    self._dim_warned = True
 
             offset = 0
             for sk in state_keys:
