@@ -13,6 +13,7 @@ come from LeRobot's policy docs at the same tag.
 | GR00T N1.7 | LIBERO Object | **99.0%** (100 eps) | 81 | Reproduced (above reported) |
 | MolmoAct2 | LIBERO Goal | **97.0%** (100 eps) | 98.0 | Reproduced |
 | VLA-JEPA | LIBERO-10 | **96.0%** (100 eps) | 93.0 | Reproduced |
+| SmolVLA | LIBERO Spatial | **85.4%** (500 eps) | – | No official score (see below) |
 | LingBot-VA | LIBERO-10 | 10/10 (10 eps) | none published | Validated, no reference |
 | FastWAM | LIBERO-10 | 0% | 94.0 | Upstream defect (see below) |
 
@@ -100,6 +101,53 @@ back to `nvidia/GR00T-N1.7-3B` (gated behind `nvidia/Cosmos-Reason2-2B` access o
 | both moka pots on stove | 70% |
 | yellow/white mug in microwave, close it | 90% |
 | **Average** | **96.0%** (reported 93.0) |
+
+### SmolVLA: LIBERO Spatial
+
+| | |
+|---|---|
+| **Checkpoint** | `lerobot/smolvla_libero` at revision `a24f1f38` (earlier revisions declare `smolvla_base`'s 6-D state / 3 cameras) |
+| **Server config** | [`configs/model_servers/lerobot/smolvla_libero.yaml`](../../configs/model_servers/lerobot/smolvla_libero.yaml) |
+| **Benchmark config** | 10 tasks × 50 episodes on `libero_spatial`, `seed: 7`, `num_steps_wait: 10`, same 500 initial states per arm |
+
+Two settings decide the score. The checkpoint ships `n_action_steps=50`, while the paper executes one
+action per inference in simulation. And its state uses robosuite's axis-angle convention, as LeRobot's
+LIBERO env processor computes it (no antipodal normalization); the harness default flips it for
+`w < 0`, which sends `state[3]` from about +3.1 to about −3.1 on a third of the steps. The config sets
+`chunk_size: 1` and `quat_no_antipodal: true`.
+
+| chunk_size | `quat_no_antipodal` | Success | 95% Wilson CI |
+|:----------:|:-------------------:|:-------:|:-------------:|
+| 1 | true | **85.4%** | [82.0, 88.2] |
+| 10 | true | 83.2% | [79.7, 86.2] |
+| 50 | true | 64.8% | [60.5, 68.9] |
+| 10 | false | 56.2% | [51.8, 60.5] |
+| 50 (shipped defaults) | false | 30.0% | [26.1, 34.2] |
+
+500 episodes per arm, 0 errors, 220-step cap (runs used 280, LeRobot's Spatial cap; the 220 figure counts
+successes within 220 steps, which is exact because nothing in an episode depends on the cap). RTX PRO 6000,
+MuJoCo 3.2.3, lerobot 0.6.0.
+
+Paired differences (same task and initial state; bootstrap stratified by task, 10,000 resamples; exact McNemar):
+
+| Comparison | Difference | Paired 95% CI | McNemar p |
+|------------|:----------:|:-------------:|:---------:|
+| chunk_size 10 vs 50 (`quat_no_antipodal` true) | +18.4 pp | [14.0, 22.8] | 5.6e-15 |
+| chunk_size 1 vs 10 (`quat_no_antipodal` true) | +2.2 pp | [−1.4, 5.6] | 0.27 |
+| `quat_no_antipodal` true vs false (chunk_size 10) | +27.0 pp | [22.6, 31.4] | 3.1e-23 |
+| `quat_no_antipodal` true vs false (chunk_size 50) | +34.8 pp | [29.8, 39.6] | 1.1e-33 |
+| this config vs shipped defaults | +55.4 pp | [50.8, 59.8] | 1.0e-71 |
+
+The config keeps `chunk_size: 1`; 10 is ~2.4x faster to evaluate (on one RTX PRO 6000, sync mode, wall clock; per-inference latency is unchanged), and on Spatial c1 − c10 = +2.2 pp [−1.4, 5.6].
+
+There is no published score for this checkpoint. The paper's 90 on Spatial ([arXiv:2506.01844](https://arxiv.org/abs/2506.01844),
+Table 2) is a different model: initialized from the VLM only and trained 4× longer at twice the batch size.
+[lerobot#4614](https://github.com/huggingface/lerobot/issues/4614) reports 82.7% at chunk_size 1 (150 episodes,
+`lerobot-eval`, 280-step cap); ours at the same cap is 85.8%, a difference of +3.1 pp (95% CI [−3.1, 10.5];
+independent samples, Newcombe hybrid score interval). Both pipelines use the same axis-angle convention, but two
+conditions are not aligned: most #4614 runs used MuJoCo 3.8.1, under which Spatial task 5 is broken
+([lerobot#4390](https://github.com/huggingface/lerobot/issues/4390)), and they predate the 2026-10-12 checkpoint
+metadata fix (we use `a24f1f38`). So the data show no detectable difference; they do not show that the two agree.
 
 ### LingBot-VA: LIBERO-10 (Long)
 
