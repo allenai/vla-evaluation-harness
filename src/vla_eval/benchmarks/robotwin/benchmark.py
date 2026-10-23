@@ -7,7 +7,10 @@ Non-obvious behaviors:
     - **Expert check**: ``get_tasks()`` optionally runs the oracle planner
       per seed to verify solvability (``skip_expert_check=False``).
     - **Lazy init**: Heavy imports happen on first use, not at construction.
-    - **14D action**: dual-arm qpos; 16D inputs are trimmed to 14D.
+    - **14D action** (``action_type="qpos"``, default): dual-arm qpos.
+    - **16D action** (``action_type="ee"``): dual-arm EE poses
+      ``(pos3 + quat_wxyz4 + gripper1) x 2``; 20D EE6D inputs
+      ``(pos3 + rot6d6 + gripper1) x 2`` are converted.
 """
 
 from __future__ import annotations
@@ -237,6 +240,7 @@ class RoboTwinBenchmark(StepBenchmark):
         instruction_type: str = "seen",
         test_num: int = 100,
         skip_expert_check: bool = False,
+        action_type: str = "qpos",
         fast_init: bool = True,
         fast_render: bool = False,
         use_bundled_expert_seeds: bool = True,
@@ -249,6 +253,12 @@ class RoboTwinBenchmark(StepBenchmark):
             raise ValueError(f"Invalid task_name: {task_name!r}")
         if not re.fullmatch(r"[A-Za-z0-9_-]+", task_config):
             raise ValueError(f"Invalid task_config: {task_config!r}")
+        if action_type not in ("qpos", "ee"):
+            raise ValueError(f"Invalid action_type: {action_type!r}")
+        self.action_type = action_type
+        if action_type == "ee" and fast_init:
+            # EE planning goes through plan_path, which the fast-path disables.
+            fast_init = False
         self.task_name = task_name
         self.task_config = task_config
         self.seed = seed
@@ -500,13 +510,19 @@ class RoboTwinBenchmark(StepBenchmark):
     def step(self, action: Action) -> StepResult:
         raw = action.get("actions", action.get("action"))
         act = np.asarray(raw, dtype=np.float64).flatten()
-        if len(act) > 14:
-            act = act[:14]
-        elif len(act) < 14:
-            act = np.pad(act, (0, 14 - len(act)))
-        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
-
-        self._env.take_action(act, action_type="qpos")
+        if self.action_type == "ee":
+            if len(act) == 20:
+                # X-VLA style EE6D: (pos3 + rot6d6 + grip1) x 2
+                act = _ee6d_dual_to_eequat_dual(act)
+            assert len(act) == 16, f"EE action dimension mismatch: got {len(act)}, expected 16"
+            self._env.take_action(act, action_type="ee")
+        else:
+            if len(act) > 14:
+                act = act[:14]
+            elif len(act) < 14:
+                act = np.pad(act, (0, 14 - len(act)))
+            assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
+            self._env.take_action(act, action_type="qpos")
         self._steps += 1
         success = bool(self._env.eval_success)
         done = success or (self._env.take_action_cnt >= self._env.step_lim)
@@ -552,11 +568,18 @@ class RoboTwinBenchmark(StepBenchmark):
         return {
             "max_steps": 1700,  # step() ends each episode at its task's step_lim, at most 1700
             "task_name": self.task_name,
-            "action_dim": 14,
+            "action_dim": 16 if self.action_type == "ee" else 14,
             "max_episodes_per_task": self.test_num,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
+        if self.action_type == "ee":
+            # 16D dual-arm EE poses: (pos3 + quat_wxyz4 + gripper1) x 2.
+            # NOTE: the model server must declare the same key (e.g. X-VLA
+            # robotwin profile) or the orchestrator warns on spec mismatch.
+            return {
+                "ee_pose": DimSpec("ee_pose", 16, "dual_eef_pos3_quatwxyz4_gripper1_x2"),
+            }
         # 14D dual-arm joint positions
         return {
             "joints": DimSpec("joints", 14, "joint_positions"),
@@ -570,3 +593,52 @@ class RoboTwinBenchmark(StepBenchmark):
             "state": STATE_JOINT,
             "language": LANGUAGE,
         }
+
+
+def _rot6d_to_quat_wxyz(r6: np.ndarray) -> np.ndarray:
+    """6D rotation (Zhou et al.) -> quaternion [w, x, y, z] (RoboTwin/transforms3d convention)."""
+    a1 = np.asarray(r6[:3], dtype=np.float64)
+    a2 = np.asarray(r6[3:6], dtype=np.float64)
+    b1 = a1 / (np.linalg.norm(a1) + 1e-8)
+    b2 = a2 - np.dot(b1, a2) * b1
+    b2 = b2 / (np.linalg.norm(b2) + 1e-8)
+    b3 = np.cross(b1, b2)
+    m = np.stack([b1, b2, b3], axis=1)  # columns = basis vectors
+    t = np.trace(m)
+    if t > 0.0:
+        s = 0.5 / np.sqrt(t + 1.0)
+        w = 0.25 / s
+        x = (m[2, 1] - m[1, 2]) * s
+        y = (m[0, 2] - m[2, 0]) * s
+        z = (m[1, 0] - m[0, 1]) * s
+    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2])
+        w = (m[2, 1] - m[1, 2]) / s
+        x = 0.25 * s
+        y = (m[0, 1] + m[1, 0]) / s
+        z = (m[0, 2] + m[2, 0]) / s
+    elif m[1, 1] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2])
+        w = (m[0, 2] - m[2, 0]) / s
+        x = (m[0, 1] + m[1, 0]) / s
+        y = 0.25 * s
+        z = (m[1, 2] + m[2, 1]) / s
+    else:
+        s = 2.0 * np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1])
+        w = (m[1, 0] - m[0, 1]) / s
+        x = (m[0, 2] + m[2, 0]) / s
+        y = (m[1, 2] + m[2, 1]) / s
+        z = 0.25 * s
+    return np.array([w, x, y, z])
+
+
+def _ee6d_dual_to_eequat_dual(act20: np.ndarray) -> np.ndarray:
+    """20D (pos3 + rot6d6 + grip1) x 2 -> 16D (pos3 + quat_wxyz4 + grip1) x 2."""
+    act20 = np.asarray(act20, dtype=np.float64).flatten()
+    out = np.zeros(16)
+    for arm in range(2):
+        b = act20[arm * 10 : (arm + 1) * 10]
+        out[arm * 8 : arm * 8 + 3] = b[0:3]
+        out[arm * 8 + 3 : arm * 8 + 7] = _rot6d_to_quat_wxyz(b[3:9])
+        out[arm * 8 + 7] = b[9]
+    return out
