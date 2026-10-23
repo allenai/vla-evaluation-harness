@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import anyio
 import numpy as np
 import pytest
+import websockets
 
 from vla_eval.connection import Connection
 
@@ -106,3 +108,37 @@ async def test_listening_reraises_bare_exception(echo_server):
         with pytest.raises(TimeoutError):
             async with conn.listening():
                 raise TimeoutError("boom")
+
+
+@pytest.mark.anyio
+async def test_mid_episode_send_does_not_reconnect(free_port):
+    """A dropped socket mid-episode raises instead of reopening a session that never saw EPISODE_START."""
+    url = f"ws://127.0.0.1:{free_port}"
+    task1 = await start_echo_server(free_port)
+    conn = Connection(url, max_retries=5, backoff_base=0.3)
+    await conn.connect()
+    await conn.start_episode({"task": "test"})
+    await stop_server(task1)
+    task2 = await start_echo_server(free_port)
+    try:
+        with pytest.raises(websockets.exceptions.ConnectionClosed):
+            await conn.act({"value": 1.0})
+    finally:
+        await conn.close()
+        await stop_server(task2)
+
+
+@pytest.mark.anyio
+async def test_listening_raises_when_connection_drops(free_port):
+    """Live mode: a dropped socket cancels the episode body and surfaces as ConnectionClosed."""
+    task = await start_echo_server(free_port)
+    conn = Connection(f"ws://127.0.0.1:{free_port}")
+    await conn.connect()
+    await conn.start_episode({"task": "test"})
+    try:
+        with anyio.fail_after(10), pytest.raises(websockets.exceptions.ConnectionClosed):
+            async with conn.listening():
+                await stop_server(task)
+                await anyio.sleep(30)
+    finally:
+        await conn.close()
