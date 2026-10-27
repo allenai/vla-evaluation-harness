@@ -54,7 +54,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 ¹ Counting suite only (4/16 tasks). Full 4-suite evaluation pending.
 ² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types not yet reproduced.
 ³ Score / SR, Memory dimension only (1 of 5), 15/50 episodes, seed 0 of 3; 2 of 6 tasks blocked by an upstream layout bug (counted as 0).
-⁴ Easy only, 50 tasks × 20 episodes at the official client's 300-action cap; 78.2% with RoboTwin's per-task step limits. Hard not evaluated.
+⁴ Easy only, 50 tasks × up to 20 episodes (915 in total) at the official client's 300-action cap; 78.2% with RoboTwin's per-task step limits. Hard not evaluated.
 
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 

@@ -514,7 +514,9 @@ class XVLAModelServer(PredictModelServer):
         if self.output_action_dim == 16:
             state = _obs_state_array(obs)
             if state is None or len(state) != 16:
-                raise ValueError("RoboTwin profile needs the benchmark's 16-D end pose in obs['states'] (send_state)")
+                raise ValueError(
+                    "RoboTwin profile needs the 16-D end pose in obs['states']: send_state, and render_every == chunk_size"
+                )
             commanded = self._last_commanded.get(ctx.session_id)
             proprio = torch.tensor(_robotwin_proprio(state, commanded), device=device).unsqueeze(0)
         elif last_actions is not None:
