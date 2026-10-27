@@ -148,7 +148,7 @@ class LiveEpisodeRunner(EpisodeRunner):
         metrics = action_buffer.get_metrics()
         step_mean = float(np.mean(step_times)) if step_times else 0.0
         step_max = float(np.max(step_times)) if step_times else 0.0
-        effective_hz = metrics["update_count"] / elapsed if elapsed > 0 else 0.0
+        effective_hz = metrics["fresh_count"] / elapsed if elapsed > 0 else 0.0  # new actions applied, not received
         episode_result["rt_metrics"] = {
             **metrics,
             "effective_control_hz": effective_hz,
