@@ -38,6 +38,7 @@ class ActionBuffer:
         self._last_fresh: Action | None = None
         self._new_since_last_get: bool = False
         self._update_count: int = 0
+        self._fresh_count: int = 0
         self._stale_count: int = 0
         self._last_update_time: float | None = None
         self.hold_fn = hold_fn
@@ -58,6 +59,7 @@ class ActionBuffer:
                 self._new_since_last_get = False
                 assert self._latest_action is not None
                 self._last_fresh = self._latest_action
+                self._fresh_count += 1
                 return self._latest_action
             self._stale_count += 1
             return self.hold_fn(self._last_fresh)
@@ -94,14 +96,19 @@ class ActionBuffer:
             self._last_fresh = None
             self._new_since_last_get = False
             self._update_count = 0
+            self._fresh_count = 0
             self._stale_count = 0
             self._last_update_time = None
 
     def get_metrics(self) -> dict[str, Any]:
-        """Return real-time metrics for this buffer."""
-        total = self._update_count + self._stale_count
+        """Return real-time metrics: received actions, and ticks served fresh vs held.
+
+        Several actions can arrive between two ticks; only the newest is applied, so ratios count ticks.
+        """
+        ticks = self._fresh_count + self._stale_count
         return {
             "update_count": self._update_count,
+            "fresh_count": self._fresh_count,
             "stale_count": self._stale_count,
-            "stale_action_ratio": self._stale_count / total if total > 0 else 0.0,
+            "stale_action_ratio": self._stale_count / ticks if ticks > 0 else 0.0,
         }

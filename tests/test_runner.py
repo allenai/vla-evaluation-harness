@@ -248,8 +248,22 @@ def test_action_buffer_metrics():
     buf.get()  # 1 stale get
     metrics = buf.get_metrics()
     assert metrics["update_count"] == 1
+    assert metrics["fresh_count"] == 1
     assert metrics["stale_count"] == 2
     assert abs(metrics["stale_action_ratio"] - 2 / 3) < 1e-6
+
+
+def test_action_buffer_metrics_count_ticks_not_arrivals():
+    """Actions overwritten before any tick used them count as received, not as fresh ticks."""
+    buf = ActionBuffer(hold_fn=_repeat_hold)
+    buf.update({"actions": np.ones(7)})
+    buf.update({"actions": np.ones(7) * 2})  # overwrites the first before a tick reads it
+    buf.get()  # fresh
+    buf.get()  # stale
+    metrics = buf.get_metrics()
+    assert metrics["update_count"] == 2
+    assert metrics["fresh_count"] == 1
+    assert metrics["stale_action_ratio"] == 0.5  # 1 of 2 ticks held, not 1 of 3
 
 
 # ---------------------------------------------------------------------------
