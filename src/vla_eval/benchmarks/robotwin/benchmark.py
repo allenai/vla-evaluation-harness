@@ -7,7 +7,9 @@ Non-obvious behaviors:
     - **Expert check**: ``get_tasks()`` optionally runs the oracle planner
       per seed to verify solvability (``skip_expert_check=False``).
     - **Lazy init**: Heavy imports happen on first use, not at construction.
-    - **14D action**: dual-arm qpos; 16D inputs are trimmed to 14D.
+    - **14D action** (``action_type="qpos"``, default): dual-arm qpos; 16D inputs are trimmed to 14D.
+    - **16D action** (``action_type="ee"``): RoboTwin's ``take_action(..., "ee")`` layout,
+      ``[pos3, quat_wxyz4, gripper1]`` per arm (left first), passed through unchanged.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ from typing import Any, cast
 import numpy as np
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
-from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
+from vla_eval.specs import EE_POSE_DUAL_WXYZ, IMAGE_RGB, LANGUAGE, STATE_EE_POSE_DUAL_WXYZ, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
@@ -210,6 +212,10 @@ class RoboTwinBenchmark(StepBenchmark):
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
+        action_type: ``"qpos"`` (14D joint targets) or ``"ee"`` (16D end-effector
+            poses, planned by CuRobo; implies ``fast_init=False``).
+        send_state: Add ``states``, the 16D end pose in the ``"ee"`` action layout with
+            RoboTwin's gripper values (``data_type.endpose`` of the task config).
         use_bundled_expert_seeds: When seeds start at 100000 (``seed=0``, the
             official protocol), take the verified seeds and instructions from
             ``expert_seeds/`` if it covers ``test_num`` and matches the configs and
@@ -237,6 +243,8 @@ class RoboTwinBenchmark(StepBenchmark):
         instruction_type: str = "seen",
         test_num: int = 100,
         skip_expert_check: bool = False,
+        action_type: str = "qpos",
+        send_state: bool = False,
         fast_init: bool = True,
         fast_render: bool = False,
         use_bundled_expert_seeds: bool = True,
@@ -249,13 +257,18 @@ class RoboTwinBenchmark(StepBenchmark):
             raise ValueError(f"Invalid task_name: {task_name!r}")
         if not re.fullmatch(r"[A-Za-z0-9_-]+", task_config):
             raise ValueError(f"Invalid task_config: {task_config!r}")
+        if action_type not in ("qpos", "ee"):
+            raise ValueError(f"Invalid action_type: {action_type!r}")
+        self.action_type = action_type
+        self.send_state = send_state
         self.task_name = task_name
         self.task_config = task_config
         self.seed = seed
         self.instruction_type = instruction_type
         self.test_num = test_num
         self.skip_expert_check = skip_expert_check
-        self.fast_init = fast_init
+        # the fast path stubs out plan_path, which take_action(..., "ee") plans with
+        self.fast_init = fast_init and action_type == "qpos"
         self.fast_render = fast_render
         self.use_bundled_expert_seeds = use_bundled_expert_seeds
         self.render_every = render_every
@@ -500,13 +513,17 @@ class RoboTwinBenchmark(StepBenchmark):
     def step(self, action: Action) -> StepResult:
         raw = action.get("actions", action.get("action"))
         act = np.asarray(raw, dtype=np.float64).flatten()
-        if len(act) > 14:
-            act = act[:14]
-        elif len(act) < 14:
-            act = np.pad(act, (0, 14 - len(act)))
-        assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
-
-        self._env.take_action(act, action_type="qpos")
+        if self.action_type == "ee":
+            if len(act) != 16:
+                raise ValueError(f"action_type='ee' takes a 16D action, got {len(act)}D")
+            self._env.take_action(act, action_type="ee")
+        else:
+            if len(act) > 14:
+                act = act[:14]
+            elif len(act) < 14:
+                act = np.pad(act, (0, 14 - len(act)))
+            assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
+            self._env.take_action(act, action_type="qpos")
         self._steps += 1
         success = bool(self._env.eval_success)
         done = success or (self._env.take_action_cnt >= self._env.step_lim)
@@ -529,7 +546,7 @@ class RoboTwinBenchmark(StepBenchmark):
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
         if raw_obs is None:  # a step render_every skipped
             return {"task_description": task.get("instruction", "")}
-        return {
+        obs: Observation = {
             "images": {
                 "head_camera": raw_obs["observation"]["head_camera"]["rgb"],
                 "left_camera": raw_obs["observation"]["left_camera"]["rgb"],
@@ -541,6 +558,12 @@ class RoboTwinBenchmark(StepBenchmark):
             ),
             "joint_state": np.array(raw_obs["joint_action"]["vector"]),
         }
+        if self.send_state:
+            ep = raw_obs["endpose"]
+            obs["states"] = np.array(
+                [*ep["left_endpose"], ep["left_gripper"], *ep["right_endpose"], ep["right_gripper"]], dtype=np.float64
+            )
+        return obs
 
     def check_done(self, step_result: StepResult) -> bool:
         return step_result.done
@@ -552,21 +575,26 @@ class RoboTwinBenchmark(StepBenchmark):
         return {
             "max_steps": 1700,  # step() ends each episode at its task's step_lim, at most 1700
             "task_name": self.task_name,
-            "action_dim": 14,
+            "action_dim": 16 if self.action_type == "ee" else 14,
             "max_episodes_per_task": self.test_num,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
+        if self.action_type == "ee":
+            return {"ee_pose": EE_POSE_DUAL_WXYZ}
         # 14D dual-arm joint positions
         return {
             "joints": DimSpec("joints", 14, "joint_positions"),
         }
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
-        return {
+        spec = {
             "head_camera": IMAGE_RGB,
             "left_camera": IMAGE_RGB,
             "right_camera": IMAGE_RGB,
             "state": STATE_JOINT,
             "language": LANGUAGE,
         }
+        if self.send_state:
+            spec["ee_state"] = STATE_EE_POSE_DUAL_WXYZ
+        return spec
