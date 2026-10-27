@@ -139,13 +139,10 @@ def _build_aggregate(
     episode_count = 0
 
     # Last committed work item wins; legacy rows without task indices remain distinct.
-    # DBs written before the rt_metrics column existed are exported as if it were NULL.
-    has_rt_metrics = any(row["name"] == "rt_metrics" for row in conn.execute("PRAGMA table_info(episode_results)"))
-    rt_metrics_col = "rt_metrics" if has_rt_metrics else "NULL AS rt_metrics"
     for er in conn.execute(
-        f"""
+        """
         SELECT sid, eid, task_name, episode_id, status, metrics, steps, elapsed_sec,
-               context, jsonl_path, failure_reason, failure_detail, {rt_metrics_col}
+               context, jsonl_path, failure_reason, failure_detail
         FROM episode_results
         WHERE rowid IN (
             SELECT MAX(rowid) FROM episode_results WHERE eval_id = ?
@@ -171,8 +168,6 @@ def _build_aggregate(
             episode_row["failure_reason"] = er["failure_reason"]
         if er["failure_detail"]:
             episode_row["failure_detail"] = er["failure_detail"]
-        if er["rt_metrics"]:
-            episode_row["rt_metrics"] = json.loads(er["rt_metrics"])
 
         task_name = str(er["task_name"] or "_unknown")
         tasks_acc.setdefault(task_name, []).append(episode_row)

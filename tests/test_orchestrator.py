@@ -308,7 +308,7 @@ async def test_orchestrator_records_by_default_without_recording_block(echo_serv
 
 @pytest.mark.anyio
 async def test_orchestrator_persists_runner_rt_metrics(echo_server, tmp_path):
-    """``rt_metrics`` a runner reports (the live runner does) reach ``episode_results``."""
+    """``rt_metrics`` a runner reports (the live runner does) survive recording and export."""
     from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
     rt = {"stale_action_ratio": 0.5, "effective_control_hz": 10.0}
@@ -335,10 +335,12 @@ async def test_orchestrator_persists_runner_rt_metrics(echo_server, tmp_path):
         with patch.object(SyncEpisodeRunner, "run_episode", with_rt_metrics):
             await Orchestrator(config, eval_id="ev-rt", no_save=False).run()
 
-    conn = sqlite3.connect(str(tmp_path / "recording-ev-rt.sqlite"))
-    (stored,) = conn.execute("SELECT rt_metrics FROM episode_results").fetchone()
-    conn.close()
-    assert json.loads(stored) == rt
+    from vla_eval.results.export import export_db
+
+    (aggregate,) = export_db(tmp_path / "recording-ev-rt.sqlite", tmp_path / "export")
+    (episode,) = aggregate["tasks"][0]["episodes"]
+    assert episode["rt_metrics"] == rt
+    assert "rt_metrics" not in episode["metrics"]
 
 
 @pytest.mark.anyio
