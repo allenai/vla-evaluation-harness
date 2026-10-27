@@ -32,6 +32,7 @@ published number; "smoke" = checkpoint load + stub-episode inference on an A100.
 | `lingbot_va` | world model | `lingbot_va_libero.yaml` | `lerobot/lingbot_va_libero_long` | LIBERO-10 10/10 (10 eps, via `use_select_action`); no published score to compare |
 | `pi0` | VLA | `pi0.yaml` | `lerobot/pi0` | untested (`lerobot/pi0_libero_finetuned` scored 0/10 here and has no published score) |
 | `xvla` | VLA | `xvla.yaml` | `lerobot/xvla-base` | smoke (base checkpoint; no benchmark-ready finetune published) |
+| `smolvla` | VLA | `smolvla.yaml` | `lerobot/smolvla_base` | smoke (base checkpoint; no benchmark-ready finetune published) |
 | `smolvla` | VLA | `smolvla_libero.yaml` | `lerobot/smolvla_libero` | reference score: LIBERO Spatial 85.4% (500 eps); no published score for this checkpoint, see [lerobot.md](../../../docs/reproductions/lerobot.md) |
 | `fastwam` | world model | `fastwam_libero.yaml` | `ZibinDong/fastwam_libero_uncond_2cam224` | smoke; LIBERO-10 0/10. Upstream defect: LeRobot's own `lerobot-eval` with the documented command also scores 0/20 at v0.6.0 (and needs a `tokenizer_model_id` override just to load), so the published 94.0 is not reproducible at the tag |
 

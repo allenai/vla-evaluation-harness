@@ -1,17 +1,5 @@
-# SmolVLA (LeRobot) model server: LIBERO checkpoint.
-#
-# Checkpoint: lerobot/smolvla_libero (finetuned from lerobot/smolvla_base on lerobot/libero;
-# 7-D action, 8-D state, cameras camera1/camera2 mapped positionally from agentview/wrist).
-# Use revision a24f1f38 or later: earlier revisions declare smolvla_base's 6-D state / 3 cameras.
-#
-# chunk_size is explicit: the checkpoint default (n_action_steps=50) is the worst LIBERO
-# setting in the SmolVLA paper (Table 13), which replans after every action in simulation.
-# chunk_size: 1; 10 is ~2.4x faster to evaluate (on one RTX PRO 6000, sync mode, wall clock;
-# per-inference latency is unchanged); on Spatial c1−c10 = +2.2 pp [−1.4, 5.6] (docs/reproductions/lerobot.md).
-#
-# quat_no_antipodal: LeRobot's LIBERO env processor computes axis-angle without antipodal
-# normalization; the harness default flips it for w < 0, which puts state[3] near -3.1 instead
-# of +3.1 for much of an episode (see docs/reproductions/common-pitfalls.md).
+# SmolVLA LIBERO checkpoint, tested at revision a24f1f38. chunk_size 1 (replan every step, as in the paper) and
+# quat_no_antipodal (LeRobot's axis-angle convention) decide the score; see docs/reproductions/lerobot.md.
 
 extends: _base.yaml
 args:

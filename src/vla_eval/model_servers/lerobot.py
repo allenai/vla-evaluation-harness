@@ -163,9 +163,8 @@ class LeRobotModelServer(PredictModelServer):
                 so the policy sees every step's observation.
             preprocessor_overrides: Per-step config overrides forwarded to LeRobot's
                 ``make_pre_post_processors``; a ``device_processor`` entry replaces the bridge's.
-            quat_no_antipodal: Ask the benchmark for the robosuite axis-angle convention
-                (no antipodal normalization), as LeRobot's LIBERO env processor computes it.
-                Forwarded as an observation param; only benchmarks that accept it use it.
+            quat_no_antipodal: Ask the benchmark for robosuite axis-angle (no antipodal flip),
+                LeRobot's LIBERO convention; forwarded as an observation param.
         """
         super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
         self.policy_type = policy_type
