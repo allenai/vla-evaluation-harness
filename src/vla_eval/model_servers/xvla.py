@@ -35,11 +35,14 @@ Action conversion (``output_action_dim=7``):
 
         [pos_x, pos_y, pos_z, aa_x, aa_y, aa_z, gripper]
 
+    RoboTwin (``output_action_dim=16``) decodes both arms as the official
+    ``evaluation/robotwin-2.0/client.py`` does, into RoboTwin's ``take_action(..., "ee")`` layout.
+
 Proprioceptive state (closed-loop feedback):
     On the **first** inference of an episode, accepts ``obs["state"]``
     or ``obs["states"]`` as a flat array (e.g. ``[pos3, axisangle3,
     gripper*]``) and converts it to the 20-D format expected by X-VLA
-    (``[pos3, rot6d6, 0.0, zeros10]``).
+    (``[pos3, rot6d6, 0.0, zeros10]``).  RoboTwin sends its 16-D end pose instead.
 
     On **subsequent** inferences (when the action chunk buffer is
     drained), the model server feeds the **last predicted action's**
@@ -65,6 +68,8 @@ from vla_eval.specs import (
     ROTATION_AA,
     ROTATION_EULER,
     STATE_ROT6D_PROPRIO_20D,
+    EE_POSE_DUAL_WXYZ,
+    STATE_EE_POSE_DUAL_WXYZ,
     DimSpec,
 )
 from vla_eval.types import Action, Observation
@@ -82,8 +87,10 @@ from vla_eval.rotation import (
     matrix_to_quat as _mat_to_quat,
     quat_to_axisangle as _quat_to_axisangle,
     quat_to_matrix as _quat_to_matrix,
+    quat_to_rot6d_interleaved,
     rot6d_contiguous_to_matrix as _rot6d_to_matrix_contig,
     rot6d_interleaved_to_matrix as _rot6d_to_matrix_inter,
+    rot6d_interleaved_to_quat,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,7 +104,7 @@ class _XVLABenchmarkProfile:
     gripper_threshold: float  # sigmoid threshold for gripper binarization
     gripper_close_above: bool  # True: >threshold=close(+1), False: <threshold=close(+1)
     output_action_dim: int | None = None
-    preserve_env_grippers: bool = False
+    instruction_from_task_name: bool = False  # official RoboTwin client prompts with the task name
     unflip_wrist: bool = False  # un-flip wrist image (benchmark sends it flipped)
     euler_state: bool = False  # True: state[3:6] is euler XYZ, not axis-angle
     rot6d_convention: str = "interleaved"  # "interleaved" or "contiguous"
@@ -155,11 +162,12 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
     ),
     "robotwin": _XVLABenchmarkProfile(
         image_keys=("head_camera", "left_camera", "right_camera"),
-        predicted_proprio_dims=20,
+        predicted_proprio_dims=None,  # proprio is the commanded end pose (_robotwin_proprio)
         use_predicted_proprio=True,
-        gripper_threshold=0.5,
+        gripper_threshold=0.7,
         gripper_close_above=True,
-        preserve_env_grippers=True,
+        output_action_dim=16,
+        instruction_from_task_name=True,
     ),
 }
 
@@ -188,7 +196,7 @@ _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
         "control_mode": "arm_pd_ee_target_base_pose_gripper_pd_joint_pos",
     },
     "vlabench": {"send_wrist_image": True, "send_state": True},
-    "robotwin": {"send_state": True},
+    "robotwin": {"send_state": True, "action_type": "ee"},
 }
 
 
@@ -279,6 +287,34 @@ def _convert_ee6d_to_7d(
     return out[0] if single else out
 
 
+def _ee6d_to_robotwin_ee16(actions: np.ndarray, gripper_threshold: float) -> np.ndarray:
+    """``(T, 20)`` EE6D → ``(T, 16)`` RoboTwin ee actions, as the official client: interleaved rot6d, the quaternion
+    left in scipy's xyzw order, gripper ``1 - 2 * (sigmoid > threshold)`` (RoboTwin clips it after interpolating)."""
+    out = np.zeros((len(actions), 16), dtype=np.float64)
+    for i, a in enumerate(np.asarray(actions, dtype=np.float64)):
+        for arm in range(2):
+            src, dst = a[10 * arm : 10 * arm + 10], out[i, 8 * arm : 8 * arm + 8]
+            dst[:3] = src[:3]
+            dst[3:7] = rot6d_interleaved_to_quat(src[3:9])
+            dst[7] = 1.0 - 2.0 * float(src[9] > gripper_threshold)
+    return out
+
+
+def _robotwin_proprio(state: np.ndarray, commanded: np.ndarray | None) -> np.ndarray:
+    """16-D RoboTwin end pose → 20-D proprio, as the official client: each arm ``[pos3,
+    rot6d(quat read as xyzw), 1 - 2 * gripper]``; after the first chunk the poses are the last commanded ones."""
+    ee = np.asarray(state, dtype=np.float64).copy()
+    if commanded is not None:
+        ee[0:7], ee[8:15] = commanded[0:7], commanded[8:15]
+    proprio = np.zeros(20, dtype=np.float32)
+    for arm in range(2):
+        src = ee[8 * arm : 8 * arm + 8]
+        proprio[10 * arm : 10 * arm + 3] = src[:3]
+        proprio[10 * arm + 3 : 10 * arm + 9] = quat_to_rot6d_interleaved(src[3:7] / np.linalg.norm(src[3:7]))
+        proprio[10 * arm + 9] = 1.0 - 2.0 * src[7]
+    return proprio
+
+
 def _state_to_xvla_proprio(
     state: np.ndarray,
     dim: int = 20,
@@ -339,7 +375,7 @@ class XVLAModelServer(PredictModelServer):
             if profile is not None
             else _default_predicted_proprio_dims(output_action_dim)
         )
-        self._preserve_env_grippers = profile.preserve_env_grippers if profile is not None else False
+        self._instruction_from_task_name = profile.instruction_from_task_name if profile is not None else False
         self._unflip_wrist = profile.unflip_wrist if profile is not None else False
         self._euler_state = profile.euler_state if profile is not None else False
         self._gripper_threshold = profile.gripper_threshold if profile is not None else 0.5
@@ -363,6 +399,8 @@ class XVLAModelServer(PredictModelServer):
         # always uses fresh env state in the official eval).
         self._last_raw_actions: dict[str, np.ndarray] = {}
         self._current_xyz: dict[str, np.ndarray] = {}
+        self._last_commanded: dict[str, np.ndarray] = {}  # RoboTwin: last executed 16-D ee action
+        self._task_prompts: dict[str, str] = {}
 
         import torch
         from transformers import AutoConfig, AutoModel, AutoProcessor
@@ -403,11 +441,16 @@ class XVLAModelServer(PredictModelServer):
     async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
         self._last_raw_actions.pop(ctx.session_id, None)
         self._current_xyz.pop(ctx.session_id, None)
+        self._last_commanded.pop(ctx.session_id, None)
+        if self._instruction_from_task_name:
+            self._task_prompts[ctx.session_id] = config["task"]["name"].replace("_", " ")
         await super().on_episode_start(config, ctx)
 
     async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
         self._last_raw_actions.pop(ctx.session_id, None)
         self._current_xyz.pop(ctx.session_id, None)
+        self._last_commanded.pop(ctx.session_id, None)
+        self._task_prompts.pop(ctx.session_id, None)
         await super().on_episode_end(result, ctx)
 
     def get_observation_params(self) -> dict[str, Any]:
@@ -419,6 +462,8 @@ class XVLAModelServer(PredictModelServer):
         if self.output_action_dim == 7:
             rotation = ROTATION_EULER if self._euler_offset is not None else ROTATION_AA
             return {"position": POSITION_DELTA, "rotation": rotation, "gripper": GRIPPER_CLOSE_POS}
+        if self.output_action_dim == 16:
+            return {"ee_pose": EE_POSE_DUAL_WXYZ}
         return {"actions": RAW}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
@@ -427,7 +472,9 @@ class XVLAModelServer(PredictModelServer):
             spec[key] = IMAGE_RGB
         if not self._image_keys:
             spec["image"] = IMAGE_RGB
-        if self.use_predicted_proprio:
+        if self.output_action_dim == 16:
+            spec["ee_state"] = STATE_EE_POSE_DUAL_WXYZ
+        elif self.use_predicted_proprio:
             spec["state"] = STATE_ROT6D_PROPRIO_20D
         spec["language"] = LANGUAGE
         return spec
@@ -438,6 +485,7 @@ class XVLAModelServer(PredictModelServer):
 
         if obs.get("episode_restart"):
             self._last_raw_actions.pop(ctx.session_id, None)
+            self._last_commanded.pop(ctx.session_id, None)
 
         raw_images = _ordered_images(obs, self._image_keys)
         # Un-flip wrist image: benchmark sends all images flipped [::-1,::-1],
@@ -447,6 +495,8 @@ class XVLAModelServer(PredictModelServer):
         pil_images = [Image.fromarray(img) for img in raw_images]
 
         task_desc = obs.get("task_description", "")
+        if self._instruction_from_task_name:
+            task_desc = self._task_prompts[ctx.session_id]
 
         # Process with XVLAProcessor
         inputs = self._processor(
@@ -461,18 +511,19 @@ class XVLAModelServer(PredictModelServer):
         # - VLABench: always use fresh env state (matches official eval).
         dim_proprio = self._model.action_space.dim_action
         last_actions = self._last_raw_actions.get(ctx.session_id) if self.use_predicted_proprio else None
-        if last_actions is not None:
+        if self.output_action_dim == 16:
+            state = _obs_state_array(obs)
+            if state is None or len(state) != 16:
+                raise ValueError(
+                    "RoboTwin profile needs the 16-D end pose in obs['states']: send_state, and render_every == chunk_size"
+                )
+            commanded = self._last_commanded.get(ctx.session_id)
+            proprio = torch.tensor(_robotwin_proprio(state, commanded), device=device).unsqueeze(0)
+        elif last_actions is not None:
             proprio_np = np.zeros(dim_proprio, dtype=np.float32)
             n = self._predicted_proprio_dims or dim_proprio
             n = min(n, dim_proprio, last_actions.shape[-1])
             proprio_np[:n] = last_actions[-1, :n]
-            if self._preserve_env_grippers:
-                env_state = _obs_state_array(obs)
-                if env_state is not None:
-                    if len(env_state) > 9 and dim_proprio > 9:
-                        proprio_np[9] = env_state[9]
-                    if len(env_state) > 19 and dim_proprio > 19:
-                        proprio_np[19] = env_state[19]
             proprio = torch.tensor(proprio_np, device=device).unsqueeze(0)
         else:
             # Try base-relative EE pose (SimplerEnv: base_pose + tcp_pose)
@@ -524,6 +575,12 @@ class XVLAModelServer(PredictModelServer):
 
         # Store raw 20-D actions for closed-loop proprio on next call
         self._last_raw_actions[ctx.session_id] = raw_actions.copy()
+
+        if self.output_action_dim == 16:
+            # the whole chunk runs before the next query, so its last action is the next commanded pose
+            ee16 = _ee6d_to_robotwin_ee16(raw_actions[: self.chunk_size], self._gripper_threshold)
+            self._last_commanded[ctx.session_id] = ee16[-1]
+            return {"actions": ee16}
 
         # Convert EE6D 20-D → 7-D when requested
         if self.output_action_dim == 7 and raw_actions.shape[-1] == 20:

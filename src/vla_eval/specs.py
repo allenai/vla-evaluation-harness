@@ -166,6 +166,9 @@ GRIPPER_01 = DimSpec("gripper", 1, "continuous_01", (0, 1))
 GRIPPER_CLOSE_01 = DimSpec("gripper", 1, "binary_close_01", (0, 1))
 GRIPPER_RAW = DimSpec("gripper", 1, "raw")
 
+# Dual-arm end-effector pose, ``[pos3, quat_wxyz4, gripper1]`` per arm, left first (RoboTwin "ee")
+EE_POSE_DUAL_WXYZ = DimSpec("ee_pose", 16, "dual_eef_pos3_quatwxyz4_gripper1")
+
 # Mobile base (planar base velocity + torso, and the base/arm control-mode switch)
 BASE_MOTION = DimSpec("base_motion", 4, "base_velocity3_torso1", (-1, 1))
 CONTROL_MODE_01 = DimSpec("control_mode", 1, "base_mode_01", (0, 1))
@@ -179,6 +182,7 @@ STATE_EEF_POS_AA_GRIP = DimSpec("state", 8, "eef_pos3_axisangle3_gripper2")
 STATE_EEF_POS_EULER_GRIP = DimSpec("state", 8, "eef_pos3_euler3_gripper2")
 STATE_ROT6D_PROPRIO_20D = DimSpec("state", 20, "rot6d_interleaved_proprio_20d")
 STATE_JOINT = DimSpec("state", 0, "joint_positions")
+STATE_EE_POSE_DUAL_WXYZ = DimSpec("ee_state", 16, "dual_eef_pos3_quatwxyz4_gripper1")
 
 # Observation — language
 LANGUAGE = DimSpec("language", 0, "language")

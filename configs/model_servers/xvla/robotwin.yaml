@@ -1,7 +1,8 @@
-# X-VLA model server — RoboTwin 2.0
+# X-VLA model server — RoboTwin 2.0 (pair with configs/benchmarks/robotwin/xvla.yaml)
+# Requests action_type: ee and send_state from the benchmark; prompts with the task name.
 extends: _base.yaml
 args:
-  model_path: "2toINF/X-VLA-WidowX"
+  model_path: "2toINF/X-VLA-RoboTwin2"
   benchmark_profile: "robotwin"
   domain_id: 6
   chunk_size: 30

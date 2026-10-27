@@ -1,0 +1,77 @@
+# RoboTwin 2.0 Easy (demo_clean) under X-VLA's protocol (evaluation/robotwin-2.0/client.py):
+# 50 tasks x 100 episodes, end-effector actions, each 30-action chunk executed whole and
+# re-queried at most 10 times (max_steps 300). Serve configs/model_servers/xvla/robotwin.yaml.
+# Seeds are RoboTwin's expert-checked ones from 100000 (bundled); X-VLA's client draws from 2000.
+# --benchmark-field max_steps=null runs to RoboTwin's per-task step limits, which the paper's
+# long tasks need (docs/reproductions/xvla.md).
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/robotwin:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - &task
+    benchmark: "vla_eval.benchmarks.robotwin.benchmark:RoboTwinBenchmark"
+    subname: adjust_bottle
+    episodes_per_task: 1  # each seed is one task; test_num sets the episode count
+    max_steps: 300
+    params: &params
+      task_name: adjust_bottle
+      task_config: demo_clean
+      seed: 0
+      test_num: 100
+      action_type: ee
+      send_state: true
+      render_every: 30  # the chunk runs open loop; render only where the server queries
+  - {<<: *task, subname: beat_block_hammer, params: {<<: *params, task_name: beat_block_hammer}}
+  - {<<: *task, subname: blocks_ranking_rgb, params: {<<: *params, task_name: blocks_ranking_rgb}}
+  - {<<: *task, subname: blocks_ranking_size, params: {<<: *params, task_name: blocks_ranking_size}}
+  - {<<: *task, subname: click_alarmclock, params: {<<: *params, task_name: click_alarmclock}}
+  - {<<: *task, subname: click_bell, params: {<<: *params, task_name: click_bell}}
+  - {<<: *task, subname: dump_bin_bigbin, params: {<<: *params, task_name: dump_bin_bigbin}}
+  - {<<: *task, subname: grab_roller, params: {<<: *params, task_name: grab_roller}}
+  - {<<: *task, subname: handover_block, params: {<<: *params, task_name: handover_block}}
+  - {<<: *task, subname: handover_mic, params: {<<: *params, task_name: handover_mic}}
+  - {<<: *task, subname: hanging_mug, params: {<<: *params, task_name: hanging_mug}}
+  - {<<: *task, subname: lift_pot, params: {<<: *params, task_name: lift_pot}}
+  - {<<: *task, subname: move_can_pot, params: {<<: *params, task_name: move_can_pot}}
+  - {<<: *task, subname: move_pillbottle_pad, params: {<<: *params, task_name: move_pillbottle_pad}}
+  - {<<: *task, subname: move_playingcard_away, params: {<<: *params, task_name: move_playingcard_away}}
+  - {<<: *task, subname: move_stapler_pad, params: {<<: *params, task_name: move_stapler_pad}}
+  - {<<: *task, subname: open_laptop, params: {<<: *params, task_name: open_laptop}}
+  - {<<: *task, subname: open_microwave, params: {<<: *params, task_name: open_microwave}}
+  - {<<: *task, subname: pick_diverse_bottles, params: {<<: *params, task_name: pick_diverse_bottles}}
+  - {<<: *task, subname: pick_dual_bottles, params: {<<: *params, task_name: pick_dual_bottles}}
+  - {<<: *task, subname: place_a2b_left, params: {<<: *params, task_name: place_a2b_left}}
+  - {<<: *task, subname: place_a2b_right, params: {<<: *params, task_name: place_a2b_right}}
+  - {<<: *task, subname: place_bread_basket, params: {<<: *params, task_name: place_bread_basket}}
+  - {<<: *task, subname: place_bread_skillet, params: {<<: *params, task_name: place_bread_skillet}}
+  - {<<: *task, subname: place_burger_fries, params: {<<: *params, task_name: place_burger_fries}}
+  - {<<: *task, subname: place_can_basket, params: {<<: *params, task_name: place_can_basket}}
+  - {<<: *task, subname: place_cans_plasticbox, params: {<<: *params, task_name: place_cans_plasticbox}}
+  - {<<: *task, subname: place_container_plate, params: {<<: *params, task_name: place_container_plate}}
+  - {<<: *task, subname: place_dual_shoes, params: {<<: *params, task_name: place_dual_shoes}}
+  - {<<: *task, subname: place_empty_cup, params: {<<: *params, task_name: place_empty_cup}}
+  - {<<: *task, subname: place_fan, params: {<<: *params, task_name: place_fan}}
+  - {<<: *task, subname: place_mouse_pad, params: {<<: *params, task_name: place_mouse_pad}}
+  - {<<: *task, subname: place_object_basket, params: {<<: *params, task_name: place_object_basket}}
+  - {<<: *task, subname: place_object_scale, params: {<<: *params, task_name: place_object_scale}}
+  - {<<: *task, subname: place_object_stand, params: {<<: *params, task_name: place_object_stand}}
+  - {<<: *task, subname: place_phone_stand, params: {<<: *params, task_name: place_phone_stand}}
+  - {<<: *task, subname: place_shoe, params: {<<: *params, task_name: place_shoe}}
+  - {<<: *task, subname: press_stapler, params: {<<: *params, task_name: press_stapler}}
+  - {<<: *task, subname: put_bottles_dustbin, params: {<<: *params, task_name: put_bottles_dustbin}}
+  - {<<: *task, subname: put_object_cabinet, params: {<<: *params, task_name: put_object_cabinet}}
+  - {<<: *task, subname: rotate_qrcode, params: {<<: *params, task_name: rotate_qrcode}}
+  - {<<: *task, subname: scan_object, params: {<<: *params, task_name: scan_object}}
+  - {<<: *task, subname: shake_bottle_horizontally, params: {<<: *params, task_name: shake_bottle_horizontally}}
+  - {<<: *task, subname: shake_bottle, params: {<<: *params, task_name: shake_bottle}}
+  - {<<: *task, subname: stack_blocks_three, params: {<<: *params, task_name: stack_blocks_three}}
+  - {<<: *task, subname: stack_blocks_two, params: {<<: *params, task_name: stack_blocks_two}}
+  - {<<: *task, subname: stack_bowls_three, params: {<<: *params, task_name: stack_bowls_three}}
+  - {<<: *task, subname: stack_bowls_two, params: {<<: *params, task_name: stack_bowls_two}}
+  - {<<: *task, subname: stamp_seal, params: {<<: *params, task_name: stamp_seal}}
+  - {<<: *task, subname: turn_switch, params: {<<: *params, task_name: turn_switch}}
