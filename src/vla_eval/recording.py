@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS episode_results (
     jsonl_path      TEXT,            -- resolved final filename for ``vla-eval export``
     failure_reason  TEXT,
     failure_detail  TEXT,
+    rt_metrics      TEXT,            -- JSON: live-runner real-time metrics; NULL for sync episodes
     PRIMARY KEY (sid, eid)
 );
 CREATE INDEX IF NOT EXISTS idx_episode_results_eval ON episode_results(eval_id);
@@ -178,12 +179,20 @@ class RecordingStore:
                     raise RuntimeError(f"Expected DELETE journal mode, got {mode}")
                 self._conn.execute("PRAGMA synchronous=EXTRA")
                 self._conn.executescript(SCHEMA_SQL)
+                self._migrate_schema()
                 return
             except sqlite3.OperationalError as exc:
                 self._conn.rollback()
                 if "locked" not in str(exc).lower() or attempt == 39:
                     raise
                 time.sleep(min(1.0, 0.1 * (attempt + 1)))
+
+    def _migrate_schema(self) -> None:
+        """Add columns newer than an existing DB; ``CREATE TABLE IF NOT EXISTS`` never alters a table."""
+        with self.transaction():
+            columns = {row[1] for row in self._conn.execute("PRAGMA table_info(episode_results)")}
+            if "rt_metrics" not in columns:
+                self._conn.execute("ALTER TABLE episode_results ADD COLUMN rt_metrics TEXT")
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
@@ -329,6 +338,7 @@ class RecordingStore:
         jsonl_path: str,
         failure_reason: str | None,
         failure_detail: str | None,
+        rt_metrics: dict[str, Any] | None = None,
     ) -> None:
         """Insert-or-replace; safe under orchestrator retry with the same (sid, eid)."""
         with self.transaction():
@@ -337,8 +347,8 @@ class RecordingStore:
                 INSERT OR REPLACE INTO episode_results
                   (sid, eid, eval_id, task_name, episode_id, status, metrics,
                    steps, elapsed_sec, context, jsonl_path,
-                   failure_reason, failure_detail)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   failure_reason, failure_detail, rt_metrics)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     sid,
@@ -354,6 +364,7 @@ class RecordingStore:
                     jsonl_path,
                     failure_reason,
                     failure_detail,
+                    None if rt_metrics is None else json.dumps(rt_metrics, default=_json_default),
                 ),
             )
 
@@ -499,6 +510,7 @@ class EpisodeRecorder:
         elapsed_sec: float = 0.0,
         failure_reason: str | None = None,
         failure_detail: str | None = None,
+        rt_metrics: dict[str, Any] | None = None,
     ) -> None:
         if self._closed:
             return
@@ -543,6 +555,7 @@ class EpisodeRecorder:
                     jsonl_path=jsonl_path,
                     failure_reason=failure_reason,
                     failure_detail=failure_detail,
+                    rt_metrics=rt_metrics,
                 )
         except Exception as exc:
             raise RecordingError(f"Failed to save episode sid={self._sid} eid={self._eid}") from exc
@@ -593,6 +606,7 @@ class NullEpisodeRecorder(EpisodeRecorder):
         elapsed_sec: float = 0.0,
         failure_reason: str | None = None,
         failure_detail: str | None = None,
+        rt_metrics: dict[str, Any] | None = None,
     ) -> None:
         pass
 

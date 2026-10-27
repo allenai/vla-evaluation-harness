@@ -145,3 +145,53 @@ def test_export_reports_queue_items_a_shard_never_finished(tmp_path, caplog):
     assert aggregate["partial"] is True
     assert aggregate["queue_unfinished"] == [{"item": 1, "task_idx": 0, "shard_id": 0}]
     assert "shards [0]" in caplog.text
+
+
+def test_export_keeps_live_rt_metrics(tmp_path):
+    """Live-runner rt_metrics survive recording → export; sync episodes stay without the key."""
+    from vla_eval.results.export import export_db
+
+    db = tmp_path / "recording-rt.sqlite"
+    _database(db)
+    store = RecordingStore(db)
+    rt = {"stale_action_ratio": 0.73, "update_count": 12, "effective_control_hz": 2.6}
+    store.upsert_episode_result(
+        sid="s",
+        eid="live",
+        eval_id="original-id-demo",
+        task_name="task",
+        episode_id=1,
+        status="success",
+        metrics={"success": True},
+        steps=1,
+        elapsed_sec=0.1,
+        context={},
+        jsonl_path="",
+        failure_reason=None,
+        failure_detail=None,
+        rt_metrics=rt,
+    )
+    store.close()
+    (aggregate,) = export_db(db, tmp_path)
+    episodes = {ep["eid"]: ep for ep in aggregate["tasks"][0]["episodes"]}
+    assert episodes["live"]["rt_metrics"] == rt
+    assert "rt_metrics" not in episodes["e"]
+    # rt_metrics are not benchmark metrics and must not leak into aggregates.
+    assert "rt_metrics" not in episodes["live"]["metrics"]
+
+
+def test_existing_database_gains_rt_metrics_column(tmp_path):
+    """A DB created before the rt_metrics column is migrated on open and still exports."""
+    from vla_eval.results.export import export_db
+
+    db = tmp_path / "recording-old.sqlite"
+    _database(db)
+    with sqlite3.connect(db) as conn:
+        conn.execute("ALTER TABLE episode_results DROP COLUMN rt_metrics")
+    (aggregate,) = export_db(db, tmp_path)
+    assert "rt_metrics" not in aggregate["tasks"][0]["episodes"][0]
+
+    RecordingStore(db).close()
+    with sqlite3.connect(db) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(episode_results)")}
+    assert "rt_metrics" in columns

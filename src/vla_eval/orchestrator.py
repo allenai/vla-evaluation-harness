@@ -398,6 +398,7 @@ class Orchestrator:
                 elapsed_sec=float(ep_dict.get("elapsed_sec", 0.0)),
                 failure_reason=ep_dict.get("failure_reason"),
                 failure_detail=ep_dict.get("failure_detail"),
+                rt_metrics=ep_dict.get("rt_metrics"),
             )
             # Fire from this site so error terminations (status != "success") reach
             # trackers too — collector.record() above misses the reconnect paths.
