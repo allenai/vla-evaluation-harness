@@ -307,6 +307,43 @@ async def test_orchestrator_records_by_default_without_recording_block(echo_serv
 
 
 @pytest.mark.anyio
+async def test_orchestrator_persists_runner_rt_metrics(echo_server, tmp_path):
+    """``rt_metrics`` a runner reports (the live runner does) survive recording and export."""
+    from vla_eval.runners.sync_runner import SyncEpisodeRunner
+
+    rt = {"stale_action_ratio": 0.5, "effective_control_hz": 10.0}
+    original = SyncEpisodeRunner.run_episode
+
+    async def with_rt_metrics(self, *args, **kwargs):
+        result = await original(self, *args, **kwargs)
+        return {**result, "rt_metrics": rt}
+
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "rt_test",
+                "episodes_per_task": 1,
+                "max_steps": 50,
+                "params": {"done_at_step": 2, "num_tasks": 1},
+            }
+        ],
+    }
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=StepRecordingStub):
+        with patch.object(SyncEpisodeRunner, "run_episode", with_rt_metrics):
+            await Orchestrator(config, eval_id="ev-rt", no_save=False).run()
+
+    from vla_eval.results.export import export_db
+
+    (aggregate,) = export_db(tmp_path / "recording-ev-rt.sqlite", tmp_path / "export")
+    (episode,) = aggregate["tasks"][0]["episodes"]
+    assert episode["rt_metrics"] == rt
+    assert "rt_metrics" not in episode["metrics"]
+
+
+@pytest.mark.anyio
 async def test_orchestrator_records_steps_from_yaml_recording_block(echo_server, tmp_path):
     """A partial ``recording:`` block overrides paths while inheriting row defaults."""
     config = {

@@ -26,6 +26,7 @@ class EpisodeResult(TypedDict):
     elapsed_sec: NotRequired[float]
     failure_reason: NotRequired[str | None]
     failure_detail: NotRequired[str | None]
+    rt_metrics: NotRequired[dict[str, Any]]  # live runner only (action-buffer + control-rate stats)
 
 
 class TaskResult(TypedDict):
