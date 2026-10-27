@@ -38,7 +38,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 
 | Benchmark | Model | Reproduced | Reported | Details |
 |-----------|-------|:----------:|:--------:|---------|
-| RoboTwin | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜ | [70/39%](https://huggingface.co/2toINF/X-VLA-WidowX) | [xvla.md](xvla.md) |
+| RoboTwin | [X-VLA](https://arxiv.org/abs/2510.10274) | 🟡 **66.7%**⁴ | [70.0/39.0%](https://huggingface.co/2toINF/X-VLA-RoboTwin2) | [xvla.md](xvla.md) |
 | RoboTwin | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ⬜ | [58.5%](https://huggingface.co/Dexmal/robotwin-db-cogact) | [dexbotic.md](dexbotic.md) |
 | RoboTwin | starVLA Qwen3-OFT | ⬜ | [50.4%](https://huggingface.co/StarVLA/Qwen3-VL-OFT-RoboTwin2-All) | [starvla.md](starvla.md) |
 | RoboMME | [MME-VLA π₀.5](https://arxiv.org/abs/2603.04639) | ✅ **25.5%** | [22.7%](https://huggingface.co/Yinpei/pi05_baseline)¹ | [robomme.md](robomme.md) |
@@ -54,6 +54,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 ¹ Counting suite only (4/16 tasks). Full 4-suite evaluation pending.
 ² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types not yet reproduced.
 ³ Score / SR, Memory dimension only (1 of 5), 15/50 episodes, seed 0 of 3; 2 of 6 tasks blocked by an upstream layout bug (counted as 0).
+⁴ Easy only, 50 tasks × 20 episodes at the official client's 300-action cap; 78.2% with RoboTwin's per-task step limits. Hard not evaluated.
 
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 
