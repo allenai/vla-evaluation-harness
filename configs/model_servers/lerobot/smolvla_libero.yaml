@@ -1,0 +1,10 @@
+# SmolVLA LIBERO checkpoint, tested at revision a24f1f38. chunk_size 1 (replan every step, as in the paper) and
+# quat_no_antipodal (LeRobot's axis-angle convention) decide the score; see docs/reproductions/lerobot.md.
+
+extends: _base.yaml
+args:
+  policy_type: smolvla
+  checkpoint: lerobot/smolvla_libero
+  state_key: observation.state
+  chunk_size: 1
+  quat_no_antipodal: true
