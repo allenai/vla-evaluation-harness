@@ -200,6 +200,25 @@ class Benchmark(ABC):
         """Render current env state as image. Optional override."""
         return None
 
+    def batch_size(self) -> int:
+        """Episodes one simulator runs side by side (default 1: one episode at a time).
+
+        Above 1 the orchestrator claims up to this many items at once, calls
+        :meth:`open_batch` and runs one episode per returned view concurrently.
+        """
+        return 1
+
+    def open_batch(self, size: int) -> list[Benchmark]:
+        """Per-episode views for the next ``size`` (≤ :meth:`batch_size`) episodes run together.
+
+        Each view is driven through the usual single-episode interface by its own
+        runner; the views share this benchmark's simulator. Required when
+        :meth:`batch_size` > 1.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} reports batch_size() > 1 but does not implement open_batch()"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Step-based convenience subclass

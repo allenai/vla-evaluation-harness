@@ -129,6 +129,7 @@ class RoboDojoPi05ModelServer(PredictModelServer):
         logger.info("π₀.₅ policy loaded (action_horizon=%d).", chunk_size)
 
     def _warmup(self) -> None:
+        """Compile the sampler before the first episode so it does not hit the act timeout."""
         dummy = {
             "images": {k: np.zeros((3, 224, 224), np.uint8) for k in _CAMERA_MAP},
             "state": np.zeros(14, np.float32),
@@ -136,6 +137,9 @@ class RoboDojoPi05ModelServer(PredictModelServer):
         }
         logger.info("Warming up policy (JIT compile)...")
         self._policy.infer(dummy)
+        if self.max_batch_size > 1:
+            # predict_batch always pads to max_batch_size: one extra compile, done here.
+            self.predict_batch([{"images": dummy["images"], "state": dummy["state"]}], [])
         logger.info("Warmup done.")
 
     def get_observation_params(self) -> dict[str, Any]:
@@ -148,6 +152,39 @@ class RoboDojoPi05ModelServer(PredictModelServer):
         return {"images": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
 
     def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+        """One action chunk for one observation."""
+        result = self._policy.infer(self._openpi_obs(obs))
+        return {"actions": np.asarray(result["actions"])}
+
+    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
+        """One forward pass for observations from several sessions (``max_batch_size > 1``).
+
+        Mirrors ``Policy.infer`` of the pinned openpi fork with the batch axis kept:
+        per-sample input transforms (the prompt tokenizer is not batch-aware), one
+        ``sample_actions`` call, per-sample output transforms. The batch is padded to
+        ``max_batch_size`` with its last sample so the sampler compiles one shape only.
+        """
+        import jax
+        import jax.numpy as jnp
+        from openpi.models import model as _model
+
+        policy = self._policy
+        if getattr(policy, "_is_pytorch_model", False):
+            return [self.predict(obs, ctx) for obs, ctx in zip(obs_batch, ctx_batch)]
+        inputs = [policy._input_transform(self._openpi_obs(obs)) for obs in obs_batch]
+        padded = inputs + [inputs[-1]] * (max(self.max_batch_size, len(inputs)) - len(inputs))
+        batch = jax.tree.map(lambda *xs: jnp.asarray(np.stack([np.asarray(x) for x in xs])), *padded)
+        policy._rng, rng = jax.random.split(policy._rng)
+        observation = _model.Observation.from_dict(batch)
+        actions = np.asarray(policy._sample_actions(rng, observation, **policy._sample_kwargs))
+        results: list[Action] = []
+        for i, sample in enumerate(inputs):
+            out = policy._output_transform({"state": np.asarray(sample["state"]), "actions": actions[i]})
+            results.append({"actions": np.asarray(out["actions"])})
+        return results
+
+    def _openpi_obs(self, obs: Observation) -> dict[str, Any]:
+        """The harness observation in the openpi ALOHA policy's input layout."""
         images_in = obs.get("images") or {}
         images: dict[str, np.ndarray] = {}
         for target, sources in _CAMERA_MAP.items():
@@ -165,8 +202,7 @@ class RoboDojoPi05ModelServer(PredictModelServer):
             "state": np.asarray(state, dtype=np.float32),
             "prompt": str(obs.get("task_description", "")),
         }
-        result = self._policy.infer(openpi_obs)
-        return {"actions": np.asarray(result["actions"])}
+        return openpi_obs
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.base import Benchmark, StepBenchmark, StepResult
 from vla_eval.specs import GRIPPER_RAW, IMAGE_RGB, LANGUAGE, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -71,7 +71,15 @@ TASK_DESCRIPTIONS: dict[str, str] = {
 
 
 class MIKASABenchmark(StepBenchmark):
-    """MIKASA-Robo memory-intensive manipulation benchmark."""
+    """MIKASA-Robo memory-intensive manipulation benchmark.
+
+    Args:
+        num_envs: Episodes of one task run side by side in one ManiSkill3 env (sync mode
+            only). ``num_envs > 1`` selects the GPU sim backend, so physics and the torch
+            RNG stream differ from the ``num_envs=1`` CPU run: success rates are comparable,
+            individual episodes are not. ShellGame* then skip their per-reset reconfigure,
+            which only rebuilds the same fixed mug model.
+    """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
@@ -81,8 +89,13 @@ class MIKASABenchmark(StepBenchmark):
         episodes_per_task: int = 10,
         max_episode_steps: int | None = None,
         render_resolution: list[int] | tuple[int, int] = (256, 256),
+        num_envs: int = 1,
     ) -> None:
+        """Configure the benchmark; the ManiSkill env is created lazily on the first reset."""
         super().__init__()
+        if int(num_envs) < 1:
+            raise ValueError(f"MIKASA: num_envs must be >= 1, got {num_envs}")
+        self._num_envs = int(num_envs)
         self._task_names = tasks or DEFAULT_TASKS
         self._max_steps_override = max_episode_steps
         self._render_resolution = tuple(render_resolution)
@@ -111,11 +124,11 @@ class MIKASABenchmark(StepBenchmark):
                 return vla_name
         return env_name
 
-    def reset(self, task: Task) -> Any:
+    def _ensure_env(self, task_name: str) -> None:
+        """Build (or reuse) the ``num_envs``-wide env of ``task_name`` and set its description."""
         import gymnasium as gym
         import mikasa_robo_suite.vla.memory_envs  # noqa: F401 — registers VLA envs
 
-        task_name = task["name"]
         env_name = self._resolve_env_name(task_name, gym.envs.registry)
 
         if self._env is None or self._current_task != env_name:
@@ -123,7 +136,7 @@ class MIKASABenchmark(StepBenchmark):
                 self._env.close()
             self._env = gym.make(
                 env_name,
-                num_envs=1,
+                num_envs=self._num_envs,
                 obs_mode="rgb",
                 render_mode="cameras",
             )
@@ -132,14 +145,17 @@ class MIKASABenchmark(StepBenchmark):
             self._env = StateOnlyTensorToDictWrapper(self._env)
             self._current_task = env_name
 
-        obs, info = self._env.reset()
         self._task_desc = TASK_DESCRIPTIONS.get(task_name) or TASK_DESCRIPTIONS.get(env_name, f"Complete {env_name}")
+
+    def reset(self, task: Task) -> Any:
+        """Reset the task's env and return its raw observation."""
+        self._ensure_env(task["name"])
+        obs, info = self._env.reset()
         self._recorder.record_video(self._extract_frame(obs))
         return obs
 
-    def step(self, action: Action) -> StepResult:
-        import torch
-
+    def _action_array(self, action: Action) -> np.ndarray:
+        """The 8-D action padded / truncated to the env's action dimension."""
         raw = action.get("actions", action.get("action"))
         if raw is None:
             raw = np.zeros(8, dtype=np.float32)
@@ -150,9 +166,13 @@ class MIKASABenchmark(StepBenchmark):
         act_dim = self._env.action_space.shape[-1]
         if raw.shape[0] < act_dim:
             raw = np.pad(raw, (0, act_dim - raw.shape[0]))
-        raw = raw[:act_dim]
+        return raw[:act_dim]
 
-        act_tensor = torch.from_numpy(raw).unsqueeze(0)
+    def step(self, action: Action) -> StepResult:
+        """Advance the env one step with ``action``."""
+        import torch
+
+        act_tensor = torch.from_numpy(self._action_array(action)).unsqueeze(0)
         obs, reward, terminated, truncated, info = self._env.step(act_tensor)
 
         done = bool(terminated.any()) or bool(truncated.any())
@@ -200,6 +220,16 @@ class MIKASABenchmark(StepBenchmark):
 
     def get_metadata(self) -> dict[str, Any]:
         return {"max_steps": self._max_steps_override or 90}
+
+    def batch_size(self) -> int:
+        """Envs per ManiSkill3 env (``num_envs``)."""
+        return self._num_envs
+
+    def open_batch(self, size: int) -> list[Benchmark]:
+        """One view per slot of the batched MIKASA env (``size <= num_envs``)."""
+        from vla_eval.benchmarks.mikasa import batch
+
+        return batch.open_batch(self, size)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         # 8D: 7 joint deltas + 1 gripper (pd_joint_delta_pos)

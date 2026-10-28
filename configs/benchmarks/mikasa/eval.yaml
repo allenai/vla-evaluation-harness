@@ -18,5 +18,8 @@ benchmarks:
         - "InterceptSlow-v0"
         - "TakeItBack-v0"
       render_resolution: [256, 256]
+      # Episodes per GPU-parallel ManiSkill3 env (sync mode only). > 1 switches to the GPU
+      # sim backend: success rates are comparable to num_envs: 1, single episodes are not.
+      num_envs: 1
     action_dim: 8
 

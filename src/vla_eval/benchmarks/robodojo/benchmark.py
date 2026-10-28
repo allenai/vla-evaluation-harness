@@ -8,10 +8,13 @@ upstream ``EvalEnv.run_eval()``:
 
 * ``reset(seed=[layout_id])`` loads a deterministic published layout from
   ``Assets/Eval_Layout/RoboDojo/<config_name>/<seed>/<task>_<layout_id>.json``,
-  then ``run_reward()`` initialises the task's reward state. Layouts are consumed
-  in order and broken ones are skipped, exactly like upstream's seed queue — the
-  published groups ship 55–65 layouts so 50 counted episodes survive skips; each
-  episode result records its ``layout_id``.
+  then ``run_reward()`` initialises the task's reward state. Episode ``episode_idx``
+  runs layout ``episode_idx``; a broken layout is replaced by the next spare one
+  (ids ``>= eval_num``; the published groups ship 55–65 layouts so 50 counted
+  episodes survive skips). With one shard the counted set equals upstream's
+  in-order seed queue; under sharding spares are split round-robin by
+  ``shard_id`` so shards never run the same layout. Each episode result records
+  its ``layout_id``.
 * One ``take_action(dict)`` = one policy step; ``is_episode_end()`` computes the
   reward, flips ``success``/``end_flag``, and enforces the task's own ``step_lim``.
   The harness-side ``max_steps`` is only a safety net and must stay above every
@@ -19,9 +22,9 @@ upstream ``EvalEnv.run_eval()``:
 * Score matches the paper's metric: ``1.0`` on success, else the task's partial
   progress ``reward_manager.get_score()/100`` when the task defines ``get_score``.
 
-Scene-instability and other reset-time failures skip to the next layout (the
+Scene-instability and other reset-time failures skip to the next spare layout (the
 official protocol neither counts nor retries them); an episode only errors out
-once a task's layout group is exhausted.
+once this shard's spare layouts are exhausted.
 """
 
 from __future__ import annotations
@@ -36,7 +39,7 @@ from typing import Any
 import numpy as np
 from anyio.to_thread import run_sync as _run_in_thread
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult
+from vla_eval.benchmarks.base import Benchmark, StepBenchmark, StepResult
 from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
@@ -51,6 +54,11 @@ ACTION_DIM = sum(ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
+# Consecutive reset failures tolerated for one episode before the episode errors out;
+# each failed reset leaks cameras and descriptors (see reset()).
+MAX_LAYOUT_ATTEMPTS = 5
+# Upstream caps ``*_random`` (clutter) tasks at ``sim.scene.clutter_env_limit`` envs (default 5).
+RANDOM_TASK_MAX_ENVS = 5
 
 
 class _NoopModelClient:
@@ -77,7 +85,8 @@ class RoboDojoBenchmark(StepBenchmark):
         camera_names: Optional subset of RoboDojo camera keys to expose.
         send_state: Include concatenated proprioceptive state in observations.
         seed: Published ``Eval_Layout`` group. Episode ``episode_idx`` selects the
-            numbered layout inside that group, exactly like upstream's layout ids.
+            numbered layout inside that group; broken ones fall back to the spare
+            layouts past the task's native ``eval_num``.
         enable_planner: Build RoboDojo's cuRobo planners. Joint-space VLA
             evaluation never uses them (even the Franka competition arm replays
             pkl trajectories), and the public assets ship only ``curobo_tmp.yml``
@@ -85,6 +94,10 @@ class RoboDojoBenchmark(StepBenchmark):
         stream_upstream_videos: Keep RoboDojo's own per-camera ffmpeg episode
             streams (written under ``<root>/eval_result``). Off by default —
             vla-eval's recorder owns video capture.
+        num_envs: Episodes one Isaac process runs side by side (upstream
+            ``eval_batch``). 1 (default) keeps the one-episode-at-a-time path;
+            above 1 the orchestrator drives per-env views (see ``batch.py``).
+            ``*_random`` tasks allow at most 5.
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "score"})
@@ -99,8 +112,13 @@ class RoboDojoBenchmark(StepBenchmark):
         seed: int = 0,
         enable_planner: bool = False,
         stream_upstream_videos: bool = False,
+        num_envs: int = 1,
     ) -> None:
+        """Configure the benchmark; Isaac Sim and the EvalEnv start lazily on the first reset."""
         super().__init__()
+        num_envs = int(num_envs)
+        if num_envs < 1:
+            raise ValueError(f"RoboDojo: num_envs must be >= 1, got {num_envs}")
         self._root = Path(root).resolve()
         self._task_names = list(tasks or DEFAULT_TASKS)
         self._env_config = env_config
@@ -109,12 +127,25 @@ class RoboDojoBenchmark(StepBenchmark):
         self._seed = int(seed)
         self._enable_planner = bool(enable_planner)
         self._stream_upstream_videos = bool(stream_upstream_videos)
+        random_tasks = [name for name in self._task_names if name.endswith("_random")]
+        if random_tasks and num_envs > RANDOM_TASK_MAX_ENVS:
+            # Upstream silently clamps these; refuse instead so the run matches its config.
+            raise ValueError(
+                f"RoboDojo: {random_tasks} allow at most {RANDOM_TASK_MAX_ENVS} envs, got num_envs={num_envs}"
+            )
+        self._num_envs = num_envs
         self._env: Any = None
         self._app: Any = None
         self._current_task_name = ""
-        self._layout_cursor = 0
+        self._native_eval_num = 0
+        self._spare_cursor = 0
         self._current_layout_id = -1
         self._recorder: EpisodeRecorder = NullEpisodeRecorder()
+        # Batched mode only (num_envs > 1): per-episode layout under trial and its failure
+        # count, carried across batches because a failed slot is retried in a later batch.
+        self._episode_layouts: dict[int, int] = {}
+        self._episode_failures: dict[int, int] = {}
+        self._failed_batch_resets = 0
 
     # -----------------------------------------------------------------
     # Isaac app + env construction
@@ -158,6 +189,7 @@ class RoboDojoBenchmark(StepBenchmark):
         self._app = launcher.app
 
     def _build_env(self, task_name: str) -> Any:
+        """Launch Isaac Sim if needed and build the upstream EvalEnv of ``task_name``."""
         self._launch_app()
         from omegaconf import OmegaConf
 
@@ -172,9 +204,9 @@ class RoboDojoBenchmark(StepBenchmark):
         eval_cfg.update(
             {
                 "task_name": task_name,
-                "num_envs": 1,
+                "num_envs": self._num_envs,
                 "device_id": 0,
-                "eval_batch": False,
+                "eval_batch": self._num_envs > 1,
                 "policy_name": "vla_eval",
                 "additional_info": "vla_eval",
                 "seed": self._seed,
@@ -196,7 +228,7 @@ class RoboDojoBenchmark(StepBenchmark):
                 "eval_cfg": eval_cfg,
             }
         )
-        OmegaConf.update(cfg, "sim.scene.num_envs", 1, force_add=True)
+        OmegaConf.update(cfg, "sim.scene.num_envs", self._num_envs, force_add=True)
         cfg = process_randomization(cfg)
         cfg, eval_num = process_config(cfg, task_name=task_name)
         if not self._enable_planner:
@@ -208,7 +240,7 @@ class RoboDojoBenchmark(StepBenchmark):
             eval_cfg.get("observation", {}).get("collect_freq", 0),
             force_add=True,
         )
-        cfg.sim.seed = [0]
+        cfg.sim.seed = [0] * self._num_envs
 
         # Keep EvalEnv from opening its legacy policy connection while it is
         # being constructed; the harness connection is authoritative.
@@ -234,6 +266,7 @@ class RoboDojoBenchmark(StepBenchmark):
             eval_num,
             self._seed,
         )
+        self._native_eval_num = int(eval_num)
         return env
 
     def _check_utils_resolution(self) -> None:
@@ -269,7 +302,33 @@ class RoboDojoBenchmark(StepBenchmark):
         return [{"name": name, "suite": "robodojo"} for name in self._task_names]
 
     def reset(self, task: Task) -> Any:
+        """Reset to the episode's layout, falling back to spares; return the raw observation."""
         task_name = str(task["name"])
+        env = self._ensure_env(task_name)
+        total, episode_idx = self._counted_episode(env, task)
+        shard_id = int(task.get("shard_id", 0))
+        num_shards = int(task.get("num_shards", 1))
+        layout_id: int | None = episode_idx
+        failed = 0
+        while layout_id is not None:
+            raw_obs = self._try_layout(env, layout_id, task_name)
+            if raw_obs is not None:
+                self._current_layout_id = layout_id
+                self._recorder.record_video(self._extract_frame(raw_obs))
+                return raw_obs
+            failed += 1
+            if failed >= MAX_LAYOUT_ATTEMPTS:
+                # Every failed reset leaks the episode's cameras and Vulkan descriptors; a
+                # dozen in a row ends in "Unable to allocate descriptor sets" and a Kit crash
+                # that only the 2h watchdog notices. Fail the episode instead.
+                raise RuntimeError(
+                    f"RoboDojo: {failed} layouts in a row failed for {task_name}; the environment is unusable"
+                )
+            layout_id = self._next_spare_layout(total, shard_id, num_shards)
+        raise RuntimeError(f"RoboDojo: shard {shard_id} exhausted its spare layouts for {task_name}")
+
+    def _ensure_env(self, task_name: str) -> Any:
+        """The EvalEnv of ``task_name``, built on first use; one task per process."""
         if self._env is not None and task_name != self._current_task_name:
             # Measured: env.close() on a clean stack_blocks scene never returns (>180s), so
             # clear_instance() is never reached and a second env raises "context already exists".
@@ -280,36 +339,51 @@ class RoboDojoBenchmark(StepBenchmark):
         if self._env is None:
             self._env = self._build_env(task_name)
             self._current_task_name = task_name
-            self._layout_cursor = 0
-        env = self._env
-        # Upstream semantics: consume the group's numbered layouts in order and skip
-        # ones whose scene fails to build/settle, so every counted episode ran.
+            self._spare_cursor = 0
+        return self._env
+
+    def _counted_episode(self, env: Any, task: Task) -> tuple[int, int]:
+        """Return ``(total layouts, episode_idx)``; reject ids outside the counted layouts."""
         total = len(env.seed_manager.seed_list)
-        while self._layout_cursor < total:
-            layout_id = self._layout_cursor
-            self._layout_cursor += 1
-            try:
-                env.reset(seed=[layout_id])
-                env.run_reward()
-                # Upstream registers the task's process-score checks BEFORE stepping; each
-                # get_reward() then accumulates progress. Registering late scores 0.
-                if hasattr(env, "get_score"):
-                    env.get_score()
-                raw_obs = env.get_obs()
-            except Exception:
-                # Never close() here: teardown destroys the cameras and any later
-                # reset dies in init_cameras. Just move on to the next layout.
-                logger.warning(
-                    "RoboDojo layout %d failed for %s; skipping to the next layout",
-                    layout_id,
-                    task_name,
-                    exc_info=True,
-                )
-                continue
-            self._current_layout_id = layout_id
-            self._recorder.record_video(self._extract_frame(raw_obs))
-            return raw_obs
-        raise RuntimeError(f"RoboDojo: exhausted all {total} layouts for {task_name}")
+        # Layouts [0, eval_num) are the counted ones; ids past it are spares for broken scenes.
+        primary_limit = min(self._native_eval_num, total)
+        episode_idx = int(task.get("episode_idx", 0))
+        if not 0 <= episode_idx < primary_limit:
+            raise ValueError(
+                f"RoboDojo: episode_idx {episode_idx} outside {task['name']}'s {primary_limit} counted layouts; "
+                "lower episodes_per_task"
+            )
+        return total, episode_idx
+
+    def _next_spare_layout(self, total: int, shard_id: int, num_shards: int) -> int | None:
+        """Next unused spare layout of this shard; spares split round-robin so shards never overlap."""
+        spares = range(self._native_eval_num + shard_id, total, max(num_shards, 1))
+        if self._spare_cursor >= len(spares):
+            return None
+        layout_id = spares[self._spare_cursor]
+        self._spare_cursor += 1
+        return layout_id
+
+    def _try_layout(self, env: Any, layout_id: int, task_name: str) -> Any:
+        """Reset onto ``layout_id``; return the first observation, or None if the scene failed."""
+        try:
+            env.reset(seed=[layout_id])
+            env.run_reward()
+            # Upstream registers the task's process-score checks BEFORE stepping; each
+            # get_reward() then accumulates progress. Registering late scores 0.
+            if hasattr(env, "get_score"):
+                env.get_score()
+            return env.get_obs()
+        except Exception:
+            # Never close() here: teardown destroys the cameras and any later
+            # reset dies in init_cameras. Just move on to a spare layout.
+            logger.warning(
+                "RoboDojo layout %d failed for %s; falling back to a spare layout",
+                layout_id,
+                task_name,
+                exc_info=True,
+            )
+            return None
 
     @staticmethod
     def _unflatten_action(values: Any) -> dict[str, np.ndarray]:
@@ -346,7 +420,7 @@ class RoboDojoBenchmark(StepBenchmark):
         )
 
     @staticmethod
-    def _partial_score(env: Any) -> float:
+    def _partial_score(env: Any, env_idx: int = 0) -> float:
         """Paper score for failed episodes: task progress in [0, 1].
 
         Reads the gated score the reward manager accumulated over the episode
@@ -356,7 +430,7 @@ class RoboDojoBenchmark(StepBenchmark):
         if not hasattr(env, "get_score"):
             return 0.0
         try:
-            return float(env.reward_manager.get_score()[0]) / 100.0
+            return float(env.reward_manager.get_score()[env_idx]) / 100.0
         except Exception:
             logger.exception("RoboDojo get_score failed; recording 0.0")
             return 0.0
@@ -472,6 +546,16 @@ class RoboDojoBenchmark(StepBenchmark):
         # Like behavior1k, never call SimulationApp.close() — Kit teardown can hang;
         # the benchmark container's process exit reclaims the GPU.
         self._app = None
+
+    def batch_size(self) -> int:
+        """Envs per EvalEnv (``num_envs``)."""
+        return self._num_envs
+
+    def open_batch(self, size: int) -> list[Benchmark]:
+        """One view per slot of the batched EvalEnv (``size <= num_envs``)."""
+        from vla_eval.benchmarks.robodojo import batch
+
+        return batch.open_batch(self, size)
 
     def render(self) -> np.ndarray | None:
         if self._env is None:

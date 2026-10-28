@@ -16,4 +16,7 @@ benchmarks:
       max_episode_steps: 256
       rtc_worlds_dir: "/app/rtc/worlds"
       action_noise_std: 0.1
+      # Episodes per jax.vmap batch (sync mode only). Each slot replays its single-env
+      # episode exactly, so results match num_envs: 1.
+      num_envs: 1
     action_dim: 6
