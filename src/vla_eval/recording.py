@@ -7,7 +7,7 @@ import logging
 import os
 import sqlite3
 import time
-from collections.abc import Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -225,11 +225,14 @@ class RecordingStore:
                 [(eval_id, i, t) for i, t in enumerate(task_idxs)],
             )
 
-    def claim(self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int) -> int | None:
+    def claim(
+        self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int, exclude: Collection[int] = ()
+    ) -> int | None:
         """Next item for ``shard_id``. Items are task-sorted and shard k's home block is those with
         ``item * num_shards // n == k``. Order: its own unfinished item (a rerun after a crash), the loaded task
         (own block forward, else others' from the end), its own block forward, then the end of the block with
-        the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task."""
+        the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task.
+        ``exclude`` skips items this shard already holds in the batch it is filling."""
         with self.transaction():
             n = self._conn.execute("SELECT COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)).fetchone()[0]
             rows = self._conn.execute(
@@ -237,8 +240,8 @@ class RecordingStore:
                 "AND (shard_id = ? OR shard_id IS NULL)",
                 (eval_id, shard_id),
             ).fetchall()
-            mine = [i for i, _, s in rows if s == shard_id]
-            free = [(i, t) for i, t, s in rows if s is None]
+            mine = [i for i, _, s in rows if s == shard_id and i not in exclude]
+            free = [(i, t) for i, t, s in rows if s is None and i not in exclude]
             if mine:
                 return min(mine)
             if not free:

@@ -878,3 +878,60 @@ def test_episode_error_phases():
     with pytest.raises(TimeoutError):  # transport errors keep their own handling
         with phase(ModelActError):
             raise TimeoutError()
+
+
+class BatchedStub(StubBenchmark):
+    """Two episodes side by side, each on its own StubBenchmark view; episode 1 of task_0 asks for one retry."""
+
+    batches: list[list[tuple[str, int]]] = []
+    retried: set[tuple[str, int]] = set()
+
+    def batch_size(self) -> int:
+        """Two episodes per batch."""
+        return 2
+
+    def open_batch(self, size: int) -> list:
+        """One view per slot, all logging their resets into one shared group."""
+        group: list[tuple[str, int]] = []
+        BatchedStub.batches.append(group)
+        return [_BatchView(group, self.done_at_step, self.num_tasks) for _ in range(size)]
+
+
+class _BatchView(StubBenchmark):
+    """One slot of :class:`BatchedStub`; logs its reset and retries episode 1 of task_0 once."""
+
+    def __init__(self, group: list[tuple[str, int]], done_at_step: int, num_tasks: int) -> None:
+        """Log resets into ``group``."""
+        super().__init__(done_at_step=done_at_step, num_tasks=num_tasks)
+        self._group = group
+
+    async def start_episode(self, task, recorder=None) -> None:
+        """Log the reset; ask for one retry on episode 1 of task_0."""
+        from vla_eval.runners.base import RetryEpisode
+
+        key = (task["name"], int(task["episode_idx"]))
+        self._group.append(key)
+        if key == ("task_0", 1) and key not in BatchedStub.retried:
+            BatchedStub.retried.add(key)
+            raise RetryEpisode("unstable layout")
+        await super().start_episode(task, recorder)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("dynamic", [False, True])
+async def test_batched_benchmark_runs_each_episode_once(echo_server, tmp_path, dynamic):
+    """Batches never mix tasks, a retried episode runs again in a later batch and is recorded once."""
+    BatchedStub.batches, BatchedStub.retried = [], set()
+    config = _config(echo_server, tmp_path, "b", episodes=3)
+    shard = {"shard_id": 0, "num_shards": 1} if dynamic else {}
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=BatchedStub):
+        (result,) = await Orchestrator(config, eval_id="ev-b", no_save=not dynamic, **shard).run()
+    assert [sorted(b) for b in BatchedStub.batches] == [
+        [("task_0", 0), ("task_0", 1)],
+        [("task_0", 1), ("task_0", 2)],
+        [("task_1", 0), ("task_1", 1)],
+        [("task_1", 2)],
+    ]
+    keys = sorted((t["task"], ep["episode_id"]) for t in result["tasks"] for ep in t["episodes"])
+    assert keys == [(f"task_{t}", e) for t in range(2) for e in range(3)]
+    assert result["num_errors"] == 0 and "partial" not in result

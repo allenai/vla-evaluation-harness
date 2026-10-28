@@ -32,6 +32,16 @@ class ModelActError(EpisodeError):
     phase = "model_act"  # conn.act (transport errors keep their own handling)
 
 
+class RetryEpisode(EpisodeError):
+    """The env could not start this episode (e.g. an unstable layout) and wants it run again.
+
+    Raised by batched benchmark views from ``start_episode``; the orchestrator neither
+    records nor finishes the item, so it is re-run in a later batch.
+    """
+
+    phase = "retry"
+
+
 @contextmanager
 def phase(error: type[EpisodeError]) -> Iterator[None]:
     try:

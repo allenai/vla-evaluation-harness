@@ -786,6 +786,26 @@ def test_work_queue_claims(tmp_path: Path) -> None:
     assert a.claim("ev", 0, 1, 2) is None and b.claim("ev", 1, 1, 2) is None
 
 
+def test_work_queue_claim_exclude(tmp_path: Path) -> None:
+    """A batch fills by claiming with ``exclude``: held items are skipped, and once the batch is over an
+    unfinished item (a retried episode) comes back to the same shard first."""
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0, 0, 0, 0])
+    held: list[int] = []
+    for _ in range(3):
+        item = store.claim("ev", 0, 0, 1, exclude=held)
+        assert item is not None
+        held.append(item)
+    assert held == [0, 1, 2]
+    for item in (0, 2):
+        store.finish("ev", item)
+    assert store.claim("ev", 0, 0, 1) == 1  # item 1 retried: re-claimed before the untouched item 3
+    assert store.claim("ev", 0, 0, 1, exclude=[1]) == 3
+    store.finish("ev", 1)
+    store.finish("ev", 3)
+    assert store.claim("ev", 0, 0, 1) is None
+
+
 def test_work_queue_idle_shards_help_the_most_behind(tmp_path: Path) -> None:
     """Idle shards take from the block with the most unclaimed items, so they spread instead of piling up."""
     store = RecordingStore(tmp_path / "q.sqlite")
