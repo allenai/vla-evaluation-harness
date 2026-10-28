@@ -19,7 +19,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
+from vla_eval.benchmarks.base import Benchmark, StepBenchmark, StepResult, repeat_last_hold
 from vla_eval.render import apply_env
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
@@ -88,6 +88,8 @@ class KinetixBenchmark(StepBenchmark):
             levels. Falls back to kinetix built-in levels if None.
         observation_type: ``"pixels"`` (default) for rendered images, or
             ``"symbolic"`` for the flat symbolic state vector used by RTC.
+        num_envs: Episodes run side by side as one ``jax.vmap`` batch (sync mode
+            only). Each slot keeps the single-env RNG chain of its episode.
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
@@ -107,8 +109,13 @@ class KinetixBenchmark(StepBenchmark):
         rtc_worlds_dir: str | None = None,
         observation_type: str = "pixels",
         action_noise_std: float = 0.0,
+        num_envs: int = 1,
     ) -> None:
+        """Configure the benchmark; JAX and the env are created lazily on the first reset."""
         super().__init__()
+        if int(num_envs) < 1:
+            raise ValueError(f"Kinetix: num_envs must be >= 1, got {num_envs}")
+        self._num_envs = int(num_envs)
         self._task_names = tasks
         self._max_episode_steps = max_episode_steps
         self._seed = seed
@@ -130,6 +137,8 @@ class KinetixBenchmark(StepBenchmark):
         self._episode_success = False
         self._jax = None
         self._jnp = None
+        self._jit_batch_reset: Any = None
+        self._jit_batch_step: Any = None
 
     def _init_jax(self) -> None:
         """Lazily import JAX (heavy import)."""
@@ -191,6 +200,8 @@ class KinetixBenchmark(StepBenchmark):
             return env.reset(rng, params, override_reset_state=level_state)
 
         self._jit_reset = jax.jit(_reset_to_level)
+        self._jit_batch_reset = None
+        self._jit_batch_step = None
 
         logger.info("Kinetix env created for level: %s (path: %s)", level, level_path)
 
@@ -233,11 +244,9 @@ class KinetixBenchmark(StepBenchmark):
         self._recorder.record_video(self._extract_frame(obs))
         return obs
 
-    def step(self, action: Action) -> StepResult:
-        assert self._jax is not None and self._jnp is not None
-        jax = self._jax
-        jnp = self._jnp
-
+    @staticmethod
+    def _action_array(action: Action) -> np.ndarray:
+        """The action as a float32 ``(ACTION_DIM,)`` array."""
         raw_action = action.get("actions", action.get("action"))
         raw_action = np.atleast_1d(np.asarray(raw_action, dtype=np.float32))
         assert raw_action.shape[-1] == ACTION_DIM, (
@@ -249,8 +258,15 @@ class KinetixBenchmark(StepBenchmark):
             raw_action = np.pad(raw_action, (0, ACTION_DIM - raw_action.shape[-1]))
         elif raw_action.shape[-1] > ACTION_DIM:
             raw_action = raw_action[..., :ACTION_DIM]
+        return raw_action
 
-        jax_action = jnp.array(raw_action)
+    def step(self, action: Action) -> StepResult:
+        """Advance the env one step with ``action`` (plus optional Gaussian noise)."""
+        assert self._jax is not None and self._jnp is not None
+        jax = self._jax
+        jnp = self._jnp
+
+        jax_action = jnp.array(self._action_array(action))
 
         assert self._rng is not None
         self._rng, step_rng = jax.random.split(self._rng)
@@ -322,6 +338,16 @@ class KinetixBenchmark(StepBenchmark):
 
     def get_hold_action(self, last_action: Action | None) -> Action:
         return repeat_last_hold(last_action, ACTION_DIM)
+
+    def batch_size(self) -> int:
+        """Episodes per batched ``jax.vmap`` call (``num_envs``)."""
+        return self._num_envs
+
+    def open_batch(self, size: int) -> list[Benchmark]:
+        """One view per slot of a batched Kinetix env (``size <= num_envs``)."""
+        from vla_eval.benchmarks.kinetix import batch
+
+        return batch.open_batch(self, size)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"action": RAW}
