@@ -433,6 +433,9 @@ class Orchestrator:
                     if cfg.throughput_mode and max_ep is not None:
                         episode_idx = ep % max_ep
                     task = {**task, "episode_idx": episode_idx}
+                    if self.num_shards is not None and self.shard_id is not None:
+                        # Lets benchmarks split per-shard resources (e.g. RoboDojo's spare layouts).
+                        task["shard_id"], task["num_shards"] = self.shard_id, self.num_shards
                     recorder = self._build_recorder(rec_cfg, task, bench_eval_id, safe_name, task_idx, ep, benchmark)
                     raw = await runner.run_episode(benchmark, task, conn, max_steps=max_steps, recorder=recorder)
                     raw["episode_id"] = ep

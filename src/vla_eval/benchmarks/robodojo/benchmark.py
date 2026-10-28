@@ -8,10 +8,13 @@ upstream ``EvalEnv.run_eval()``:
 
 * ``reset(seed=[layout_id])`` loads a deterministic published layout from
   ``Assets/Eval_Layout/RoboDojo/<config_name>/<seed>/<task>_<layout_id>.json``,
-  then ``run_reward()`` initialises the task's reward state. Layouts are consumed
-  in order and broken ones are skipped, exactly like upstream's seed queue — the
-  published groups ship 55–65 layouts so 50 counted episodes survive skips; each
-  episode result records its ``layout_id``.
+  then ``run_reward()`` initialises the task's reward state. Episode ``episode_idx``
+  runs layout ``episode_idx``; a broken layout is replaced by the next spare one
+  (ids ``>= eval_num``; the published groups ship 55–65 layouts so 50 counted
+  episodes survive skips). With one shard the counted set equals upstream's
+  in-order seed queue; under sharding spares are split round-robin by
+  ``shard_id`` so shards never run the same layout. Each episode result records
+  its ``layout_id``.
 * One ``take_action(dict)`` = one policy step; ``is_episode_end()`` computes the
   reward, flips ``success``/``end_flag``, and enforces the task's own ``step_lim``.
   The harness-side ``max_steps`` is only a safety net and must stay above every
@@ -19,9 +22,9 @@ upstream ``EvalEnv.run_eval()``:
 * Score matches the paper's metric: ``1.0`` on success, else the task's partial
   progress ``reward_manager.get_score()/100`` when the task defines ``get_score``.
 
-Scene-instability and other reset-time failures skip to the next layout (the
+Scene-instability and other reset-time failures skip to the next spare layout (the
 official protocol neither counts nor retries them); an episode only errors out
-once a task's layout group is exhausted.
+once this shard's spare layouts are exhausted.
 """
 
 from __future__ import annotations
@@ -51,6 +54,9 @@ ACTION_DIM = sum(ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
+# Consecutive reset failures tolerated for one episode before the episode errors out;
+# each failed reset leaks cameras and descriptors (see reset()).
+MAX_LAYOUT_ATTEMPTS = 5
 
 
 class _NoopModelClient:
@@ -77,7 +83,8 @@ class RoboDojoBenchmark(StepBenchmark):
         camera_names: Optional subset of RoboDojo camera keys to expose.
         send_state: Include concatenated proprioceptive state in observations.
         seed: Published ``Eval_Layout`` group. Episode ``episode_idx`` selects the
-            numbered layout inside that group, exactly like upstream's layout ids.
+            numbered layout inside that group; broken ones fall back to the spare
+            layouts past the task's native ``eval_num``.
         enable_planner: Build RoboDojo's cuRobo planners. Joint-space VLA
             evaluation never uses them (even the Franka competition arm replays
             pkl trajectories), and the public assets ship only ``curobo_tmp.yml``
@@ -112,7 +119,8 @@ class RoboDojoBenchmark(StepBenchmark):
         self._env: Any = None
         self._app: Any = None
         self._current_task_name = ""
-        self._layout_cursor = 0
+        self._native_eval_num = 0
+        self._spare_cursor = 0
         self._current_layout_id = -1
         self._recorder: EpisodeRecorder = NullEpisodeRecorder()
 
@@ -234,6 +242,7 @@ class RoboDojoBenchmark(StepBenchmark):
             eval_num,
             self._seed,
         )
+        self._native_eval_num = int(eval_num)
         return env
 
     def _check_utils_resolution(self) -> None:
@@ -280,36 +289,67 @@ class RoboDojoBenchmark(StepBenchmark):
         if self._env is None:
             self._env = self._build_env(task_name)
             self._current_task_name = task_name
-            self._layout_cursor = 0
+            self._spare_cursor = 0
         env = self._env
-        # Upstream semantics: consume the group's numbered layouts in order and skip
-        # ones whose scene fails to build/settle, so every counted episode ran.
         total = len(env.seed_manager.seed_list)
-        while self._layout_cursor < total:
-            layout_id = self._layout_cursor
-            self._layout_cursor += 1
-            try:
-                env.reset(seed=[layout_id])
-                env.run_reward()
-                # Upstream registers the task's process-score checks BEFORE stepping; each
-                # get_reward() then accumulates progress. Registering late scores 0.
-                if hasattr(env, "get_score"):
-                    env.get_score()
-                raw_obs = env.get_obs()
-            except Exception:
-                # Never close() here: teardown destroys the cameras and any later
-                # reset dies in init_cameras. Just move on to the next layout.
-                logger.warning(
-                    "RoboDojo layout %d failed for %s; skipping to the next layout",
-                    layout_id,
-                    task_name,
-                    exc_info=True,
+        # Layouts [0, eval_num) are the counted ones; ids past it are spares for broken scenes.
+        primary_limit = min(self._native_eval_num, total)
+        episode_idx = int(task.get("episode_idx", 0))
+        if not 0 <= episode_idx < primary_limit:
+            raise ValueError(
+                f"RoboDojo: episode_idx {episode_idx} outside {task_name}'s {primary_limit} counted layouts; "
+                "lower episodes_per_task"
+            )
+        shard_id = int(task.get("shard_id", 0))
+        num_shards = int(task.get("num_shards", 1))
+        layout_id: int | None = episode_idx
+        failed = 0
+        while layout_id is not None:
+            raw_obs = self._try_layout(env, layout_id, task_name)
+            if raw_obs is not None:
+                self._current_layout_id = layout_id
+                self._recorder.record_video(self._extract_frame(raw_obs))
+                return raw_obs
+            failed += 1
+            if failed >= MAX_LAYOUT_ATTEMPTS:
+                # Every failed reset leaks the episode's cameras and Vulkan descriptors; a
+                # dozen in a row ends in "Unable to allocate descriptor sets" and a Kit crash
+                # that only the 2h watchdog notices. Fail the episode instead.
+                raise RuntimeError(
+                    f"RoboDojo: {failed} layouts in a row failed for {task_name}; the environment is unusable"
                 )
-                continue
-            self._current_layout_id = layout_id
-            self._recorder.record_video(self._extract_frame(raw_obs))
-            return raw_obs
-        raise RuntimeError(f"RoboDojo: exhausted all {total} layouts for {task_name}")
+            layout_id = self._next_spare_layout(total, shard_id, num_shards)
+        raise RuntimeError(f"RoboDojo: shard {shard_id} exhausted its spare layouts for {task_name}")
+
+    def _next_spare_layout(self, total: int, shard_id: int, num_shards: int) -> int | None:
+        """Next unused spare layout of this shard; spares split round-robin so shards never overlap."""
+        spares = range(self._native_eval_num + shard_id, total, max(num_shards, 1))
+        if self._spare_cursor >= len(spares):
+            return None
+        layout_id = spares[self._spare_cursor]
+        self._spare_cursor += 1
+        return layout_id
+
+    def _try_layout(self, env: Any, layout_id: int, task_name: str) -> Any:
+        """Reset onto ``layout_id``; return the first observation, or None if the scene failed."""
+        try:
+            env.reset(seed=[layout_id])
+            env.run_reward()
+            # Upstream registers the task's process-score checks BEFORE stepping; each
+            # get_reward() then accumulates progress. Registering late scores 0.
+            if hasattr(env, "get_score"):
+                env.get_score()
+            return env.get_obs()
+        except Exception:
+            # Never close() here: teardown destroys the cameras and any later
+            # reset dies in init_cameras. Just move on to a spare layout.
+            logger.warning(
+                "RoboDojo layout %d failed for %s; falling back to a spare layout",
+                layout_id,
+                task_name,
+                exc_info=True,
+            )
+            return None
 
     @staticmethod
     def _unflatten_action(values: Any) -> dict[str, np.ndarray]:
