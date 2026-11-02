@@ -21,7 +21,7 @@ from vla_eval.runners.clock import Clock
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
-from tests.conftest import LiveLogServer, LogServer, StubBenchmark, _Log, start_server, stop_server
+from tests.conftest import LogServer, LoopLogServer, StubBenchmark, _Log, start_server, stop_server
 
 
 class _SlowStart(_Log):
@@ -42,7 +42,7 @@ class SlowLogServer(_SlowStart, LogServer):
     pass
 
 
-class SlowLiveLogServer(_SlowStart, LiveLogServer):
+class SlowLoopLogServer(_SlowStart, LoopLogServer):
     pass
 
 
@@ -87,7 +87,7 @@ async def _ends_of(server: Any, n: int) -> list[dict[str, Any]]:
 @pytest.mark.parametrize("mode", ["sync", "live"])
 @pytest.mark.anyio
 async def test_a_slow_start_delays_the_first_observation_and_the_clock(free_port, mode):
-    server = SlowLogServer() if mode == "sync" else SlowLiveLogServer()
+    server = SlowLogServer() if mode == "sync" else SlowLoopLogServer()
     clock = LogClock()
     task = await start_server(server, free_port)
     try:
@@ -108,7 +108,7 @@ async def test_a_slow_start_delays_the_first_observation_and_the_clock(free_port
 @pytest.mark.parametrize("mode", ["sync", "live"])
 @pytest.mark.anyio
 async def test_a_failed_start_raises_before_any_observation(free_port, mode):
-    server = LogServer() if mode == "sync" else LiveLogServer()
+    server = LogServer() if mode == "sync" else LoopLogServer()
     task = await start_server(server, free_port)
     runner = _runner(mode)
     try:
@@ -167,7 +167,7 @@ async def test_a_new_client_does_not_wait_for_an_old_server(free_port):
         async with Connection(f"ws://127.0.0.1:{free_port}", timeout=30.0) as conn:
             with anyio.fail_after(1):
                 await conn.start_episode({})
-    assert log[0].payload["capabilities"] == {"episode_ready": True}
+    assert log[0].payload["capabilities"] == {"episode_ready": True, "publish": True, "episode_error": True}
 
 
 @pytest.mark.parametrize("advertise", [False, True])

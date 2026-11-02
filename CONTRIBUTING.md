@@ -176,10 +176,20 @@ Every running episode is a row; inference and the episode hooks are batched over
 - `max_rows=1`: the model's state is global (e.g. its own action queue), so one episode at a time.
 - `chunk_size`: `[T, D]` per row, served from a per-episode buffer (`rows.episodes[i].chunk_size` overrides it).
 
-Continuous inference (real-time, live mode): subclass `LiveModelServer` (`model_servers/live.py`) with the same
-`predict` / `reset_episodes` / `finish_episodes`. Each episode's latest observation is inferred in a loop, one at a
-time, and `select(action, latency, row)` picks what to send (default: the first action, or with `laas=True, hz=...`
-the one `latency * hz` steps in). No batching and no `VECTOR_STEP`.
+Your own real-time loop: subclass `DaemonModelServer` (`model_servers/daemons.py`) and write `run(self, ep)`, once
+per episode: answer `ep.observations()` with `req.reply(action)`, call the model via `ep.call`, stream with
+`ep.publish` (live only). `ep.clock` is a fresh `SimClock` per sync episode that the loop advances (by `ep.sim_dt`),
+else `WallClock`. An exception escaping the loop fails the episode (`model_act`); `EPISODE_END` drains its tasks and
+model calls before `finish_episodes`. Warm up in `__init__` or `reset_episodes`, as above.
+Continuous inference (`backlog="latest"`, the default) is the whole loop:
+
+```python
+async def run(self, ep):
+    async for request in ep.observations():
+        await request.reply(await ep.call(self.predict, request.obs, request.row))
+```
+
+Streaming chunks on a time grid (RTC, `PUBLISH`): see [`examples/live_servers/rtc.py`](examples/live_servers/rtc.py).
 
 Anything else (async producers, streaming, a policy that must see every observation, as `vlanext.py` does): subclass
 `ModelServer` and implement `on_observation(obs, rows)`, answering each row once with

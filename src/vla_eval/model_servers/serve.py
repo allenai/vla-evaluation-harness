@@ -45,7 +45,7 @@ import websockets
 from websockets.asyncio.server import serve as ws_serve
 
 from vla_eval import columns
-from vla_eval.model_servers.base import ModelServer, _Pending
+from vla_eval.model_servers.base import CAPABILITIES, MissingCapabilities, ModelServer, _leaves, _Link, _Pending
 from vla_eval.protocol.messages import Message, MessageType, make_hello_payload, pack_message, unpack_message
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,7 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
     slots = np.full(0, -1, np.int64)  # a vector benchmark's slot -> row (-1: none)
     closed = False
     waiting: _Pending | None = None
+    caps: frozenset[str] = frozenset()  # the client's HELLO capabilities (exactly true)
 
     async def watch() -> None:  # a disconnect wakes the observation waiting for replies
         nonlocal closed
@@ -129,6 +130,24 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
 
         return forward
 
+    def link(seq: int) -> _Link:
+        """A live episode's EPISODE_ERROR / PUBLISH senders, as the client negotiated them."""
+
+        async def error(exc: Exception) -> None:
+            payload = {"error": f"{type(exc).__name__}: {exc}", "failure_reason": "model_act"}
+            await _try_reply(reply, MessageType.EPISODE_ERROR, payload, seq)
+
+        async def publish(action: Any, index: int, source_seq: int | None) -> None:
+            data = pack_message(
+                Message(MessageType.PUBLISH, {"action": action, "index": index, "source_seq": source_seq}, seq)
+            )
+            try:
+                await ws.send(data)
+            except websockets.exceptions.ConnectionClosed:
+                pass
+
+        return _Link(error if "episode_error" in caps else None, publish if "publish" in caps else None)
+
     tg.start_soon(watch)
     logger.info("Client connected: session=%s", session_id)
     _msg_count = 0
@@ -138,7 +157,10 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
             msg = await _run_in_thread(partial(unpack_message, raw_data), limiter=_DECODE_LIMITER)
 
             if msg.type == MessageType.HELLO:
-                ready = bool((msg.payload.get("capabilities") or {}).get("episode_ready"))
+                offered = msg.payload.get("capabilities")
+                offered = offered if isinstance(offered, dict) else {}
+                caps = frozenset(k for k in CAPABILITIES if offered.get(k) is True)
+                ready = offered.get("episode_ready") is True
                 extra: dict[str, Any] = {}
                 obs_params = model_server.get_observation_params()
                 if obs_params:
@@ -154,7 +176,11 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                     pass
                 reply_payload = make_hello_payload(
                     model_server=type(model_server).__name__,
-                    capabilities={"vector_step": model_server.supports_vector_step, "episode_ready": True},
+                    capabilities={
+                        "vector_step": model_server.supports_vector_step,
+                        "episode_ready": True,
+                        **dict.fromkeys(CAPABILITIES, True),
+                    },
                     **extra,
                 )
                 await reply(MessageType.HELLO, reply_payload, msg.seq)
@@ -167,19 +193,27 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
 
             elif msg.type == MessageType.EPISODE_START:
                 await end(_RESTARTED)  # the client may start over without ending
-                (out,) = await model_server._start_episodes([(msg.payload, session_id)])
+                live = msg.payload.get("mode") == "live"
+                (out,) = await model_server._start_episodes(
+                    [(msg.payload, session_id)],
+                    mode="live" if live else "sync",
+                    capabilities=caps,
+                    link=link(msg.seq) if live else None,
+                )
                 if isinstance(out, Exception):
                     detail = f"episode_start_failed: {type(out).__name__}: {out}"
                     await _try_reply(reply, MessageType.ERROR, {"error": detail}, msg.seq)
+                    if isinstance(out, MissingCapabilities):  # a legacy client would hold until max_steps
+                        await ws.close(1008, str(out)[:120])
                     continue
-                row, live = out, msg.payload.get("mode") == "live"
+                row = out
                 logger.info("EPISODE_START session=%s row=%d", session_id[:8], row)
                 if ready:
                     await reply(MessageType.EPISODE_READY, {}, msg.seq)
 
             elif msg.type == MessageType.OBSERVATION:
                 if row is None:  # an observation without EPISODE_START: an episode of its own
-                    (out,) = await model_server._start_episodes([({}, session_id)])
+                    (out,) = await model_server._start_episodes([({}, session_id)], capabilities=caps)
                     if isinstance(out, Exception):
                         await _try_reply(reply, MessageType.ERROR, {"error": f"observation_failed: {out}"}, msg.seq)
                         continue
@@ -189,11 +223,14 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                 _inflight += 1
                 try:
                     if live:  # each reply is sent on as it comes
-                        await model_server._observe(obs, ids, _Pending(1, forward=forwarder(msg.seq)))
+                        pending = _Pending(1, forward=forwarder(msg.seq), seq=msg.seq)
+                        await model_server._observe(obs, ids, pending)
                         continue
-                    pending = _Pending(1)
-                    await model_server._observe(obs, ids, pending)
-                    if not await wait(pending):  # closed: still read what arrived, e.g. its EPISODE_END
+                    pending = _Pending(1, seq=msg.seq)
+                    with model_server._track(pending):
+                        await model_server._observe(obs, ids, pending)
+                        answered = await wait(pending)
+                    if not answered:  # closed: still read what arrived, e.g. its EPISODE_END
                         continue
                 finally:
                     _inflight -= 1
@@ -215,7 +252,7 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                     continue
                 _inflight += 1
                 try:
-                    result, slots = await _vector_step(msg.payload, slots, session_id, model_server, wait)
+                    result, slots = await _vector_step(msg.payload, slots, session_id, model_server, wait, caps)
                 finally:
                     _inflight -= 1
                 if result is None:
@@ -266,6 +303,7 @@ async def _vector_step(
     session_id: str,
     model_server: ModelServer,
     wait: Callable[[_Pending], Awaitable[bool]],
+    caps: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, Any] | None, np.ndarray]:
     """One VECTOR_STEP (ends, then starts, then observations); ``slots[s]``: slot ``s``'s row, -1 if none.
     Returns the VECTOR_RESULT payload (actions of the slots that did not fail, in order; ``None`` if the
@@ -284,7 +322,9 @@ async def _vector_step(
             slots = np.concatenate([slots, np.full(top - len(slots), -1, np.int64)])
         for s, out in zip(
             [s for s, _ in starts],
-            await model_server._start_episodes([(config, f"{session_id}:{s}") for s, config in starts]),
+            await model_server._start_episodes(
+                [(config, f"{session_id}:{s}") for s, config in starts], capabilities=caps
+            ),
         ):
             if isinstance(out, Exception):
                 errors[s] = f"episode_start_failed: {type(out).__name__}: {out}"
@@ -302,8 +342,10 @@ async def _vector_step(
     actions: dict[str, Any] = {}
     if len(rows):
         pending = _Pending(len(rows), vector=True)
-        await model_server._observe(obs, rows, pending)
-        if not await wait(pending):
+        with model_server._track(pending):
+            await model_server._observe(obs, rows, pending)
+            answered = await wait(pending)
+        if not answered:
             return None, slots
         actions = pending.result()
         for i, exc in pending.errors.items():
@@ -415,6 +457,7 @@ async def serve_async(
         async def handler(ws: Any) -> None:
             await _handle_connection(ws, model_server, tg)
 
+        model_server._serve_tg = tg
         await model_server.on_serve_start(tg)
         tg.start_soon(_backpressure_monitor, backpressure_threshold)
         async with ws_serve(
@@ -451,6 +494,11 @@ def serve(
     previous = signal.getsignal(signal.SIGINT)
     try:
         anyio.run(partial(serve_async, model_server, host, port, on_shutdown=arm))
+    except BaseExceptionGroup as group:  # an episode's or the model's captured Ctrl-C / exit, after cleanup
+        control = next((e for e in _leaves(group) if isinstance(e, (KeyboardInterrupt, SystemExit))), None)
+        if control is None:
+            raise
+        raise control from None
     finally:
         signal.signal(signal.SIGINT, previous)
         model_server._model_thread.shutdown(cancel_futures=True)

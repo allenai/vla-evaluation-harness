@@ -3,10 +3,9 @@
 # dependencies = [
 #     "vla-eval",
 #     "jax[cuda12]==0.4.35",
-#     "flax==0.10.0",
-#     "distrax",
+#     "flax==0.10.2",
 #     "einops",
-#     "numpy>=1.24,<2",
+#     "numpy==1.26.4",
 # ]
 #
 # [tool.uv.sources]
@@ -15,34 +14,13 @@
 # [tool.uv]
 # exclude-newer = "2026-10-31T00:00:00Z"
 # ///
-"""RTC (Real-Time Chunking) diffusion policy model server.
+"""Real-Time Chunking (arXiv:2506.07339) on Kinetix, with the official sampling code.
 
-Loads trained RTC flow-matching MLP-Mixer checkpoints and runs inference
-for Kinetix environments. The RTC policy takes symbolic observations
-(~679-dim flat vector) and outputs action chunks
-(prediction horizon H=8, action dim=6).
-
-Each Kinetix level has its own checkpoint (``worlds_l_<level>.pkl``).
-The server loads all checkpoints from a directory at startup and selects
-the appropriate model on each ``episode_start`` based on the task's level.
-
-Checkpoint availability:
-    RTC checkpoints are stored on Google Cloud Storage at
-    ``gs://rtc-assets/bc/`` (imitation learning policies). Download with::
-
-        mkdir -p /path/to/checkpoint_dir/
-        gsutil -m cp -r gs://rtc-assets/bc/0/policies/* /path/to/checkpoint_dir/
-
-    The checkpoint directory should contain files named
-    ``worlds_l_<level_name>.pkl``.
-
-CPU-only (no GPU)::
-
-        JAX_PLATFORMS=cpu uv run src/vla_eval/model_servers/rtc.py ...
-
-Reference:
-    Real-Time Execution of Action Chunking Flow Policies
-    (arXiv:2506.07339, Physical Intelligence)
+``KinetixRTCServer`` executes the official ``eval_flow.py`` chunk protocol, sync or live: inference every ``horizon``
+(s) steps from that step's observation, the previous chunk covering the first ``delay`` (d) steps.  Sampling is the
+official ``model.FlowPolicy`` (``action`` / ``realtime_action`` / ``bid_action``) imported from ``rtc_src_path``
+(a ``Physical-Intelligence/real-time-chunking-kinetix`` checkout).  Checkpoints: ``gs://rtc-assets/bc/<epoch>/policies``
+(public, e.g. ``https://storage.googleapis.com/download/storage/v1/b/rtc-assets/o/bc%2F31%2Fpolicies%2Fworlds_l_<level>.pkl?alt=media``).
 """
 
 from __future__ import annotations
@@ -52,14 +30,11 @@ import logging
 import pickle
 import sys
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from vla_eval.specs import LANGUAGE, RAW, DimSpec
-from vla_eval.types import Action, EpisodeResult, Observation
-
-# Workaround: nvidia-cuda-nvcc-cu12 exposes __file__=None (namespace package),
-# which crashes jax 0.4.35's CUDA path detection.  Patch before any jax import.
+# nvidia-cuda-nvcc-cu12 is a namespace package (__file__ None), which breaks jax 0.4.35's CUDA lookup.
 try:
     import nvidia.cuda_nvcc as _cuda_nvcc
 
@@ -70,88 +45,118 @@ try:
 except ImportError:
     pass
 
+import anyio
 import numpy as np
+from anyio.to_thread import run_sync as _run_in_thread
 
-from vla_eval.model_servers.base import Row, Rows
-from vla_eval.model_servers.predict import PredictModelServer
+from vla_eval.model_servers.base import Rows
+from vla_eval.model_servers.daemons import DaemonModelServer, EpisodeContext, ObservationRequest
+from vla_eval.recording import StepRecorder
+from vla_eval.specs import LANGUAGE, RAW, DimSpec
+from vla_eval.types import EpisodeResult
 
 logger = logging.getLogger(__name__)
 
-# RTC default configuration (matching the paper)
-DEFAULT_ACTION_DIM = 6
-DEFAULT_PREDICTION_HORIZON = 8
-DEFAULT_DENOISING_STEPS = 5
+Method = Literal["naive", "rtc", "rtc_hard", "bid"]
+Latency = Literal["steps", "wall", "wall_exact"]
+H = 8  # the checkpoints' prediction horizon
 
 
 def _filter_none(d: dict) -> dict:
-    """Recursively remove None values from a nested dict (old flax ckpt compat)."""
+    """Drop None leaves (older flax checkpoints)."""
     out = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            filtered = _filter_none(v)
-            if filtered:
-                out[k] = filtered
+            if sub := _filter_none(v):
+                out[k] = sub
         elif v is not None:
             out[k] = v
     return out
 
 
-class RTCModelServer(PredictModelServer):
-    """RTC flow-matching diffusion policy model server.
+@dataclass(eq=False)
+class _Inference:
+    k: int  # boundary index; -1 is the initial chunk
+    t: int  # the boundary step (its observation's step)
+    prev_k: int  # the chunk it was guided by
+    done: anyio.Event = field(default_factory=anyio.Event)
+    chunk: np.ndarray = field(default_factory=lambda: np.zeros((0, 0), np.float32))
+    infer_ms: float = 0.0
+    landed_wall: float = 0.0
 
-    Loads per-level RTC checkpoints from ``checkpoint_dir`` and selects
-    the correct model on each episode based on the task's ``level`` field.
 
-    The Kinetix environment already stacks observation history internally,
-    so ``obs_history`` defaults to 1 (no additional stacking needed).
+@dataclass(eq=False)
+class _RowState:
+    level: str
+    seed: int
+    recorder: StepRecorder | None
+    key: Any = None  # JAX PRNG key, made on the model thread
+
+
+class KinetixRTCServer(DaemonModelServer):
+    """Official RTC / BID / naive chunk execution for the 12 Kinetix levels (one checkpoint per level).
+
+    Each observation is answered with the plan's action for its step (``reply`` in sync, ``publish`` in live), so
+    the step index, not a time grid, decides which slot a tick gets: the benchmark's ``env_step`` when the observation
+    carries one (Kinetix holds its env until the first action), else its index.  A boundary's chunk lands ``delay``
+    steps later (``latency="steps"``) or after ``(delay - 1/2) / hz`` (``"wall"``) / ``delay / hz`` (``"wall_exact"``) seconds
+    since its observation's admission, compute included (live only).  The initial chunk (official: computed with
+    no delay before the loop) is exempt unless ``first_chunk_delayed``, in which case the first steps get no action
+    (needs a benchmark that steps on holds).
 
     Args:
-        checkpoint_dir: Directory containing ``worlds_l_<level>.pkl`` files.
-        rtc_src_path: Path to the RTC repo ``src/`` directory (added to
-            ``sys.path`` so ``import model`` works).
-        action_dim: Action space dimensionality (default 6 for Kinetix large).
-        obs_dim: Observation dimensionality (default 679 for Kinetix large
-            symbolic flat). All RTC levels share the same obs_dim.
-        prediction_horizon: Number of future actions to predict (default 8).
-        denoising_steps: Number of flow-matching denoising steps (default 5).
-        obs_history: Number of observation history frames to stack (default 1,
-            since the env already provides stacked observations).
-        chunk_size: Action chunk size for the harness (default 8 = prediction_horizon).
-        inference_delay: Artificial delay in seconds added before each predict()
-            call, for benchmarking inference latency sensitivity.
+        checkpoint_dir: ``worlds_l_<level>.pkl`` files (the paper evaluates epoch 31, ``bc/31/policies``).
+        rtc_src_path: The official repo's ``src/`` (``import model``).
+        weak_checkpoint_dir: BID's weak policy (paper: the 8-epoch ``bc/7/policies``); needed when ``bid_k`` is set.
+        method: ``naive``, ``rtc`` (soft masking, ``exp``), ``rtc_hard`` (``zeros``) or ``bid``.
+        delay / horizon: d and s, ``0 <= d <= s``, ``s + d <= 8``.
+        bid_n / bid_k: BID samples and K (``bid_k=None``: backward loss only); beta: RTC's max guidance weight.
+        hz: ``1 / dt`` when ``EPISODE_START`` carries no ``control_hz``.
     """
 
     def __init__(
         self,
-        checkpoint_dir: str | None = None,
+        checkpoint_dir: str,
         rtc_src_path: str | None = None,
-        action_dim: int = DEFAULT_ACTION_DIM,
-        obs_dim: int = 679,
-        prediction_horizon: int = DEFAULT_PREDICTION_HORIZON,
-        denoising_steps: int = DEFAULT_DENOISING_STEPS,
-        obs_history: int = 1,
-        inference_delay: float = 0.0,
         *,
-        chunk_size: int = DEFAULT_PREDICTION_HORIZON,
-        **kwargs: Any,
+        weak_checkpoint_dir: str | None = None,
+        method: Method = "rtc",
+        delay: int = 0,
+        horizon: int = 1,
+        latency: Latency = "steps",
+        first_chunk_delayed: bool = False,
+        bid_n: int = 32,
+        bid_k: int | None = 3,
+        beta: float = 5.0,
+        flow_steps: int = 5,
+        hz: float = 10.0,
+        obs_dim: int = 679,
+        action_dim: int = 6,
+        max_rows: int | None = None,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, **kwargs)
-        self.checkpoint_dir = checkpoint_dir
-        self.rtc_src_path = rtc_src_path
-        self.action_dim = action_dim
-        self.obs_dim = obs_dim
-        self.prediction_horizon = prediction_horizon
-        self.denoising_steps = denoising_steps
-        self.obs_history = obs_history
-        self.inference_delay = inference_delay
-
-        # Per-level model cache: level_name -> (policy, jit_action_fn)
-        self._models: dict[str, Any] = {}
-        self._row_jit_action: dict[int, Any] = {}  # the level's policy, per row
-        self._obs_buffer: dict[int, list[np.ndarray]] = {}
-        self._rtc_model_module: Any = None
-        # Per-row RNG state: split on each predict() call for stochastic policy
-        self._session_rng: dict[int, Any] = {}
+        if method not in ("naive", "rtc", "rtc_hard", "bid"):
+            raise ValueError(f"unknown method {method!r}")
+        if latency not in ("steps", "wall", "wall_exact"):
+            raise ValueError(f"unknown latency {latency!r}")
+        if not (0 <= delay <= horizon and horizon >= 1 and horizon + delay <= H):
+            raise ValueError(f"need 0 <= delay <= horizon, horizon >= 1, horizon + delay <= {H}")
+        if method == "bid" and bid_k is not None and weak_checkpoint_dir is None:
+            raise ValueError("BID with bid_k needs weak_checkpoint_dir")
+        super().__init__(backlog=64, control_hz=hz, max_rows=max_rows)
+        self.checkpoint_dir, self.rtc_src_path, self.weak_checkpoint_dir = (
+            checkpoint_dir,
+            rtc_src_path,
+            weak_checkpoint_dir,
+        )
+        self.method, self.delay, self.horizon, self.latency = method, delay, horizon, latency
+        self.first_chunk_delayed = first_chunk_delayed
+        self.bid_n, self.bid_k, self.beta, self.flow_steps = bid_n, bid_k, beta, flow_steps
+        self.obs_dim, self.action_dim = obs_dim, action_dim
+        self._states: dict[str, Any] = {}  # level -> nnx.State
+        self._weak: dict[str, Any] = {}
+        self._eps_state: dict[int, _RowState] = {}
+        self._init_fn: Any = None
+        self._sample_fn: Any = None
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"actions": RAW}
@@ -159,205 +164,209 @@ class RTCModelServer(PredictModelServer):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"state": RAW, "language": LANGUAGE}
 
-    def _ensure_rtc_import(self) -> Any:
-        """Import the RTC model module, adding rtc_src_path to sys.path."""
-        if self._rtc_model_module is not None:
-            return self._rtc_model_module
+    # -- model thread ----------------------------------------------------------------------------------------------
 
+    def _load(self, directory: str) -> tuple[Any, dict[str, Any]]:
+        import flax.nnx as nnx
+        import jax
+
+        model = self._import_model()
+        files = sorted(Path(directory).glob("worlds_l_*.pkl"))
+        if not files:
+            raise FileNotFoundError(f"no worlds_l_*.pkl in {directory}")
+        policy = model.FlowPolicy(
+            obs_dim=self.obs_dim, action_dim=self.action_dim, config=model.ModelConfig(), rngs=nnx.Rngs(0)
+        )
+        graphdef, template = nnx.split(policy)
+        states = {}
+        for f in files:
+            state = jax.tree.map(lambda x: x, template)
+            with f.open("rb") as fh:
+                state.replace_by_pure_dict(_filter_none(pickle.load(fh)))
+            states[f.stem.removeprefix("worlds_l_")] = state
+        return graphdef, states
+
+    def _import_model(self) -> Any:
         if self.rtc_src_path is not None and self.rtc_src_path not in sys.path:
             sys.path.insert(0, self.rtc_src_path)
-
-        # flax >=0.10 removed nnx.List; RTC model.py still references it.
-        import flax.nnx as _nnx
-
-        if not hasattr(_nnx, "List"):
-            _nnx.List = list
-
         import importlib.util
 
         if importlib.util.find_spec("model") is None:
-            raise ImportError(
-                "RTC model package not found. Either set --rtc_src_path to the RTC repo src/ directory, "
-                "or: git clone https://github.com/Physical-Intelligence/real-time-chunking-kinetix && "
-                "pass --rtc_src_path /path/to/real-time-chunking-kinetix/src"
-            )
+            raise ImportError("RTC model.py not found: pass rtc_src_path=<real-time-chunking-kinetix>/src")
+        import model
 
-        import model as rtc_model
+        return model
 
-        self._rtc_model_module = rtc_model
-        return rtc_model
-
-    def _load_policy(self, level: str, obs_dim: int) -> Any:
-        """Load a single level's FlowPolicy from pickle checkpoint."""
+    def _warm(self) -> None:
+        """Load every level and compile once (model thread, before the first EPISODE_READY)."""
         import flax.nnx as nnx
-
-        rtc_model = self._ensure_rtc_import()
-
-        assert self.checkpoint_dir is not None
-        ckpt_path = Path(self.checkpoint_dir) / f"worlds_l_{level}.pkl"
-        if not ckpt_path.is_file():
-            raise FileNotFoundError(f"RTC checkpoint not found: {ckpt_path}")
-
-        config = rtc_model.ModelConfig()
-        policy = rtc_model.FlowPolicy(obs_dim=obs_dim, action_dim=self.action_dim, config=config, rngs=nnx.Rngs(0))
-
-        with open(ckpt_path, "rb") as f:
-            state_dict = _filter_none(pickle.load(f))
-
-        graphdef, state = nnx.split(policy)
-        state.replace_by_pure_dict(state_dict)
-        return nnx.merge(graphdef, state)
-
-    def _load_all_models(self) -> None:
-        """Load all checkpoint files from checkpoint_dir.
-
-        Each file is named ``worlds_l_<level>.pkl``. We probe obs_dim from
-        a test environment reset.
-        """
-        if self.checkpoint_dir is None:
-            raise ValueError(
-                "checkpoint_dir not provided. Download checkpoints from gs://rtc-assets/bc/ "
-                "and pass --checkpoint_dir /path/to/policies/"
-            )
-
         import jax
 
-        ckpt_dir = Path(self.checkpoint_dir)
-        if not ckpt_dir.is_dir():
-            raise FileNotFoundError(f"checkpoint_dir not found: {ckpt_dir}")
+        graphdef, self._states = self._load(self.checkpoint_dir)
+        if self.method == "bid" and self.bid_k is not None:
+            assert self.weak_checkpoint_dir is not None
+            self._weak = self._load(self.weak_checkpoint_dir)[1]
+        d, s, n = self.delay, self.horizon, self.flow_steps
+        method, beta, bid_n, bid_k = self.method, self.beta, self.bid_n, self.bid_k
 
-        pkl_files = sorted(ckpt_dir.glob("worlds_l_*.pkl"))
-        if not pkl_files:
-            raise FileNotFoundError(f"No worlds_l_*.pkl files in {ckpt_dir}")
+        def init(state: Any, key: Any, obs: Any) -> Any:
+            return nnx.merge(graphdef, state).action(key, obs, n)
 
-        logger.info("Loading %d RTC checkpoints from %s", len(pkl_files), ckpt_dir)
+        def sample(state: Any, weak: Any, key: Any, obs: Any, prev: Any) -> Any:
+            policy = nnx.merge(graphdef, state)
+            if method == "naive":
+                return policy.action(key, obs, n)
+            if method in ("rtc", "rtc_hard"):
+                schedule = "exp" if method == "rtc" else "zeros"
+                return policy.realtime_action(key, obs, n, prev, d, H - s, schedule, beta)
+            weak_policy = None if bid_k is None else nnx.merge(graphdef, weak)
+            return policy.bid_action(key, obs, n, prev, d, H - s, bid_n, bid_weak_policy=weak_policy, bid_k=bid_k)
 
-        obs_dim = self.obs_dim
+        self._init_fn, self._sample_fn = jax.jit(init), jax.jit(sample)
+        level = next(iter(self._states))
+        obs = np.zeros((1, self.obs_dim), np.float32)
+        prev = np.zeros((1, H, self.action_dim), np.float32)
+        key = jax.random.split(jax.random.PRNGKey(0))[0]  # split compiles too
+        self._call_init(level, key, obs)
+        self._call_sample(level, key, obs, prev)
+        logger.info(
+            "RTC %s d=%d s=%d: %d levels loaded and compiled on %s",
+            method,
+            d,
+            s,
+            len(self._states),
+            jax.devices()[0].platform,
+        )
 
-        for pkl_path in pkl_files:
-            # Extract level name: worlds_l_<level>.pkl -> <level>
-            level = pkl_path.stem.removeprefix("worlds_l_")
+    def _call_init(self, level: str, key: Any, obs: np.ndarray) -> np.ndarray:
+        return np.asarray(self._init_fn(self._states[level], key, obs))
 
-            policy = self._load_policy(level, obs_dim)
-            jit_action = jax.jit(lambda rng, obs, p=policy: p.action(rng, obs, self.denoising_steps))
-
-            # Warmup JIT
-            dummy_obs = np.zeros((1, obs_dim), dtype=np.float32)
-            _ = jit_action(jax.random.PRNGKey(0), dummy_obs)
-            jax.block_until_ready(_)
-
-            self._models[level] = (policy, jit_action)
-            logger.info("  Loaded level=%s (obs_dim=%d)", level, obs_dim)
-
-        logger.info("All %d models loaded.", len(self._models))
+    def _call_sample(self, level: str, key: Any, obs: np.ndarray, prev: np.ndarray) -> np.ndarray:
+        return np.asarray(self._sample_fn(self._states[level], self._weak.get(level), key, obs, prev))
 
     def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
-        """Select the correct per-level model based on task metadata."""
-        import jax
-
-        # Load all models on first episode (on the inference thread: JAX JIT warmup can take 30s+).
-        if not self._models:
-            self._load_all_models()
-
+        if not self._states:
+            self._warm()
         failed: dict[int, Exception] = {}
         for i, (rid, episode) in enumerate(zip(rows.ids.tolist(), rows.episodes)):
-            task = episode.config.get("task", {})
-            level = task.get("level")
-            if level is None:
-                level = next(iter(self._models))
-                logger.warning("No level in task config; falling back to %r", level)
-
-            if level not in self._models:
-                failed[i] = ValueError(
-                    f"No RTC model loaded for level={level!r}. Available: {list(self._models.keys())}"
-                )
+            level = (episode.config.get("task") or {}).get("level")
+            if level not in self._states:
+                failed[i] = ValueError(f"no checkpoint for level {level!r}; have {sorted(self._states)}")
                 continue
-
-            _policy, jit_action = self._models[level]
-            self._row_jit_action[rid] = jit_action
-
-            # Create a unique RNG per episode from the episode_id hash.
-            # This ensures the diffusion policy's noise sampling varies across episodes,
-            # producing different trajectories even when the env initial state is identical.
-            episode_seed = int(hashlib.sha256(episode.episode_id.encode()).hexdigest(), 16) % (2**31)
-            self._session_rng[rid] = jax.random.PRNGKey(episode_seed)
-            logger.info(
-                "Selected model for level=%s session=%s (episode_seed=%d)", level, episode.session_id, episode_seed
-            )
+            if self.latency != "steps" and episode.mode != "live":
+                failed[i] = ValueError(f"latency={self.latency!r} needs a live episode")
+                continue
+            seed = int(hashlib.sha256(episode.episode_id.encode()).hexdigest(), 16) % 2**31
+            rec = None
+            if episode.recording_db_path:
+                rec = StepRecorder(episode.recording_db_path, episode.session_id, episode.episode_id)
+            self._eps_state[rid] = _RowState(level, seed, rec)
         return failed
 
-    def _get_obs_with_history(self, obs: Observation, row: Row) -> np.ndarray:
-        """Build observation, optionally with history stacking.
-
-        When ``obs_history == 1`` (default), returns the state vector directly
-        with no stacking — the Kinetix env already handles observation history.
-        """
-        state = obs.get("state")
-        if state is None:
-            for v in obs.values():
-                if isinstance(v, np.ndarray) and v.ndim == 1:
-                    state = v
-                    break
-        if state is None:
-            raise ValueError("RTC requires symbolic state in observation (key 'state' or a 1D array)")
-
-        state = np.asarray(state, dtype=np.float32)
-
-        if self.obs_history <= 1:
-            return state
-
-        sid = row.id
-        if row.is_first or sid not in self._obs_buffer:
-            self._obs_buffer[sid] = [state.copy() for _ in range(self.obs_history)]
-        else:
-            self._obs_buffer[sid].append(state.copy())
-            if len(self._obs_buffer[sid]) > self.obs_history:
-                self._obs_buffer[sid] = self._obs_buffer[sid][-self.obs_history :]
-
-        return np.concatenate(self._obs_buffer[sid])
-
-    def predict(self, obs: Observation, row: Row) -> Action:
+    def _infer(self, st: _RowState, obs: np.ndarray, prev: np.ndarray | None) -> tuple[np.ndarray, float]:
         import jax
 
-        if self.inference_delay > 0:
-            time.sleep(self.inference_delay)
-
-        jit_action = self._row_jit_action.get(row.id)
-        if jit_action is None:
-            raise RuntimeError("No model selected — reset_episodes must be called first")
-
-        obs_vec = self._get_obs_with_history(obs, row)
-
-        # Split the per-episode RNG so each step gets a unique key.
-        # This makes the diffusion policy stochastic across episodes.
-        # Fallback: if OBSERVATION arrives before EPISODE_START (e.g. reconnect),
-        # initialise a deterministic RNG so predict() doesn't crash.
-        if row.id not in self._session_rng:
-            logger.warning("predict() called without prior EPISODE_START row=%d — using fallback RNG", row.id)
-            self._session_rng[row.id] = jax.random.PRNGKey(0)
-        rng = self._session_rng[row.id]
-        rng, step_rng = jax.random.split(rng)
-        self._session_rng[row.id] = rng
-
-        # Run flow-matching inference: expects (batch, obs_dim)
-        actions = jit_action(step_rng, obs_vec[None])[0]
-        actions = np.asarray(actions, dtype=np.float32)
-
-        # Ensure correct shape: (prediction_horizon, action_dim)
-        if actions.ndim == 1:
-            actions = actions.reshape(self.prediction_horizon, self.action_dim)
-
-        return {"actions": actions}
+        st.key, key = jax.random.split(jax.random.PRNGKey(st.seed) if st.key is None else st.key)
+        t0 = time.perf_counter()
+        chunk = self._call_init(st.level, key, obs) if prev is None else self._call_sample(st.level, key, obs, prev)
+        return chunk[0], (time.perf_counter() - t0) * 1e3
 
     def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
-        """Clear observation history buffer, RNG state and policy on episode end."""
         for rid in rows.ids.tolist():
-            self._obs_buffer.pop(rid, None)
-            self._session_rng.pop(rid, None)
-            self._row_jit_action.pop(rid, None)
+            self._eps_state.pop(rid, None)
+
+    # -- event loop ------------------------------------------------------------------------------------------------
+
+    async def run(self, ep: EpisodeContext) -> None:
+        st = self._eps_state[ep.row_id]
+        d, s = self.delay, self.horizon
+        assert ep.sim_dt is not None  # control_hz always has a default
+        land_after = {"steps": None, "wall": (d - 0.5) * ep.sim_dt, "wall_exact": d * ep.sim_dt}[self.latency]
+        plan: _Inference | None = None  # the landed chunk in effect: plan.chunk[i] is the action for step plan.t + i
+        pending: dict[int, _Inference] = {}  # boundaries the loop lands itself (step latency, or d = 0), by step
+        dispensed_k: int | None = None
+
+        def land(inf: _Inference) -> None:
+            nonlocal plan
+            if plan is None or inf.k > plan.k:
+                inf.landed_wall = time.monotonic()
+                plan = inf
+
+        async def infer(inf: _Inference, req: ObservationRequest, prev: np.ndarray | None) -> None:
+            obs = np.asarray(req.obs["state"], np.float32)[None]
+            inf.chunk, inf.infer_ms = await ep.call(self._infer, st, obs, prev)
+            if land_after is not None and d > 0 and inf.k >= 0:  # injected latency, off the model thread
+                while (wait := anchors[inf.t] + land_after - time.monotonic()) > 0:
+                    await anyio.sleep(wait)  # a repeated observation of step t moves the anchor
+                land(inf)
+            inf.done.set()
+
+        anchors: dict[int, float] = {}  # boundary step -> admission of its latest observation
+        last_j: int | None = None
+        async for req in ep.observations():
+            # The benchmark's env step, when it sends one: a gated start repeats step 0 until the first action.
+            admitted = req.admitted_at if ep.can_publish else time.monotonic()  # live: WallClock, monotonic
+            j = int(req.obs.get("env_step", req.row.step))
+            row: dict[str, Any] = {"step": req.row.step, "p": j, "admitted_wall": admitted}
+            if j == last_j:  # the env did not move: same slot again, latency counted from this observation
+                if plan is None:  # a delayed first chunk would never land: the env waits for it
+                    raise ValueError(
+                        "first_chunk_delayed needs a benchmark that steps on holds (Kinetix: "
+                        "start_on_first_action=false)"
+                    )
+                anchors[j] = admitted
+                row["repeat"] = True
+            else:
+                last_j = j
+                anchors[j] = admitted
+                if j == 0 and not self.first_chunk_delayed:
+                    init = _Inference(-1, 0, -1)
+                    await infer(init, req, None)  # official: no delay for the initial chunk
+                    land(init)
+                if land_after is None and d > 0 and (inf := pending.pop(j - d, None)) is not None:
+                    await inf.done.wait()
+                    land(inf)
+                if j % s == 0:
+                    prev = np.zeros((1, H, self.action_dim), np.float32)
+                    if plan is not None:
+                        tail = plan.chunk[j - plan.t :]
+                        prev[0, : len(tail)] = tail  # the official frame shift, zero-padded
+                    inf = _Inference(j // s, j, -2 if plan is None else plan.k)
+                    if land_after is None or d == 0:
+                        pending[j] = inf
+                    ep.start_soon(infer, inf, req, prev)
+                    if d == 0:
+                        await inf.done.wait()
+                        land(pending.pop(j))
+                    row.update(infer_k=inf.k, prev_k=inf.prev_k)
+            age = None if plan is None else j - plan.t
+            action = np.zeros(self.action_dim, np.float32)  # nothing planned for this step
+            if plan is not None and j - plan.t < H:
+                action = plan.chunk[j - plan.t]
+            row.update(intended_action=action.tolist(), chunk_k=None if plan is None else plan.k, chunk_age=age)
+            if plan is not None and plan.k != dispensed_k:
+                dispensed_k = plan.k
+                row.update(infer_ms=plan.infer_ms, landed_wall=plan.landed_wall)
+            row["dispense_wall"] = time.monotonic()
+            if st.recorder is not None:
+                st.recorder.record(row)
+            if ep.can_publish:
+                if plan is not None:  # before the first chunk the client holds
+                    await ep.publish({"actions": action}, source=req)
+            else:
+                await req.reply({"actions": action})
+
+    async def on_episode_end(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        recorders = [st.recorder for rid in rows.ids.tolist() if (st := self._eps_state.get(rid)) and st.recorder]
+        await super().on_episode_end(rows, results)
+        for rec in recorders:  # SQLite I/O off the model thread
+            try:
+                await _run_in_thread(rec.close)
+            except Exception:
+                logger.exception("server step rows were not saved")
 
 
 if __name__ == "__main__":
     from vla_eval.model_servers.serve import run_server
 
-    run_server(RTCModelServer)
+    run_server(KinetixRTCServer)

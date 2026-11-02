@@ -1,4 +1,4 @@
-# Kinetix evaluation (40 tasks × 100 episodes)
+# Kinetix, RTC paper protocol, sync (12 levels × 2048 rollouts; step-counted delay on the server)
 server:
   url: "ws://localhost:8000"
 
@@ -9,7 +9,7 @@ output_dir: "./results"
 
 benchmarks:
   - benchmark: "vla_eval.benchmarks.kinetix.benchmark:KinetixBenchmark"
-    episodes_per_task: 100
+    episodes_per_task: 2048
     params:
       seed: 0
       observation_type: symbolic

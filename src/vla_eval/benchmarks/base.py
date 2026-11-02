@@ -60,6 +60,10 @@ class BenchmarkCommon(ABC):
     #: at startup instead of crashing mid-run.
     render_backends: ClassVar[frozenset[str]] = frozenset({"gpu"})
 
+    #: Control steps per second of simulated time, when known: sent as ``control_hz`` in each ``EPISODE_START``
+    #: (a model server's sim clock advances ``1 / control_hz`` per observation).  The live runner sends its ``hz``.
+    control_hz: float | None = None
+
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:
         """Set process env for *mode* before any simulator import; return the applied env.

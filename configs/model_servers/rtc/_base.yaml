@@ -1,10 +1,10 @@
-# RTC model server — shared base
+# RTC on Kinetix — shared base (official checkpoints and sampling code, see README.md)
 script: "src/vla_eval/model_servers/rtc.py"
 args:
-  checkpoint_dir: "experiments/checkpoints/bc/0/policies"
-  rtc_src_path: "experiments/rtc-kinetix/src"
-  action_dim: 6
-  prediction_horizon: 8
-  denoising_steps: 5
-  chunk_size: 8
+  checkpoint_dir: "checkpoints/rtc-kinetix/bc/31/policies"
+  weak_checkpoint_dir: "checkpoints/rtc-kinetix/bc/7/policies"
+  rtc_src_path: "third_party/real-time-chunking-kinetix/src"
+  delay: 0     # d; override with --arg delay=2 --arg horizon=2
+  horizon: 1   # s
+  latency: steps  # live: wall ((d - 1/2) / hz) or wall_exact (d / hz)
   port: 8000

@@ -16,4 +16,4 @@ A benchmark can run here only if it implements `get_hold_action` (the safe stale
 |------|-------------|:-------------:|
 | `eval.yaml` | Kinetix at 10 Hz wall-clock (minimal example) | 10 |
 
-For the full Kinetix real-time run, see `configs/benchmarks/kinetix/realtime.yaml`.
+For the RTC paper protocol in live mode, see `configs/benchmarks/kinetix/realtime.yaml`.

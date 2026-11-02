@@ -46,7 +46,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 | ManiSkill2 | [DB-CogACT](https://arxiv.org/abs/2510.23511) | ⬜ | [58%](https://huggingface.co/Dexmal/maniskill2-db-cogact) | [dexbotic.md](dexbotic.md) |
 | ManiSkill2 | [DB-π₀](https://arxiv.org/abs/2510.23511) | ⬜ | [65%](https://huggingface.co/Dexmal/maniskill2-db-pi0) | [dexbotic.md](dexbotic.md) |
 | ManiSkill2 | [DB-OFT](https://arxiv.org/abs/2510.23511) | ⬜ | [63%](https://huggingface.co/Dexmal/maniskill2-db-oft) | [dexbotic.md](dexbotic.md) |
-| Kinetix | [RTC](https://arxiv.org/abs/2506.07339) | ⬜ | ckpt | [rtc.md](rtc.md) |
+| Kinetix | [RTC](https://arxiv.org/abs/2506.07339) | ✅ **88.1%**⁵ | 84.3% (Fig. 5) | [rtc.md](rtc.md) |
 | VLABench | [X-VLA](https://arxiv.org/abs/2510.10274) | ⬜ | 51.1% | [xvla.md](xvla.md) |
 | MolmoSpaces-Bench | [MolmoBot (F=2)](https://arxiv.org/abs/2603.16861) | ✅ **57.0%** | [57.7%](https://huggingface.co/allenai/MolmoBot-DROID)² | [molmobot.md](molmobot.md) |
 | RoboDojo | [π₀.₅](https://arxiv.org/abs/2607.04434) | 🔧 **6.4 / 5.6%**³ | [5.78 / 4.56%](https://huggingface.co/datasets/RoboDojo-Benchmark/RoboDojo) | [robodojo.md](robodojo.md) |
@@ -55,6 +55,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 ² Pick-and-Place only on `procthor-objaverse/FrankaPickandPlaceHardBench` (200 ep). Other task types not yet reproduced.
 ³ Score / SR, Memory dimension only (1 of 5), 15/50 episodes, seed 0 of 3; 2 of 6 tasks blocked by an upstream layout bug (counted as 0).
 ⁴ Easy only, 50 tasks × up to 20 episodes (915 in total) at the official client's 300-action cap; 78.2% with RoboTwin's per-task step limits. Hard not evaluated.
+⁵ RTC, d = 2, s = 2, live at 10 Hz (wall-clock latency), 12 levels × 512 rollouts; sync 88.2%. Kinetix v3 reads success differently from the paper's Kinetix; the official script read the same way gives 88.7% (84.7% with the paper's metric).
 
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 

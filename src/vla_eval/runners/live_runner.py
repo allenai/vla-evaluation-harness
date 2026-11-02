@@ -77,12 +77,13 @@ class LiveEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        await start_model_episode(conn, episode_start_payload(task, recorder, mode="live"))
+        await start_model_episode(conn, episode_start_payload(task, recorder, mode="live", control_hz=self.hz))
         try:
             # Stale-tick hold is embodiment-owned; get_hold_action(None) also covers
             # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
             action_buffer = ActionBuffer(hold_fn=benchmark.get_hold_action)
             conn.on_action(lambda a: action_buffer.update(a))
+            conn.on_publish(lambda a: action_buffer.update(a))  # latest-wins with replies
 
             step_period = 1.0 / self.hz
             step_times: list[float] = []
