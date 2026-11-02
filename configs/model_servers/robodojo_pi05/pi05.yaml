@@ -13,4 +13,5 @@ args:
   checkpoint: "${oc.env:ROBODOJO_PI05_CKPT,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robodojo/pi05/RoboDojo-sim-arx_x5-joint-0/59999}"
   config_name: "pi05_base_aloha_full_sim_arx-x5_seed_0"
   norm_asset_id: "arx_x5_sim"
+  max_batch_size: 10  # the benchmark's num_envs this server asks for: one sample_actions per round step
   port: 8000
