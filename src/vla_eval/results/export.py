@@ -138,7 +138,7 @@ def _build_aggregate(
     all_episodes: list[dict[str, Any]] = []
     episode_count = 0
 
-    # Last committed work item wins; legacy rows without task indices remain distinct.
+    # Last committed work item wins, and is dropped when skipped; legacy rows without task indices remain distinct.
     for er in conn.execute(
         """
         SELECT sid, eid, task_name, episode_id, status, metrics, steps, elapsed_sec,
@@ -148,7 +148,7 @@ def _build_aggregate(
             SELECT MAX(rowid) FROM episode_results WHERE eval_id = ?
             GROUP BY task_name, episode_id, json_extract(context, '$.task_idx'),
                      CASE WHEN json_extract(context, '$.task_idx') IS NULL THEN rowid END
-        )
+        ) AND status IS NOT 'skipped'
         ORDER BY task_name, episode_id, sid, eid
         """,
         (eval_id,),

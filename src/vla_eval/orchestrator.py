@@ -38,7 +38,7 @@ from vla_eval.registry import resolve_import_string
 from vla_eval.render import apply_render_mode, normalize_render_mode
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
-from vla_eval.runners.base import EnvUnusableError, episode_status, failure_reason
+from vla_eval.runners.base import EnvUnusableError, EpisodeSkipped, episode_status, failure_reason
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
@@ -84,9 +84,12 @@ def _effective_recording_config(raw: dict[str, Any] | None, *, no_save: bool) ->
 _SHARD_SHUFFLE_SEED = 42
 
 
-def _shard_work_items(work_items: list[Any], num_shards: int, shard_id: int) -> list[Any]:
+def _shard_work_items(work_items: list[Any], num_shards: int, shard_id: int, by_task: bool = False) -> list[Any]:
     """Fixed-seed shuffle so a shard never collects one episode index across every task
-    (gcd(num_shards, episodes_per_task) > 1 does that); re-sort by task to keep env rebuilds rare."""
+    (gcd(num_shards, episodes_per_task) > 1 does that); re-sort by task to keep env rebuilds rare.
+    ``by_task``: whole tasks, round-robin (a ``task_exclusive`` benchmark)."""
+    if by_task:
+        return [w for w in work_items if w[0] % num_shards == shard_id]
     items = list(work_items)
     random.Random(_SHARD_SHUFFLE_SEED).shuffle(items)
     mine = [w for i, w in enumerate(items) if i % num_shards == shard_id]
@@ -388,7 +391,7 @@ class Orchestrator:
         # Shards with a recording DB take items from a shared queue as they free up; without one, a fixed split.
         dynamic = self._store is not None and self.num_shards is not None and self.shard_id is not None
         if self.num_shards is not None and self.shard_id is not None and not dynamic:
-            work_items = _shard_work_items(work_items, self.num_shards, self.shard_id)
+            work_items = _shard_work_items(work_items, self.num_shards, self.shard_id, benchmark.task_exclusive)
             logger.info("Shard %d/%d: %d episodes assigned", self.shard_id, self.num_shards, len(work_items))
 
         collector = ResultCollector(benchmark_name=name, mode=cfg.mode, metric_keys=benchmark.get_metric_keys())
@@ -437,26 +440,33 @@ class Orchestrator:
         is durable (finish the queue item there) and returns the entry's finished-episode count."""
         status: EpisodeStatus
         ep_dict: dict[str, Any]
+        skipped = isinstance(error, EpisodeSkipped)
         if error is None:
             assert result is not None
             ep_dict = {**result, "episode_id": ep}
             status = episode_status(ep_dict)
+        elif isinstance(error, EpisodeSkipped):
+            ep_dict = {"episode_id": ep, "metrics": dict(error.metrics), "failure_detail": str(error)}
+            status = "skipped"
         else:
             reason, detail = self._failure(error)
             ep_dict = {"episode_id": ep, "metrics": {"success": False}}
             ep_dict.update(failure_reason=reason, failure_detail=detail)
             status = "error"
-        e.collector.record(task_name, cast(EpisodeResult, ep_dict))
+        if not skipped:
+            e.collector.record(task_name, cast(EpisodeResult, ep_dict))
         self._close_recorder(recorder, ep_dict, status, e.name, task_name, ep)
         n, total = done(), len(e.work_items)
-        if error is None:
+        if skipped:
+            logger.info("  [%d/%d] %s ep%d: SKIPPED (%s)", n, total, task_name, ep, error)
+        elif error is None:
             outcome = "SUCCESS" if status == "success" else "FAIL"
             logger.info("  [%d/%d] %s ep%d: %s (steps=%d)", n, total, task_name, ep, outcome, ep_dict.get("steps", 0))
             self._episodes_ok += 1
         else:
             logger.warning("  [%d/%d] %s ep%d: %s: %s", n, total, task_name, ep, ep_dict["failure_reason"], error)
         self._update_progress(n, total, e.collector.error_count)
-        self._episode_errored = error is not None
+        self._episode_errored = error is not None and not skipped
 
     def _shard_keys(self) -> dict[str, int]:
         """``shard_id``/``num_shards`` for a sharded run, so a benchmark can split per-shard resources."""
@@ -473,24 +483,29 @@ class Orchestrator:
     async def _run_one_at_a_time(
         self, benchmark: Any, runner: SyncEpisodeRunner | LiveEpisodeRunner, conn: Connection, e: _Entry
     ) -> dict[str, Any]:
+        redo = False  # the last episode was skipped with ``retry``: its item is handed out again
+
         def my_items() -> Iterator[tuple[int, int | None, tuple[int, Any, int]]]:
             """``(finished items so far, queue item or None, work item)``."""
             if not e.dynamic:
-                for i, w in enumerate(e.work_items):
-                    yield i, None, w
+                i = 0
+                while i < len(e.work_items):
+                    yield i, None, e.work_items[i]
                     self._check_health(None, i)
+                    i += not redo
                 return
             assert self.shard_id is not None and self.num_shards is not None
             store, shard = self._queue(), self.shard_id
-            store.seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
-            benchmark.resume(store.completed_results(e.eval_id))
+            self._resume(benchmark, e)
             task_idx = None
-            while (item := store.claim(e.eval_id, shard, task_idx, self.num_shards)) is not None:
+            while (item := store.claim(e.eval_id, shard, task_idx, self.num_shards, exclusive=exclusive)) is not None:
                 yield store.queue_progress(e.eval_id)[0], item, e.work_items[item]
-                store.finish(e.eval_id, item)  # not reached when the loop aborts: a rerun redoes it
+                if not redo:
+                    store.finish(e.eval_id, item)  # not reached when the loop aborts: a rerun redoes it
                 self._check_health(e.eval_id, item)
                 task_idx = e.work_items[item][0]
 
+        exclusive = benchmark.task_exclusive
         try:
             for item_idx, item, (task_idx, task, ep) in my_items():
                 self._episode_errored = False
@@ -506,7 +521,8 @@ class Orchestrator:
                     raise
                 except Exception as exc:
                     error = exc
-                self._episode_ended(e, recorder, task_name, ep, result, error, lambda: item_idx + 1)
+                redo = isinstance(error, EpisodeSkipped) and error.retry
+                self._episode_ended(e, recorder, task_name, ep, result, error, lambda: item_idx + (not redo))
                 self._stop_if_unusable(e, error, () if item is None else (item,))
                 if isinstance(error, ConnectionError):
                     logger.error("%s: server unreachable, aborting benchmark", e.name)
@@ -543,10 +559,10 @@ class Orchestrator:
         group: int | None = None  # the running episodes' task_idx
         active = 0
         static_items = iter(e.work_items)
+        redo: list[tuple[int | None, tuple[int, Any, int]]] = []  # skipped with ``retry``: first in the next wave
         ended = 0
         if e.dynamic:
-            self._queue().seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
-            benchmark.resume(self._queue().completed_results(e.eval_id))
+            self._resume(benchmark, e)
 
         def end(
             episode: VectorEpisode,
@@ -556,22 +572,25 @@ class Orchestrator:
             aborted: bool = False,
         ) -> None:
             nonlocal active
-            item, ep, task_name = episode.ref
+            item, work, task_name = episode.ref
+            ep = work[2]
             active -= 1
+            retry = isinstance(error, EpisodeSkipped) and error.retry
 
             if isinstance(error, EnvUnusableError):
                 unusable.append(error)
 
             def done() -> int:
                 nonlocal ended
-                ended += 1
-                if item is None:
-                    return ended
+                if retry:
+                    redo.append((item, work))  # still claimed
+                elif item is None:
+                    ended += 1
                 # An aborted run's item is redone on rerun; an unusable env's is released once the run stops.
-                if not (aborted or isinstance(error, EnvUnusableError)):
+                elif not (aborted or isinstance(error, EnvUnusableError)):
                     claimed.discard(item)
                     self._queue().finish(e.eval_id, item)
-                return self._queue().queue_progress(e.eval_id)[0]
+                return ended if item is None else self._queue().queue_progress(e.eval_id)[0]
 
             self._episode_ended(e, episode.recorder, task_name, ep, result, error, done)
             if not (aborted or unusable):  # aborted: the server went away, a partial result as in the other loop
@@ -581,6 +600,8 @@ class Orchestrator:
             nonlocal held
             if unusable:
                 return None
+            if redo:
+                return redo.pop(0)
             if held is not None:
                 nxt, held = held, None
                 return nxt
@@ -588,7 +609,9 @@ class Orchestrator:
                 work = next(static_items, None)
                 return None if work is None else (None, work)
             assert self.shard_id is not None and self.num_shards is not None
-            item = self._queue().claim(e.eval_id, self.shard_id, group, self.num_shards, exclude=claimed)
+            item = self._queue().claim(
+                e.eval_id, self.shard_id, group, self.num_shards, exclude=claimed, exclusive=benchmark.task_exclusive
+            )
             if item is None:
                 return None
             claimed.add(item)
@@ -612,9 +635,9 @@ class Orchestrator:
                 except RecordingError:
                     raise
                 except Exception as exc:
-                    end(VectorEpisode(task, NullEpisodeRecorder(), (item, ep, task_name)), None, exc)
+                    end(VectorEpisode(task, NullEpisodeRecorder(), (item, nxt[1], task_name)), None, exc)
                     continue
-                return VectorEpisode(task, recorder, (item, ep, task_name))
+                return VectorEpisode(task, recorder, (item, nxt[1], task_name))
             return None
 
         runner = VectorEpisodeRunner()
@@ -640,6 +663,16 @@ class Orchestrator:
     def _queue(self) -> RecordingStore:
         assert self._store is not None
         return self._store
+
+    def _resume(self, benchmark: Any, e: _Entry) -> None:
+        """Seed the shared queue, finish claimed items whose episode was counted before a crash, and hand the
+        recorded results to the benchmark."""
+        store = self._queue()
+        store.seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
+        results = store.completed_results(e.eval_id)
+        counted = {(r["task_idx"], r["episode_id"]) for r in results if r["status"] != "skipped"}
+        store.finish_claimed(e.eval_id, [i for i, (t, _, ep) in enumerate(e.work_items) if (t, ep) in counted])
+        benchmark.resume(results)
 
     def _failure(self, error: BaseException) -> tuple[str, str]:
         """``(failure_reason, failure_detail)`` of an episode that ended in ``error``."""
