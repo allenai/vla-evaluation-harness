@@ -51,6 +51,7 @@ class VLABenchBenchmark(StepBenchmark):
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 0.1  # VLABench: 100 substeps of the 0.001 s MuJoCo timestep
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:

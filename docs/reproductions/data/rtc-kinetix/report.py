@@ -200,8 +200,8 @@ def tables() -> None:
     ]
     table("R′ (v3 metric), d sweep (R′ / R)", f"method | {ds}", rows)
 
-    sync = [(m, d) for m in ("naive", "rtc", "rtc_hard") for d in range(5)]
-    live = sync[:10]
+    sync = [(m, d) for m in ("naive", "rtc", "rtc_hard", "bid") for d in range(5)]
+    live = sync
     head = "condition | n/level | ref | arm | diff pp [95% CI] | levels outside (pp) | worst pp | (1) | (2)"
 
     def get(arm: str, m: str, d: int) -> dict:
@@ -237,11 +237,8 @@ def tables() -> None:
     table("Live instruments", head, rows)
 
     rows = []
-    for m in ("naive", "rtc", "rtc_hard"):
-        cells = []
-        for d in range(5):
-            arms = ["R′", "sync", "live"] if (m, d) in live else ["R′", "sync"]
-            cells.append(" / ".join(f"{get(x, m, d)['trampoline'][0]:.3f}" for x in arms))
+    for m in ("naive", "rtc", "rtc_hard", "bid"):
+        cells = [" / ".join(f"{get(x, m, d)['trampoline'][0]:.3f}" for x in ("R′", "sync", "live")) for d in range(5)]
         rows.append(" | ".join([m, *cells]))
     table("trampoline (R′ / C / L)", f"method | {ds}", rows)
 

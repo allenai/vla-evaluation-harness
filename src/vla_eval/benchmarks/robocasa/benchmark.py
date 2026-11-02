@@ -135,6 +135,7 @@ class RoboCasaBenchmark(StepBenchmark):
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 0.05  # RoboCasa kitchen control_freq 20
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:

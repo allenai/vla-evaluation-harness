@@ -1,10 +1,12 @@
 # RTC on Kinetix — shared base (official checkpoints and sampling code, see README.md)
 script: "src/vla_eval/model_servers/rtc.py"
 args:
-  checkpoint_dir: "checkpoints/rtc-kinetix/bc/31/policies"
-  weak_checkpoint_dir: "checkpoints/rtc-kinetix/bc/7/policies"
-  rtc_src_path: "third_party/real-time-chunking-kinetix/src"
+  checkpoint_dir: "gs://rtc-assets/bc/31/policies"  # fetched once into the vla-eval assets cache
+  weak_checkpoint_dir: "gs://rtc-assets/bc/7/policies"
   delay: 0     # d; override with --arg delay=2 --arg horizon=2
   horizon: 1   # s
   latency: steps  # live: wall ((d - 1/2) / hz) or wall_exact (d / hz)
   port: 8000
+smoke:  # vla-eval test: a Kinetix level and its 679-D observation
+  task: {level: car_launch}
+  obs: {state: [679]}

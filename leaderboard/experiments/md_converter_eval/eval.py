@@ -6,6 +6,9 @@
 #   "html2text>=2024.2.26",
 #   "pymupdf4llm>=0.0.17",
 # ]
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """Evaluate several HTML/PDF → markdown converters on representative arxiv papers.
 

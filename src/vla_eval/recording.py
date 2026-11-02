@@ -7,7 +7,7 @@ import logging
 import os
 import sqlite3
 import time
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Collection, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -186,7 +186,7 @@ class RecordingStore:
                 time.sleep(min(1.0, 0.1 * (attempt + 1)))
 
     @contextmanager
-    def transaction(self) -> Iterator[None]:
+    def transaction(self) -> Generator[None]:
         """Allow a caller to commit step rows and episode results together."""
         if self._conn.in_transaction:
             yield

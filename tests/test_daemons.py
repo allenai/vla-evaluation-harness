@@ -10,7 +10,7 @@ from typing import Any, cast
 import anyio
 import numpy as np
 import pytest
-from chrono_daemon import SimClock, Supervisor, WallClock
+from chrono_daemon import Supervisor, WallClock
 from chrono_daemon.recipes.supervisor_host import SupervisorHost
 
 from vla_eval.connection import Connection
@@ -22,13 +22,12 @@ from vla_eval.model_servers.daemons import (
     Mailbox,
     MailboxOverflow,
     ObservationRequest,
+    SimClock,
     episode_daemon,
 )
 from vla_eval.protocol.messages import MessageType
-from vla_eval.runners.live_runner import LiveEpisodeRunner
-from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
-from tests.conftest import LIVE, Daemon, StubBenchmark, echo, observe, running, serving, start
+from tests.conftest import LIVE, Daemon, echo, observe, running, serving, start
 
 
 def _req(v: float = 0.0) -> ObservationRequest:
@@ -290,13 +289,13 @@ async def test_call_refuses_after_closing_and_drops_a_late_result():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("hz", ["fast", True, float("inf")])
+@pytest.mark.parametrize("dt", ["fast", True, float("inf"), 0, -0.1])
 @pytest.mark.anyio
-async def test_a_start_that_fails_validation_never_resets(hz):
+async def test_a_start_that_fails_validation_never_resets(dt):
     server = Daemon(echo)
     async with serving(server):
-        (out,) = await server._start_episodes([({"control_hz": hz}, "s")])
-    assert isinstance(out, ValueError) and "control_hz" in str(out)
+        (out,) = await server._start_episodes([({"step_dt": dt}, "s")])
+    assert isinstance(out, ValueError) and "step_dt" in str(out)
     assert server.log == [] and server._running() == 0 and not server.daemons._eps
 
 
@@ -318,8 +317,8 @@ async def test_reset_runs_for_accepted_positions_only_and_failures_keep_their_po
     server = Daemon(echo)
     server.reset_fail = {1}
     async with serving(server):
-        out = await server._start_episodes([({}, "s"), ({"control_hz": 0}, "s"), ({}, "s"), ({}, "s")])
-    assert isinstance(out[1], ValueError) and "control_hz" in str(out[1])
+        out = await server._start_episodes([({}, "s"), ({"step_dt": 0}, "s"), ({}, "s"), ({}, "s")])
+    assert isinstance(out[1], ValueError) and "step_dt" in str(out[1])
     assert isinstance(out[2], ValueError) and "cannot reset" in str(out[2])  # reset's position 1 is batch 2
     assert server.log == [("reset", [0, 2, 3])] and isinstance(out[0], int) and isinstance(out[3], int)
 
@@ -391,16 +390,16 @@ async def test_a_vector_slot_saying_live_is_still_sync_on_a_sim_clock(free_port)
     seen: list[tuple[str, type, float | None]] = []
 
     async def run(ep: EpisodeContext) -> None:
-        seen.append((ep.mode, type(ep.clock), ep.sim_dt))
+        seen.append((ep.mode, type(ep.clock), ep.step_dt))
         await echo(ep)
 
     async with running(Composed(run), free_port) as url, Connection(url) as conn:
-        starts = [[0, {"mode": "live", "control_hz": 20}], [1, {"control_hz": 5.0}]]
+        starts = [[0, {"mode": "live", "step_dt": 0.05}], [1, {"step_dt": 0.2}]]
         reply = await conn.exchange(
             {"ends": [], "starts": starts, "slots": [0, 1], "observations": {"value": np.asarray([1.0, 2.0])}}
         )
     assert reply["errors"] == [] and np.asarray(reply["actions"]["actions"])[:, 0].tolist() == [1.0, 2.0]
-    assert seen == [("sync", SimClock, 0.05), ("sync", SimClock, 0.2)]  # per-slot rates
+    assert seen == [("sync", SimClock, 0.05), ("sync", SimClock, 0.2)]  # per-slot step_dt
 
 
 @pytest.mark.anyio
@@ -409,67 +408,17 @@ async def test_each_episode_gets_its_own_clock_by_transport_mode():
 
     async def run(ep: EpisodeContext) -> None:
         clocks[ep.row_id] = ep.clock
-        if isinstance(ep.clock, SimClock) and ep.row_id == 0:
-            await ep.clock.advance(1.5)
         await echo(ep)
 
-    server = Composed(run, control_hz=4.0)
+    server = Composed(run, step_dt=0.25)
     async with serving(server):
-        await start(server, 2)
+        a, b = await start(server, 2)
         await start(server, mode="live")
-        await anyio.sleep(0.05)
+        for v in range(3):
+            await observe(server, a, v)
+        await observe(server, b, 0)
     assert [type(clocks[i]) for i in range(3)] == [SimClock, SimClock, WallClock]
-    assert clocks[0].now() == 1.5 and clocks[1].now() == 0.0  # independent, fresh at 0
-
-
-# ---------------------------------------------------------------------------
-# Sim time: the loop advances; rates from EPISODE_START or the server
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.anyio
-async def test_advancing_by_sim_dt_fires_a_daemon_on_its_boundaries_and_stamps_admissions():
-    fires: list[float] = []
-    admitted: list[float] = []
-
-    async def ticker(ep: EpisodeContext) -> None:
-        async for t in ep.clock.every(0.5, first="now"):
-            fires.append(t)
-
-    async def run(ep: EpisodeContext) -> None:
-        ep.start_soon(ticker, ep)
-        async for req in ep.observations():
-            admitted.append(req.admitted_at)
-            assert ep.sim_dt is not None and isinstance(ep.clock, SimClock)
-            await ep.clock.advance(ep.sim_dt)
-            await req.reply({"actions": np.zeros(2, np.float32)})
-
-    server = Daemon(run, control_hz=4.0)  # sim_dt 0.25
-    async with serving(server):
-        (rid,) = await start(server)
-        for v in range(5):
-            await observe(server, rid, v)
-    assert admitted == [0.0, 0.25, 0.5, 0.75, 1.0] and fires == [0.0, 0.5, 1.0]
-
-
-@pytest.mark.anyio
-async def test_control_hz_reaches_sim_dt_from_each_runner_or_the_server_config(free_port):
-    rates: list[float | None] = []
-
-    async def run(ep: EpisodeContext) -> None:
-        rates.append(ep.sim_dt)
-        await echo(ep)
-
-    class RatedBenchmark(StubBenchmark):
-        control_hz = 20.0
-
-    async with running(Daemon(run, control_hz=2.0), free_port) as url, Connection(url) as conn:
-        await SyncEpisodeRunner().run_episode(RatedBenchmark(), {"name": "t"}, conn, max_steps=2)
-        await SyncEpisodeRunner().run_episode(StubBenchmark(), {"name": "t"}, conn, max_steps=2)
-        await LiveEpisodeRunner(hz=50.0).run_episode(StubBenchmark(), {"name": "t"}, conn, max_steps=2)
-        await conn.start_episode({"control_hz": None})  # null: the server's rate
-        await conn.act({"value": 1.0})
-    assert rates == [0.05, 0.5, 0.02, 0.5]
+    assert clocks[a].now() == 0.5 and clocks[b].now() == 0.0  # independent, fresh at 0
 
 
 # ---------------------------------------------------------------------------
@@ -478,10 +427,10 @@ async def test_control_hz_reaches_sim_dt_from_each_runner_or_the_server_config(f
 
 
 class Hosted(Daemon):
-    """Runs a chrono supervisor per episode: a daemon replying from the mailbox, optionally failing."""
+    """Runs a chrono supervisor on the episode's clock: a daemon replying from the mailbox, optionally failing."""
 
     def __init__(self, **kw: Any) -> None:
-        super().__init__(**kw)
+        super().__init__(step_dt=0.1, **kw)
         self.events: list[str] = []
 
     async def body(self, ctx: Any, ep: EpisodeContext) -> None:
@@ -532,7 +481,8 @@ async def test_end_stops_the_host_after_the_daemons_call_and_before_finish():
         await observe(server, rid, 7.0, wait=False)  # a 0.1 s call
         await anyio.sleep(0.03)
         await server._end_episodes([rid], [{}])
-    assert server.events == ["stopping", "call 7.0", "host stopped", "finish"]  # the call drains before finish
+    # the observation's instant (its call) completes before the episode closes, then the host stops, then finish
+    assert server.events == ["call 7.0", "stopping", "host stopped", "finish"]
 
 
 # ---------------------------------------------------------------------------

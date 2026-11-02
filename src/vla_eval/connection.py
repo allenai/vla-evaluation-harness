@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -237,7 +237,7 @@ class Connection:
         self._publish_callback = callback
 
     @asynccontextmanager
-    async def listening(self) -> AsyncIterator[None]:
+    async def listening(self) -> AsyncGenerator[None]:
         """Run the listener for the block (live mode): ACTION to ``on_action``, PUBLISH to ``on_publish``.  A listener
         error (a dropped connection, ``ServerEpisodeError``) cancels the block and is re-raised."""
         error: Exception | None = None

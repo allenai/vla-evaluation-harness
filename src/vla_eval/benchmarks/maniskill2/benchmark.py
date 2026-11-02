@@ -62,6 +62,7 @@ class ManiSkill2Benchmark(StepBenchmark):
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
 
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 0.05  # ManiSkill2 BaseEnv: sim_freq 500, control_freq 20
     _render_mode: ClassVar[str] = DEFAULT_RENDER_MODE
 
     @classmethod

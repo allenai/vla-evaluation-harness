@@ -95,6 +95,7 @@ class LIBEROBenchmark(StepBenchmark):
 
     # Inherited as-is by LIBERO-Pro / -Plus / -Mem, which share this renderer path.
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 0.05  # robosuite control_freq 20 (LIBERO's OffScreenRenderEnv default)
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:

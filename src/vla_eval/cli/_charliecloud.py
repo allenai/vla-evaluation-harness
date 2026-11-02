@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -247,7 +247,7 @@ def reap_stale_mounts(fusermount: str, tmp: Path | None = None, min_age_s: float
 
 
 @contextlib.contextmanager
-def mount_image(img: Path, squashfuse: tuple[str, str] | None) -> Iterator[Path]:
+def mount_image(img: Path, squashfuse: tuple[str, str] | None) -> Generator[Path]:
     """Mount a SquashFS export for this run and release it on every exit path."""
     if img.is_dir():
         yield img

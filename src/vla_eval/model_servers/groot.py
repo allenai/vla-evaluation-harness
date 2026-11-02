@@ -14,8 +14,11 @@
 # gr00t = { git = "https://github.com/NVIDIA/Isaac-GR00T.git", rev = "e29d8fc50b0e4745120ae3fb72447986fe638aa6" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
 # no-build-isolation-package = ["flash-attn"]
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """GR00T N1.6 model server.
 

@@ -17,7 +17,10 @@
 # openvla-oft = { git = "https://github.com/moojink/openvla-oft.git", rev = "e4287e94541f459edc4feabc4e181f537cd569a8" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """OpenVLA-OFT model server.
 

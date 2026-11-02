@@ -73,6 +73,8 @@ TASK_DESCRIPTIONS: dict[str, str] = {
 class MIKASABenchmark(StepBenchmark):
     """MIKASA-Robo memory-intensive manipulation benchmark."""
 
+    step_dt = 0.05  # ManiSkill3 default sim_freq 100, control_freq 20
+
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
     def __init__(

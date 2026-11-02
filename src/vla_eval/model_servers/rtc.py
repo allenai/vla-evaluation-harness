@@ -12,24 +12,32 @@
 # vla-eval = { path = "../../..", editable = true }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """Real-Time Chunking (arXiv:2506.07339) on Kinetix, with the official sampling code.
 
 ``KinetixRTCServer`` executes the official ``eval_flow.py`` chunk protocol, sync or live: inference every ``horizon``
 (s) steps from that step's observation, the previous chunk covering the first ``delay`` (d) steps.  Sampling is the
-official ``model.FlowPolicy`` (``action`` / ``realtime_action`` / ``bid_action``) imported from ``rtc_src_path``
-(a ``Physical-Intelligence/real-time-chunking-kinetix`` checkout).  Checkpoints: ``gs://rtc-assets/bc/<epoch>/policies``
-(public, e.g. ``https://storage.googleapis.com/download/storage/v1/b/rtc-assets/o/bc%2F31%2Fpolicies%2Fworlds_l_<level>.pkl?alt=media``).
+official ``model.FlowPolicy`` (``action`` / ``realtime_action`` / ``bid_action``) imported from ``rtc_src_path``, else
+from a ``Physical-Intelligence/real-time-chunking-kinetix`` clone at ``_RTC_REV``.  Checkpoints: the public
+``gs://rtc-assets/bc/<epoch>/policies``, fetched on first use, or a local directory.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
 import logging
+import os
 import pickle
 import sys
 import time
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -60,6 +68,55 @@ logger = logging.getLogger(__name__)
 Method = Literal["naive", "rtc", "rtc_hard", "bid"]
 Latency = Literal["steps", "wall", "wall_exact"]
 H = 8  # the checkpoints' prediction horizon
+_RTC_REPO = "https://github.com/Physical-Intelligence/real-time-chunking-kinetix.git"
+_RTC_REV = "9296f31d62d5bfeb5779dcb2f9bcf71ca37f448b"
+
+
+def _rtc_src() -> str:
+    """The official repo's ``src/``, cloned at ``_RTC_REV`` (one directory per revision)."""
+    from vla_eval.dirs import ensure_git_clone
+
+    clone = ensure_git_clone(name=f"rtc-kinetix-{_RTC_REV[:12]}", repo=_RTC_REPO, rev=_RTC_REV, shallow=False)
+    return str(clone / "src")
+
+
+def _local_dir(path: str) -> str:
+    """A local directory as-is; ``gs://<bucket>/<prefix>`` (public) has its ``*.pkl`` fetched once, md5-checked."""
+    if not path.startswith("gs://"):
+        return path
+    from vla_eval.dirs import assets_cache
+
+    bucket, _, prefix = path.removeprefix("gs://").strip("/").partition("/")
+    target = assets_cache(f"{bucket}/{prefix}")
+    if (target / ".complete").exists():
+        return str(target)
+    api = f"https://storage.googleapis.com/storage/v1/b/{bucket}/o"
+    query = urllib.parse.urlencode({"prefix": f"{prefix}/", "fields": "items(name,md5Hash)"})
+    with urllib.request.urlopen(f"{api}?{query}", timeout=60) as resp:
+        items = [it for it in json.load(resp).get("items", []) if it["name"].endswith(".pkl")]
+    if not items:
+        raise FileNotFoundError(f"no *.pkl under {path}")
+    target.mkdir(parents=True, exist_ok=True)
+    for it in items:
+        dest = target / it["name"].rsplit("/", 1)[-1]
+        if dest.exists():
+            continue
+        logger.info("Fetching %s/%s -> %s", path, dest.name, dest)
+        url = f"{api}/{urllib.parse.quote(it['name'], safe='')}?alt=media"
+        tmp = dest.with_name(f"{dest.name}.tmp-{os.getpid()}")
+        try:
+            with urllib.request.urlopen(url, timeout=60) as resp, tmp.open("wb") as fh:
+                md5 = hashlib.md5()
+                while chunk := resp.read(1 << 20):
+                    md5.update(chunk)
+                    fh.write(chunk)
+            if base64.b64encode(md5.digest()).decode() != it["md5Hash"]:
+                raise OSError(f"md5 mismatch for {url}")
+            tmp.replace(dest)
+        finally:
+            tmp.unlink(missing_ok=True)
+    (target / ".complete").touch()
+    return str(target)
 
 
 def _filter_none(d: dict) -> dict:
@@ -105,13 +162,13 @@ class KinetixRTCServer(DaemonModelServer):
     (needs a benchmark that steps on holds).
 
     Args:
-        checkpoint_dir: ``worlds_l_<level>.pkl`` files (the paper evaluates epoch 31, ``bc/31/policies``).
-        rtc_src_path: The official repo's ``src/`` (``import model``).
+        checkpoint_dir: ``worlds_l_<level>.pkl`` files, local or ``gs://`` (the paper evaluates ``bc/31/policies``).
+        rtc_src_path: The official repo's ``src/`` (``import model``); default: a clone at ``_RTC_REV``.
         weak_checkpoint_dir: BID's weak policy (paper: the 8-epoch ``bc/7/policies``); needed when ``bid_k`` is set.
         method: ``naive``, ``rtc`` (soft masking, ``exp``), ``rtc_hard`` (``zeros``) or ``bid``.
         delay / horizon: d and s, ``0 <= d <= s``, ``s + d <= 8``.
         bid_n / bid_k: BID samples and K (``bid_k=None``: backward loss only); beta: RTC's max guidance weight.
-        hz: ``1 / dt`` when ``EPISODE_START`` carries no ``control_hz``.
+        hz: ``1 / step_dt`` when ``EPISODE_START`` carries no ``step_dt``.
     """
 
     def __init__(
@@ -142,7 +199,7 @@ class KinetixRTCServer(DaemonModelServer):
             raise ValueError(f"need 0 <= delay <= horizon, horizon >= 1, horizon + delay <= {H}")
         if method == "bid" and bid_k is not None and weak_checkpoint_dir is None:
             raise ValueError("BID with bid_k needs weak_checkpoint_dir")
-        super().__init__(backlog=64, control_hz=hz, max_rows=max_rows)
+        super().__init__(backlog=64, step_dt=1.0 / hz, max_rows=max_rows)
         self.checkpoint_dir, self.rtc_src_path, self.weak_checkpoint_dir = (
             checkpoint_dir,
             rtc_src_path,
@@ -171,7 +228,7 @@ class KinetixRTCServer(DaemonModelServer):
         import jax
 
         model = self._import_model()
-        files = sorted(Path(directory).glob("worlds_l_*.pkl"))
+        files = sorted(Path(_local_dir(directory)).glob("worlds_l_*.pkl"))
         if not files:
             raise FileNotFoundError(f"no worlds_l_*.pkl in {directory}")
         policy = model.FlowPolicy(
@@ -187,12 +244,11 @@ class KinetixRTCServer(DaemonModelServer):
         return graphdef, states
 
     def _import_model(self) -> Any:
-        if self.rtc_src_path is not None and self.rtc_src_path not in sys.path:
-            sys.path.insert(0, self.rtc_src_path)
-        import importlib.util
-
-        if importlib.util.find_spec("model") is None:
-            raise ImportError("RTC model.py not found: pass rtc_src_path=<real-time-chunking-kinetix>/src")
+        src = self.rtc_src_path or _rtc_src()
+        if not (Path(src) / "model.py").is_file():
+            raise ImportError(f"RTC model.py not found in {src}: pass rtc_src_path=<real-time-chunking-kinetix>/src")
+        if src not in sys.path:
+            sys.path.insert(0, src)
         import model
 
         return model
@@ -250,7 +306,7 @@ class KinetixRTCServer(DaemonModelServer):
         failed: dict[int, Exception] = {}
         for i, (rid, episode) in enumerate(zip(rows.ids.tolist(), rows.episodes)):
             level = (episode.config.get("task") or {}).get("level")
-            if level not in self._states:
+            if not isinstance(level, str) or level not in self._states:
                 failed[i] = ValueError(f"no checkpoint for level {level!r}; have {sorted(self._states)}")
                 continue
             if self.latency != "steps" and episode.mode != "live":
@@ -280,8 +336,8 @@ class KinetixRTCServer(DaemonModelServer):
     async def run(self, ep: EpisodeContext) -> None:
         st = self._eps_state[ep.row_id]
         d, s = self.delay, self.horizon
-        assert ep.sim_dt is not None  # control_hz always has a default
-        land_after = {"steps": None, "wall": (d - 0.5) * ep.sim_dt, "wall_exact": d * ep.sim_dt}[self.latency]
+        assert ep.step_dt is not None  # hz always gives a default
+        land_after = {"steps": None, "wall": (d - 0.5) * ep.step_dt, "wall_exact": d * ep.step_dt}[self.latency]
         plan: _Inference | None = None  # the landed chunk in effect: plan.chunk[i] is the action for step plan.t + i
         pending: dict[int, _Inference] = {}  # boundaries the loop lands itself (step latency, or d = 0), by step
         dispensed_k: int | None = None

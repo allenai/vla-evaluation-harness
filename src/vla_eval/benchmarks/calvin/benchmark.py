@@ -191,6 +191,7 @@ class CALVINBenchmark(StepBenchmark):
     # cpu swaps PyBullet's EGL plugin for its built-in software TinyRenderer
     # (a different rasterizer — frames are close to but not identical with EGL's).
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 1 / 30  # calvin_env: 240 Hz physics, action_repeat 8
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:

@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 dependencies = [
     "anyio>=4.2.0",  # module-level CapacityLimiter (serve.py) needs a lazy backend
-    "chrono-daemon==0.1.1",  # clocks for model-server episode loops (model_servers/daemons.py)
+    "chrono-daemon==0.1.3",  # clocks for model-server episode loops (model_servers/daemons.py)
     "imageio[ffmpeg]",      # Streaming mp4 writer for benchmarks/video.py
     "jsonargparse[signatures]>=4.36",  # class-signature-driven argparse + yaml
     "lazyregistry>=0.4.0",
@@ -26,11 +26,17 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["jsonschema>=4.0", "pytest>=8.0", "ruff>=0.9", "ty>=0.0.18"]
+dev = [
+    "jsonschema>=4.0",
+    "pytest>=8.0",
+    "ruff>=0.9",
+    "ty>=0.0.95",
+]
 # leaderboard/scripts runtime deps. Tooling comes from `dev`, so CI can sync
 # `--dev --group leaderboard --no-install-project` without pulling vla_eval's runtime.
 leaderboard = [
     "beautifulsoup4>=4.12",
+    "jsonschema>=4",
     "markdownify>=0.14",
     "typer>=0.12",
 ]
@@ -54,7 +60,7 @@ testpaths = ["tests", "leaderboard/tests"]
 [tool.uv]
 # Fresh clones resolve to this date, so a newly published (possibly compromised) version is
 # never picked up without intent. Bump when upgrading on purpose.
-exclude-newer = "2026-07-07"
+exclude-newer = "2026-11-02T00:20:00Z"
 
 [tool.ruff]
 line-length = 119

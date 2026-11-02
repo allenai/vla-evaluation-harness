@@ -14,7 +14,10 @@
 # openpi = { git = "https://github.com/RoboMME/robomme_policy_learning.git", rev = "ecf086c3be7c2223167d9bb2f6ef1f0a6e24353b" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """MME-VLA model server for RoboMME baselines.
 

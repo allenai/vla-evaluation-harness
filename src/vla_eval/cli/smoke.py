@@ -298,8 +298,8 @@ def run_validate(tests: list[SmokeTest]) -> SmokeResult:
 # ---------------------------------------------------------------------------
 
 
-def _make_stub_benchmark(task: dict[str, Any]) -> Any:
-    """Create a StubBenchmark that sends realistic image observations."""
+def _make_stub_benchmark(task: dict[str, Any], obs_shapes: dict[str, list[int]] | None = None) -> Any:
+    """Create a StubBenchmark that sends realistic image observations (``obs_shapes``: extra float32 zero arrays)."""
     import numpy as np
 
     from vla_eval.benchmarks.base import StepBenchmark, StepResult
@@ -313,6 +313,7 @@ def _make_stub_benchmark(task: dict[str, Any]) -> Any:
         "task_description": "smoke test",
         "state": np.zeros(8, dtype=np.float32),
     }
+    _DUMMY_OBS.update({k: np.zeros(shape, dtype=np.float32) for k, shape in (obs_shapes or {}).items()})
 
     class _StubBenchmark(StepBenchmark):
         def __init__(self) -> None:
@@ -396,6 +397,9 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
         chunk_map = json.loads(chunk_map_raw) if isinstance(chunk_map_raw, str) else chunk_map_raw
         if chunk_map:
             task["suite"] = next(iter(chunk_map.keys()))
+    # Optional top-level ``smoke: {task: {...}, obs: {key: shape}}`` for servers the default stub cannot drive.
+    smoke_cfg = config.get("smoke") or {}
+    task.update(smoke_cfg.get("task") or {})
 
     import anyio
 
@@ -405,7 +409,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
     t0 = time.monotonic()
     captured_stderr: list[bytes] = []  # shared with _run() closure
 
-    async def _run() -> dict:
+    async def _run() -> dict:  # ty: ignore[invalid-return-type]  # the body returns or raises; tg cancels only after
         from vla_eval.docker_resources import gpu_visibility_env
 
         visibility = gpu_visibility_env(gpu_id)
@@ -438,7 +442,7 @@ def run_server_test(test: SmokeTest, timeout: int, *, gpu_id: str | None = None)
                 else:
                     raise TimeoutError(f"Model server did not start within {timeout}s")
 
-                benchmark = _make_stub_benchmark(task)
+                benchmark = _make_stub_benchmark(task, smoke_cfg.get("obs"))
                 runner = SyncEpisodeRunner()
                 async with Connection(url) as conn:
                     result = await runner.run_episode(benchmark, task, conn, max_steps=50)

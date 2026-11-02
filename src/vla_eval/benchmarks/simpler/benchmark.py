@@ -219,6 +219,7 @@ class SimplerEnvBenchmark(StepBenchmark):
             reset_kwargs["seed"] = self.seed
 
         obs, _ = self._env.reset(**reset_kwargs)
+        self.step_dt = float(self._env.unwrapped.control_timestep)  # per robot: 1/3 s Google Robot, 0.2 s WidowX
 
         # Task description from environment
         try:

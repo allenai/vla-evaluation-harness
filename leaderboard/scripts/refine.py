@@ -1,6 +1,9 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["typer>=0.12"]
+# dependencies = ["typer>=0.12", "jsonschema>=4"]
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """Refine raw extractions into leaderboard.json.
 

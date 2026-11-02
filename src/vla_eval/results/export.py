@@ -7,7 +7,7 @@ import logging
 import os
 import sqlite3
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, UTC
 from pathlib import Path
@@ -89,7 +89,7 @@ def _unfinished_queue_items(conn: sqlite3.Connection, eval_id: str) -> list[dict
 
 
 @contextmanager
-def _recording_snapshot(db_path: Path) -> Iterator[sqlite3.Connection]:
+def _recording_snapshot(db_path: Path) -> Generator[sqlite3.Connection]:
     """Release source locks before exporting, without buffering all steps in RAM."""
     with tempfile.TemporaryDirectory(prefix="vla-eval-export-") as directory:
         snapshot = sqlite3.connect(str(Path(directory) / "snapshot.sqlite"))
