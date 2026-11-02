@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, Literal
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Literal
 
 from vla_eval.specs import DimSpec
 from vla_eval.types import Action, Observation
@@ -12,8 +13,7 @@ if TYPE_CHECKING:
     from anyio.abc import TaskGroup
 
 # Type alias for the async send_action callback injected by the framework.
-# NOTE: Dict (not dict) for Python 3.8 compatibility in type aliases.
-SendActionFn = Callable[[Dict[str, Any]], Coroutine[Any, Any, None]]
+SendActionFn = Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
 
 
 class SessionContext:

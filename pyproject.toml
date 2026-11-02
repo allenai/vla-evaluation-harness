@@ -7,13 +7,13 @@ name = "vla-eval"
 dynamic = ["version"]
 description = "Evaluation harness for Vision-Language-Action models"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 dependencies = [
     "anyio>=4.0.0",
     "imageio[ffmpeg]",      # Streaming mp4 writer for benchmarks/video.py
     "jsonargparse[signatures]>=4.36",  # class-signature-driven argparse + yaml
-    "lazyregistry>=0.4.0",  # Python 3.8 support
+    "lazyregistry>=0.4.0",
     "msgpack>=1.0.0",
     "numpy>=1.24",
     "omegaconf",
@@ -21,7 +21,6 @@ dependencies = [
     "pyyaml>=6.0",          # Security fixes (CVE-2020-14343) + Python 3.11
     "rich>=13.0",
     "tqdm",
-    "typing_extensions>=4.0; python_version < '3.11'",  # NotRequired backport for results/collector.py
     "websockets>=13.0",  # 13.0 adds websockets.asyncio.server, the implementation serve.py imports
 ]
 
@@ -58,6 +57,7 @@ exclude-newer = "2026-07-07"
 
 [tool.ruff]
 line-length = 119
+target-version = "py311"
 
 # Ruff 0.16 grew the default rule set (59 -> 413) and formats Markdown code blocks. Pin to what
 # this repo was written against; CI installs the latest ruff.

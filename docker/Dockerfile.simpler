@@ -5,7 +5,7 @@ ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────────
-RUN conda create -n simpler python=3.10 pip -y && conda clean -afy
+RUN conda create -n simpler python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "simpler", "/bin/bash", "-c"]
 
@@ -51,7 +51,8 @@ RUN cd /app/simpler_env_src && uv pip install --no-cache-dir -e .
 RUN uv pip install --no-cache-dir \
         matplotlib mediapy omegaconf hydra-core \
         opencv-python==4.12.0.88
-RUN uv pip install --no-cache-dir numpy==1.24.4
+# Naming scipy/matplotlib/contourpy re-resolves them against numpy 1.24.4 (their 3.11-only releases need >=1.25).
+RUN uv pip install --no-cache-dir numpy==1.24.4 scipy matplotlib contourpy
 
 # ── Symlink for rgb_overlay_path config compatibility ─────────────────
 RUN mkdir -p /app/simpler \

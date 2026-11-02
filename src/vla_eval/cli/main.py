@@ -94,16 +94,6 @@ def _apply_record_video_override(config: dict[str, Any], *, enabled: bool) -> No
         rec["record_video"] = enabled
 
 
-class _RecordVideoAction(argparse.Action):
-    """Python 3.8-compatible boolean optional action for --record-video."""
-
-    def __init__(self, option_strings, dest, **kwargs):
-        super().__init__(option_strings, dest, nargs=0, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, option_string != "--no-record-video")
-
-
 def cmd_run(args: argparse.Namespace) -> None:
     """Run evaluation."""
     config = _load_config(args.config)
@@ -721,8 +711,7 @@ execution flow:
     )
     run_parser.add_argument(
         "--record-video",
-        "--no-record-video",
-        action=_RecordVideoAction,
+        action=argparse.BooleanOptionalAction,
         default=None,
         help="Enable (or disable with --no-record-video) per-episode mp4 recording for all benchmarks.",
     )

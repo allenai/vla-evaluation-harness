@@ -3,14 +3,8 @@
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime, timezone
-from typing import Any, TypedDict
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
+from datetime import datetime, UTC
+from typing import Any, NotRequired, TypedDict
 
 
 class EpisodeResult(TypedDict):
@@ -168,7 +162,7 @@ class ResultCollector:
             benchmark=self.benchmark_name,
             mode=self.mode,
             harness_version=__version__,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             tasks=tasks,
             config=config,
         )

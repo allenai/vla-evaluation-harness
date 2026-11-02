@@ -22,9 +22,10 @@ import logging
 import math
 import os
 import uuid
+from collections.abc import Mapping
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import anyio
 from anyio.abc import TaskStatus

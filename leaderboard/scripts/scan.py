@@ -28,7 +28,7 @@ import time
 import urllib.error
 import urllib.request
 from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from pathlib import Path
 
 LEADERBOARD_ROOT = Path(__file__).parent.parent
@@ -49,7 +49,7 @@ def extract_arxiv_id(url: str) -> str | None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def fetch_citations(arxiv_id: str, limit: int = 1000) -> tuple[int, list[str]] | None:

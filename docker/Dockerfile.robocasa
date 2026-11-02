@@ -6,9 +6,7 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
-# Python 3.10: RoboCasa v0.2 pins numba==0.56.4, whose llvmlite has no
-# cp311 wheel.
-RUN conda create -n robocasa python=3.10 pip -y && conda clean -afy
+RUN conda create -n robocasa python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "robocasa", "/bin/bash", "-c"]
 
@@ -23,6 +21,7 @@ RUN mkdir -p /app/robosuite && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/robosuite/.git
 
+# RoboCasa v0.2 pins numba==0.56.4, whose llvmlite has no cp311 wheel; 0.57.1 is the first numba with one.
 ARG ROBOCASA_REF=v0.2
 RUN mkdir -p /app/robocasa && \
     cd /app/robocasa && \
@@ -30,8 +29,9 @@ RUN mkdir -p /app/robocasa && \
     git remote add origin https://github.com/robocasa/robocasa.git && \
     git fetch -q --depth 1 origin "${ROBOCASA_REF}" && \
     git checkout -q FETCH_HEAD && \
-    uv pip install --no-cache-dir -e . && \
-    rm -rf /app/robocasa/.git
+    printf 'numba==0.57.1\n' > /app/numba-override.txt && \
+    uv pip install --no-cache-dir --override /app/numba-override.txt -e . && \
+    rm -rf /app/robocasa/.git /app/numba-override.txt
 
 # Setup macros (non-interactive) and download kitchen assets (~10 GB)
 RUN cd /app/robocasa \

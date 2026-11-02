@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV CUDA_HOME=/usr/local/cuda-12.6
 ENV PATH=/usr/local/cuda-12.6/bin:$PATH
 
-# ── Conda environment (Python 3.10 required by SAPIEN 3) ────────────
-RUN conda create -n robotwin python=3.10 pip -y && conda clean -afy
+# ── Conda environment ───────────────────────────────────────────────
+RUN conda create -n robotwin python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "robotwin", "/bin/bash", "-c"]
 

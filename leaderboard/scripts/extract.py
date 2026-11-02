@@ -40,9 +40,9 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import jsonschema
 import typer
@@ -80,7 +80,7 @@ def _extract_arxiv_id(url: str | None) -> str | None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -1181,11 +1181,11 @@ app = typer.Typer(help="Extract benchmark scores from arxiv papers via LLM.", ad
 @app.command()
 def run(
     arxiv_ids: Annotated[
-        Optional[list[str]], typer.Argument(help="Arxiv IDs to extract. Omit to use --from-scan.")
+        list[str] | None, typer.Argument(help="Arxiv IDs to extract. Omit to use --from-scan.")
     ] = None,
     from_scan: Annotated[bool, typer.Option("--from-scan", help="Extract all papers from scan_results.json.")] = False,
     benchmark: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--benchmark", help="Restrict --from-scan to one benchmark's citing papers."),
     ] = None,
     model: Annotated[str, typer.Option(help="Claude model alias or full ID.")] = DEFAULT_MODEL,
