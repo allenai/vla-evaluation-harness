@@ -100,10 +100,10 @@ raised; cause and fix under Integration findings) and count as 0. The four other
 - **Bad layouts are skipped, not counted.** Some published layouts fail to build or settle. Groups ship
   55–65 layouts for 50 counted episodes; episode `i` runs layout `i` and a failure falls back to the
   spares past `eval_num`, recording each episode's `layout_id`. With stability independent of history,
-  the counted set is upstream's; only the choice of spare can differ (shards split them round-robin, a
-  shard out of spares errors the episode, and a resumed shard skips spares already counted). Five failed
-  resets in a row (unstable layouts aside) raise `EnvUnusableError`: the shard puts its unfinished items
-  back on the queue and exits 3, and a rerun with the same eval id resumes.
+  the counted set is upstream's; only the choice of spare can differ (shards split them round-robin, and a
+  resumed shard skips spares already counted). Out of spares, an unstable layout's episode errors. Other
+  failures, five in a row or with no spare left, raise `EnvUnusableError`: the shard puts its unfinished
+  items back on the queue and exits 3, and a rerun with the same eval id resumes.
 - **cuRobo planners are unusable from the public assets** (only `curobo_tmp.yml` templates ship),
   and joint-space VLA evaluation does not need them — including for the Franka competition tasks,
   whose support arm replays recorded trajectories.

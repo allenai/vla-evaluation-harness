@@ -22,9 +22,9 @@ upstream ``EvalEnv.run_eval()``:
   progress ``reward_manager.get_score()/100`` when the task defines ``get_score``.
 
 Scene-instability and other reset-time failures move on to a spare (the official
-protocol neither counts nor retries them); an episode errors out once its shard has no
-spare left, and ``MAX_FAILED_RESETS`` in a row that are not layout instability raise
-``EnvUnusableError`` (the shard exits 3).
+protocol neither counts nor retries them). Out of spares, an unstable layout's episode errors;
+other failures, ``MAX_FAILED_RESETS`` in a row or with no spare left, raise ``EnvUnusableError``
+(the shard exits 3 and a rerun retries the episode).
 
 Like upstream ``main.py`` between rounds, every reset after the first closes the used scene and
 the next ``reset()`` relaunches it: a soft reset on a used scene leaks render products and Vulkan
@@ -337,12 +337,14 @@ class RoboDojoBenchmark(StepBenchmark):
                 return raw_obs
             # An unstable layout is the layout's fault (deterministic, so a restart would not help); the
             # env built and simulated it. Any other failure counts toward the cap.
-            self._failed_resets = 0 if type(raw_obs).__name__ == "UnStableError" else self._failed_resets + 1
+            unstable = type(raw_obs).__name__ == "UnStableError"
+            self._failed_resets = 0 if unstable else self._failed_resets + 1
             if self._failed_resets >= MAX_FAILED_RESETS:
                 raise EnvUnusableError(self._unusable_message(task_name))
             layout_id = next((i for i in spares if i not in self._tried_spares), -1)
             if layout_id < 0:
-                raise RuntimeError(
+                # Out of spares after an env failure: hand the episode back for a retry rather than score an error.
+                raise (RuntimeError if unstable else EnvUnusableError)(
                     f"RoboDojo: shard {shard_id}/{num_shards} has no spare layout left for {task_name} "
                     f"({len(own)} of {max(total - self._native_eval_num, 0)} spares are this shard's, "
                     f"{len(own) - len(spares)} counted before a resume)"
