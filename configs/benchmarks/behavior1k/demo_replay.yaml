@@ -1,0 +1,31 @@
+# BEHAVIOR-1K demo-replay check (2026 stack): replays training demos on their own training instance.
+# Pair with configs/model_servers/behavior1k/demo_replay.yaml; both demos there use task_instance_id 1.
+# Not a policy evaluation: train instances, not the public-test split.
+server:
+  url: "ws://localhost:8000"
+  # Upstream's per-query cap (POLICY_RESPONSE_TIMEOUT); also covers the free first query (warm-up).
+  timeout: 600
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/behavior1k:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+    - "OMNIGIBSON_HEADLESS=1"
+    - "OMNI_KIT_ACCEPT_EULA=YES"
+  volumes:
+    # OmniGibson reads ``gm.DATA_PATH`` (the image's OMNIGIBSON_DATA_PATH=/data) at import time.  The host
+    # path mirrors ``vla_eval.dirs.assets_cache``'s precedence so ``vla-eval run`` and the in-container fetch agree.
+    # Mounted writable so the first-run download can populate the cache.
+    - "${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:VLA_EVAL_HOME,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval}/assets}/behavior1k:/data"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.behavior1k.benchmark:Behavior1KBenchmark"
+    subname: demo_replay
+    episodes_per_task: 1
+    params:
+      tasks: [turning_on_radio, picking_up_trash]
+      mode: train
+      instance_indices: [1]
+    action_dim: 23

@@ -1,218 +1,120 @@
 # BEHAVIOR-1K — Reproduction Status
 
 [Challenge site](https://behavior.stanford.edu/challenge/) |
-[Leaderboard](https://behavior.stanford.edu/challenge/leaderboard.html) |
-[Paper (2025 challenge report)](https://arxiv.org/abs/2512.06951) |
-50 long-horizon household tasks on R1Pro / OmniGibson
+[Evaluation rules](https://behavior.stanford.edu/challenge/evaluation.html) |
+[2026 leaderboard](https://huggingface.co/spaces/behavior-1k/2026-challenge-leaderboard) |
+100 long-horizon household tasks (B100) on R1Pro / OmniGibson
 
-> **Protocol version:** everything below runs the 2025 challenge stack (BEHAVIOR-1K
-> v3.7.2, Isaac Sim 4.5.0, B50) through the harness WebSocket protocol, not the 2026
-> evaluator (v3.9.1, 100 tasks, `python -m omnigibson.eval.eval`); see
-> [issue #113](https://github.com/allenai/vla-evaluation-harness/issues/113).
+> **Protocol version:** the default is now the 2026 challenge stack: BEHAVIOR-1K `v3.9.4` (the
+> challenge's post-release), Isaac Sim 5.1.0, Python 3.11, B100. The image is built FROM upstream's
+> official `stanfordvl/behavior:3.9.4`, pinned by digest. The 2025 stack (v3.7.2, Isaac Sim 4.5.0,
+> B50) is no longer supported, and **the 2025 results previously published on this page do not apply to the current
+> adapter** (different task set, instance split, assets, simulator and timeouts). They are kept below
+> only as an archive.
 
 ## Status
 
-**Integration:** ✅ Benchmark + config + Docker recipe + unit tests + zero-action model server landed.
-**End-to-end run:** ✅ Real Isaac Sim simulation, real BDDL goal evaluation, real result JSON written.
-**Trained-VLA reproduction:** ⬜ Pending a R1Pro-compatible VLA model server (e.g. Pi0.5 from the RLC fork).
-
-## End-to-end Results
-
-### Demo Replay (succeeding trajectory)
-
-The strongest possible integration check: take a recorded human
-teleoperation that the official Stanford collection labels as a
-successful demonstration of `turning_on_radio` (instance 1, episode
-00000010 in `behavior-1k/2025-challenge-demos`), play back the recorded
-23-D action sequence through our env via a tiny replay model server,
-and check whether the official BehaviorTask predicate evaluator returns
-`success=True`.  If our env diverges from the recording (action
-encoding, instance state, physics determinism), the replay would fail.
-
-| Setting | Value |
+| Check | State |
 |---|---|
-| Task | `turning_on_radio` (B10) |
-| Instance id | 1 (loaded via ported `load_task_instance`) |
-| Robot | R1Pro |
-| Policy | [`Behavior1KDemoReplayModelServer`](../../src/vla_eval/model_servers/behavior1k_demo_replay.py) playing back `episode_00000010.parquet` (1956 recorded steps) |
-| Episodes × steps | 1 × **1364** (env terminated early on success) |
-| Wall clock | 2933.8 s (~49 min including ~9 min sim+scene boot and 25-step physics settle for the TRO state load) |
-| **Success rate** | **100.0%** (1 / 1, success=`true`) |
+| Adapter, Docker recipe, configs on the 2026 stack | ✅ |
+| Image builds FROM `stanfordvl/behavior:3.9.4` (Charliecloud) | ✅ 2026-10-31 |
+| End-to-end run in Isaac Sim (demo replay) | ✅ renders on H100; 1/2 demos succeed (below) |
+| Zero-action baseline run | ✅ 0/2, as expected |
+| Trained-VLA reproduction against published 2026 scores | ⬜ not attempted |
 
-Raw JSON: [`data/behavior1k_demo_replay_turning_on_radio_inst1.json`](data/behavior1k_demo_replay_turning_on_radio_inst1.json).
+## Protocol (2026)
 
-A `True` from the BDDL goal-predicate evaluator on a recorded human
-trajectory closes every link in the integration: scene assets load, the
-TRO instance state is applied correctly, the 23-D R1Pro absolute-joint
-action format reaches the `og.Environment.step` call faithfully, the
-30 Hz physics is deterministic enough for replay, and the success
-detector lights up.  `1364 < 1956` recorded steps means the env
-terminated on the BDDL goal exactly when the human had pressed the
-radio button — the rest of the recording (placing the radio back) was
-not strictly required for goal satisfaction.
+The adapter drives upstream's own `omnigibson.eval.evaluator.BatchedEvaluator` with one logical
+environment per task, so scene setup, instance loading, timeouts and metrics are upstream's code; only
+the policy transport differs (harness WebSocket instead of upstream's openpi-style server).
 
-### Zero-action baseline (sanity floor)
+| | 2025 stack (dropped) | 2026 stack (default) | Upstream source (v3.9.4) |
+|---|---|---|---|
+| Tasks | B50 | B100 (`B100_task_misc.csv`) | `omnigibson/eval/utils/eval_utils.py` |
+| Instances | TRO instances 1-10 (train ids) | test ids 301-340; public 301-320, hidden 321-340; report indices 0-9, 1 rollout each | `eval_utils.py`, `evaluator.py:resolve_instance_ids`, `docs/challenge/evaluation.md` |
+| Timeout | 5000 steps or config | 1.5x mean human-demo length per task | `evaluator.py:load_env` (`EVAL_TIMEOUT_MULTIPLIER`) |
+| Time budget | none | `max_steps` x 1 s wall clock per rollout, starting after a free first query (<= 600 s); later queries <= 600 s; an over-budget rollout scores 0 | `evaluator.py:evaluate_instances_batched`, `docs/challenge/{evaluation,updates}.md` |
+| Scene | task room types | exact room instances from `B100_task_misc.csv` | `evaluator.py:load_env` |
+| Robot | `generate_robot_config` (joylo) | `omnigibson/eval/r1pro.yaml`; base mass 250, head aperture 40 | `evaluator.py:_apply_robot_eval_settings` |
+| Cameras | 720/480 RGB | `DefaultWrapper` 224x224 RGB (CLI default) or `RGBDFullResWrapper` 720/480 RGB-D (official track) | `omnigibson/eval/wrappers/` |
+| Metric | binary success | success + `q_score` (newly satisfied goal predicates, max over options; 1.0 on success) + efficiency | `omnigibson/metrics/task_metric.py`, `agent_metric.py` |
+| Language | humanized task name | dataset instruction (`meta/tasks.jsonl` of `2026-challenge-demos`) | — |
 
-A trivially-small companion run to prove the harness itself works
-without any policy: the 23-D zero-action `Behavior1KBaselineModelServer`
-mirrors the official `LocalPolicy(action_dim=23)` shipped in
-`OmniGibson/omnigibson/learning/policies.py`.
+The time budget is new in v3.9.4 (upstream PR 2366). Upstream charges each rollout its policy query time
+plus its share of simulator stepping; with one env per rollout that is the wall clock from the first action,
+which `step` measures (`time_budget: false` turns it off). A failed rollout records upstream's
+`failure_reason` (`group_time_budget_exceeded` or `policy_query_timeout`) with zero `q_score`.
+The configs set `server.timeout: 600` to match upstream's per-query cap. One divergence remains: a
+query that never answers within 600 s ends as a harness `timeout` error (counted in `num_errors`, and
+left out of the mean `q_score`) instead of upstream's zero-score record.
+Upstream's multi-port mode (`--policy-endpoints`, `MultiWebsocketPolicy`) is not used: the harness
+runs one env per benchmark process and shards across processes instead.
 
-| Setting | Value |
-|---|---|
-| Task | `turning_on_radio` (instance 0) |
-| Policy | Zero-action 23-D vector |
-| Episodes × steps | 1 × 100 |
-| Wall clock | 754.1 s |
-| **Success rate** | **0.0%** (0 / 1, success=`false`) |
+The 23-D action layout and controllers are unchanged from 2025: `base[0:3]` holonomic velocity in
+[-1, 1], `torso[3:7]`, `left_arm[7:14]`, `left_gripper[14:15]`, `right_arm[15:22]`,
+`right_gripper[22:23]` (absolute joint positions).
 
-Raw JSON: [`data/behavior1k_baseline_zero_action_turning_on_radio.json`](data/behavior1k_baseline_zero_action_turning_on_radio.json).
+## Smoke results (2026 stack)
 
-A 0% success rate is the expected outcome — zero joint commands keep
-the robot motionless, so no BDDL goal predicate is ever satisfied.
+Run on 2026-10-31 with Charliecloud (`--runtime charliecloud --dev`, SquashFS export of the image
+FROM `stanfordvl/behavior:3.9.4`, host driver 580.95.05 injected) on one H100 80GB. Isaac Sim 5.1
+starts headless and renders through the image's Vulkan ICD; the first episode of a fresh process takes
+~8-10 min (boot + scene load); `picking_up_trash` then stepped at ~6.5 steps/s with `DefaultWrapper`.
 
-### Trained-policy reproduction
+| Run | Task | Instance | Steps | `success` | `q_score` |
+|---|---|---|---:|:---:|---:|
+| Demo replay, `demo_replay.yaml` (episode 0, 1956 steps) | `turning_on_radio` | train 1 | 1360 | ✅ | 1.0 |
+| Demo replay, `demo_replay.yaml` (episode 200, 7667 steps) | `picking_up_trash` | train 1 | 7902 (timeout) | ❌ | 0.0 |
+| Zero action, `RGBDFullResWrapper`, `max_steps: 300` | `turning_on_radio` | public 0 (301) | 300 | ❌ | 0.0 |
+| Zero action, `RGBDFullResWrapper`, `max_steps: 300` | `turning_on_radio` | public 1 (302) | 300 | ❌ | 0.0 |
 
-Comparing against published results (e.g. Robot Learning Collective's
-26.0% q-score, 1st place at the 2025 Challenge) is the natural next
-step but requires integrating an R1Pro-compatible model server (Pi0.5
-fork from the RLC submission, or the official challenge baselines).
-That work is tracked in *What Trained-VLA Reproduction Still Needs*
-below.
+Every per-episode metric (steps, `q_score`, simulator time, agent distances) is bit-identical to the
+same runs on v3.9.3-post2 with the previous self-built image, so the move to v3.9.4 and the official
+image changed no result. The demo run also exercised the task switch (`og.clear()`). The
+`turning_on_radio` replay succeeds 4 steps earlier than the 2025 stack did (1364). The
+`picking_up_trash` replay reaches no goal predicate on either version; whether that is replay drift
+over a 7.7k-step trajectory or an env difference is not diagnosed, so one passing demo is the only
+end-to-end correctness evidence so far. To exercise the time budget, a scratch zero-action server that
+sleeps 2 s per query ran `turning_on_radio` public 0 with `max_steps: 20` (a 20 s budget): the rollout
+failed after 8 simulator steps with `failure_reason: group_time_budget_exceeded`, `q_score` 0 and
+upstream's zeroed normalized metrics (`normalized_time` 1/1.5). Known issue: the container process segfaults during interpreter
+teardown (Isaac Sim is left running, see `cleanup`), after results are written, so `vla-eval run`
+exits non-zero (245) on an otherwise complete run.
 
-## Published Reference Scores (50-task private test set)
+## Published reference scores
 
-Q-score is the primary ranking metric: fraction of satisfied BDDL goal
-predicates (with partial credit) averaged across 50 tasks.  task_sr
-requires every goal predicate of a task to be satisfied.
+The 2026 leaderboard's `data/results.jsonl` was filled on 2026-10-30 with six verified public-test
+submissions (top: q_score 0.683, success 0.482). None has been reproduced here, and whether their
+checkpoints are public was not checked. The 2025 leaderboard (B50) is not comparable to B100.
 
-| Rank | Team | task_sr | q_score | Source |
-|------|------|:-------:|:-------:|--------|
-| 1 | Robot Learning Collective | 12.4% | **26.0%** | [report](https://robot-learning-collective.github.io/winning-behavior-1k-challenge.html), [code](https://github.com/IliaLarchenko/behavior-1k-solution) |
-| 2 | Comet (NVIDIA Research) | 11.4% | 25.1% | [report](https://arxiv.org/html/2512.10071v1) |
-| 3 | SimpleAI Robot | 10.8% | 15.9% | challenge leaderboard |
-
-The official baselines (π₀.₅, OpenVLA-OFT) are provided as starting
-points in [`OmniGibson/learning/`](https://github.com/StanfordVL/BEHAVIOR-1K/tree/main/OmniGibson/omnigibson/learning)
-but no q_score / task_sr numbers are published for them on the private
-test set.
-
-## Integration Notes
-
-- **Robot:** R1Pro only (the BEHAVIOR Challenge 2025 standard track).
-- **Action:** 23-D absolute joint positions, layout matches
-  `omnigibson.learning.utils.eval_utils.ACTION_QPOS_INDICES["R1Pro"]`:
-  `base[0:3] + torso[3:7] + left_arm[7:14] + left_gripper[14:15] +
-  right_arm[15:22] + right_gripper[22:23]`.
-- **Cameras:** head 720×720, left_wrist 480×480, right_wrist 480×480.
-  OmniGibson `VisionSensor` returns RGBA uint8 — the benchmark drops the
-  alpha channel before sending the image to the model server.
-- **Success:** binary `info["done"]["success"]`.  Partial-credit q_score
-  scoring lives in `omnigibson.learning.utils.score_utils.compute_final_q_score`
-  and is reported by the official AgentMetric/TaskMetric callbacks; the
-  harness currently surfaces only the binary flag (the q_score path is a
-  follow-up if needed).
-- **Max steps:** 5000 default (or 2× human demo length when configured;
-  see `learning/eval.py` for the dataset-driven path).
-
-## How to Reproduce (zero-action baseline, 1 task, 2000 step cap)
+## How to run
 
 ```bash
-# 1. Build the image (heavy: ~17 min, 23.5 GB).
-#    The behavior1k Dockerfile is gated behind a licence opt-in
-#    (NVIDIA Omniverse EULA — https://docs.omniverse.nvidia.com/eula/).
+# 1. Build the image (NVIDIA Omniverse EULA: https://docs.omniverse.nvidia.com/eula/).
 docker/build.sh behavior1k --accept-license behavior1k
+#    It pulls stanfordvl/behavior:3.9.4 (14.6 GB compressed, ~28 GB unpacked) and adds the harness.
+#    Charliecloud: ch-image build -t <tag> --build-arg ACCEPT_NVIDIA_EULA=YES -f docker/Dockerfile.behavior1k .
+#    Keep CH_IMAGE_STORAGE on local disk; the image tree is ~200k files.  On a slow link ch-image 0.45
+#    failed after the 13 GB layer with "unhandled authentication failure" (its Docker Hub token had
+#    expired); pre-seeding $CH_IMAGE_STORAGE/dlcache/<sha256 hex>.tar.gz with the layers avoids it.
 
-# 2. Start the zero-action baseline server.
-uv run --script src/vla_eval/model_servers/behavior1k_baseline.py \
-    --port 8765 --host 0.0.0.0 &
+# 2. Start an R1Pro model server, e.g. the zero-action baseline.
+uv run --script src/vla_eval/model_servers/behavior1k_baseline.py --port 8000
 
-# 3. Run.  First invocation prompts on stdin to accept the BEHAVIOR
-#    Dataset ToS and then downloads ~35 GiB of OmniGibson scene + task
-#    data into ``~/.cache/vla-eval/assets/behavior1k`` (or wherever
-#    ``$VLA_EVAL_ASSETS_CACHE`` / ``$VLA_EVAL_HOME`` / ``$XDG_CACHE_HOME``
-#    point — see vla_eval.dirs).  Subsequent runs reuse the cache.
-#    --gpus 0 pins the container to a single A100; multi-GPU triggers
-#    Isaac Sim's "Multiple ICDs" instability.
-uv run vla-eval run -c configs/benchmarks/behavior1k/eval.yaml \
-    --server-url ws://127.0.0.1:8765 \
-    --output-dir results/behavior1k_baseline \
-    --accept-license behavior-dataset-tos \
-    --gpus 0 --yes
+# 3. Run.  The first run downloads ~32 GiB (behavior-1k-assets 3.9.0, robot assets 3.8.2, 2026 task
+#    instances; ~180k files) into the behavior1k asset cache (see vla_eval.dirs).
+uv run vla-eval run -c configs/benchmarks/behavior1k/eval.yaml --accept-license behavior-dataset-tos --yes
 ```
 
-Set ``VLA_EVAL_ASSETS_CACHE=/fast/ssd`` (or ``$VLA_EVAL_HOME``,
-``$XDG_CACHE_HOME``) to redirect the asset cache to a faster disk; the
-config volume picks the same precedence up automatically. Use the
-``--accept-license`` flag (or set ``VLA_EVAL_ACCEPTED_LICENSES``) for
-non-interactive contexts (CI, sharded runs) where the stdin prompt
-can't be answered.
+`eval.yaml` is the challenge self-evaluation (100 tasks x 10 public-test instances). Upstream reports
+scene loads of 150-300 s per task and ~20 FPS stepping on an RTX 4090.
 
-## What Trained-VLA Reproduction Still Needs
+## Archive: 2025 stack results (do not apply to the current default)
 
-1. A R1Pro-compatible model server in `src/vla_eval/model_servers/`.
-   Natural starting point: the
-   [Robot Learning Collective Pi0.5 fork](https://github.com/IliaLarchenko/behavior-1k-solution)
-   (1st place, 26.0% q-score) or the official π₀.₅ baseline shipped in
-   `OmniGibson/omnigibson/learning/policies.py`.
-2. Drop `max_steps` from `params:` (or raise to 5000) so the BehaviorTask
-   has enough time to be solved.
-3. Run all 50 tasks × 10 instances:
-   `vla-eval run -c configs/benchmarks/behavior1k/eval.yaml`.
-4. Score the output JSONs through
-   `omnigibson.learning.utils.score_utils.compute_final_q_score`.
+Measured in 2026-04 with BEHAVIOR-1K v3.7.2 / Isaac Sim 4.5.0 on A100:
 
-## Configuration
-
-| | |
-|---|---|
-| **Benchmark config** | [`configs/benchmarks/behavior1k/eval.yaml`](../../configs/benchmarks/behavior1k/eval.yaml) |
-| **Server config (zero-action)** | [`configs/model_servers/behavior1k/baseline.yaml`](../../configs/model_servers/behavior1k/baseline.yaml) |
-| **Docker image** | `ghcr.io/allenai/vla-evaluation-harness/behavior1k:latest` (Dockerfile.behavior1k) |
-| **Results** | [`data/behavior1k_baseline_zero_action_turning_on_radio.json`](data/behavior1k_baseline_zero_action_turning_on_radio.json) |
-
-## Verification Done at Integration Time
-
-1. Static: `make check` (ruff + ty) passes on `behavior1k/`.
-2. Mocked integration: [`tests/test_behavior1k_benchmark.py`](../../tests/test_behavior1k_benchmark.py)
-   injects fake `omnigibson` / `gello.robots.sim_robot` / `hydra` modules
-   and runs `get_tasks → reset → step (×3) → make_obs → get_step_result`.
-   **7/7 tests pass.**  Verifies (a) the v3.7.2 import paths
-   (`gello.robots.sim_robot.og_teleop_utils`,
-   `omnigibson.envs.env_wrapper.EnvironmentWrapper`,
-   `omnigibson.learning.utils.eval_utils.{generate_basic_environment_config,flatten_obs_dict,PROPRIOCEPTION_INDICES}`),
-   (b) the RGBA → RGB alpha-drop, (c) `info["done"]["success"]`
-   detection, and (d) that `DISABLED_TRANSITION_RULES[*].ENABLED = False`
-   is applied during reset.
-3. Config validation: `vla-eval test --validate` reports **63/63 configs
-   valid.**
-4. **Docker image builds end-to-end** (`docker/Dockerfile.behavior1k`,
-   ~17 min, 22.8 GB).  Layers: `numpy<2 setuptools<=79` → torch 2.6.0
-   cu124 → isaacsim 4.5.0 + extscache → BEHAVIOR-1K v3.7.2 (bddl3,
-   OmniGibson[eval], joylo) → cffi 1.17.1 force-reinstall → harness.
-5. **Inside the built image, every import the benchmark depends on
-   resolves**: `omnigibson.macros`, `omnigibson.envs.env_wrapper`,
-   `omnigibson.learning.utils.eval_utils`,
-   `gello.robots.sim_robot.og_teleop_{utils,cfg}`, `hydra.utils`,
-   `omegaconf`, `torch`, `vla_eval.benchmarks.behavior1k.benchmark`.
-   `TASK_NAMES_TO_INDICES` has 50 tasks; `ROBOT_CAMERA_NAMES["R1Pro"]`
-   matches the hardcoded `R1PRO_CAMERAS` in the benchmark byte-for-byte;
-   `DISABLED_TRANSITION_RULES` has 3 rule classes.
-6. **End-to-end smoke** (`vla-eval test -c configs/benchmarks/behavior1k/eval.yaml`):
-   **passed** in 30.4 s.  EchoModelServer starts on a free port, the
-   container connects, HELLO is exchanged.  Without the dataset mounted
-   the benchmark cannot finish an episode (`og.Environment(configs=cfg)`
-   needs scene assets), so no per-episode result file is written, but
-   the harness/Docker/protocol path is verified.
-
-## Outstanding for Full Score Reproduction
-
-- Mount BEHAVIOR-1K dataset (`2025-challenge-task-instances/` plus the
-  per-scene OmniGibson assets) at `/data/og_data` — requires accepting
-  the NVIDIA Isaac Sim EULA and the BEHAVIOR Dataset ToS.
-- Integrate a R1Pro-compatible model server into the harness (no
-  existing server in `configs/model_servers/` targets R1Pro 23-D
-  absolute-joint actions).  Natural starting points: the official
-  `OmniGibson/learning/policies.py` Pi0.5 baseline, or the
-  [Robot Learning Collective Pi0.5 fork](https://github.com/IliaLarchenko/behavior-1k-solution)
-  that won the 2025 challenge.
+- Demo replay of `turning_on_radio` instance 1 (`2025-challenge-demos` episode 00000010, 1956 steps):
+  success after 1364 steps
+  ([JSON](data/behavior1k_demo_replay_turning_on_radio_inst1.json)).
+- Zero-action baseline on `turning_on_radio`, 100 steps: 0% success
+  ([JSON](data/behavior1k_baseline_zero_action_turning_on_radio.json)).
