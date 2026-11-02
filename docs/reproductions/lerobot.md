@@ -149,6 +149,36 @@ conditions are not aligned: most #4614 runs used MuJoCo 3.8.1, under which Spati
 ([lerobot#4390](https://github.com/huggingface/lerobot/issues/4390)), and they predate the 2026-10-12 checkpoint
 metadata fix (we use `a24f1f38`). So the data show no detectable difference; they do not show that the two agree.
 
+#### Inference delay
+
+The same checkpoint under a simulated inference delay of d steps (`DelayedChunkServer`, a config's `latency:`
+block): every 10 steps the server infers from that step's observation, the chunk lands d steps later (the previous
+chunk playing meanwhile) and is served from action d. LIBERO steps at 20 Hz, so d = 2 / 5 / 10 is 100 / 250 /
+500 ms. Results do not depend on the machine: delay is counted in env steps, not wall time.
+
+```bash
+vla-eval serve -c configs/model_servers/lerobot/smolvla_libero.yaml \
+  --arg latency.delay_steps=5 --arg latency.execute_steps=10
+```
+
+| Arm | Delay | Success | 95% Wilson CI | vs `chunk_size: 10` (paired 95% CI) | McNemar p |
+|-----|:-----:|:-------:|:-------------:|:-----------------------------------:|:---------:|
+| `chunk_size: 10` (no wrapper) | – | 83.4% | [79.9, 86.4] | – | – |
+| d = 0 | 0 ms | 83.8% | [80.3, 86.8] | +0.4 pp [−2.6, 3.4] | 0.90 |
+| d = 2 | 100 ms | 81.6% | [78.0, 84.8] | −1.8 pp [−5.2, 1.4] | 0.35 |
+| d = 5 | 250 ms | 77.4% | [73.5, 80.9] | −6.0 pp [−9.4, −2.6] | 0.001 |
+| d = 10 | 500 ms | 69.2% | [65.0, 73.1] | −14.2 pp [−18.4, −10.2] | 5.3e-11 |
+
+500 episodes per arm (10 tasks × 50, same initial states), 0 errors, `quat_no_antipodal: true`, 220-step cap. One
+L40S per arm (Modal), CPU rendering, 20 shards, lerobot 0.6.0, MuJoCo 3.2.3. The `chunk_size: 10` arm reproduces the
+table above (83.2%). d = 0 is the plain server's schedule; its discordant pairs are the flow-matching noise, which
+is not seeded per episode. Paired: same task and initial state, stratified bootstrap, exact McNemar. Aggregates:
+[`data/smolvla-libero-delay/`](data/smolvla-libero-delay/).
+
+Naive execution tolerates 100 ms with no detectable loss; at 250 ms and beyond, the stale tail of the previous
+chunk costs success. A policy with real-time chunking (inpainting the chunk's first d actions) would be the next
+arm to add.
+
 ### LingBot-VA: LIBERO-10 (Long)
 
 `lerobot/lingbot_va_libero_long`, 10 tasks × 1 episode: 10/10. LeRobot publishes no score for
