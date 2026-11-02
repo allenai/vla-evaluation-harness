@@ -63,8 +63,9 @@ async def test_backpressure_warning_logged(free_port, caplog):
     server = SlowModelServer(delay=0.8)
 
     # Use a low threshold and fast check interval for testing
-    with patch.object(serve_module, "_BACKPRESSURE_CHECK_INTERVAL", 0.1), patch.object(
-        serve_module, "_BACKPRESSURE_COOLDOWN", 0.0
+    with (
+        patch.object(serve_module, "_BACKPRESSURE_CHECK_INTERVAL", 0.1),
+        patch.object(serve_module, "_BACKPRESSURE_COOLDOWN", 0.0),
     ):
         task = await start_server(server, free_port)
         try:

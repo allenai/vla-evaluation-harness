@@ -36,7 +36,7 @@ import subprocess
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import jsonschema
 import typer
@@ -961,7 +961,7 @@ app = typer.Typer(help="Refine raw extractions into leaderboard.json.", add_comp
 @app.command()
 def main(
     output: Annotated[Path, typer.Option("-o", help="Output path.")] = LEADERBOARD_PATH,
-    benchmark: Annotated[Optional[str], typer.Option(help="Only refine this benchmark.")] = None,
+    benchmark: Annotated[str | None, typer.Option(help="Only refine this benchmark.")] = None,
     model: Annotated[str, typer.Option(help="Claude model for the fuzzy stage.")] = "opus",
     timeout: Annotated[int, typer.Option(help="Per-benchmark LLM timeout in seconds.")] = 7200,
 ) -> None:
@@ -971,7 +971,7 @@ def main(
 
 @app.command()
 def candidates(
-    benchmark: Annotated[Optional[str], typer.Option(help="Only build for this benchmark.")] = None,
+    benchmark: Annotated[str | None, typer.Option(help="Only build for this benchmark.")] = None,
 ) -> None:
     """Stage 1 only: build candidate entries and exit (no LLM call)."""
     cs, stats = build_candidates(benchmark_filter=benchmark)

@@ -187,12 +187,15 @@ async def test_orchestrator_returns_partial_on_server_death(tmp_path, no_save):
         ],
     }
 
-    with patch(
-        "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
-    ), patch(
-        "vla_eval.orchestrator.Connection",
-        FlakyConnection,
+    with (
+        patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StubBenchmark,
+        ),
+        patch(
+            "vla_eval.orchestrator.Connection",
+            FlakyConnection,
+        ),
     ):
         orchestrator = Orchestrator(config, no_save=no_save)
         results = await orchestrator.run()
@@ -621,10 +624,13 @@ async def test_orchestrator_fires_tracker_lifecycle_on_success(echo_server, tmp_
         ],
     }
 
-    with patch(
-        "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
-    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]):
+    with (
+        patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StubBenchmark,
+        ),
+        patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]),
+    ):
         orch = Orchestrator(config, no_save=True)
         await orch.run()
 
@@ -684,11 +690,13 @@ async def test_orchestrator_tracker_sees_error_status(tmp_path):
         ],
     }
 
-    with patch(
-        "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
-    ), patch("vla_eval.orchestrator.Connection", DyingConnection), patch(
-        "vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]
+    with (
+        patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StubBenchmark,
+        ),
+        patch("vla_eval.orchestrator.Connection", DyingConnection),
+        patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]),
     ):
         orch = Orchestrator(config, no_save=True)
         await orch.run()
@@ -718,10 +726,13 @@ async def test_orchestrator_sharded_skips_live_hooks(echo_server, tmp_path):
         ],
     }
 
-    with patch(
-        "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
-    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]):
+    with (
+        patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StubBenchmark,
+        ),
+        patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[tracker]),
+    ):
         orch = Orchestrator(config, shard_id=0, num_shards=2, no_save=True)
         await orch.run()
 
@@ -748,10 +759,13 @@ async def test_orchestrator_isolates_broken_tracker(echo_server, tmp_path):
         ],
     }
 
-    with patch(
-        "vla_eval.orchestrator.resolve_import_string",
-        return_value=StubBenchmark,
-    ), patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[bad, good]):
+    with (
+        patch(
+            "vla_eval.orchestrator.resolve_import_string",
+            return_value=StubBenchmark,
+        ),
+        patch("vla_eval.orchestrator.get_reporting_trackers", return_value=[bad, good]),
+    ):
         orch = Orchestrator(config, no_save=True)
         results = await orch.run()
 

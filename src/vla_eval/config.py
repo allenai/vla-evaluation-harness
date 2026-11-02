@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
-RUN conda create -n mikasa python=3.10 pip -y && conda clean -afy
+RUN conda create -n mikasa python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "mikasa", "/bin/bash", "-c"]
 

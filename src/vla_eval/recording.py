@@ -468,7 +468,7 @@ class EpisodeRecorder:
 
     # -- Capture API -------------------------------------------------------
 
-    def record_video(self, frame: "np.ndarray | None") -> None:
+    def record_video(self, frame: np.ndarray | None) -> None:
         """Append one frame to the per-episode mp4. ``None`` is a no-op so
         benchmarks can pass ``self._extract_frame(obs)`` directly."""
         if frame is None or self._video is None:
@@ -578,7 +578,7 @@ class NullEpisodeRecorder(EpisodeRecorder):
     def db_path(self) -> str:  # type: ignore[override]
         return ""
 
-    def record_video(self, frame: "np.ndarray | None") -> None:  # type: ignore[override]
+    def record_video(self, frame: np.ndarray | None) -> None:  # type: ignore[override]
         pass
 
     def record_step(self, **fields: Any) -> None:  # type: ignore[override]
@@ -637,7 +637,7 @@ class StepRecorder:
         finally:
             self._store.close()
 
-    def __enter__(self) -> "StepRecorder":
+    def __enter__(self) -> StepRecorder:
         return self
 
     def __exit__(self, *exc: Any) -> None:

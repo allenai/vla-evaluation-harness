@@ -62,7 +62,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 
 ## Benchmarks with No Model Coverage Yet
 
-Integrated in vla-eval: RLBench, RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBERO-Pro, BEHAVIOR-1K ([details](behavior1k.md); needs an R1Pro-compatible model server).
+Integrated in vla-eval: RoboCasa, Mikasa, RoboCerebra, LIBERO-90, LIBERO-Pro, BEHAVIOR-1K ([details](behavior1k.md); needs an R1Pro-compatible model server).
 
 ## Per-Codebase Details
 

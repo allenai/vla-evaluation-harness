@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Callable
+from typing import Any
 
 import anyio
 import websockets

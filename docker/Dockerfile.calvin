@@ -5,12 +5,7 @@
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
-# multicoretsne (CALVIN dep) needs FFTW and BLAS to compile
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libfftw3-dev libopenblas-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN conda create -y -n calvin python=3.8 pip && conda clean -afy
+RUN conda create -y -n calvin python=3.11 pip && conda clean -afy
 SHELL ["conda", "run", "-n", "calvin", "/bin/bash", "-c"]
 
 ARG CALVIN_REF=fa03f01f19c65920e18cf37398a9ce859274af76
@@ -22,20 +17,22 @@ RUN mkdir -p /app/calvin \
     && git checkout -q FETCH_HEAD \
     && git submodule update --init --recursive --depth 1
 
-# CALVIN editable installs need legacy setuptools/cmake and no build isolation.
-RUN conda install -n calvin cmake=3.18 -y && conda clean -afy
-RUN uv pip install --no-cache-dir "setuptools==57.5.0" wheel \
-    && cd /app/calvin/calvin_env   && pip install --no-cache-dir --no-build-isolation -e . \
-    && cd /app/calvin/calvin_models && pip install --no-cache-dir --no-build-isolation -e .
+# calvin_models pins torch==1.13.1, hydra-core==1.1.1 and pyhash, none of which install on 3.11, so it goes
+# in --no-deps with what the eval path imports. torch 2.1.0 and numpy 1.24.4 are what the 3.8 image ran.
+RUN uv pip install --no-cache-dir "numpy==1.24.4" "torch==2.1.0" "torchvision==0.16.0" --torch-backend cpu
+RUN cd /app/calvin/calvin_env && uv pip install --no-cache-dir "numpy==1.24.4" -e . \
+    && cd /app/calvin/calvin_models && uv pip install --no-cache-dir --no-deps -e . \
+    && uv pip install --no-cache-dir "numpy==1.24.4" "hydra-core==1.3.2" hydra-colorlog omegaconf matplotlib \
+        opencv-python plotly "pytorch-lightning==1.8.6" lightning_lite gitpython scipy gym moviepy tqdm \
+        termcolor fnvhash "setuptools<70"
+# pyhash does not build on 3.11; calvin imports it at module level but the eval path never hashes with it.
+RUN sed -i 's/^import pyhash$/import fnvhash/; s/^hasher = pyhash.fnv1_32()$/hasher = lambda s: fnvhash.fnv1_32(s.encode())/' \
+    /app/calvin/calvin_models/calvin_agent/evaluation/utils.py /app/calvin/calvin_models/calvin_agent/datasets/base_dataset.py
 
 # Patch: catch pybullet.error on double-disconnect during GC teardown
 # (upstream only catches TypeError, not pybullet.error)
 RUN sed -i 's/except TypeError:/except Exception:/' \
     /app/calvin/calvin_env/calvin_env/envs/play_table_env.py
-
-RUN uv pip install --no-cache-dir \
-      "torch==2.1.0" --torch-backend cpu \
-    && uv pip install --no-cache-dir fnvhash
 
 # Remove .git history to shrink image, then re-init minimal repos
 # (CALVIN calls git diff internally via get_git_commit_hash)

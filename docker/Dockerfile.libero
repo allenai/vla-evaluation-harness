@@ -2,7 +2,7 @@ ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────
-RUN conda create -n libero python=3.8 pip -y && conda clean -afy
+RUN conda create -n libero python=3.11 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "libero", "/bin/bash", "-c"]
 
 # ── CPU-only PyTorch ───────────────────────────────────────────────
@@ -10,9 +10,11 @@ RUN uv pip install --no-cache-dir "torch==2.1.0" \
         --torch-backend cpu
 
 # ── Python dependencies ───────────────────────────────────────────
+# numpy 1.24.4 (LIBERO pins 1.22.4, which has no cp311 wheel), numba and scipy are what the 3.8 image ran;
+# with them the 3.11 LIBERO image reproduces the 3.8 one's observations and actions bit for bit.
 RUN uv pip install --no-cache-dir \
-        numpy==1.22.4 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
-        Pillow scipy h5py pyyaml termcolor future easydict hydra-core \
+        numpy==1.24.4 numba==0.58.1 scipy==1.10.1 mujoco==3.2.3 robosuite==1.4.0 bddl==1.0.1 \
+        Pillow h5py pyyaml termcolor future easydict hydra-core \
         "gym>=0.21,<0.27" matplotlib \
     && rm -rf ~/.cache/pip ~/.cache/uv
 

@@ -5,7 +5,7 @@ ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
 
 # ── Conda environment ──────────────────────────────────────────────────
-RUN conda create -n maniskill2 python=3.10 pip -y && conda clean -afy
+RUN conda create -n maniskill2 python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "maniskill2", "/bin/bash", "-c"]
 

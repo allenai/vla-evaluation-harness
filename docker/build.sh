@@ -6,7 +6,7 @@
 #   docker/build.sh --tag 0.1.0                     # build all with a specific tag
 #   docker/build.sh behavior1k --accept-license behavior1k
 #                                                   # opt in to a gated image's licence
-#   docker/build.sh --accept-license behavior1k --accept-license rlbench
+#   docker/build.sh --accept-license behavior1k --accept-license robodojo
 #                                                   # build all + opt in to multiple gated images
 set -euo pipefail
 
@@ -28,16 +28,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench rlbench robotwin robocasa robocasa365 kinetix robomme molmospaces behavior1k duobench robodojo)
+BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniskill2 calvin mikasa_robo vlabench robotwin robocasa robocasa365 kinetix robomme molmospaces behavior1k duobench robodojo)
 
 # Derived images that extend a benchmark image instead of base
 DERIVED_BENCHMARKS=(simpler_groot simpler_xvla)
+
+# Simulator envs still below Python 3.11, the harness's floor: behavior1k until it moves to the 2026 stack.
+PY311_PENDING=(behavior1k)
 
 # Images whose Dockerfile gates the build behind an ``ARG ACCEPT_*=YES``
 # build-arg.  Map: image-name → "<arg-name> <licence-url>".  Adding a new
 # gated image means one line here — no CLI flag changes required.
 declare -A EULA_GATED=(
-  [rlbench]="ACCEPT_RLBENCH_LICENCE https://github.com/stepjam/RLBench/blob/master/LICENSE"
   [behavior1k]="ACCEPT_NVIDIA_EULA https://docs.omniverse.nvidia.com/eula/"
   [robodojo]="ACCEPT_NVIDIA_EULA https://docs.omniverse.nvidia.com/eula/"
 )
@@ -88,6 +90,13 @@ build_image() {
   elif [[ "$name" != "base" ]]; then
     build_args=(--build-arg "BASE_IMAGE=${BASE_IMAGE}" --build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
   fi
+
+  for p in "${PY311_PENDING[@]}"; do
+    if [[ "$p" == "$name" ]]; then
+      echo "Skipping ${image_tag}: its simulator env is still Python <3.11, below the harness's floor"
+      return 0
+    fi
+  done
 
   if [[ -n "${EULA_GATED[$name]:-}" ]]; then
     read -r arg_name url <<< "${EULA_GATED[$name]}"

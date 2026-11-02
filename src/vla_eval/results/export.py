@@ -9,7 +9,7 @@ import sqlite3
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -190,7 +190,7 @@ def _build_aggregate(
         "benchmark": metadata.get("benchmark", safe_name),
         "mode": metadata.get("mode"),
         "harness_version": metadata.get("harness_version") or __version__,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "tasks": tasks_out,
         "config": config,
         "eval_id": eval_id,
