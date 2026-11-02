@@ -269,6 +269,47 @@ async def test_orchestrator_shards_share_a_work_queue(echo_server, tmp_path):
     assert sorted(keys) == sorted({(f"task_{t}", e) for t in range(2) for e in range(3)})
 
 
+class TaskRecordingStub(StubBenchmark):
+    """StubBenchmark keeping every task it was reset with."""
+
+    seen: list[dict] = []
+
+    def reset(self, task):
+        TaskRecordingStub.seen.append(dict(task))
+        return super().reset(task)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("no_save", [True, False], ids=["static_split", "shared_queue"])
+async def test_sharded_tasks_carry_shard_keys(echo_server, tmp_path, no_save):
+    """A sharded run's tasks name the shard next to ``episode_idx``; an unsharded run's do not."""
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "shard_keys",
+                "episodes_per_task": 2,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 2},
+            }
+        ],
+    }
+    seen: dict[int | None, list[dict]] = {}
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=TaskRecordingStub):
+        for shard_id, num_shards in [(None, None), (0, 2), (1, 2)]:
+            TaskRecordingStub.seen = []
+            orch = Orchestrator(config, shard_id=shard_id, num_shards=num_shards, eval_id="ev-k", no_save=no_save)
+            await orch.run()
+            seen[shard_id] = TaskRecordingStub.seen
+
+    assert seen[None] and all("shard_id" not in t and "num_shards" not in t for t in seen[None])
+    ran = sorted((t["name"], t["episode_idx"]) for t in seen[0] + seen[1])
+    assert ran == [(f"task_{i}", e) for i in range(2) for e in range(2)]
+    assert all(t["shard_id"] == s and t["num_shards"] == 2 for s in (0, 1) for t in seen[s])
+
+
 @pytest.mark.anyio
 async def test_orchestrator_records_by_default_without_recording_block(echo_server, tmp_path):
     """Absent ``recording:`` still records episode results + step rows, with video off."""

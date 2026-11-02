@@ -91,9 +91,10 @@ mean. The four tasks that build average 9.6 / 8.3%.
   `sys.path` insert leaves the RoboDojo root *behind* XPolicyLab and layout loading dies with a
   confusing `NameError`. The adapter force-repositions both roots and verifies the resolution.
 - **Bad layouts are skipped, not counted.** Some published layouts fail to build or settle. The
-  adapter skips them, but when *every* layout in a group fails the group is exhausted with zero
+  adapter skips them, but when *every* layout in a group fails the task ends with zero
   episodes (`press_by_number`, `swap_blocks`; see Known gaps). Groups ship 55–65 layouts for 50 counted episodes;
-  the adapter consumes them in order and skips failures, recording each episode's `layout_id`.
+  episode `i` runs layout `i` and a failure falls back to the spares past `eval_num` (split by shard under
+  sharding), recording each episode's `layout_id`. Five failed resets in a row end the env's episodes.
   Never `close()` the env to recover: teardown destroys the cameras and the next `reset()` dies
   in `init_cameras`.
 - **cuRobo planners are unusable from the public assets** (only `curobo_tmp.yml` templates ship),
@@ -130,8 +131,8 @@ mean. The four tasks that build average 9.6 / 8.3%.
   vla-eval's collector counts every episode, so they score as failures here (slightly pessimistic).
 - **`press_by_number` and `swap_blocks` fail deterministically at layout build.** Every layout in
   both groups (all 65 / all 55) raises in RoboDojo's `check_layout_stability` (`layout_manager.py:430`:
-  `get_instance_pose` → `obj._get_object_transform()` on a `None` instance), so the adapter exhausts
-  the group with zero valid episodes. This is upstream/asset-side (a layout references a scene
+  `get_instance_pose` → `obj._get_object_transform()` on a `None` instance), so the task ends
+  with zero valid episodes. This is upstream/asset-side (a layout references a scene
   instance that is never created), not a flaky crash, so re-running does not help; it needs an
   upstream fix. The other four Memory tasks build fine.
 - **Isaac Sim process crashes are unrecoverable mid-task.** A run can also hit a breakpad crash that

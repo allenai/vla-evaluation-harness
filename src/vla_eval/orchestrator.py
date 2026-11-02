@@ -444,12 +444,17 @@ class Orchestrator:
         self._update_progress(n, total, e.collector.error_count)
         self._episode_errored = error is not None
 
-    @staticmethod
-    def _episode_task(e: _Entry, task: Any, ep: int) -> tuple[str, Any]:
-        """The task's display name, and the task with this episode's ``episode_idx``."""
+    def _shard_keys(self) -> dict[str, int]:
+        """``shard_id``/``num_shards`` for a sharded run, so a benchmark can split per-shard resources."""
+        if self.num_shards is None or self.shard_id is None:
+            return {}
+        return {"shard_id": self.shard_id, "num_shards": self.num_shards}
+
+    def _episode_task(self, e: _Entry, task: Any, ep: int) -> tuple[str, Any]:
+        """The task's display name, and the task with this episode's ``episode_idx`` (and shard keys)."""
         max_ep = e.metadata.get("max_episodes_per_task")
         episode_idx = ep % max_ep if e.cfg.throughput_mode and max_ep is not None else ep
-        return task.get("name", str(task)), {**task, "episode_idx": episode_idx}
+        return task.get("name", str(task)), {**task, "episode_idx": episode_idx, **self._shard_keys()}
 
     async def _run_one_at_a_time(
         self, benchmark: Any, runner: SyncEpisodeRunner | LiveEpisodeRunner, conn: Connection, e: _Entry
@@ -694,10 +699,11 @@ class Orchestrator:
     ) -> None:
         """Dry-render the template so YAML key typos fail before any episode runs."""
         stem = rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM
-        # episode_idx is injected per-iteration by the run loop, not present on first_task itself.
+        # episode_idx (and shard keys) are injected per-iteration by the run loop, not present on first_task itself.
         probe = {
             **serializable_task_kwargs(first_task),
             "episode_idx": 0,
+            **self._shard_keys(),
             **recording_filename_context(
                 benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
             ),
