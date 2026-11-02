@@ -25,6 +25,11 @@ class MessageType(str, enum.Enum):
     # VECTOR_RESULT {actions: columns, rows = slots without an error, in order; errors: [[slot, detail]]}.
     VECTOR_STEP = "vector_step"
     VECTOR_RESULT = "vector_result"
+    # Server -> client, live episodes whose client advertised the HELLO capability of the same name; seq = the
+    # episode's EPISODE_START seq.  PUBLISH {action, index, source_seq}: apply latest-wins, drop index <= last.
+    # EPISODE_ERROR {error, failure_reason: "model_act"}: the server failed the episode.
+    PUBLISH = "publish"
+    EPISODE_ERROR = "episode_error"
 
 
 PROTOCOL_VERSION = 1

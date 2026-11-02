@@ -7,6 +7,7 @@ import contextlib
 import threading
 import time
 import socket
+from collections.abc import AsyncIterator
 from typing import Any, NamedTuple
 
 import anyio
@@ -14,9 +15,10 @@ import numpy as np
 import pytest
 import websockets
 
+from vla_eval import columns
 from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
-from vla_eval.model_servers.base import Row, Rows
-from vla_eval.model_servers.live import LiveModelServer
+from vla_eval.model_servers.base import EpisodeClosed, ModelServer, Row, Rows, _Pending
+from vla_eval.model_servers.daemons import DaemonModelServer, EpisodeContext
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
 from vla_eval.tracking import Tracker
@@ -91,9 +93,6 @@ class RandomActionModelServer(PredictModelServer):
         return {"actions": self._rng.standard_normal(self._action_dim).astype(np.float32)}
 
 
-EMPTY = -2.0  # an observation value _Log answers with an empty chunk
-
-
 class Call(NamedTuple):
     value: float
     step: int
@@ -102,13 +101,13 @@ class Call(NamedTuple):
 
 
 class _Log:
-    """Echoes ``value`` (``out``: "echo" a ``[chunk_size, 7]`` chunk or ``[7]``, "ramp" ``value + arange(42)``
-    as ``[6, 7]``, "noactions" ``{"foo": value}``) after ``delay``; a negative value raises.  Logs calls, model
-    threads, starts and ends; a ``broken`` task fails to start, ``suite_chunk`` sets the episode's chunk size."""
+    """Echoes ``value`` as a ``[chunk_size, 7]`` chunk or ``[7]`` after ``delay``; a negative value raises.  Logs
+    calls, model threads, starts and ends; a ``broken`` task fails to start, ``suite_chunk`` sets the episode's
+    chunk size."""
 
-    def __init__(self, *, delay: float = 0.0, out: str = "echo", **kwargs: Any) -> None:
+    def __init__(self, *, delay: float = 0.0, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.delay, self.out = delay, out
+        self.delay = delay
         self.calls: list[Call] = []
         self.threads: set[str] = set()
         self.started: list[list[int]] = []
@@ -141,14 +140,8 @@ class _Log:
         time.sleep(self.delay)
         with self._lock:
             self.active -= 1
-        if v == EMPTY:
-            return {"actions": np.zeros((0, 7), np.float32)}
         if v < 0:
             raise ValueError("bad observation")
-        if self.out == "ramp":
-            return {"actions": v + np.arange(42, dtype=np.float64).reshape(6, 7)}
-        if self.out == "noactions":
-            return {"foo": v}
         n = getattr(self, "chunk_size", None)
         return {"actions": v * np.ones((n, 7) if n else 7, np.float32)}
 
@@ -182,8 +175,46 @@ class BatchLogServer(LogServer):
         return {"actions": values[:, None] * np.ones((len(rows), 7), np.float32)}
 
 
-class LiveLogServer(_Log, LiveModelServer):
-    pass
+class LoopLogServer(_Log, DaemonModelServer):
+    """Continuous inference: each episode's latest observation in turn; a failed one errors and the loop goes on."""
+
+    async def run(self, ep: EpisodeContext) -> None:
+        async for request in ep.observations():
+            try:
+                action = await ep.call(self.predict, request.obs, request.row)
+            except EpisodeClosed:
+                return
+            except Exception as exc:
+                await request.error(exc)
+                continue
+            await request.reply(action)
+
+
+LIVE = {"task": {"name": "t"}, "mode": "live"}
+
+
+class Daemon(DaemonModelServer):
+    """``run`` given per test; logs resets and finishes with their thread."""
+
+    def __init__(self, run: Any = None, **kwargs: Any) -> None:
+        super().__init__(run, **kwargs)
+        self.log: list[tuple[str, list[int]]] = []
+        self.threads: set[str] = set()
+        self.reset_fail: set[int] = set()  # positions to fail
+
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        self.threads.add(threading.current_thread().name)
+        self.log.append(("reset", rows.ids.tolist()))
+        return {i: ValueError("cannot reset") for i in self.reset_fail if i < len(rows)}
+
+    def finish_episodes(self, rows: Rows, results: list[dict[str, Any]]) -> None:
+        self.threads.add(threading.current_thread().name)
+        self.log.append(("finish", rows.ids.tolist()))
+
+
+async def echo(ep: EpisodeContext) -> None:
+    async for req in ep.observations():
+        await req.reply({"actions": np.full(2, float(req.obs["value"]), np.float32)})
 
 
 class StubBenchmark(StepBenchmark):
@@ -259,6 +290,48 @@ async def stop_server(task: asyncio.Task) -> None:
         await task
 
 
+@contextlib.asynccontextmanager
+async def running(model_server: Any, port: int) -> AsyncIterator[str]:
+    """``model_server`` on a socket for the block; yields its URL."""
+    task = await start_server(model_server, port)
+    try:
+        yield f"ws://127.0.0.1:{port}"
+    finally:
+        await stop_server(task)
+
+
+@contextlib.asynccontextmanager
+async def serving(server: ModelServer) -> AsyncIterator[Any]:
+    """``server`` as serve_async runs it, without a socket: yields its task group."""
+    async with anyio.create_task_group() as tg:
+        server._serve_tg = tg
+        await server.on_serve_start(tg)
+        try:
+            yield tg
+        finally:
+            tg.cancel_scope.cancel()
+
+
+async def start(server: ModelServer, n: int = 1, config: dict[str, Any] | None = None, **kw: Any) -> list[int]:
+    """Start ``n`` episodes that must all start; their row ids."""
+    out = await server._start_episodes([(dict(config or {}), "s")] * n, **kw)
+    ids = [r for r in out if isinstance(r, int)]
+    assert len(ids) == len(out), out
+    return ids
+
+
+async def observe(server: ModelServer, rid: int, value: float, *, wait: bool = True) -> _Pending:
+    """One sync observation; ``wait=False`` returns at once and leaves it tracked, as a waiting connection does."""
+    pending = _Pending(1, seq=1)
+    server._open.add(pending)
+    await server._observe(columns.stack([{"value": np.float32(value)}]), [rid], pending)
+    if wait:
+        with anyio.fail_after(3):
+            await pending.done.wait()
+        server._open.discard(pending)
+    return pending
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -275,6 +348,5 @@ def free_port() -> int:
 @pytest.fixture
 async def echo_server(free_port: int):
     """Start an echo server and yield its WebSocket URL. Cleans up on exit."""
-    task = await start_echo_server(free_port)
-    yield f"ws://127.0.0.1:{free_port}"
-    await stop_server(task)
+    async with running(EchoModelServer(), free_port) as url:
+        yield url

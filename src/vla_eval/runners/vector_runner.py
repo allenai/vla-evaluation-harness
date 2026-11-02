@@ -171,7 +171,8 @@ class VectorEpisodeRunner:
         self._slots += slots
         for slot, episode in new:
             self._running[slot] = _Running(episode, t0)
-        return [[slot, episode_start_payload(e.task, e.recorder)] for slot, e in new]
+        rate = {} if benchmark.control_hz is None else {"control_hz": benchmark.control_hz}
+        return [[slot, episode_start_payload(e.task, e.recorder, **rate)] for slot, e in new]
 
     async def _exchange(self, starts: list[list[Any]]) -> Batch | None:
         """One round trip; the actions of the running slots, after ending those the server failed."""

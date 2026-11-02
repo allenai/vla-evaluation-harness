@@ -16,7 +16,7 @@ from vla_eval.runners.action_buffer import ActionBuffer
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
 
-from tests.conftest import BatchLogServer, LiveLogServer, LogServer, RandomActionModelServer, StubBenchmark
+from tests.conftest import BatchLogServer, LogServer, LoopLogServer, RandomActionModelServer, StubBenchmark
 from tests.conftest import start_server, stop_server, wait_for_server
 
 
@@ -25,7 +25,7 @@ _SERVERS = {
     "random": RandomActionModelServer,  # arbitrary actions
     "chunk": lambda: LogServer(chunk_size=4),
     "batch": lambda: BatchLogServer(max_batch_size=4, max_wait_time=0.1),
-    "live": lambda: LiveLogServer(delay=0.02),  # actions pushed by a LiveModelServer
+    "live": lambda: LoopLogServer(delay=0.02),  # an episode loop inferring the latest observation
 }
 
 

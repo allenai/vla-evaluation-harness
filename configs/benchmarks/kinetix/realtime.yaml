@@ -1,4 +1,4 @@
-# Kinetix evaluation — real-time mode (40 tasks × 100 episodes)
+# Kinetix, RTC paper protocol, live at 10 Hz wall clock (12 levels × 2048 rollouts; wall-clock delay on the server)
 server:
   url: "ws://localhost:8000"
 
@@ -12,7 +12,7 @@ benchmarks:
     mode: live
     hz: 10.0
     pace: 1.0
-    episodes_per_task: 100
+    episodes_per_task: 2048
     params:
       seed: 0
       observation_type: symbolic

@@ -767,7 +767,7 @@ server-level key (host/port).
         action="append",
         metavar="KEY=VALUE",
         help="Override model server args (applied on top of config). Repeatable. "
-        "e.g. --arg inference_delay=0.1 --arg ci=true",
+        "e.g. --arg inference_delay=0.1 --arg chunk_size=4",
     )
     serve_parser.add_argument("--verbose", "-v", action="store_true")
     serve_parser.set_defaults(func=cmd_serve)

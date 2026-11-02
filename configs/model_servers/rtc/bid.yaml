@@ -1,0 +1,6 @@
+# RTC on Kinetix — BID as in the paper (N=32, K=3, weak = 8-epoch checkpoint)
+extends: _base.yaml
+args:
+  method: bid
+  bid_n: 32
+  bid_k: 3

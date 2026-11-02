@@ -1,0 +1,4 @@
+# RTC on Kinetix — method naive
+extends: _base.yaml
+args:
+  method: naive
