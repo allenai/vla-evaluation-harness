@@ -133,7 +133,7 @@ class RoboDojoBenchmark(StepBenchmark):
         self._env_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="robodojo-env")
         self._current_task_name = ""
         self._native_eval_num = 0
-        self._spare_cursor = 0  # spares this shard has tried
+        self._tried_spares: set[int] = set()  # by this process, whether they settled or not
         self._counted_layouts: dict[int, int] = {}  # episode_idx -> layout, by earlier processes (resume())
         self._failed_resets = 0  # in a row, across episodes
         self._current_layout_id = -1
@@ -340,14 +340,14 @@ class RoboDojoBenchmark(StepBenchmark):
             self._failed_resets = 0 if type(raw_obs).__name__ == "UnStableError" else self._failed_resets + 1
             if self._failed_resets >= MAX_FAILED_RESETS:
                 raise EnvUnusableError(self._unusable_message(task_name))
-            if self._spare_cursor >= len(spares):
+            layout_id = next((i for i in spares if i not in self._tried_spares), -1)
+            if layout_id < 0:
                 raise RuntimeError(
                     f"RoboDojo: shard {shard_id}/{num_shards} has no spare layout left for {task_name} "
                     f"({len(own)} of {max(total - self._native_eval_num, 0)} spares are this shard's, "
                     f"{len(own) - len(spares)} counted before a resume)"
                 )
-            layout_id = spares[self._spare_cursor]
-            self._spare_cursor += 1
+            self._tried_spares.add(layout_id)
 
     def resume(self, results: list[dict[str, Any]]) -> None:
         # A rerun shard restarts its spare cursor; never count a spare an earlier process counted.
