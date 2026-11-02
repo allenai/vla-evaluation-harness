@@ -16,6 +16,7 @@ from typing import Any
 from vla_eval import __version__
 from vla_eval.recording import db_path_for_eval
 from vla_eval.results.collector import _aggregate_metrics, _build_task_result, _extract_seed, print_task_table
+from vla_eval.results.stats import binary_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -182,9 +183,10 @@ def _build_aggregate(
             if rows:
                 _write_jsonl_atomic(jsonl_p, rows)
 
+    binary = binary_metrics(all_episodes, metric_keys)  # interval type per metric, decided over the whole run
     tasks_out: list[Any] = []
     for task_name in sorted(tasks_acc):
-        tasks_out.append(_build_task_result(task_name, tasks_acc[task_name], metric_keys))
+        tasks_out.append(_build_task_result(task_name, tasks_acc[task_name], metric_keys, binary))
 
     body: dict[str, Any] = {
         "benchmark": metadata.get("benchmark", safe_name),
@@ -217,7 +219,7 @@ def _build_aggregate(
         body["seed"] = seed
     if metric_keys:
         body["metric_keys"] = metric_keys
-        _aggregate_metrics(body, all_episodes, metric_keys)
+        _aggregate_metrics(body, all_episodes, metric_keys, binary)
     body["num_episodes_total"] = episode_count
     body["num_errors"] = sum(t.get("num_errors", 0) for t in tasks_out)
     return body

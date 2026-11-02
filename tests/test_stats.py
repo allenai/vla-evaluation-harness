@@ -6,6 +6,7 @@ import math
 from fractions import Fraction
 from typing import Any, cast
 
+import numpy as np
 import pytest
 
 from vla_eval.results import stats
@@ -51,7 +52,8 @@ def test_wilson_empty_sample_is_uninformative() -> None:
 
 
 def test_newcombe_matches_the_smolvla_footnote() -> None:
-    """docs/reproductions/README.md: 85.8% (429/500) vs 82.7% (124/150) → +3.1 pp, 95% CI [−3.1, 10.5]."""
+    """docs/reproductions/lerobot.md (and footnote 6 of docs/reproductions/README.md): 85.8% (429/500) vs 82.7%
+    (124/150) → +3.1 pp, 95% CI [−3.1, 10.5]."""
     lo, hi = stats.newcombe_difference_interval(429, 500, 124, 150)
     assert (round(lo * 100, 1), round(hi * 100, 1)) == (-3.1, 10.5)
 
@@ -59,6 +61,61 @@ def test_newcombe_matches_the_smolvla_footnote() -> None:
 def test_newcombe_is_antisymmetric() -> None:
     lo, hi = stats.newcombe_difference_interval(30, 40, 20, 50)
     lo2, hi2 = stats.newcombe_difference_interval(20, 50, 30, 40)
+    assert (lo, hi) == pytest.approx((-hi2, -lo2))
+
+
+@pytest.mark.parametrize(
+    ("table", "expected", "places"),
+    [
+        # Newcombe (1998b) Stat Med 17:2635, Table II, method 10 (both, A-only, B-only, neither)
+        ((36, 12, 2, 0), (0.0569, 0.3404), 4),
+        ((20, 12, 2, 16), (0.0562, 0.3292), 4),  # phi > 0: exercises the n/2 shrink
+        # Fagerland, Lydersen & Laake (2014) Stat Med 33:2850, Newcombe's method 10 on their example
+        ((1, 1, 7, 12), (-0.507, -0.026), 3),
+        # Tang, Li & Tang (2010) example, as reproduced by R ratesci::moverpairci (tests/testthat/test3.R)
+        ((8, 3, 1, 2), (-0.1574, 0.4136), 4),
+    ],
+)
+def test_newcombe_paired_matches_published_examples(
+    table: tuple[int, int, int, int], expected: tuple[float, float], places: int
+) -> None:
+    lo, hi = stats.newcombe_paired_interval(*table)
+    assert (round(lo, places), round(hi, places)) == expected
+
+
+# R ratesci 1.1.0 moverpairci(type="wilson", corc=TRUE), as tabulated in statsmodels' test_proportion.py: positive
+# and negative phi, no discordant pairs, no concordant pairs, an empty margin (phi = 0), a large table, one cell.
+@pytest.mark.parametrize(
+    ("table", "expected"),
+    [
+        ((10, 5, 2, 20), (-0.0643926051, 0.2211160179)),
+        ((3, 12, 7, 3), (-0.1336023844, 0.4874632352)),
+        ((10, 0, 0, 20), (-0.0722182713, 0.0722182713)),
+        ((0, 5, 3, 0), (-0.3885152108, 0.7263114284)),
+        ((0, 0, 4, 6), (-0.6873262303, -0.0383858209)),
+        ((5, 3, 0, 2), (-0.0529530013, 0.5665478379)),
+        ((1, 1, 1, 1), (-0.4949196078, 0.4949196078)),
+        ((100, 20, 30, 850), (-0.0243592378, 0.0041365528)),
+        ((2, 0, 0, 0), (-0.6576197725, 0.6576197725)),
+        ((0, 3, 0, 0), (0.2059232825, 1.0)),
+    ],
+)
+def test_newcombe_paired_matches_ratesci(table: tuple[int, int, int, int], expected: tuple[float, float]) -> None:
+    assert stats.newcombe_paired_interval(*table) == pytest.approx(expected, abs=1e-9)
+
+
+def test_newcombe_paired_has_width_without_discordant_pairs() -> None:
+    """The percentile bootstrap collapses to [0, 0] here; the score interval does not."""
+    lo, hi = stats.newcombe_paired_interval(400, 0, 0, 100)
+    assert lo < 0 < hi and hi - lo > 0.005
+    # 4 A-only, 0 B-only: McNemar p = 0.125, and the interval keeps 0 (the bootstrap excluded it).
+    lo, hi = stats.newcombe_paired_interval(400, 4, 0, 96)
+    assert stats.mcnemar_exact(4, 0) == 0.125 and lo < 0 < hi
+
+
+def test_newcombe_paired_is_antisymmetric() -> None:
+    lo, hi = stats.newcombe_paired_interval(30, 9, 4, 7)
+    lo2, hi2 = stats.newcombe_paired_interval(30, 4, 9, 7)
     assert (lo, hi) == pytest.approx((-hi2, -lo2))
 
 
@@ -130,10 +187,24 @@ def test_paired_bootstrap_stratified_and_pooled() -> None:
     lo, hi = stats.paired_bootstrap_difference(diffs, strata)
     assert lo < sum(diffs) / len(diffs) < hi
     assert stats.paired_bootstrap_difference(diffs, strata) == (lo, hi)
-    # Singleton strata cannot vary: the reason compare pools them.
-    assert stats.paired_bootstrap_difference(diffs, list(range(8))) == (0.25, 0.25)
     pooled = stats.paired_bootstrap_difference(diffs)
     assert pooled[0] < 0.25 < pooled[1]
+
+
+def test_paired_bootstrap_rejects_singleton_strata() -> None:
+    """A one-pair stratum cannot vary: compare pools such runs instead."""
+    with pytest.raises(ValueError, match="two or more"):
+        stats.paired_bootstrap_difference([1.0, 0.0, 0.0], ["a", "a", "b"])
+
+
+def test_small_strata_are_not_too_narrow() -> None:
+    """Two pairs per task, tasks alike: plain within-stratum resampling halves the variance (interval ~0.71x the
+    pooled width, coverage 0.84); the sqrt(n/(n-1)) rescaling brings it back to the pooled width."""
+    diffs = np.random.default_rng(0).choice([-1.0, 0.0, 1.0], size=2000, p=[0.15, 0.7, 0.15]).tolist()
+    strata = [i // 2 for i in range(len(diffs))]
+    lo_s, hi_s = stats.paired_bootstrap_difference(diffs, strata)
+    lo_p, hi_p = stats.paired_bootstrap_difference(diffs)
+    assert (hi_s - lo_s) / (hi_p - lo_p) == pytest.approx(1.0, abs=0.08)
 
 
 def test_independent_bootstrap_brackets_the_difference() -> None:
@@ -154,9 +225,25 @@ def test_is_binary(values: list[Any], binary: bool) -> None:
     assert stats.is_binary(values) is binary
 
 
-def test_mean_interval_dispatches() -> None:
-    assert stats.mean_interval([True] * 485 + [False] * 15) == stats.wilson_interval(485, 500)
-    assert stats.mean_interval([1, 2, 3, 4]) == stats.bootstrap_mean_interval([1.0, 2.0, 3.0, 4.0])
+def _rounded(interval: tuple[float, float]) -> list[float]:
+    return [round(x, 4) for x in interval]
+
+
+def test_metric_interval_dispatches_on_the_run_level_type() -> None:
+    assert stats.metric_interval([True] * 485 + [False] * 15, True) == _rounded(stats.wilson_interval(485, 500))
+    assert stats.metric_interval([1, 2, 3, 4], False) == _rounded(stats.bootstrap_mean_interval([1, 2, 3, 4]))
+    # 0/1 values of a metric that is not binary over the run are not a rate; one value has no interval.
+    assert stats.metric_interval([1, 0, 1], False) == _rounded(stats.bootstrap_mean_interval([1, 0, 1]))
+    assert stats.metric_interval([1], False) is None and stats.metric_interval([2], False) is None
+
+
+def test_binary_metrics_over_a_run() -> None:
+    episodes = [
+        {"metrics": {"success": True, "completed_subtasks": 1, "score": 1.0}},
+        {"metrics": {"success": False, "completed_subtasks": 3, "score": 0}},
+        {"metrics": {"success": False}, "failure_reason": "timeout"},
+    ]
+    assert stats.binary_metrics(episodes, ["success", "completed_subtasks", "score"]) == {"success", "score"}
 
 
 def test_metric_values_skips_missing_and_non_numeric() -> None:
@@ -203,10 +290,24 @@ def test_binary_mean_gets_wilson_interval_and_n() -> None:
     assert task.get("ci95_success") == result.get("ci95_success") and task.get("n_success") == 11
 
 
+def test_metric_type_is_decided_per_run_not_per_task() -> None:
+    """CALVIN chain length: a task whose single episode completed 1 subtask is not a rate with Wilson [0.21, 1.0],
+    and a task at 2 does not get a zero-width [2.0, 2.0]; neither has an interval at n = 1."""
+    keys = {"completed_subtasks": "mean"}
+    episodes = {"seq0": [{"metrics": {"completed_subtasks": 1}}], "seq1": [{"metrics": {"completed_subtasks": 2}}]}
+    episodes["seq2"] = [{"metrics": {"completed_subtasks": c}} for c in (0, 1, 1)]
+    result: dict[str, Any] = dict(_collector(keys, episodes).get_benchmark_result())
+    seq0, seq1, seq2 = (dict(t) for t in result["tasks"])
+    assert "ci95_completed_subtasks" not in seq0 and seq0["n_completed_subtasks"] == 1
+    assert "ci95_completed_subtasks" not in seq1
+    assert seq2["ci95_completed_subtasks"] == _rounded(stats.bootstrap_mean_interval([0, 1, 1]))  # not Wilson
+    assert result["ci95_completed_subtasks"] == stats.metric_interval([1, 2, 0, 1, 1], False)
+
+
 def test_non_binary_mean_gets_bootstrap_interval() -> None:
     chain = [5, 4, 3, 5, 2, 5, 1, 0, 4, 5]
     eps: list[dict[str, Any]] = [{"metrics": {"success": c == 5, "completed_subtasks": c}} for c in chain]
-    eps.append({"metrics": {"success": False}, "failure_reason": "exception"})  # no chain length: excluded
+    eps.append({"metrics": {"success": False}, "failure_reason": "exception"})  # errors record no chain length
     result: dict[str, Any] = dict(
         _collector({"success": "mean", "completed_subtasks": "mean"}, {"t": eps}).get_benchmark_result()
     )

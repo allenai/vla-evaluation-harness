@@ -6,7 +6,7 @@ import json
 from datetime import datetime, UTC
 from typing import Any, NotRequired, TypedDict
 
-from vla_eval.results.stats import metric_interval, metric_values
+from vla_eval.results.stats import binary_metrics, metric_interval, metric_values
 
 
 class EpisodeResult(TypedDict):
@@ -64,12 +64,15 @@ def _extract_seed(config: dict[str, Any]) -> int | None:
     return config.get("params", {}).get("seed")
 
 
-def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, str]) -> TaskResult:
+def _build_task_result(
+    task_name: str, episodes: list, metric_keys: dict[str, str], binary: frozenset[str] | None = None
+) -> TaskResult:
     """Build a TaskResult with aggregated metrics from all episodes.
 
     All episodes count toward metrics equally — no exclusions.
-    Episodes with ``failure_reason`` are included as failures (success=False)
-    and their count is reported separately via ``num_errors`` for visibility.
+    Episodes with ``failure_reason`` record only ``success=False``: they count as failures in ``success``, are
+    absent from other metrics, and their count is reported separately via ``num_errors`` for visibility.
+    ``binary`` is the run's binary metrics (:func:`~vla_eval.results.stats.binary_metrics`); default: this task's.
     """
     num_errors = sum(1 for e in episodes if e.get("failure_reason"))
     total_steps = sum(e.get("steps", 0) for e in episodes)
@@ -82,23 +85,30 @@ def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, st
     )
     if num_errors:
         result["num_errors"] = num_errors
-    _aggregate_metrics(result, episodes, metric_keys)
+    _aggregate_metrics(result, episodes, metric_keys, binary)
     return result
 
 
-def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) -> None:
+def _aggregate_metrics(
+    result: Any, episodes: Any, metric_keys: dict[str, str], binary: frozenset[str] | None = None
+) -> None:
     """Compute metric aggregates from ``episode["metrics"]`` and insert into *result*.
 
-    A ``mean`` also gets ``ci95_{key}`` (``[lo, hi]``: Wilson for binary values, seeded bootstrap otherwise; see
-    :mod:`vla_eval.results.stats`) and ``n_{key}``, the number of episodes it averages.
+    A ``mean`` also gets ``n_{key}``, the number of episodes it averages, and ``ci95_{key}`` (``[lo, hi]``): Wilson
+    for a metric in ``binary`` (the run's binary metrics; default: decided over ``episodes``), else a seeded
+    bootstrap, omitted below two values.  See :mod:`vla_eval.results.stats`.
     """
+    if binary is None:
+        binary = binary_metrics(episodes, metric_keys)
     for key, agg_type in metric_keys.items():
         values = metric_values(episodes, key)
         fn = _AGG_FNS.get(agg_type)
         if fn is not None and values:
             result[f"{agg_type}_{key}"] = round(fn(values), 4)
             if agg_type == "mean":
-                result[f"ci95_{key}"], result[f"n_{key}"] = metric_interval(values)
+                if (ci := metric_interval(values, key in binary)) is not None:
+                    result[f"ci95_{key}"] = ci
+                result[f"n_{key}"] = len(values)
 
 
 def _ci_tag(ci: Any) -> str:
@@ -161,15 +171,21 @@ class ResultCollector:
         self._episodes[task_name].append(episode_result)
         self._errors += bool(episode_result.get("failure_reason"))
 
-    def get_task_result(self, task_name: str) -> TaskResult:
-        """Aggregate results for a single task."""
-        return _build_task_result(task_name, self._episodes.get(task_name, []), self.metric_keys)
+    def _binary_metrics(self) -> frozenset[str]:
+        return binary_metrics((e for eps in self._episodes.values() for e in eps), self.metric_keys)
+
+    def get_task_result(self, task_name: str, binary: frozenset[str] | None = None) -> TaskResult:
+        """Aggregate results for a single task (interval type decided over the whole run)."""
+        if binary is None:
+            binary = self._binary_metrics()
+        return _build_task_result(task_name, self._episodes.get(task_name, []), self.metric_keys, binary)
 
     def get_benchmark_result(self, config: dict[str, Any] | None = None) -> BenchmarkResult:
         """Aggregate results for the entire benchmark."""
         from vla_eval import __version__
 
-        tasks = [self.get_task_result(t) for t in self._episodes]
+        binary = self._binary_metrics()
+        tasks = [self.get_task_result(t, binary) for t in self._episodes]
         all_episodes = [e for eps in self._episodes.values() for e in eps]
 
         config = config or {}
@@ -192,7 +208,7 @@ class ResultCollector:
         # Store metric_keys and add benchmark-level aggregates
         if self.metric_keys:
             result["metric_keys"] = self.metric_keys
-            _aggregate_metrics(result, all_episodes, self.metric_keys)
+            _aggregate_metrics(result, all_episodes, self.metric_keys, binary)
 
         return result
 

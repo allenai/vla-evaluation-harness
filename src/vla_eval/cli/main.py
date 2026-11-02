@@ -332,7 +332,14 @@ def cmd_compare(args: argparse.Namespace) -> None:
         _stderr_console().print("[red]ERROR: give a second aggregate B, --reference, or both[/red]")
         sys.exit(2)
     try:
-        report = build_report(args.a, args.b, metric=args.metric, reference=args.reference, tolerance=args.tolerance)
+        report = build_report(
+            args.a,
+            args.b,
+            metric=args.metric,
+            reference=args.reference,
+            tolerance=args.tolerance,
+            allow_benchmark_mismatch=args.allow_benchmark_mismatch,
+        )
     except (OSError, ValueError) as exc:
         _stderr_console().print(f"[red]ERROR: {exc}[/red]")
         sys.exit(1)
@@ -807,16 +814,20 @@ server-level key (host/port).
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Compare aggregate JSONs (<benchmark>_aggregate.json from run/export) on one metric.",
         epilog="""\
-Episodes pair on (task, task_idx, episode_id) — task_idx only when both runs
-record it — so a pair is the same task and initial state. Binary metrics get the
-exact McNemar test; the A − B interval is a paired bootstrap stratified by task.
-With no pairs, the runs are compared as independent samples (Newcombe for rates).
-Harness errors count as failures, as in the aggregate's mean.
+Tasks match by name (plus suite when both runs record it), so a rerun of a task
+subset still pairs; only tasks both runs ran are compared, and different
+benchmarks are refused. Episodes pair on (task, episode_id): the same task and
+initial state. When pairs cover >= 90% of both runs' episodes on the shared
+tasks, binary metrics get Newcombe's paired score interval and the exact McNemar
+test, others a task-stratified paired bootstrap; otherwise the shared tasks are
+compared as independent samples (Newcombe hybrid score, or bootstrap). Per-task
+p-values are not adjusted for multiple comparisons. A harness error counts as a
+failure in success and is absent from other metrics.
 
 --reference P prints the reproduction verdict (docs/reproductions/README.md):
   ✅ P within A's 95% CI · 🟡 outside, |A − P| <= --tolerance · 🔧 beyond it
-P is a fraction (0.969) or a percentage (96.9%); non-rate metrics use their own
-scale, so set --tolerance on that scale too.
+P is a fraction (0.969) or a percentage (96.9%). The tolerance defaults to 5 pp
+for rates; a non-rate metric needs --tolerance on its own scale.
 
   vla-eval compare ours/libero_spatial_aggregate.json theirs/libero_spatial_aggregate.json
   vla-eval compare ours/libero_spatial_aggregate.json --reference 96.9%
@@ -827,7 +838,13 @@ scale, so set --tolerance on that scale too.
     compare_parser.add_argument("--reference", metavar="P", help="Reported score to judge A against")
     compare_parser.add_argument("--metric", default="success", help="Per-episode metric (default: success)")
     compare_parser.add_argument(
-        "--tolerance", type=float, default=0.05, help="Verdict tolerance on the metric's scale (default: 0.05)"
+        "--tolerance",
+        type=float,
+        default=None,
+        help="Verdict tolerance on the metric's scale (default: 0.05 for rates; required otherwise)",
+    )
+    compare_parser.add_argument(
+        "--allow-benchmark-mismatch", action="store_true", help="Compare aggregates of different benchmarks"
     )
     compare_parser.add_argument("--json", action="store_true", help="Print the report as JSON")
     compare_parser.add_argument("--verbose", "-v", action="store_true")
