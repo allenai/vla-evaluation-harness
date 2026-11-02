@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import signal
+
 import anyio
 import numpy as np
 import pytest
@@ -142,3 +144,32 @@ async def test_listening_raises_when_connection_drops(free_port):
                 await anyio.sleep(30)
     finally:
         await conn.close()
+
+
+class _EventLoopHung(BaseException):
+    """BaseException so the listener's ``except Exception`` cannot swallow it."""
+
+
+@pytest.mark.anyio
+async def test_listening_ends_on_unrecoverable_recv_error(echo_server):
+    """A recv that raises without awaiting (here: a second reader on the socket) must end the listener,
+    not spin the event loop; SIGALRM bounds the hang a spinning loop would cause."""
+
+    def _alarm(*_):
+        raise _EventLoopHung("listener spun without yielding to the event loop")
+
+    old = signal.signal(signal.SIGALRM, _alarm)
+    signal.setitimer(signal.ITIMER_REAL, 10)
+    try:
+        async with Connection(echo_server) as conn:
+            await conn.start_episode({"task": "test"})
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(conn.recv)  # parks on the socket, so the listener's recv raises at once
+                await anyio.sleep(0.1)
+                with pytest.raises(RuntimeError):  # websockets ConcurrencyError (a RuntimeError since 14)
+                    async with conn.listening():
+                        await anyio.sleep(5)
+                tg.cancel_scope.cancel()
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)

@@ -129,3 +129,23 @@ def test_cmd_serve_list_and_dict_round_trip_as_json(monkeypatch, tmp_path):
         assert json.loads(token.split("=", 1)[1]) == {"x": 0.1}
     finally:
         yaml_path.unlink()
+
+
+def test_script_dir_does_not_shadow_packages():
+    """``uv run <server>.py`` puts the script dir on sys.path[0]; sibling modules must not shadow packages."""
+    import subprocess
+    import sys
+
+    import vla_eval.model_servers as ms
+
+    code = f"""
+import importlib.util, os, sys
+d = {str(Path(ms.__file__).parent)!r}
+sys.path.insert(0, d)
+import vla_eval.model_servers.base
+names = [n.removesuffix(".py") for n in os.listdir(d) if not n.startswith("_")]
+hits = [n for n in names if (s := importlib.util.find_spec(n)) and (s.origin or "").startswith(d + os.sep)]
+assert not hits, hits
+"""
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr

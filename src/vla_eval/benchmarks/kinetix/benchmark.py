@@ -270,8 +270,8 @@ class KinetixBenchmark(StepBenchmark):
         reward_val = float(reward)
         done_val = bool(done)
 
-        # Track success across all steps (GoalR > 0 means green touched blue)
-        if reward_val > 0:
+        # The env's own goal signal: since Kinetix 3.0 ``reward`` also carries dense distance shaping.
+        if bool(info["GoalR"]):
             self._episode_success = True
 
         self._recorder.record_video(self._extract_frame(obs))
@@ -311,7 +311,7 @@ class KinetixBenchmark(StepBenchmark):
         return step_result.done or self._step_count >= self._max_episode_steps
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
-        # Success if reward > 0 at any step during the episode
+        # Success if the goal was reached at any step (Kinetix's ``returned_episode_solved``)
         return {"success": self._episode_success}
 
     def get_metadata(self) -> dict[str, Any]:

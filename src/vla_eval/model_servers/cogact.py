@@ -12,6 +12,7 @@
 #     "accelerate>=0.25.0",
 #     "einops",
 #     "sentencepiece==0.1.99",
+#     "tensorflow-metadata<1.21",  # 1.21 imports protobuf>=5 APIs yet allows 4.x, which tensorflow pins here
 # ]
 #
 # [tool.uv.sources]
@@ -19,7 +20,7 @@
 # cogact = { git = "https://github.com/microsoft/CogACT.git", rev = "b174a1b86deedfab4d198d935207e7bb0527994e" }
 #
 # [tool.uv]
-# exclude-newer = "2026-02-24T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 from __future__ import annotations
 

@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "anyio>=4.0.0",
+    "anyio>=4.2.0",  # module-level CapacityLimiter (serve.py) needs a lazy backend
     "imageio[ffmpeg]",      # Streaming mp4 writer for benchmarks/video.py
     "jsonargparse[signatures]>=4.36",  # class-signature-driven argparse + yaml
     "lazyregistry>=0.4.0",

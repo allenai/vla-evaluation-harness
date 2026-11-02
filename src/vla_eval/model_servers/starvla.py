@@ -3,7 +3,7 @@
 # dependencies = [
 #     "vla-eval",
 #     "starvla",
-#     "torch>=2.0",
+#     "torch>=2.0,<2.13",  # kernels-community/flash-attn2 ships builds only up to torch 2.12
 #     "torchvision>=0.17",
 #     "transformers>=4.40,<5",
 #     "pillow>=9.0",
@@ -27,7 +27,7 @@
 # starvla = { git = "https://github.com/starVLA/starVLA.git", rev = "eaa51c4c2f4012d42f1036ee318d41942e8f97a3" }
 #
 # [tool.uv]
-# exclude-newer = "2026-05-08T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 """starVLA model server — supports all Qwen* frameworks.
 

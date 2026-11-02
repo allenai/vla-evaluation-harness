@@ -14,7 +14,7 @@
 # lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "v0.6.0" }
 #
 # [tool.uv]
-# exclude-newer = "2026-07-04T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 """🤗 LeRobot policy model server.
 
@@ -44,8 +44,6 @@ argparse breaks lerobot's draccus config parsing).
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from typing import Any
 
 import numpy as np
@@ -54,11 +52,6 @@ from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
-
-# Running this file directly (`uv run .../lerobot.py`) puts its own dir first on
-# sys.path, shadowing the installed `lerobot` package; drop it before importing.
-_here = os.path.dirname(os.path.abspath(__file__))
-sys.path[:] = [p for p in sys.path if p and os.path.abspath(p) != _here]
 
 logger = logging.getLogger(__name__)
 
