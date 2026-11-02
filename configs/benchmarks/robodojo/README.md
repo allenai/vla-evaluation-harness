@@ -83,4 +83,5 @@ instances with disjoint `--filter` regexes (one lane per GPU).
   layout (a shard out of spares errors an unstable layout's episode); a resumed shard skips spares
   already counted.
 - After 5 failed resets in a row (unstable layouts aside), or such a failure with no spare left, the
-  shard returns its unfinished items to the queue and exits 3; rerun it with the same `--eval-id`.
+  shard returns its unfinished items to the queue and exits 3; rerun it with the same `--eval-id`
+  (`scripts/run_sharded.sh` does so itself).

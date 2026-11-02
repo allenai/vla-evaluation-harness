@@ -8,7 +8,9 @@ Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output
 Spawn N shards of \`vla-eval run\` against the same SQLite recording, then
 call \`vla-eval export\` once after all shards exit. Shards share an eval id
 (default: a fresh uuid) so they all write to one
-\`<output_dir>/recording-<eval_id>.sqlite\`.
+\`<output_dir>/recording-<eval_id>.sqlite\`. A shard that exits 3 (env unusable) or
+dies from a signal is relaunched with the same shard id, which resumes its unfinished
+items, up to \$VLA_EVAL_SHARD_RESTARTS (default 10) times.
 
 Options:
   -c <config>          Config YAML file (required)
@@ -104,11 +106,24 @@ if [[ -n "$RENDER" ]]; then
   RUN_OPTS+=(--render "$RENDER")
 fi
 
+MAX_RESTARTS="${VLA_EVAL_SHARD_RESTARTS:-10}"
+run_shard() {
+  local attempt rc
+  for ((attempt = 0; ; attempt++)); do
+    rc=0
+    # </dev/null: with -m, background jobs keep terminal stdin; a shard reading it would stop on SIGTTIN
+    vla-eval run "${RUN_OPTS[@]}" --shard-id "$1" --num-shards "$NUM_SHARDS" </dev/null || rc=$?
+    if { [[ "$rc" -ne 3 ]] && ((rc <= 128)); } || ((attempt >= MAX_RESTARTS)); then
+      return "$rc"
+    fi
+    echo "Shard $1 exited $rc; restarting it ($((attempt + 1))/$MAX_RESTARTS)..." >&2
+  done
+}
+
 echo "Launching ${NUM_SHARDS} shards..."
 set -m  # each shard leads its own process group, so cleanup() can signal its whole tree
 for i in $(seq 0 $((NUM_SHARDS - 1))); do
-  # </dev/null: with -m, background jobs keep terminal stdin; a shard reading it would stop on SIGTTIN
-  vla-eval run "${RUN_OPTS[@]}" --shard-id "$i" --num-shards "$NUM_SHARDS" </dev/null &
+  run_shard "$i" &
   pids+=($!)
 done
 set +m
