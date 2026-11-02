@@ -183,7 +183,9 @@ Every running episode is a row; inference and the episode hooks are batched over
 - `chunk_size`: `[T, D]` per row, served from a per-episode buffer (`rows.episodes[i].chunk_size` overrides it).
 - Simulated inference delay: a chunked server needs no code for it; a config's `latency:` block (`delay_steps` or
   `delay_s`, `execute_steps`) runs it under `DelayedChunkServer` in sync mode (see
-  [architecture](docs/architecture.md#model-server)).
+  [architecture](docs/architecture.md#model-server)). Its `predict` must not depend on which of its earlier actions
+  ran: a delay skips each later chunk's first `d` actions. If it does (e.g. it carries the last commanded pose to the
+  next call), set `assumes_whole_chunks = True` and the wrapper refuses it.
 
 Your own real-time loop: subclass `DaemonModelServer` (`model_servers/daemons.py`) and write `run(self, ep)`, once
 per episode: answer `ep.observations()` with `req.reply(action)`, call the model via `ep.call`, stream with

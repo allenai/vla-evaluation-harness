@@ -167,12 +167,17 @@ A `DaemonModelServer` episode's `ep.clock` follows the transport:
 | inference | takes no sim time: due timers wake one at a time, and time moves on only once the episode's `ep.call`s finished | takes real time |
 | a late model | none: to simulate latency, the server answers observations itself (a hold, the previous chunk) until its result is due | the runner applies the benchmark's hold action |
 
-Any chunked `PredictModelServer` gets a simulated inference delay without code: a model-server config's top-level
+A chunked `PredictModelServer` gets a simulated inference delay without code: a model-server config's top-level
 `latency: {delay_steps: d, execute_steps: s}` (or `delay_s`, rounded up to whole steps of `step_dt`) wraps it in
 `DelayedChunkServer` (`model_servers/delayed.py`). Every `s` steps it infers from that step's observation; the chunk
-lands `d` steps later, the previous chunk playing meanwhile, and is served from action `d` (naive async execution, as
-`KinetixRTCServer` with `method=naive`). `d = 0` is the server with `chunk_size = s`; results do not depend on the
-machine. Sync only; `vla-eval serve -c <cfg> --arg latency.delay_steps=4` sweeps it.
+lands `d` steps later, the previous chunk playing meanwhile, and is served from action `d` (naive async execution).
+The first chunk lands at once and serves steps `0 .. s + d - 1`. Each step plays the action index `KinetixRTCServer`
+plays with `method=naive`, `latency=steps`; Kinetix draws a second sample from step 0's observation, this server one.
+`d = 0` is the server with `chunk_size = s`; results do not depend on the machine. The server's `predict` must not
+depend on which of its earlier actions ran (`assumes_whole_chunks` servers are refused). HELLO, and so the results'
+`server_info`, carry `inner_model_server` and `latency`. Sync only, no `VECTOR_STEP`, no cross-episode batching
+(`GET /config` has no `max_batch_size`); `vla-eval serve -c <cfg> --arg latency.delay_steps=4` sweeps it, and
+`--arg latency=null` turns it off.
 
 The sync clock is chrono's `SimClock`, which the framework advances through its settle hook (`advance_to(t,
 settle=...)`); a loop never calls `advance`. Observation `k` goes first at its instant (chrono `call_at`, priority
