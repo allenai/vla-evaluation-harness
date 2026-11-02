@@ -30,7 +30,7 @@ class RTCServer(DaemonModelServer):
     ) -> None:
         if not (math.isfinite(hz) and hz > 0 and chunk_size >= 1 and refill_at >= 0):
             raise ValueError("RTCServer needs a finite hz > 0, chunk_size >= 1 and refill_at >= 0")
-        super().__init__(backlog="latest", control_hz=hz)
+        super().__init__(backlog="latest", step_dt=1.0 / hz)
         self.chunk_size, self.hz, self.refill_at = chunk_size, hz, refill_at
         self.warmup_obs = warmup_obs
 

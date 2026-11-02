@@ -49,6 +49,8 @@ vla-eval test                                           # fast config validation
 vla-eval test --all                                     # run all available categories
 ```
 
+A server the default stub cannot drive declares a top-level `smoke: {task: {...}, obs: {key: shape}}` in its config (merged into the stub task; float32 zeros).
+
 Server tests require `uv` + model weights + GPU. Benchmark tests require Docker + the benchmark image (pulled via `docker pull`). Unavailable tests are auto-skipped.
 
 ## Linting, Formatting & Type Checking
@@ -94,6 +96,10 @@ src/vla_eval/
 9. Smoke-test: `vla-eval test -c configs/<name>.yaml` (runs 1 episode with an EchoModelServer; no real model or GPU needed, but requires Docker + the benchmark image)
 
 See `benchmarks/libero/` for a complete reference implementation.
+
+Set `step_dt` (seconds of env time per step: control period × env steps per action; an instance attribute when it
+depends on params) only when verified from the upstream source; a sync model server's clock advances that much per
+step. Leave it `None` when unknown.
 
 ### Vectorized Benchmarks
 
@@ -178,8 +184,10 @@ Every running episode is a row; inference and the episode hooks are batched over
 
 Your own real-time loop: subclass `DaemonModelServer` (`model_servers/daemons.py`) and write `run(self, ep)`, once
 per episode: answer `ep.observations()` with `req.reply(action)`, call the model via `ep.call`, stream with
-`ep.publish` (live only). `ep.clock` is a fresh `SimClock` per sync episode that the loop advances (by `ep.sim_dt`),
-else `WallClock`. An exception escaping the loop fails the episode (`model_act`); `EPISODE_END` drains its tasks and
+`ep.publish` (live only). `ep.clock` (`sleep`, `wait_until`, `every`) is wall time when live and sim time when sync:
+observation `k` arrives at `k * ep.step_dt`, and model calls (`ep.call`) take no sim time, so simulate latency by
+answering observations yourself until a result is due. Without a `step_dt` (benchmark or `step_dt=`), a sync clock
+raises on use. An exception escaping the loop fails the episode (`model_act`); `EPISODE_END` drains its tasks and
 model calls before `finish_episodes`. Warm up in `__init__` or `reset_episodes`, as above.
 Continuous inference (`backlog="latest"`, the default) is the whole loop:
 

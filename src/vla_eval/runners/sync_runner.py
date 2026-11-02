@@ -51,9 +51,9 @@ class SyncEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        hz = benchmark.control_hz
+        dt = benchmark.step_dt
         await start_model_episode(
-            conn, episode_start_payload(task, recorder, **({} if hz is None else {"control_hz": hz}))
+            conn, episode_start_payload(task, recorder, **({} if dt is None else {"step_dt": dt}))
         )
         try:
             steps = range(max_steps) if max_steps is not None else itertools.count()

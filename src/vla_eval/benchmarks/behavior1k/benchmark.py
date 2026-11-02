@@ -90,6 +90,8 @@ class Behavior1KBenchmark(StepBenchmark):
         time_budget: Enforce the challenge's wall-clock budget and per-query timeout (upstream default).
     """
 
+    step_dt = 1 / 30  # OmniGibson eval: 30 Hz actions over 120 Hz physics
+
     _ALL_RECORD_FIELDS = frozenset({"done", "terminated", "truncated", "success"})
 
     def __init__(

@@ -10,7 +10,7 @@ import heapq
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Iterator, Sequence
+from collections.abc import Awaitable, Callable, Generator, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar
@@ -192,10 +192,11 @@ class ModelServer(ABC):
         await checkpoint()  # a cancelled caller submits nothing
         return await self._run_submitted(fn, *args)
 
-    async def _run_submitted(self, fn: Callable[..., T], *args: Any) -> T:
+    async def _run_submitted(self, fn: Callable[..., T], *args: Any) -> T:  # ty: ignore[invalid-return-type]
         """``fn(*args)`` submitted with no await first, so what the caller checked still holds at submission."""
         future = self._model_thread.submit(fn, *args)
-        with anyio.CancelScope(shield=True):  # once submitted, returns only after fn finishes
+        # once submitted, returns only after fn finishes; never cancelled, so never suppresses (``__exit__ -> bool``)
+        with anyio.CancelScope(shield=True):
             return await _run_in_thread(future.result)
 
     async def on_serve_start(self, tg: TaskGroup) -> None:
@@ -379,7 +380,7 @@ class ModelServer(ABC):
         heapq.heappush(self._free, rid)
 
     @contextlib.contextmanager
-    def _track(self, pending: _Pending) -> Iterator[None]:
+    def _track(self, pending: _Pending) -> Generator[None]:
         """Keep a sync/vector ``pending`` reachable by ``fail_episode`` while it waits."""
         self._open.add(pending)
         try:

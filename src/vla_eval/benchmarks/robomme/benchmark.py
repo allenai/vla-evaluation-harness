@@ -158,6 +158,7 @@ class RoboMMEBenchmark(StepBenchmark):
             raise ValueError(f"subgoal_mode must be 'grounded' or 'simple', got {subgoal_mode!r}")
         self.tasks = tasks or list(_DEFAULT_TASK_LIST)
         self.action_space = action_space
+        self.step_dt = 0.05 if action_space in ("joint_angle", "ee_pose") else None  # one ManiSkill3 step at 20 Hz
         self.dataset = dataset
         self.max_steps = max_steps
         self.send_wrist_image = send_wrist_image

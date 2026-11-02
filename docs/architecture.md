@@ -138,7 +138,7 @@ ModelServer (ABC)            ← async callbacks: on_episode_start / on_observat
 ├── PredictModelServer       ← subclass this: predict(obs, row) or predict_batch(obs, rows), batched across
 │                              rows and connections (PredictionEngine); hooks reset_episodes / finish_episodes
 └── DaemonModelServer        ← run(ep) per episode (EpisodeDaemons): the loop decides when to infer, reply or
-                               publish, and advances its clock (SimClock when sync, WallClock when live)
+                               publish, on ep.clock (sim time when sync, wall time when live)
 ```
 
 Execution policies are loops on these primitives, not core classes: continuous inference is a few lines of
@@ -156,7 +156,25 @@ Live episodes may get server-initiated messages, each negotiated in HELLO (`capa
 (the client ends the episode `model_act`). A server that `requires` a capability refuses an old client's start
 (`ERROR` instead of `EPISODE_READY`, so the start fails `model_start`) and closes its socket. A `DaemonModelServer`
 sends `EPISODE_READY` once `reset_episodes` returned and the episode's `run` is scheduled. `EPISODE_START` may carry
-`control_hz` (the live runner's `hz`, else `BenchmarkCommon.control_hz`): a `DaemonModelServer` loop's `ep.sim_dt`.
+`step_dt`, seconds of env time per step (the live runner's `1 / hz`, else `BenchmarkCommon.step_dt`): a
+`DaemonModelServer` episode's `ep.step_dt`, falling back to the server's `step_dt`.
+
+A `DaemonModelServer` episode's `ep.clock` follows the transport:
+
+| | sync (and vector) | live |
+| --- | --- | --- |
+| `ep.clock` | sim time: observation `k` is delivered at `k * step_dt` | wall time |
+| inference | takes no sim time: due timers wake one at a time, and time moves on only once the episode's `ep.call`s finished | takes real time |
+| a late model | none: to simulate latency, the server answers observations itself (a hold, the previous chunk) until its result is due | the runner applies the benchmark's hold action |
+
+The sync clock is chrono's `SimClock`, which the framework advances through its settle hook (`advance_to(t,
+settle=...)`); a loop never calls `advance`. Observation `k` goes first at its instant (chrono `call_at`, priority
+-1): its `ep.call`s finish, then timers due at `k * step_dt` (float-close) fire, so a tick at `t` sees `t`'s
+observation, and a reply may wait for that tick.
+Determinism covers model calls made through `ep.call`; other async chains rely on `settle_rounds` checkpoints per wake
+(`DaemonModelServer(settle_rounds=...)`, default 8): raise it if a loop does many async hops before calling the model.
+Each episode's clock settles on its own. With no `step_dt` known, a sync episode's clock raises on use (loops that
+never touch it still work).
 
 The server runner (`model_servers/serve.py`) wraps any `ModelServer` into a WebSocket server with `serve(model_server, host, port)`.
 

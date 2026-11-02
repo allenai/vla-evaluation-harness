@@ -14,7 +14,10 @@
 # lerobot = { git = "https://github.com/huggingface/lerobot.git", rev = "v0.6.0" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """🤗 LeRobot policy model server.
 

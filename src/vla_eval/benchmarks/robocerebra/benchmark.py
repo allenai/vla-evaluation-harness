@@ -32,6 +32,9 @@ os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 _DUMMY_ACTION = [0.0] * 6 + [-1.0]
 
 
+_CONTROL_FREQ = 20  # robosuite Hz; step_dt follows it
+
+
 class RoboCerebraBenchmark(StepBenchmark):
     """RoboCerebra long-horizon manipulation benchmark.
 
@@ -51,6 +54,7 @@ class RoboCerebraBenchmark(StepBenchmark):
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success"})
 
     render_backends = frozenset({"gpu", "cpu"})
+    step_dt = 1 / _CONTROL_FREQ
 
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:
@@ -160,7 +164,7 @@ class RoboCerebraBenchmark(StepBenchmark):
             reward_shaping=True,
             camera_heights=256,
             camera_widths=256,
-            control_freq=20,
+            control_freq=_CONTROL_FREQ,
         )
         self._env.seed(self.seed)
         obs = self._env.reset()

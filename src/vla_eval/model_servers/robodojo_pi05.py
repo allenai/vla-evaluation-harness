@@ -20,7 +20,7 @@
 # openpi = { git = "https://github.com/XPolicyLab/XPolicyLab.git", rev = "fe71eb54675cef495fea817a637386a4f4529153", subdirectory = "policy/Pi_05/openpi" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
 # # The fork's own overrides don't propagate to consumers; without them
 # # lerobot(numpy>=2) vs openpi(numpy<2) is unresolvable.
 # override-dependencies = [
@@ -28,6 +28,9 @@
 #     "numpy>=1.22.4,<2.0.0",
 #     "tensorstore==0.1.74",
 # ]
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """π₀.₅ model server for RoboDojo leaderboard checkpoints.
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from typing import Any, ClassVar, Literal
 
@@ -41,7 +41,7 @@ class ModelActError(EpisodeError):
 
 
 @contextmanager
-def phase(error: type[EpisodeError]) -> Iterator[None]:
+def phase(error: type[EpisodeError]) -> Generator[None]:
     try:
         yield
     except (EpisodeError, ConnectionError, TimeoutError, websockets.exceptions.ConnectionClosed, RecordingError):

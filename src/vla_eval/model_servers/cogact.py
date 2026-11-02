@@ -20,7 +20,10 @@
 # cogact = { git = "https://github.com/microsoft/CogACT.git", rev = "b174a1b86deedfab4d198d935207e7bb0527994e" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 from __future__ import annotations
 

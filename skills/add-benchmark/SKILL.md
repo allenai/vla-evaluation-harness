@@ -61,6 +61,7 @@ Add configs under `configs/benchmarks/<name>/` per `configs/README.md`.
 | Requested inputs | Forward model-requested wrist/state settings through wrappers; explicit benchmark config takes precedence. Verify delivery to the server. |
 | Actions | Map controller, absolute/delta convention, frame, rotation, units, and gripper semantics. Apply each conversion in one layer. |
 | Results | Declare specs and metric aggregation; supply recording data through the harness, keeping recording policy out of the adapter. |
+| Time | Set `step_dt` (env seconds per step: control period × env steps per action) only when verified from upstream source; else leave `None`. |
 
 ## 4. Reset, termination, and episode identity
 

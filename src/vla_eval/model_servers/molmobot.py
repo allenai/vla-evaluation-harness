@@ -12,7 +12,10 @@
 # molmobot = { git = "https://github.com/allenai/MolmoBot.git", rev = "33c0ca77bf6062a23d60ffd4a6859334c4a46d30", subdirectory = "MolmoBot" }
 #
 # [tool.uv]
-# exclude-newer = "2026-10-31T00:00:00Z"
+# exclude-newer = "2026-11-02T00:20:00Z"
+#
+# [tool.ty.rules]  # ty checks scripts on their own, against the host env without their deps
+# unresolved-import = "ignore"
 # ///
 """MolmoBot model server (Molmo2-4B + DiT flow-matching).
 

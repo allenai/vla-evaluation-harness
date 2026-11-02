@@ -17,7 +17,8 @@ inputs, action format, and temporal behavior. Checkpoint variants may differ.
 Choose an existing bridge config, a focused bridge extension, or a dedicated server
 based on what is missing. Use `PredictModelServer` for blocking inference,
 `DaemonModelServer` for a per-episode real-time loop (`run(ep)`; RTC streaming is
-`examples/live_servers/rtc.py`), and `ModelServer` for custom async behavior; use
+`examples/live_servers/rtc.py`; time-based loops use `ep.clock`, sim time advanced
+`step_dt` per step in sync), and `ModelServer` for custom async behavior; use
 `run_server()` for the CLI.
 
 ## 2. Dependencies and model assets

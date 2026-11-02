@@ -1,11 +1,13 @@
 """Arm R: official eval_flow.eval on all 12 levels for selected (method, d, s); appends JSONL, skips done rows.
 
-RTC_SOLVED=terminal_reward: success = the terminal step's reward is +1 (Kinetix v3 semantics) instead of the
-last frame-skip substep's GoalR (cf7453e, the paper's metric).
+RTC_SOLVED: success read from the terminal step as the last frame-skip substep's GoalR (default; cf7453e, the paper),
+``terminal_reward`` (its reward, the max over substeps, is +1) or ``first_terminal`` (the first substep that ends the
+episode is a goal: Kinetix v3).  RTC_PHYSICS_PRECISION=highest: f32 dots in the physics (GPU default allows TF32).
 usage: python ref_eval.py <rtc_repo_src> <run_path> <out.jsonl> <group> ; group in {core, horizon, bid, bid_h, all}
 run_path holds numeric checkpoint dirs (e.g. 7/, 31/) with policies/worlds_l_<level>.pkl; strong = last, weak = first.
 """
 
+import contextlib
 import functools
 import os
 import json
@@ -25,15 +27,45 @@ from jax.experimental import shard_map  # noqa: E402
 
 import kinetix.environment.wrappers as W  # noqa: E402
 
-if os.environ.get("RTC_SOLVED") == "terminal_reward":  # Kinetix v3's GoalR: the step's first terminal substep
+SOLVED = os.environ.get("RTC_SOLVED", "goal_last_substep")
+PRECISION = os.environ.get("RTC_PHYSICS_PRECISION")
 
-    class _LogWrapper(W.LogWrapper):
-        def step(self, key, state, action, params=None):
-            obs, state, reward, done, info = super().step(key, state, action, params)
+
+def _engine_step(self, env_state, action, env_params):
+    """cf7453e's engine_step, plus the first terminal substep's goal and an optional dot precision."""
+    with jax.default_matmul_precision(PRECISION) if PRECISION else contextlib.nullcontext():
+
+        def single(state, _):
+            state, mfolds = self.physics_engine.step(state, env_params, action)
+            reward, info = self.compute_reward_info(state, mfolds)
+            return state, (reward, reward != 0, info)
+
+        env_state, (rewards, dones, infos) = jax.lax.scan(
+            single, env_state, None, length=self.static_env_params.frame_skip
+        )
+    env_state = env_state.replace(timestep=env_state.timestep + 1)
+    nan = jax.tree.reduce(jnp.logical_or, jax.tree.map(lambda x: jnp.isnan(x).any(), env_state), False)
+    done = dones.sum() > 0 | nan  # sic (cf7453e's precedence)
+    done |= env_state.timestep >= env_params.max_timesteps
+    info = jax.tree.map(lambda x: x[-1], infos)
+    info["first_terminal_goal"] = (dones.sum() > 0) & (rewards[dones.argmax()] > 0)
+    return self.get_obs(env_state), env_state, rewards.max(), done, info
+
+
+kenv.BasePhysicsEnv.engine_step = _engine_step
+
+
+class _LogWrapper(W.LogWrapper):
+    def step(self, key, state, action, params=None):
+        obs, state, reward, done, info = super().step(key, state, action, params)
+        if SOLVED == "terminal_reward":
             info["returned_episode_solved"] = reward > 0
-            return obs, state, reward, done, info
+        elif SOLVED == "first_terminal":
+            info["returned_episode_solved"] = info["first_terminal_goal"]
+        return obs, state, reward, done, info
 
-    W.LogWrapper = _LogWrapper
+
+W.LogWrapper = _LogWrapper
 
 import eval_flow as E  # noqa: E402
 
@@ -130,7 +162,8 @@ for m, d, s in combos:
                 d=d,
                 s=s,
                 n=2048,
-                metric=os.environ.get("RTC_SOLVED", "goal_last_substep"),
+                metric=SOLVED,
+                physics_precision=PRECISION or "default",
                 solved=float(r["returned_episode_solved"][i]),
                 ret=float(r["returned_episode_returns"][i]),
                 length=float(r["returned_episode_lengths"][i]),
