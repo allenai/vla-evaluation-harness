@@ -42,8 +42,9 @@ IMAGE_ENV: Final = {
 REDACTED: Final = "<redacted>"
 MAX_BYTES: Final = 32 * 1024
 """HELLO's ``provenance`` beyond this (as JSON) is replaced by an error: it rides every connection."""
-TIMEOUT_S: Final = 60.0
-"""``get_provenance`` still running after this at server start is recorded as an error instead."""
+TIMEOUT_S: Final = 20.0
+"""``get_provenance`` still running this long after server start is recorded as an error instead.  HELLO waits for
+it, so it stays below the client's default HELLO timeout (30 s)."""
 
 _NVIDIA_SMI_TIMEOUT_S: Final = 5.0
 
@@ -205,36 +206,71 @@ def _portable_path(p: Path) -> str:
 
 _SECRET_WORDS: Final = frozenset(
     {
-        *("token", "secret", "secrets", "password", "passwords", "passwd", "pass", "pwd", "passphrase"),
+        *("token", "secret", "secrets", "password", "passwords", "passwd", "pwd", "passphrase", "passcode"),
         *("apikey", "apikeys", "credential", "credentials", "auth", "authorization", "bearer", "cookie", "dsn"),
+        *("signature", "sig", "jwt", "otp", "pat", "sessionid", "webhook"),
     }
 )
+_SECRET_PAIRS: Final = frozenset(
+    {
+        *(("connection", "string"), ("conn", "str"), ("database", "url"), ("db", "url"), ("session", "id")),
+        *(("key", "id"), ("private", "key"), ("service", "account"), ("api", "key"), ("api", "keys")),
+    }
+)
+"""Adjacent words naming a secret together (``database_url``, ``access_key_id``, ``service_account_json``)."""
 _HARMLESS_QUALIFIERS: Final = {
     "key": frozenset(
-        {"image", "state", "unnorm", "camera", "video", "action", "modality", "policy", "language", "bench", "obs"}
+        {
+            *("image", "state", "unnorm", "camera", "video", "action", "modality", "policy", "language", "bench"),
+            *("obs", "dataset", "sort", "cache", "norm", "stats", "proprio", "instruction", "task", "depth"),
+            *("query", "rng", "prng", "seed", "random", "jax", "dropout", "output", "input", "condition", "cond"),
+            *("eef", "gripper", "lang", "text", "label", "embodiment", "primary", "dict", "map", "lookup"),
+        }
     ),
-    "token": frozenset({"max", "new", "num", "added", "special", "pad", "eos", "bos"}),
+    "token": frozenset(
+        {"max", "new", "num", "added", "special", "pad", "eos", "bos", "prompt", "action", "vision", "image", "keep"}
+    ),
+    "pass": frozenset({"use", "skip", "first", "second", "multi", "single", "forward", "backward", "by"}),
 }
-"""Words before a trailing ``key(s)``/``token(s)`` that name data, not a secret: those the shipped model servers and
-configs use (``unnorm_key``, ``image_keys``, ``wrist_image_key``, ``max_new_tokens``, ...)."""
+"""Words before a trailing ``key(s)``/``token(s)``/``pass`` that name data, not a secret: those the shipped model
+servers and configs use (``unnorm_key``, ``image_keys``, ``max_new_tokens``, ...) and common ML names (``rng_key``,
+``action_tokens``, ``second_pass``)."""
+_KNOWN_TOKEN = re.compile(
+    r"(?<![\w-])(?:hf_[A-Za-z0-9]{16,}|sk-[\w-]{10,}|gh[pousr]_[A-Za-z0-9]{10,}|github_pat_\w{20,}"
+    r"|xox[abprs]-[\w-]{10,}|AKIA[0-9A-Z]{16}|glpat-[\w-]{20,}|AIza[\w-]{35})(?![\w-])"
+)
+"""Credentials recognisable by their format alone (Hugging Face, OpenAI-style, GitHub, Slack, AWS, GitLab, Google)."""
 
 _URL_USERINFO = re.compile(
-    r"(?<=://)(?:[^\s/?#]*@"  # as urllib splits it: up to the authority's last @ (user:p@ss@host)
+    r"(?<=://)(?!git@)(?:[^\s/?#]*@"  # as urllib splits it: up to the authority's last @ (user:p@ss@host)
     r"|[^\s/?#@:]*:(?!\d*(?:[/?#\s]|$))[^\s@]*@)"  # user:pa/ss@host: an authority whose ':x' is no port
 )
-_DSN_USERINFO = re.compile(r"(?:^|(?<=[\s=]))[\w.~%+-]+:[^\s@/:]+@(?!sha\d+:)(?=[\w.-]+(?::\d+)?(?:[/?\s]|$))")
-"""Scheme-less ``user:pass@host[:port][/db]``; not ``git@host:org/repo`` nor ``name:tag@sha256:...``."""
-_AUTH_VALUE = re.compile(r"(?i)^\s*(?:bearer\s+[\w.~+/-]{8,}=*|basic\s+[A-Za-z0-9+/]{8,}={0,2})\s*$")
+_DSN_USERINFO = re.compile(
+    r"(?:^|(?<=[\s=(\"']))[\w.~%+-]+:[^\s@/:]+@(?!sha\d+:)"
+    r"(?=(?:[\w-]+\.[\w.-]+|[\w.-]+:\d+|localhost)(?::\d+)?(?:[/?\s]|$))"
+)
+"""Scheme-less ``user:pass@host.domain[:port][/db]`` (a host with a dot or a port); not ``git@host:org/repo``,
+``name:tag@sha256:...`` nor ``model:v1@hf``."""
+_SCHEME = r"(?i:(?:bearer|basic|token|digest)\s+)"
+_AUTH_VALUE = re.compile(rf"^\s*{_SCHEME}[\w.~+/-]{{8,}}=*\s*$")
 """A whole value that is an auth header's (``Bearer <token>``, ``Basic <base64>``), not prose like ``basic setup``."""
-_AUTH_HEADER = re.compile(r"(?i)\b((?:proxy-)?authorization)\s*[:=]\s*\S+(?:\s+\S+)?")
-_QUERY_PARAM = re.compile(r"(?<=[?&])([^=&#\s]+)=([^&#\s]*)")
+_NAMED = re.compile(
+    rf"""(?<![\w-])(-{{0,2}}["']?)([A-Za-z_][\w-]{{0,63}})(["']?\s*(?:=|:(?!//))\s*["']?)({_SCHEME}?[^\s&#,;"'}}\]]+)"""
+)
+"""``name=value``, ``name: value``, ``"name": "value"``, ``--name=value`` and query/fragment parameters: the value
+(with an auth scheme, ``Authorization: Bearer x``) is scrubbed when ``name`` is secret."""
+_FLAG = re.compile(r"(?<![\w-])(--?[A-Za-z][\w-]{0,63})(\s+)([^\s-]\S*)")
+"""``--name value``: the value is scrubbed when ``name`` is secret."""
+_BARE_NAME = re.compile(r"-{0,2}[A-Za-z_][\w-]{0,63}")
+MAX_SCRUB_CHARS: Final = 2048
+"""Longer strings are not recorded (nor scanned): provenance values are names, paths and URLs."""
 _PACKAGE_KEYED: Final = frozenset({("script", "sources")})
 """Mappings keyed by package name, not by what the value holds: ``google-auth`` is no secret."""
 
 
 def _words(name: object) -> list[str]:
     """``name`` as lowercase words, split at non-alphanumerics, camelCase and acronyms (``HFToken``: hf, token)."""
-    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", str(name))
+    s = re.sub(r"([A-Z])(?=[A-Z][a-z])", r"\1_", str(name))  # linear: no backtracking over a run of capitals
     return re.findall(r"[a-z0-9]+", re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s).lower())
 
 
@@ -244,23 +280,28 @@ def is_secret_key(name: object) -> bool:
     ``token``/``tokens`` (``hf_key``, ``api_keys``, ``HFToken``, ``key``) unless the word before it is in
     ``_HARMLESS_QUALIFIERS`` (``unnorm_key``, ``image_keys``, ``max_new_tokens``).  Words, not substrings:
     ``tokenizer_name`` and ``keyframe`` do not match."""
-    words = _words(name)
+    words = [w.rstrip("0123456789") or w for w in _words(name)]  # password1, key2
     if not words:
         return False
-    last = words[-1].removesuffix("s")
-    if last in ("key", "token"):
+    last = words[-1] if words[-1] == "pass" else words[-1].removesuffix("s")
+    if last in _HARMLESS_QUALIFIERS:  # key, token, pass
         return len(words) == 1 or words[-2] not in _HARMLESS_QUALIFIERS[last]
-    return any(w in _SECRET_WORDS for w in words) or last.endswith("token")  # hftoken, accesstoken
+    if any(w in _SECRET_WORDS for w in words) or last.endswith("token"):  # hftoken, accesstoken
+        return True
+    return any(pair in _SECRET_PAIRS for pair in zip(words, words[1:]))
 
 
 def _scrub(text: str) -> str:
-    """``text`` without credentials: an auth header value (``Bearer ...``), URL or DSN userinfo, and secret-named
-    query parameters (``?token=...``)."""
+    """``text`` without credentials: an auth header value (``Bearer ...``), URL or DSN userinfo, and the value of
+    any secret-named ``name=value`` / ``name: value`` / ``--name value`` (query parameters, CLI flags, env-style
+    and JSON-ish text)."""
+    if len(text) > MAX_SCRUB_CHARS:
+        return f"<{len(text)} chars, not recorded>"
     if _AUTH_VALUE.match(text):
         return REDACTED
-    text = _AUTH_HEADER.sub(r"\1: ***", text)
-    text = _DSN_USERINFO.sub("***@", _URL_USERINFO.sub("***@", text))
-    return _QUERY_PARAM.sub(lambda m: f"{m[1]}=***" if is_secret_key(m[1]) else m[0], text)
+    text = _KNOWN_TOKEN.sub("***", _DSN_USERINFO.sub("***@", _URL_USERINFO.sub("***@", text)))
+    text = _NAMED.sub(lambda m: f"{m[1]}{m[2]}{m[3]}***" if is_secret_key(m[2]) else m[0], text)
+    return _FLAG.sub(lambda m: f"{m[1]}{m[2]}***" if is_secret_key(m[1]) else m[0], text)
 
 
 def redact(value: Any) -> Any:
@@ -279,7 +320,13 @@ def _redact(value: Any, path: tuple[str, ...]) -> Any:
             out[str(k)] = REDACTED if secret else _redact(v, (*path, str(k)))
         return out
     if isinstance(value, (list, tuple, set, frozenset)):
-        return [_redact(v, path) for v in value]
+        items = sorted(value, key=repr) if isinstance(value, (set, frozenset)) else list(value)  # stable across runs
+        out_list: list[Any] = []
+        for prev, v in zip([None, *items], items):
+            # ["--hf-token", "x"], ("Authorization", "x"): a secret-named item names the next one
+            named = isinstance(prev, str) and _BARE_NAME.fullmatch(prev) and is_secret_key(prev)
+            out_list.append(REDACTED if named and v is not None and not isinstance(v, bool) else _redact(v, path))
+        return out_list
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, enum.Enum):
@@ -317,14 +364,19 @@ def safe_provenance(get: Callable[[], Mapping[str, Any]]) -> dict[str, Any]:
     return _guard(build)
 
 
-def bounded_provenance(get: Callable[[], Mapping[str, Any]], timeout: float | None = None) -> dict[str, Any]:
-    """``safe_provenance(get)``, or ``{"error": ...}`` once it has run ``timeout`` (default ``TIMEOUT_S``) seconds: a
-    stuck ``get`` is left on its daemon thread, not waited on.  Blocks: call it off the event loop."""
+async def compute_provenance(get: Callable[[], Mapping[str, Any]], timeout: float | None = None) -> dict[str, Any]:
+    """``safe_provenance(get)`` on a daemon thread, awaited without blocking the event loop; ``{"error": ...}`` once
+    it has run ``timeout`` (default ``TIMEOUT_S``) seconds.  A stuck ``get`` is abandoned, and cancelling (Ctrl-C)
+    returns at once: the daemon thread never holds up exit."""
+    import anyio
+
     timeout = TIMEOUT_S if timeout is None else timeout
     box: list[dict[str, Any]] = []
     thread = threading.Thread(target=lambda: box.append(safe_provenance(get)), name="vla-eval-provenance", daemon=True)
     thread.start()
-    thread.join(timeout)
+    with anyio.move_on_after(timeout):
+        while thread.is_alive():
+            await anyio.sleep(0.01)
     if box:
         return box[0]
     if thread.is_alive():

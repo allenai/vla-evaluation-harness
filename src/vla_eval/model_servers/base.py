@@ -173,7 +173,8 @@ class ModelServer(ABC):
     """Whether clients may send ``VECTOR_STEP`` (HELLO capability ``vector_step``)."""
 
     _launch_args: dict[str, Any] | None = None  # constructor kwargs as run_server parsed them
-    _provenance: dict[str, Any] | None = None  # get_provenance, made safe at server start
+    _provenance: dict[str, Any] | None = None  # get_provenance, made safe; computed from server start
+    _provenance_done: anyio.Event | None = None  # set once _provenance is final (HELLO waits on it)
 
     def __init__(self) -> None:
         # Every model call on one thread, one at a time: CUDA graphs (torch.compile) and JAX are thread-bound.
@@ -331,9 +332,10 @@ class ModelServer(ABC):
         each benchmark's results.  Default: class, script path, sha256 and PEP 723 pins (dependencies,
         ``[tool.uv.sources]`` revs, ``exclude-newer``), constructor args from ``run_server`` with secret-named
         values redacted, and host (platform, Python, GPUs).  Override to add what only the server knows, e.g.
-        a resolved checkpoint revision: ``{**super().get_provenance(), "checkpoint_rev": ...}``.  Called once, at
-        server start before connections are accepted, on its own thread; keep it small (``provenance.MAX_BYTES``)
-        and quick (``provenance.TIMEOUT_S``).  A failure or timeout is recorded, not raised.
+        a resolved checkpoint revision: ``{**super().get_provenance(), "checkpoint_rev": ...}``.  Called once, on its
+        own thread, as the server starts listening; the first HELLO waits for it.  Keep it small
+        (``provenance.MAX_BYTES``) and quick (``provenance.TIMEOUT_S``).  A failure or timeout is recorded, not
+        raised.
         """
         from vla_eval.provenance import model_server_provenance
 

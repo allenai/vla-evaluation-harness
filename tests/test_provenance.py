@@ -126,6 +126,8 @@ def test_redaction_is_by_word_and_strips_url_credentials() -> None:
         *("wandb_key", "openai_key", "hf_key", "ssh_key", "client_key", "HFToken", "OpenAIKey", "hftoken"),
         *("api_keys", "apiKeys", "hf_tokens", "authorization", "Authorization", "bearer", "pwd", "passphrase"),
         *("db_pass", "sentry_dsn", "x-api-key", "AWS_SECRET_ACCESS_KEY", "privateKey", "HF_TOKEN", "keys"),
+        *("github_pat", "jwt", "session_id", "database_url", "connection_string", "access_key_id", "password1"),
+        *("api_keys_list", "webhook_url", "service_account_json", "key2"),
     ],
 )
 def test_secret_names(name) -> None:
@@ -138,7 +140,8 @@ def test_secret_names(name) -> None:
         *("max_tokens", "max_new_tokens", "num_tokens", "added_tokens", "pad_token", "tokenizer_name"),
         *("unnorm_key", "unnorm_keys", "image_key", "image_keys", "wrist_image_key", "state_key", "camera_keys"),
         *("video_keys", "action_keys", "modality_keys", "policy_key", "language_key", "keyframe", "checkpoint"),
-        *("passthrough", "bypass", "compass"),
+        *("passthrough", "bypass", "compass", "pass_through", "second_pass", "pass_rate"),
+        *("rng_key", "dataset_key", "task_key", "proprio_keys", "action_tokens", "num_image_tokens", "prompt_tokens"),
     ],
 )
 def test_harmless_names_stay_visible(name) -> None:
@@ -150,7 +153,7 @@ def test_harmless_names_stay_visible(name) -> None:
     [
         ("Bearer sk-live-123", prov.REDACTED),
         ("basic dXNlcjpwYXNz", prov.REDACTED),
-        ("curl -H 'Authorization: Bearer sk-live-123' x", "curl -H 'Authorization: *** x"),
+        ("curl -H 'Authorization: Bearer sk-live-123' x", "curl -H 'Authorization: ***' x"),
         ("https://user:p@ss@host/x", "https://***@host/x"),  # urllib: up to the authority's last @
         ("https://user:pa/ss@host/x", "https://***@host/x"),
         ("https://tok@host/x", "https://***@host/x"),
@@ -158,19 +161,49 @@ def test_harmless_names_stay_visible(name) -> None:
         ("https://host/x?token=sk-1&api_key=abc&page=2", "https://host/x?token=***&api_key=***&page=2"),
         ("https://host/x?max_tokens=8", "https://host/x?max_tokens=8"),
         ("user:sekret@host:5432/db", "***@host:5432/db"),
-        ("postgres dsn=user:sekret@db.internal", "postgres dsn=***@db.internal"),
+        ("postgres dsn=user:sekret@db.internal", "postgres dsn=***"),
         # not credentials: kept as they are
         ("https://hf.co/org/model@main", "https://hf.co/org/model@main"),
         ("https://github.com:443/org/pkg@v1", "https://github.com:443/org/pkg@v1"),
         ("git@github.com:org/repo.git", "git@github.com:org/repo.git"),
         (f"ubuntu:22.04@{DIGEST}", f"ubuntu:22.04@{DIGEST}"),
         ("Do a basic pick task", "Do a basic pick task"),
+        # secret-named values in flags, env-style text, JSON-ish text, fragments and signed URLs
+        ("--token=sk-1 --checkpoint=org/model", "--token=*** --checkpoint=org/model"),
+        ("--hf-token sk-1 --device cuda", "--hf-token *** --device cuda"),
+        ("--authorization=abc --checkpoint=org/model", "--authorization=*** --checkpoint=org/model"),
+        ("HF_TOKEN=hf_x python serve.py", "HF_TOKEN=*** python serve.py"),
+        ('{"token": "sk-1", "model": "m"}', '{"token": "***", "model": "m"}'),
+        ("Token abcdefgh123", prov.REDACTED),
+        ("https://host/cb#access_token=abc", "https://host/cb#access_token=***"),
+        ("https://b.s3.aws/o?X-Amz-Signature=abc&x=1", "https://b.s3.aws/o?X-Amz-Signature=***&x=1"),
+        ("model:v1@hf", "model:v1@hf"),
+        ("ssh://git@github.com/org/repo.git", "ssh://git@github.com/org/repo.git"),
+        ("use hf_abcdefghijklmnopqrstu here", "use *** here"),
+        ("ghp_abcdefghijklmnop", "***"),
+        ("x" * 3000, "<3000 chars, not recorded>"),
         ("basic setup", "basic setup"),
         ("Bearer of bad news", "Bearer of bad news"),
     ],
 )
 def test_credentials_are_scrubbed_from_values(value, scrubbed) -> None:
     assert prov.redact({"v": value}) == {"v": scrubbed}
+
+
+def test_list_items_named_by_a_secret_flag_and_sets_are_stable() -> None:
+    out = prov.redact({"argv": ["--hf-token", "hf_x", "--device", "cuda"], "headers": [["Authorization", "tok"]]})
+    assert out == {
+        "argv": ["--hf-token", prov.REDACTED, "--device", "cuda"],
+        "headers": [["Authorization", prov.REDACTED]],
+    }
+    assert prov.redact({"s": {"b", "a", "c"}}) == {"s": ["a", "b", "c"]}  # sorted: one hash order for all shards
+
+
+def test_scrub_stays_linear_on_adversarial_input() -> None:
+    for text in ("?a" * 1000, "A" * 2000 + "b", "://a:b" * 300, "x=" * 1000):
+        t0 = time.monotonic()
+        prov.redact({"v": text, text[:60]: 1})
+        assert time.monotonic() - t0 < 0.5, text[:12]
 
 
 def test_auth_header_and_script_sources() -> None:
@@ -242,7 +275,7 @@ def test_safe_provenance_never_raises() -> None:
 
     assert prov.safe_provenance(boom) == {"error": "RuntimeError: no checkpoint"}
     assert "error" in prov.safe_provenance(lambda: ["not", "a", "dict"])  # ty: ignore[invalid-argument-type]
-    assert "error" in prov.safe_provenance(lambda: {"blob": "x" * prov.MAX_BYTES})
+    assert "error" in prov.safe_provenance(lambda: {"blob": ["x" * 1000] * (prov.MAX_BYTES // 1000 + 1)})
     assert prov.safe_provenance(lambda: {"secret": "s", "p": Path("/x")}) == {"secret": prov.REDACTED, "p": "/x"}
 
 
@@ -408,9 +441,12 @@ class _StuckProvenance(EchoModelServer):
 
 
 @pytest.mark.anyio
-async def test_slow_provenance_is_computed_before_connections_not_in_hello(free_port) -> None:
-    async with running(_SlowProvenance(), free_port) as url:  # serving: provenance is already cached
-        conn = Connection(url, timeout=0.5)  # shorter than get_provenance takes
+async def test_slow_provenance_does_not_delay_listening(free_port) -> None:
+    """The server listens at once (serve_background's start deadline); HELLO waits for the slow get_provenance."""
+    t0 = time.monotonic()
+    async with running(_SlowProvenance(), free_port) as url:
+        assert time.monotonic() - t0 < 0.5  # listening before get_provenance (1 s) returned
+        conn = Connection(url, timeout=5.0)
         try:
             await conn.connect()
             assert conn.server_info["provenance"]["checkpoint_rev"] == "abc"

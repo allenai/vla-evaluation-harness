@@ -36,13 +36,16 @@ def _json_default(obj: Any) -> Any:
 def _image_of(metadata: dict[str, Any]) -> dict[str, Any] | None:
     """The benchmark image identity in eval metadata (host differences between shards are expected)."""
     block = (metadata.get("provenance") or {}).get("benchmark")
-    return {k: block.get(k) for k in ("digest", "id", "runtime")} if isinstance(block, dict) else None
+    return {k: block.get(k) for k in ("digest", "id", "runtime", "dev")} if isinstance(block, dict) else None
 
 
 def _images_differ(a: dict[str, Any], b: dict[str, Any]) -> bool:
     """Known to be different images: ``digest`` when both have one; else ``id`` when both ran one runtime (an ``id``
     is store-specific: classic and containerd Docker differ for one image).  Missing is unknown, not different;
-    the reference is not compared, so a mirror pull of the same digest agrees."""
+    the reference is not compared, so a mirror pull of the same digest agrees.  A ``--dev`` shard ran host code, so
+    it differs from one that did not."""
+    if bool(a["dev"]) != bool(b["dev"]):
+        return True
     if a["digest"] and b["digest"]:
         return a["digest"] != b["digest"]
     if a["digest"] or b["digest"]:
