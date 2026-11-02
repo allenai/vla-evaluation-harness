@@ -12,7 +12,8 @@ native scene/reward/reset/observation code through vla-eval's model-server proto
 ## Requirements
 
 - NVIDIA GPU + Container Toolkit, acceptance of the NVIDIA Isaac Sim EULA
-- the RoboDojo eval assets (~90 GiB), mounted at runtime (licence-restricted, never baked in)
+- the RoboDojo eval assets (~38.5 GiB; `init_assets.sh` also keeps a copy in its git-LFS cache),
+  mounted at runtime (licence-restricted, never baked in)
 
 ## Build the image
 

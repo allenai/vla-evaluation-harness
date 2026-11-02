@@ -9,7 +9,7 @@
 #   docker build -t robodojo:cuda12.8 RoboDojo
 #   docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
 #
-# Eval assets (~90 GiB) are licence-restricted and mounted at runtime under
+# Eval assets (~38.5 GiB) are licence-restricted and mounted at runtime under
 # /workspace/RoboDojo/Assets — see configs/benchmarks/robodojo/README.md.
 ARG BASE_IMAGE=robodojo:cuda12.8
 FROM ${BASE_IMAGE}

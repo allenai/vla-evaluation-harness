@@ -13,7 +13,7 @@ docker:
     - "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json"
     - "VK_DRIVER_FILES=/usr/share/vulkan/icd.d/nvidia_icd.json"  # newer Vulkan loaders prefer this over VK_ICD_FILENAMES
   volumes:
-    # RoboDojo assets (~90 GiB) are licence-restricted and never baked into the
+    # RoboDojo assets (~38.5 GiB) are licence-restricted and never baked into the
     # image. Fetch them once with the upstream downloader (see README.md) and
     # point ROBODOJO_ASSETS at the resulting Assets/ directory.
     - "${oc.env:ROBODOJO_ASSETS,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robodojo/Assets}:/workspace/RoboDojo/Assets:ro"
