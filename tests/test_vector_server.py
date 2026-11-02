@@ -153,7 +153,7 @@ async def test_a_step_infers_its_rows_in_slices_of_max_batch_size(free_port):
     server = BatchLogServer(max_batch_size=2)
     task, conn = await _connect(server, free_port)
     try:
-        assert conn.server_info["capabilities"] == {"vector_step": True}
+        assert conn.server_info["capabilities"] == {"vector_step": True, "episode_ready": True}
         reply = await conn.exchange(_step([4, 0, 2], [_start(s) for s in (0, 2, 4)]))
         assert server.started == [[0, 1, 2]] and server.batches == [[2, 0], [1]]  # one start call for the step
         assert isinstance(reply["actions"]["actions"], np.ndarray) and reply["errors"] == []

@@ -406,11 +406,7 @@ class Orchestrator:
             return await self._run_vector(benchmark, conn, entry)
         runner: SyncEpisodeRunner | LiveEpisodeRunner = SyncEpisodeRunner()
         if live:
-            runner = LiveEpisodeRunner(
-                hz=cfg.hz,
-                clock=Clock(pace=1.0 if cfg.paced else math.inf),
-                wait_first_action=cfg.wait_first_action,
-            )
+            runner = LiveEpisodeRunner(hz=cfg.hz, clock=Clock(pace=1.0 if cfg.paced else math.inf))
         return await self._run_one_at_a_time(benchmark, runner, conn, entry)
 
     def _episode_ended(

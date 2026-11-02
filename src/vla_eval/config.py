@@ -229,8 +229,6 @@ class EvalConfig:
     throughput_mode: bool = False
     # Whether to pace the step loop to real-time (True=real-time, False=max speed)
     paced: bool = True
-    # Wait for first action before starting step loop (sanity check: should match sync)
-    wait_first_action: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EvalConfig:
@@ -240,6 +238,10 @@ class EvalConfig:
         recording = data.get("recording")
         if recording is not None and not isinstance(recording, dict):
             raise ValueError("Config error: 'recording' must be a mapping or null.")
+        if "wait_first_action" in data:
+            raise ValueError(
+                "Config error: 'wait_first_action' was removed: the runner now waits for the server's EPISODE_READY."
+            )
 
         return cls(
             benchmark=benchmark_path,
@@ -255,7 +257,6 @@ class EvalConfig:
             hz=data.get("hz", 10.0),
             throughput_mode=data.get("throughput_mode", False),
             paced=_parse_paced(data),
-            wait_first_action=data.get("wait_first_action", False),
         )
 
     def resolved_name(self) -> str:

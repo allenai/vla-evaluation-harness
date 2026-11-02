@@ -129,7 +129,8 @@ class Rows:
 class ModelServer(ABC):
     """What ``serve`` drives: implement ``on_observation`` and answer each row with ``send_action`` /
     ``send_error``, now or later.  Load weights and warm up in ``__init__`` (call ``super().__init__()``):
-    connections are accepted as soon as it returns."""
+    connections are accepted as soon as it returns.  An episode is ready (``EPISODE_READY``) once
+    ``on_episode_start`` returns: its first inference must then run at steady-state latency."""
 
     max_rows: int | None = None
     """Most concurrent episodes (``None``: no limit); starts beyond it fail."""

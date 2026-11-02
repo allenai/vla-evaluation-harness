@@ -18,6 +18,7 @@ from vla_eval.runners.base import (
     EnvStartError,
     EnvStepError,
     ModelActError,
+    ModelStartError,
     episode_end_payload,
     episode_start_payload,
     phase,
@@ -186,9 +187,11 @@ class VectorEpisodeRunner:
         errors = {slot: detail for slot, detail in reply.get("errors", [])}
         if errors:
             for slot in [s for s in self._slots if s in errors]:
-                error = ModelActError(f"Server error: {errors[slot]}")
+                started = not str(errors[slot]).startswith("episode_start_failed")  # else no server episode to end
+                error = (ModelActError if started else ModelStartError)(f"Server error: {errors[slot]}")
                 self._on_end(self._running.pop(slot).episode, None, error)
-                self._ends.append([slot, episode_end_payload(error=error)])
+                if started:
+                    self._ends.append([slot, episode_end_payload(error=error)])
             self._keep([i for i, s in enumerate(self._slots) if s not in errors])
         actions = reply.get("actions", {})
         try:

@@ -20,7 +20,7 @@ from vla_eval.cli._docker import (
     run_in_container as _run_in_container,
 )
 from vla_eval.cli.config_loader import load_config as _load_config
-from vla_eval.config import DockerConfig, merge_benchmark_overrides
+from vla_eval.config import DockerConfig, EvalConfig, merge_benchmark_overrides
 from vla_eval.orchestrator import Orchestrator, UnhealthyShardError
 from vla_eval.render import (
     RENDER_MODES,
@@ -157,6 +157,9 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     # Render backend: resolved after --gpus so an explicit device spec counts as deliberate.
     try:
+        for entry in config.get("benchmarks") or []:
+            if isinstance(entry, dict):
+                EvalConfig.from_dict(entry)  # a bad entry fails here, not in the container
         render_mode = _resolve_render_mode(config, getattr(args, "render", None), cli_gpus)
         _check_render_support(config, render_mode)
     except ValueError as exc:
