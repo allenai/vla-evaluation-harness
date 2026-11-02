@@ -42,7 +42,12 @@ def load_aggregate(path: str | Path) -> dict[str, Any]:
     body = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(body, dict) or not isinstance(body.get("tasks"), list):
         raise ValueError(f"{path}: not an aggregate JSON (no 'tasks' list)")
-    if not any(isinstance(t, dict) and t.get("episodes") for t in body["tasks"]):
+    for t in body["tasks"]:
+        if not isinstance(t, dict) or not isinstance(t.get("episodes") or [], list):
+            raise ValueError(f"{path}: malformed task entry in 'tasks': {str(t)[:80]}")
+        if not all(isinstance(ep, dict) for ep in t.get("episodes") or []):
+            raise ValueError(f"{path}: malformed episode in task {t.get('task')!r}")
+    if not any(t.get("episodes") for t in body["tasks"]):
         raise ValueError(f"{path}: aggregate has no per-episode rows (tasks[].episodes)")
     return body
 
@@ -99,22 +104,31 @@ def summarize(body: dict[str, Any], metric: str, path: str | Path | None, binary
     }
 
 
-def _identify(rows: list[tuple[str, dict[str, Any], Any]], use_suite: bool) -> list[tuple[_TaskId, Any, Any]]:
-    """``(task identity, episode_id, value)`` per row.  Same-named tasks within the run (merged under one name in
-    the aggregate) are told apart by the rank of their ``task_idx``."""
+def _base(task: str, ep: dict[str, Any], use_suite: bool) -> tuple[Any, ...]:
+    return (task, ep.get("suite") if use_suite else None)
 
-    def base(task: str, ep: dict[str, Any]) -> tuple[Any, ...]:
-        return (task, ep.get("suite") if use_suite else None)
 
+def _copies(body: dict[str, Any], use_suite: bool) -> dict[tuple[Any, ...], dict[int, int]] | None:
+    """Same-named tasks of a run, told apart by the rank of their ``task_idx`` among that name's: ``{(task, suite):
+    {task_idx: rank}}`` over *every* episode (not only those with the metric), or ``None`` unless every episode
+    records ``task_idx``."""
     indices: dict[tuple[Any, ...], set[int]] = {}
-    for task, ep, _ in rows:
-        if isinstance(idx := ep.get("task_idx"), int):
-            indices.setdefault(base(task, ep), set()).add(idx)
-    rank = {b: {idx: k for k, idx in enumerate(sorted(s))} for b, s in indices.items()}
-    return [
-        (base(task, ep) + (rank.get(base(task, ep), {}).get(ep.get("task_idx"), 0),), ep.get("episode_id"), v)
-        for task, ep, v in rows
-    ]
+    for task, ep in _all_episodes(body):
+        if not isinstance(idx := ep.get("task_idx"), int) or isinstance(idx, bool):
+            return None
+        indices.setdefault(_base(task, ep, use_suite), set()).add(idx)
+    return {b: {idx: k for k, idx in enumerate(sorted(s))} for b, s in indices.items()}
+
+
+def _identify(
+    rows: list[tuple[str, dict[str, Any], Any]], use_suite: bool, copies: dict[tuple[Any, ...], dict[int, int]] | None
+) -> list[tuple[_TaskId, Any, Any]]:
+    """``(task identity, episode_id, value)`` per row: ``(task, suite, copy rank)``; rank 0 without ``copies``."""
+    out = []
+    for task, ep, v in rows:
+        b = _base(task, ep, use_suite)
+        out.append((b + ((copies or {}).get(b, {}).get(ep.get("task_idx"), 0),), ep.get("episode_id"), v))
+    return out
 
 
 def _keyed(rows: list[tuple[_TaskId, Any, Any]]) -> tuple[dict[_Key, Any], int]:
@@ -220,12 +234,28 @@ def compare_runs(
         raise ValueError(f"no episode has a numeric metric {metric!r}")
     binary = stats.is_binary(v for _, _, v in rows_a + rows_b)
     use_suite = all("suite" in ep for _, ep, _ in rows_a + rows_b)
-    ida, idb = _identify(rows_a, use_suite), _identify(rows_b, use_suite)
+    # Copy ranks only when both runs record task_idx; a name run a different number of times by each side has no
+    # reliable correspondence between its copies, so it is left out.
+    copies_a, copies_b = _copies(a, use_suite), _copies(b, use_suite)
+    if copies_a is None or copies_b is None:
+        copies_a = copies_b = None
+    ida, idb = _identify(rows_a, use_suite, copies_a), _identify(rows_b, use_suite, copies_b)
     tasks_a, tasks_b = {t for t, _, _ in ida}, {t for t, _, _ in idb}
-    shared = tasks_a & tasks_b
+    ambiguous = (
+        {n for n in copies_a.keys() & copies_b.keys() if len(copies_a[n]) != len(copies_b[n])}
+        if copies_a is not None and copies_b is not None
+        else set()
+    )
+    shared = {t for t in tasks_a & tasks_b if t[:2] not in ambiguous}
     if not shared:
         raise ValueError(f"A and B share no task (matched on task name{' and suite' if use_suite else ''})")
     warnings = condition_warnings(a, b)
+    if ambiguous:
+        warnings.append(
+            f"{len(ambiguous)} task name(s) run a different number of times by A and B are left out: "
+            + ", ".join(sorted(str(n[0]) for n in ambiguous)[:3])
+            + (", …" if len(ambiguous) > 3 else "")
+        )
     if a.get("benchmark") != b.get("benchmark"):
         warnings.insert(0, f"benchmarks differ (A {a.get('benchmark')}, B {b.get('benchmark')})")
     sa, sb = [r for r in ida if r[0] in shared], [r for r in idb if r[0] in shared]
@@ -455,7 +485,9 @@ def print_report(report: dict[str, Any]) -> None:
                 if with_p:
                     cells.append(f"{row['p_value']:.3g}")
                 task_rows.append(cells)
-            title = "Per task" + (", A − B in pp" if binary else "") + (f" (tasks: {prefix}…)" if prefix else "")
+            title = (
+                "Per task" + (", A − B in pp" if binary else "") + (f" (tasks: {escape(prefix)}…)" if prefix else "")
+            )
             console.print(table(title, columns, task_rows, first_flex=True))
             if with_p:
                 console.print("p: exact McNemar per task, not adjusted for multiple comparisons", style="dim")

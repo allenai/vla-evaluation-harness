@@ -118,6 +118,50 @@ def test_same_named_tasks_are_told_apart_by_task_idx_rank() -> None:
     assert [t["task"] for t in cmp["tasks"]] == ["same #1", "same #2"]
 
 
+def _copies_run(outcomes: dict[int, list[dict[str, Any]]]) -> dict[str, Any]:
+    eps = [{"episode_id": e, "task_idx": i, "metrics": m} for i, ms in outcomes.items() for e, m in enumerate(ms)]
+    return {"benchmark": "B", "tasks": [{"task": "soup", "episodes": eps}]}
+
+
+def test_copy_rank_counts_episodes_without_the_metric() -> None:
+    """A's first copy only errored (no chain_len): its second copy must still pair with B's second."""
+    err = {"success": False}
+    a = _copies_run({10: [err, err], 40: [{"chain_len": 2}, {"chain_len": 2}]})
+    b = _copies_run({10: [{"chain_len": 5}, {"chain_len": 5}], 40: [{"chain_len": 2}, {"chain_len": 2}]})
+    cmp = compare_runs(a, b, "chain_len")
+    assert cmp["paired"] == 2 and cmp["difference"] == 0.0
+    assert [t["task"] for t in cmp["tasks"]] == ["soup #2"]
+
+
+def test_copy_rank_needs_task_idx_in_both_runs_and_equal_copies() -> None:
+    ok, bad = {"success": True}, {"success": False}
+    a = _copies_run({0: [ok, ok], 1: [bad, bad]})
+    b = _copies_run({0: [ok, ok], 1: [bad, bad]})
+    for ep in b["tasks"][0]["episodes"]:
+        del ep["task_idx"]
+    cmp = compare_runs(a, b)  # without B's task_idx neither run's copies are ranked: ambiguous keys, never paired
+    assert cmp["paired"] == 0 and cmp["duplicate_keys"] == [4, 4]
+    with pytest.raises(ValueError, match="share no task"):  # A ran 'soup' twice, B once: no correspondence
+        compare_runs(a, _copies_run({5: [ok, ok]}))
+
+
+def test_shared_prefix_title_is_escaped(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    names = ["put [/] the long object on the left shelf", "put [/] the long object on the right shelf"]
+    a = {
+        "benchmark": "B",
+        "tasks": [{"task": n, "episodes": [{"episode_id": 0, "metrics": {"success": 1}}]} for n in names],
+    }
+    out = _text(tmp_path, capsys, a, a)
+    assert "put [/] the long object" in out
+
+
+def test_malformed_aggregate_is_a_clean_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    bad = _write(tmp_path / "bad.json", {"tasks": [1, {"task": "t", "episodes": [{"episode_id": 0}]}]})
+    with pytest.raises(SystemExit) as exc:
+        cli.cmd_compare(_ns(bad, reference="50%"))
+    assert exc.value.code == 1 and "malformed task entry" in capsys.readouterr().err
+
+
 def test_suite_is_part_of_task_identity_when_both_runs_record_it() -> None:
     a = _aggregate({"t": [1, 0]})
     b = _aggregate({"t": [1, 0]})
