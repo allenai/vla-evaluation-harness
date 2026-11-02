@@ -33,6 +33,18 @@ class EnvUnusableError(EnvStartError):
     the shard's unfinished queue items back and the run exits with code 3."""
 
 
+class EpisodeSkipped(EpisodeError):
+    """Raised by a benchmark whose protocol does not count this episode (e.g. an unstable layout): it is recorded as
+    ``skipped``, left out of aggregates, and its queue item runs again in this process unless ``retry`` is false."""
+
+    phase = "skipped"
+
+    def __init__(self, message: str, *, metrics: dict[str, Any] | None = None, retry: bool = True) -> None:
+        super().__init__(message)
+        self.metrics = metrics or {}
+        self.retry = retry
+
+
 class ModelStartError(EpisodeError):
     phase = "model_start"  # the server failed EPISODE_START
 

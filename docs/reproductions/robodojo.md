@@ -87,9 +87,10 @@ raised; cause and fix under Integration findings) and count as 0. The four other
   `press_by_number` / `swap_blocks` (`_get_object_transform` on None). With it (H100): 35 `cover_blocks`
   resets at a flat ~11 s and ~4.8 GB GPU, 16/16 `press_by_number` / `swap_blocks` layouts build, and
   `classify_objects` 0-15 in order fails exactly where fresh processes fail (0, 1, 3, 10).
-- **One task per process.** A second `create_eval_env` in one Kit process raised `Simulation context
-  already exists` (measured when `close()` still ran off-thread; not retried since).
-  `scripts/run_robodojo_protocol.sh` drives one `vla-eval run` per task, as upstream `eval_policy.sh` does.
+- **Several tasks per process.** A second `create_eval_env` once raised `Simulation context already exists`,
+  with `close()` off-thread. Closing the last task's EvalEnv on the Kit thread first works: `cover_blocks` ->
+  `classify_objects` -> `swap_blocks` (and `swap_blocks` first) in one process, at `num_envs` 1 and 10, gave
+  each task's fresh-process counted and skipped layouts, with GPU memory at each task's fresh-process level.
 - **Kit segfaults at interpreter exit** (`omni.graph.core` shutdown), after results are written. The
   benchmark sets `hard_exit`, so `vla-eval run` ends with `os._exit` and keeps its exit code (0, or 3).
 - **`utils` namespace collision.** RoboDojo and XPolicyLab both ship a top-level `utils` package,
@@ -97,13 +98,15 @@ raised; cause and fix under Integration findings) and count as 0. The four other
   `load_pkl`). The image bakes `PYTHONPATH=/workspace/RoboDojo`, so a naive skip-if-present
   `sys.path` insert leaves the RoboDojo root *behind* XPolicyLab and layout loading dies with a
   confusing `NameError`. The adapter force-repositions both roots and verifies the resolution.
-- **Bad layouts are skipped, not counted.** Some published layouts fail to build or settle. Groups ship
-  55–65 layouts for 50 counted episodes; episode `i` runs layout `i` and a failure falls back to the
-  spares past `eval_num`, recording each episode's `layout_id`. With stability independent of history,
-  the counted set is upstream's; only the choice of spare can differ (shards split them round-robin, and a
-  resumed shard skips spares already counted). Out of spares, an unstable layout's episode errors. Other
-  failures, five in a row or with no spare left, raise `EnvUnusableError`: the shard puts its unfinished
-  items back on the queue and exits 3, and a rerun with the same eval id resumes.
+- **Upstream's rounds.** Layout stability depends on the round: its composition, slot
+  order and `num_envs` (`classify_objects` 0-7 at 8 envs left {5} unsettled, reversed {1, 3, 5, 7}, alone
+  {0, 1, 3}). So the adapter replays upstream's loop exactly: a task's layouts in id order, rounds of
+  `min(num_envs, episodes still to count)` on a fresh scene, unsettled layouts recorded as skipped (not counted,
+  not retried), the round's episodes scored together. Shards never split a task (`task_exclusive`), and a
+  rerun with the same eval id resumes past counted and skipped layouts.
+  Against upstream `main.py` in the same image and node (H100, hold policy): `classify_objects` (`step_lim` cut to
+  30) at `num_envs` 1 and 10, `make_kong` and `swap_blocks` at 10, run the same rounds and skip and count the same
+  layouts with the same results.
 - **cuRobo planners are unusable from the public assets** (only `curobo_tmp.yml` templates ship),
   and joint-space VLA evaluation does not need them — including for the Franka competition tasks,
   whose support arm replays recorded trajectories.
@@ -111,12 +114,13 @@ raised; cause and fix under Integration findings) and count as 0. The four other
   (sim + 3-camera render + chunked inference), and failed episodes run to the task's `step_lim`
   (300–1900), so one task ≈ 12–20 GPU-hours and the Memory dimension ≈ 100 GPU-hours. Isaac
   renderers do not share a GPU gracefully: 4 lanes on one A100 collapsed per-lane throughput
-  ~30× (aggregate ~8× *worse* than a single lane). Run one lane per GPU. The paper's own answer
-  is batched parallel simulation (`num_envs > 1`, tiled rendering), which the harness cannot
-  drive today — see below.
+  ~30× (aggregate ~8× *worse* than a single lane). Run one lane per GPU and batch inside it
+  (`num_envs`, upstream's 10 for policies with `eval_batch: true`).
 - **Hardware: A100 and H100 both render.** Under Docker, H100 crashed the RTX renderer
   (`ERROR_DEVICE_LOST`) at the first render-product read; under Charliecloud (driver 580.95.05) H100
   steps with RGB observations. "DLSS-RR not supported" is benign.
+  At `num_envs` 10 all three cameras render (wrist cams: no zero pixels, as at 1) in the adapter and upstream
+  `main.py` alike; the black wrist frames seen in October with an older enroot image did not recur.
 - **Vulkan ICD pinning.** The upstream image hard-pins `VK_ICD_FILENAMES` *and* `VK_DRIVER_FILES`
   to `/etc/vulkan/icd.d/nvidia_icd.json`, which only exists if the host's container toolkit
   injects it. Where it doesn't, Vulkan dies with `ERROR_INCOMPATIBLE_DRIVER`. The configs
@@ -127,17 +131,9 @@ raised; cause and fix under Integration findings) and count as 0. The four other
 
 ## Known gaps / future work
 
-- **Batched evaluation.** RoboDojo's `EvalEnv` supports `num_envs > 1` with tiled rendering and
-  XPolicyLab exposes `update_obs_batch` / `get_action_batch`. Exploiting it needs a vectorized
-  benchmark interface in the harness (one benchmark instance driving N concurrent episodes).
-  That is the single biggest available speedup for this benchmark.
-- **Competition-task metric deviation.** The 3 `dual_x5_and_franka_competition` tasks
-  (`imitate_sorting_sequence`, `make_kong`, `play_tic_tac_toe`) can mark an episode "unstable"
-  when the scripted Franka move fails; upstream *excludes* those from the denominator, but
-  vla-eval's collector counts every episode, so they score as failures here (slightly pessimistic).
-- **Isaac Sim process crashes are unrecoverable mid-task.** A run can also hit a breakpad crash that
-  takes down the process; the aggregate is then incomplete. `run_robodojo_protocol.sh` runs one
-  process per task, so any crash is isolated to that task.
+- **Isaac Sim process crashes.** A breakpad crash takes down the process mid-task; under
+  `scripts/run_sharded.sh` the shard is relaunched and resumes past the recorded layouts (a round cut
+  mid-way reruns its unrecorded layouts in a new round).
 - Only the Memory dimension is reproduced so far; the other four dimensions use the same
   machinery and configs (`configs/benchmarks/robodojo/eval.yaml` covers all 42 tasks).
 

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-EpisodeStatus = Literal["success", "fail", "error"]
+EpisodeStatus = Literal["success", "fail", "error", "skipped"]
 
 
 class RecordingError(RuntimeError):
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS episode_results (
     eval_id         TEXT NOT NULL,
     task_name       TEXT,
     episode_id      INTEGER,
-    status          TEXT,            -- 'success' | 'fail' | 'error'
+    status          TEXT,            -- 'success' | 'fail' | 'error' | 'skipped' (not counted)
     metrics         TEXT,            -- JSON
     steps           INTEGER,
     elapsed_sec     REAL,
@@ -226,13 +226,20 @@ class RecordingStore:
             )
 
     def claim(
-        self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int, exclude: Collection[int] = ()
+        self,
+        eval_id: str,
+        shard_id: int,
+        task_idx: int | None,
+        num_shards: int,
+        exclude: Collection[int] = (),
+        exclusive: bool = False,
     ) -> int | None:
         """Next item for ``shard_id``. Items are task-sorted and shard k's home block is those with
         ``item * num_shards // n == k``. Order: its own unfinished item (a rerun after a crash), the loaded task
         (own block forward, else others' from the end), its own block forward, then the end of the block with
         the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task.
-        ``exclude``: the shard's items still running (a vector benchmark holds several), never handed out again."""
+        ``exclude``: the shard's items still running (a vector benchmark holds several), never handed out again.
+        ``exclusive``: never an item of a task another shard has claimed an item of (done or not)."""
         with self.transaction():
             n = self._conn.execute("SELECT COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)).fetchone()[0]
             rows = self._conn.execute(
@@ -242,6 +249,14 @@ class RecordingStore:
             ).fetchall()
             mine = [i for i, _, s in rows if s == shard_id and i not in exclude]
             free = [(i, t) for i, t, s in rows if s is None]
+            if exclusive:
+                taken = {
+                    t
+                    for (t,) in self._conn.execute(
+                        "SELECT task_idx FROM work_queue WHERE eval_id = ? AND shard_id != ?", (eval_id, shard_id)
+                    )
+                }
+                free = [(i, t) for i, t in free if t not in taken]
             if mine:
                 return min(mine)
             if not free:
@@ -272,6 +287,14 @@ class RecordingStore:
         with self.transaction():
             self._conn.execute("UPDATE work_queue SET done = 1 WHERE eval_id = ? AND item = ?", (eval_id, item))
 
+    def finish_claimed(self, eval_id: str, items: Collection[int]) -> None:
+        """Finish those of ``items`` some shard claimed (one that recorded its episode, then died unfinished)."""
+        with self.transaction():
+            self._conn.executemany(
+                "UPDATE work_queue SET done = 1 WHERE eval_id = ? AND item = ? AND shard_id IS NOT NULL",
+                [(eval_id, i) for i in items],
+            )
+
     def release(self, items: list[tuple[str, int]]) -> None:
         """Put ``(eval_id, item)`` pairs back for any shard to claim."""
         with self.transaction():
@@ -280,12 +303,15 @@ class RecordingStore:
             )
 
     def completed_results(self, eval_id: str) -> list[dict[str, Any]]:
-        """``{task_name, episode_id, metrics}`` of the entry's episodes that ended without error, from any process."""
+        """``{task_name, task_idx, episode_id, status, metrics}`` of the entry's episodes that ended without error,
+        from any process, oldest first."""
         rows = self._conn.execute(
-            "SELECT task_name, episode_id, metrics FROM episode_results WHERE eval_id = ? AND status != 'error'",
+            "SELECT task_name, json_extract(context, '$.task_idx'), episode_id, status, metrics FROM episode_results "
+            "WHERE eval_id = ? AND status != 'error' ORDER BY rowid",
             (eval_id,),
         )
-        return [{"task_name": t, "episode_id": ep, "metrics": json.loads(m or "{}")} for t, ep, m in rows]
+        keys = ("task_name", "task_idx", "episode_id", "status")
+        return [{**dict(zip(keys, row[:4])), "metrics": json.loads(row[4] or "{}")} for row in rows]
 
     def queue_progress(self, eval_id: str) -> tuple[int, int]:
         """``(done, total)`` over every shard of the entry."""

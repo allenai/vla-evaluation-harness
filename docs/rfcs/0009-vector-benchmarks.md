@@ -95,8 +95,8 @@ End to end (A100, hold-style server):
 | OCBench (MuJoCo Warp), ms/step at 500 / 4500 worlds | own loop 31.9 / 71.2 | 36.1 / 83.2 (+7 to +17 %) |
 | RoboDojo (Isaac Sim 5.1), stack_blocks | 1.03 env-steps/s | 10.6 (8 envs, `raw`) |
 
-- RoboDojo: with `num_envs > 1` wrist frames render ~79 % black (upstream reproduces it; untested on a GPU with
-  the RT cores Isaac Sim 5.1 requires), so its vector scores are not comparable to `num_envs=1` yet.
+- RoboDojo breaks "an outcome depends only on its task": layout stability depends on the round's composition, so
+  it runs upstream's rounds (waves, a task in one process) and its scores compare only at equal `num_envs`.
 - RoboTwin 2.0: no adapter; SAPIEN 3 serialises ray tracing and OIDN on one queue, so envs never overlap.
 
 ## Alternatives (rejected)

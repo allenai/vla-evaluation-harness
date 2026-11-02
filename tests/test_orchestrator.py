@@ -980,3 +980,52 @@ def test_episode_error_phases():
     with pytest.raises(TimeoutError):  # transport errors keep their own handling
         with phase(ModelActError):
             raise TimeoutError()
+
+
+class SkipFirstResetStub(StubBenchmark):
+    """The first reset does not count (an unstable initial state); every reset is logged."""
+
+    resets: list = []
+
+    def reset(self, task):
+        from vla_eval.runners.base import EpisodeSkipped
+
+        SkipFirstResetStub.resets.append(task["episode_idx"])
+        if len(SkipFirstResetStub.resets) == 1:
+            raise EpisodeSkipped("unstable", metrics={"layout_ids": [0]})
+        return super().reset(task)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("shard", [{}, {"shard_id": 0, "num_shards": 1}], ids=["static", "queue"])
+async def test_a_skipped_episode_runs_again_and_counts_once(echo_server, tmp_path, shard):
+    SkipFirstResetStub.resets = []
+    config = _config(echo_server, tmp_path, "k", episodes=2)
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=SkipFirstResetStub):
+        (result,) = await Orchestrator(config, eval_id="ev-k", no_save=False, **shard).run()
+    assert SkipFirstResetStub.resets == [0, 0, 1, 0, 1]  # two tasks of two episodes, task_0 ep0 twice
+    assert [len(t["episodes"]) for t in result["tasks"]] == [2, 2] and result["num_errors"] == 0
+
+
+@pytest.mark.anyio
+async def test_a_rerun_finishes_an_item_recorded_before_a_crash(echo_server, tmp_path):
+    """A shard killed between recording an episode and finishing its queue item does not run it twice."""
+    from vla_eval.recording import RecordingStore
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, "c", episodes=2)
+    finish = RecordingStore.finish
+
+    def crash_once(self, eval_id, item):
+        RecordingStore.finish = finish
+        raise KeyboardInterrupt
+
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=StubBenchmark):
+        with patch.object(RecordingStore, "finish", crash_once), pytest.raises(KeyboardInterrupt):
+            await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-c", no_save=False).run()
+        await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-c", no_save=False).run()
+    db = sqlite3.connect(tmp_path / "recording-ev-c.sqlite")
+    assert db.execute("SELECT COUNT(*) FROM episode_results").fetchone()[0] == 4
+    db.close()
+    (aggregate,) = export_db(tmp_path / "recording-ev-c.sqlite", tmp_path)
+    assert aggregate["num_episodes_total"] == 4 and "partial" not in aggregate

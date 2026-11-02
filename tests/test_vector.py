@@ -16,7 +16,7 @@ import websockets.exceptions
 from vla_eval.benchmarks.base import BenchmarkCommon, VectorStepBenchmark
 from vla_eval.orchestrator import Orchestrator, UnhealthyShardError
 from vla_eval.recording import RecordingStore
-from vla_eval.runners.base import EnvUnusableError
+from vla_eval.runners.base import EnvUnusableError, EpisodeSkipped
 
 from tests.conftest import BatchLogServer, LogServer, start_server, stop_server
 
@@ -574,3 +574,79 @@ async def test_a_failed_server_start_is_model_start_and_never_ended(log_server, 
         while len(server.results) < 4:
             await anyio.sleep(0.02)
     assert len(server.results) == 4 and {r["status"] for r in server.results} == {"success"}
+
+
+class SkipSlotOneOnceStub(StubVectorBenchmark):
+    """Wave mode, whole tasks per shard: the first wave's slot 1 does not count (``retry`` from the config)."""
+
+    task_exclusive = True
+    retry = True
+    resumed: ClassVar[list] = []
+
+    def result(self, slot):
+        if slot == 1 and len(self.resets) == 1:
+            raise EpisodeSkipped("unstable layout", metrics={"layout_ids": [7]}, retry=self.retry)
+        return super().result(slot)
+
+    def resume(self, results):
+        SkipSlotOneOnceStub.resumed = results
+
+
+class FinalSkipStub(SkipSlotOneOnceStub):
+    retry = False
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("sharded", [False, True], ids=["static", "queue"])
+async def test_a_skipped_episode_reruns_its_item_and_stays_out_of_the_aggregate(echo_server, tmp_path, sharded):
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, name="s", episodes=3, num_envs=2, num_tasks=1)
+    shard = {"shard_id": 0, "num_shards": 1} if sharded else {}
+    result = await _run(SkipSlotOneOnceStub, config, eval_id="ev-s", **shard)
+    bench = SkipSlotOneOnceStub.last
+    assert [slots for slots, _ in bench.resets] == [[0, 1], [0, 1]]  # the skipped item comes back with the third
+    assert sorted(ep["episode_id"] for _, ep in _episodes(result)) == [0, 1, 2]
+    db = sqlite3.connect(tmp_path / "recording-ev-s.sqlite")
+    rows = db.execute("SELECT episode_id, status FROM episode_results ORDER BY rowid").fetchall()
+    db.close()
+    assert sorted(rows) == [(0, "success"), (1, "skipped"), (1, "success"), (2, "success")]
+    (aggregate,) = export_db(tmp_path / "recording-ev-s.sqlite", tmp_path)
+    assert aggregate["num_episodes_total"] == 3 and aggregate["mean_success"] == 1.0
+    if sharded:  # a rerun hands the benchmark the skipped row too
+        await _run(SkipSlotOneOnceStub, config, eval_id="ev-s", **shard)
+        assert [r["status"] for r in SkipSlotOneOnceStub.resumed].count("skipped") == 1
+
+
+@pytest.mark.anyio
+async def test_a_skipped_episode_without_retry_is_done(echo_server, tmp_path):
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, name="f", episodes=3, num_envs=2, num_tasks=1)
+    await _run(FinalSkipStub, config, eval_id="ev-f", shard_id=0, num_shards=1)
+    assert [slots for slots, _ in FinalSkipStub.last.resets] == [[0, 1], [0]]
+    (aggregate,) = export_db(tmp_path / "recording-ev-f.sqlite", tmp_path)
+    assert aggregate["num_episodes_total"] == 2 and "partial" not in aggregate
+
+
+@pytest.mark.anyio
+async def test_task_exclusive_shards_never_split_a_task(echo_server, tmp_path):
+    config = _config(echo_server, tmp_path, name="t", episodes=4, num_envs=1, num_tasks=3)
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=SkipSlotOneOnceStub):
+        async with anyio.create_task_group() as tg:
+            for i in range(2):
+                tg.start_soon(Orchestrator(config, shard_id=i, num_shards=2, eval_id="ev-t").run)
+    db = sqlite3.connect(tmp_path / "recording-ev-t.sqlite")
+    owners = db.execute("SELECT task_idx, COUNT(DISTINCT shard_id), SUM(done) FROM work_queue GROUP BY task_idx")
+    assert owners.fetchall() == [(0, 1, 4), (1, 1, 4), (2, 1, 4)]
+    db.close()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("sharded", [False, True], ids=["static", "queue"])
+async def test_a_skipped_episode_reruns_before_the_next_task(echo_server, tmp_path, sharded):
+    config = _config(echo_server, tmp_path, name="h", episodes=2, num_envs=3, num_tasks=2)
+    shard = {"shard_id": 0, "num_shards": 1} if sharded else {}
+    await _run(SkipSlotOneOnceStub, config, eval_id="ev-h", **shard)
+    names = [tasks for _, tasks in SkipSlotOneOnceStub.last.reset_at]
+    assert names == [["task_0", "task_0"], ["task_0"], ["task_1", "task_1"]]

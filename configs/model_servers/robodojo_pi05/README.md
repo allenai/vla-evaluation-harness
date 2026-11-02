@@ -34,8 +34,7 @@ them matched preserves the exact upstream deploy path).
 vla-eval serve -c configs/model_servers/robodojo_pi05/pi05.yaml
 # One smoke task:
 vla-eval run  -c configs/benchmarks/robodojo/smoke_test.yaml
-# Full protocol (one process per task — Isaac's SimulationContext is process-global,
-# so a single `vla-eval run` on eval.yaml would only complete the first task):
+# Full protocol (one `vla-eval run` and aggregate per task):
 scripts/run_robodojo_protocol.sh
 ```
 
@@ -43,3 +42,7 @@ Input contract mirrors XPolicyLab `policy/Pi_05/model.py`: three CHW uint8
 cameras (`cam_high` ← RoboDojo `cam_head`, `cam_left_wrist`, `cam_right_wrist`),
 14-D packed joint state, instruction prompt; the full action chunk executes
 open-loop before the next inference, as in upstream `eval_one_episode`.
+
+XPolicyLab's Pi_05 `deploy.yml` sets `eval_batch: true`, so the server asks the benchmark for upstream's 10 envs
+per round; `predict_batch` infers them in one `sample_actions` call, padded to `max_batch_size` (10) so one
+shape compiles at warmup.

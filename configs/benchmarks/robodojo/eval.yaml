@@ -8,12 +8,14 @@
 # each evaluated once per task with this layout protocol.
 #
 # The paper's headline numbers average the five dimension means (NOT the plain
-# per-task mean), and unstable episodes (scene-stability aborts, surfaced here
-# as episode errors) are excluded from the official denominator.
+# per-task mean); unstable layouts are recorded as skipped and left out, as upstream.
 #
-# NOTE: Isaac's simulation context is process-global, so one container run can
-# evaluate exactly ONE task. Do not `vla-eval run -c` this file directly —
-# drive it with scripts/run_robodojo_protocol.sh, which runs one task at a time.
+# num_envs (envs per round, default 1) must match the policy's upstream setting:
+# 1 if its XPolicyLab deploy.yml has eval_batch: false, else 10. A model server may
+# ask for it (robodojo_pi05 asks for 10); *_random tasks run at most 5.
+#
+# One process runs the tasks in turn; scripts/run_robodojo_protocol.sh runs one per
+# `vla-eval run`, scripts/run_sharded.sh shards whole tasks (see README).
 server:
   url: "ws://localhost:8000"
 
@@ -116,11 +118,7 @@ benchmarks:
   # -- Franka-competition tasks: a scripted Franka arm shares the scene -----
   # (robot config switched automatically by RoboDojo's process_config). Policy
   # action space stays dual-X5 14-D; the Franka replays pkl trajectories, no planner.
-  #
-  # KNOWN DEVIATION: when the scripted Franka move fails, upstream marks the
-  # episode "unstable" and EXCLUDES it from the denominator. vla-eval's collector
-  # counts every episode, so here an unstable episode is scored as a failure. This
-  # biases these 3 tasks' SR slightly pessimistic vs the official leaderboard.
+  # An episode whose scripted move fails is skipped, as upstream.
   - benchmark: "vla_eval.benchmarks.robodojo.benchmark:RoboDojoBenchmark"
     episodes_per_task: 50
     action_dim: 14

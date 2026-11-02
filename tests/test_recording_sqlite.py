@@ -819,3 +819,24 @@ def test_work_queue_release(tmp_path: Path) -> None:
     assert store.claim("ev", 1, None, 2) == 1
     store.finish("ev", 1)
     assert store.claim("ev", 1, None, 2) == 0
+
+
+def test_work_queue_exclusive_claims_keep_tasks_whole(tmp_path: Path) -> None:
+    """``exclusive``: a shard never takes an item of a task another shard has claimed, even once it is done."""
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0, 0, 0, 1])  # shard 0's block holds task 0's first two items, shard 1's the rest
+    assert store.claim("ev", 0, None, 2, exclusive=True) == 0
+    assert store.claim("ev", 1, None, 2, exclusive=True) == 3  # not item 2: task 0 is shard 0's
+    store.finish("ev", 3)
+    assert store.claim("ev", 1, 1, 2, exclusive=True) is None
+    assert store.claim("ev", 1, 1, 2) == 2  # without exclusive it would help with task 0
+    store.close()
+
+
+def test_finish_claimed_leaves_unclaimed_items(tmp_path: Path) -> None:
+    store = RecordingStore(tmp_path / "q.sqlite")
+    store.seed_queue("ev", [0, 0])
+    assert store.claim("ev", 0, None, 1) == 0
+    store.finish_claimed("ev", [0, 1])
+    assert store.queue_progress("ev") == (1, 2)
+    store.close()
