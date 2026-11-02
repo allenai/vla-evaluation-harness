@@ -258,7 +258,7 @@ def _build_serve_cmd(
 
     Server-level keys (``port`` / ``host``) emit at the inner root; everything
     in the yaml's ``args:`` block emits under ``--args.*`` so jsonargparse maps
-    them onto ``server_cls.__init__``.
+    them onto ``server_cls.__init__``; the ``latency:`` block under ``--latency.*``.
     """
     cmd: list[str] = [uv, "run", str(script)]
     args_block = dict(config.get("args") or {})
@@ -267,6 +267,8 @@ def _build_serve_cmd(
             cmd.append(f"--{k}={_stringify_arg(args_block.pop(k))}")
     for k, v in args_block.items():
         cmd.append(f"--args.{k}={_stringify_arg(v)}")
+    for k, v in (config.get("latency") or {}).items():  # DelayedChunkServer: run_server's own block
+        cmd.append(f"--latency.{k}={_stringify_arg(v)}")
     if port is not None:
         cmd.append(f"--port={port}")
     if address:
@@ -275,7 +277,7 @@ def _build_serve_cmd(
         key, sep, value = override.partition("=")
         if not key or not sep:
             raise ValueError(f"--arg must be KEY=VALUE, got {override!r}")
-        prefix = "" if key in _SERVER_LEVEL_KEYS else "args."
+        prefix = "" if key in _SERVER_LEVEL_KEYS or key.startswith("latency.") else "args."
         cmd.append(f"--{prefix}{key}={value}")
     return cmd
 
@@ -756,8 +758,10 @@ The config YAML must contain:
 
 The yaml is handed to the inner script via --config; jsonargparse maps
 args.* onto the class signature with full type validation. CLI overrides
---arg KEY=VALUE compose with the yaml; KEY may be a class kwarg or a
-server-level key (host/port).
+--arg KEY=VALUE compose with the yaml; KEY may be a class kwarg, a
+server-level key (host/port) or latency.<key>.  A top-level latency: block
+(delay_steps or delay_s, execute_steps) simulates inference delay in sync
+mode for any chunked server (DelayedChunkServer).
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")

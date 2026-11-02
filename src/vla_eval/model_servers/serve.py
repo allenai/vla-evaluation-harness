@@ -528,8 +528,13 @@ def run_server(server_cls: type[ModelServer]) -> None:
     ``--config <yaml>`` reads the model-server yaml directly via
     ``ActionConfigFile``; the yaml's ``args:`` sub-dict maps to
     ``server_cls.__init__`` kwargs. CLI overrides use ``--args.<key>=<value>``.
+    A top-level ``latency:`` block (``--latency.<key>=<value>``) wraps the server
+    in ``DelayedChunkServer``: simulated inference delay, sync mode.
     """
     from jsonargparse import ActionConfigFile, ArgumentParser
+
+    from vla_eval.model_servers.delayed import DelayedChunkServer, Latency
+    from vla_eval.model_servers.predict import PredictModelServer
 
     parser = ArgumentParser(description=f"{server_cls.__name__} model server")
     parser.add_argument("--config", action=ActionConfigFile, help="Path(s) to YAML config")
@@ -540,6 +545,9 @@ def run_server(server_cls: type[ModelServer]) -> None:
     # ``script`` is host-side yaml metadata; absorb here so the same yaml loads.
     parser.add_argument("--script", default=None, help=argparse.SUPPRESS)
     parser.add_class_arguments(server_cls, nested_key="args", fail_untyped=False, sub_configs=True)
+    parser.add_argument(
+        "--latency", type=Latency | None, default=None, help="Simulated inference delay (DelayedChunkServer)"
+    )
 
     cfg = parser.parse_args()
 
@@ -553,6 +561,11 @@ def run_server(server_cls: type[ModelServer]) -> None:
         host, port = _parse_address(cfg.address, host, port)
 
     server = server_cls(**cfg.args.as_dict())
+    if cfg.latency is not None:
+        if not isinstance(server, PredictModelServer):
+            parser.error(f"latency: needs a PredictModelServer (chunked predict), got {server_cls.__name__}")
+        server = DelayedChunkServer(server, **cfg.latency.as_dict())
+        logger.info("Simulated inference delay: %s", cfg.latency.as_dict())
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)

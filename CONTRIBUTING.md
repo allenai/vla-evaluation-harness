@@ -181,6 +181,9 @@ Every running episode is a row; inference and the episode hooks are batched over
 - Per-episode state: key it by `row.id` (`rows.ids` in hooks); ids are reused, so reset it in `reset_episodes`.
 - `max_rows=1`: the model's state is global (e.g. its own action queue), so one episode at a time.
 - `chunk_size`: `[T, D]` per row, served from a per-episode buffer (`rows.episodes[i].chunk_size` overrides it).
+- Simulated inference delay: a chunked server needs no code for it; a config's `latency:` block (`delay_steps` or
+  `delay_s`, `execute_steps`) runs it under `DelayedChunkServer` in sync mode (see
+  [architecture](docs/architecture.md#model-server)).
 
 Your own real-time loop: subclass `DaemonModelServer` (`model_servers/daemons.py`) and write `run(self, ep)`, once
 per episode: answer `ep.observations()` with `req.reply(action)`, call the model via `ep.call`, stream with
