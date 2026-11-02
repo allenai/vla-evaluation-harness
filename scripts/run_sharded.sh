@@ -8,10 +8,9 @@ Usage: $(basename "$0") -c <config> [-n <num_shards>] [-e <eval_id>] [-o <output
 Spawn N shards of \`vla-eval run\` against the same SQLite recording, then
 call \`vla-eval export\` once after all shards exit. Shards share an eval id
 (default: a fresh uuid) so they all write to one
-\`<output_dir>/recording-<eval_id>.sqlite\`. A shard that exits non-zero while the
-recording shows work left (crash, kill, or exit 3) is relaunched with the same
-shard id, which resumes its unfinished items, up to \$VLA_EVAL_SHARD_RESTARTS
-(default 10) times; one that never registered in the recording is not.
+\`<output_dir>/recording-<eval_id>.sqlite\`. A shard that exits 3 (env unusable) or
+dies from a signal is relaunched with the same shard id, which resumes its unfinished
+items, up to \$VLA_EVAL_SHARD_RESTARTS (default 10) times.
 
 Options:
   -c <config>          Config YAML file (required)
@@ -89,16 +88,15 @@ if [[ -n "$OUTPUT_DIR" ]]; then
 fi
 echo ""
 
-# Resolve the output directory once for both recording and export; count entries for shard_state.
-CONFIG_INFO="$(python3 - "$CONFIG" <<'PY'
+# Resolve the output directory once for both recording and export.
+if [[ -z "$OUTPUT_DIR" ]]; then
+  OUTPUT_DIR="$(python3 - "$CONFIG" <<'PY'
 import sys
 from vla_eval.cli.config_loader import load_config
-config = load_config(sys.argv[1])
-print(len(config.get("benchmarks") or []), config.get("output_dir") or "./results")
+print(load_config(sys.argv[1]).get("output_dir") or "./results")
 PY
 )"
-N_ENTRIES="${CONFIG_INFO%% *}"
-OUTPUT_DIR="${OUTPUT_DIR:-${CONFIG_INFO#* }}"
+fi
 RUN_OPTS=(-c "$CONFIG" --eval-id "$EVAL_ID")
 RUN_OPTS+=(--output-dir "$OUTPUT_DIR")
 if [[ -n "$RECORD_VIDEO_FLAG" ]]; then
@@ -108,51 +106,17 @@ if [[ -n "$RENDER" ]]; then
   RUN_OPTS+=(--render "$RENDER")
 fi
 
-# Exit 0: shard $1 has nothing left in the recording; 1: work left; 2: it never registered (startup error).
-shard_state() {
-  python3 - "$OUTPUT_DIR/recording-$EVAL_ID.sqlite" "$EVAL_ID-" "$1" "$N_ENTRIES" <<'PY'
-import os, sqlite3, sys
-db, prefix, shard, n = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-if not os.path.exists(db):
-    sys.exit(2)
-conn = sqlite3.connect(db, timeout=60)
-rows = conn.execute("SELECT eval_id, shard_id, complete FROM eval_shards WHERE substr(eval_id, 1, ?) = ?",
-                    (len(prefix), prefix)).fetchall()
-mine = {e: c for e, s, c in rows if s == shard}
-entries = {e for e, _, _ in rows}
-
-def done(entry):  # every queue item done, whichever shard did it, or this shard finished the entry
-    total, finished = conn.execute("SELECT COUNT(*), COALESCE(SUM(done), 0) FROM work_queue WHERE eval_id = ?",
-                                   (entry,)).fetchone()
-    return 0 < total == finished or mine.get(entry) == 1
-
-sys.exit(2 if not mine else 0 if len(entries) >= n and all(map(done, entries)) else 1)
-PY
-}
-
 MAX_RESTARTS="${VLA_EVAL_SHARD_RESTARTS:-10}"
 run_shard() {
-  local attempt=0 rc state
-  while true; do
+  local attempt rc
+  for ((attempt = 0; ; attempt++)); do
     rc=0
     # </dev/null: with -m, background jobs keep terminal stdin; a shard reading it would stop on SIGTTIN
     vla-eval run "${RUN_OPTS[@]}" --shard-id "$1" --num-shards "$NUM_SHARDS" </dev/null || rc=$?
-    if [[ "$rc" -eq 0 ]]; then
-      return 0
-    fi
-    state=0
-    shard_state "$1" || state=$?
-    if [[ "$state" -eq 0 ]]; then
-      echo "Shard $1 exited $rc with its work recorded; treating it as done." >&2
-      return 0
-    fi
-    if [[ "$state" -ne 1 || "$attempt" -ge "$MAX_RESTARTS" ]]; then
-      echo "Shard $1 exited $rc; not restarting (attempt $attempt, recording state $state)." >&2
+    if { [[ "$rc" -ne 3 ]] && ((rc <= 128)); } || ((attempt >= MAX_RESTARTS)); then
       return "$rc"
     fi
-    attempt=$((attempt + 1))
-    echo "Shard $1 exited $rc with work left; restarting it ($attempt/$MAX_RESTARTS)..." >&2
-    sleep "${VLA_EVAL_RESTART_DELAY:-5}"
+    echo "Shard $1 exited $rc; restarting it ($((attempt + 1))/$MAX_RESTARTS)..." >&2
   done
 }
 
