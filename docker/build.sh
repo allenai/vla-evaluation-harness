@@ -33,9 +33,6 @@ BENCHMARKS=(simpler libero libero_pro libero_plus libero_mem robocerebra maniski
 # Derived images that extend a benchmark image instead of base
 DERIVED_BENCHMARKS=(simpler_groot simpler_xvla)
 
-# Simulator envs still below Python 3.11, the harness's floor: behavior1k until it moves to the 2026 stack.
-PY311_PENDING=(behavior1k)
-
 # Images whose Dockerfile gates the build behind an ``ARG ACCEPT_*=YES``
 # build-arg.  Map: image-name → "<arg-name> <licence-url>".  Adding a new
 # gated image means one line here — no CLI flag changes required.
@@ -90,13 +87,6 @@ build_image() {
   elif [[ "$name" != "base" ]]; then
     build_args=(--build-arg "BASE_IMAGE=${BASE_IMAGE}" --build-arg "HARNESS_VERSION=${HARNESS_VERSION}")
   fi
-
-  for p in "${PY311_PENDING[@]}"; do
-    if [[ "$p" == "$name" ]]; then
-      echo "Skipping ${image_tag}: its simulator env is still Python <3.11, below the harness's floor"
-      return 0
-    fi
-  done
 
   if [[ -n "${EULA_GATED[$name]:-}" ]]; then
     read -r arg_name url <<< "${EULA_GATED[$name]}"

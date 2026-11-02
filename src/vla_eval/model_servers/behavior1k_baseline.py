@@ -13,9 +13,8 @@
 # ///
 """BEHAVIOR-1K zero-action baseline model server.
 
-Mirrors the default ``LocalPolicy(action_dim=23)`` baseline from
-``OmniGibson/omnigibson/learning/policies.py``: every step returns a 23-D zero action for the R1Pro
-robot.  This is what the official ``eval.py`` falls back to when no policy weights are provided.
+Mirrors ``LocalPolicy`` from ``OmniGibson/omnigibson/eval/policies.py`` (BEHAVIOR-1K v3.9.4): every step
+returns a 23-D zero action for the R1Pro robot, as upstream's ``eval.py --policy local`` smoke test does.
 
 Why ship this?  It produces a real (but trivially small) q_score on the BEHAVIOR Challenge eval and
 lets us verify the harness ↔ benchmark ↔ scoring pipeline end-to-end without depending on a heavy

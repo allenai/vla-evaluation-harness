@@ -35,7 +35,7 @@ Benchmark names link to their config directory with available YAML files and usa
 | [VLABench](benchmarks/vlabench/) | ![◇](https://img.shields.io/badge/◇-blue) | [2502.09858](https://arxiv.org/abs/2502.09858) | [`vlabench`](https://ghcr.io/allenai/vla-evaluation-harness/vlabench) | 3.10 | Language-conditioned manipulation (MuJoCo) |
 | [MIKASA-Robo](benchmarks/mikasa/) | ![◇](https://img.shields.io/badge/◇-blue) | [2502.07007](https://arxiv.org/abs/2502.07007) | [`mikasa-robo`](https://ghcr.io/allenai/vla-evaluation-harness/mikasa-robo) | 3.10 | Robot manipulation (SAPIEN) |
 | [RoboCerebra](benchmarks/robocerebra/) | ![◇](https://img.shields.io/badge/◇-blue) | [2502.02853](https://arxiv.org/abs/2502.02853) | [`robocerebra`](https://ghcr.io/allenai/vla-evaluation-harness/robocerebra) | 3.8 | Cognitive manipulation (MuJoCo) |
-| [BEHAVIOR-1K](benchmarks/behavior1k/) | ![◇](https://img.shields.io/badge/◇-blue) | [2403.09227](https://arxiv.org/abs/2403.09227) | 🔒 `behavior1k` | 3.10 | Household activities (OmniGibson) |
+| [BEHAVIOR-1K](benchmarks/behavior1k/) | ![◇](https://img.shields.io/badge/◇-blue) | [2403.09227](https://arxiv.org/abs/2403.09227) | 🔒 `behavior1k` | 3.11 | Household activities, B100 (OmniGibson) |
 | [RoboDojo](benchmarks/robodojo/) | ![◇](https://img.shields.io/badge/◇-blue) | [2607.04434](https://arxiv.org/abs/2607.04434) | 🔒 `robodojo` | 3.11 | Bimanual dual ARX-X5, 42 tasks (Isaac Lab) |
 
 <sub>![✓](https://img.shields.io/badge/✓-teal) [reproduced](../docs/reproductions/) · ![◇](https://img.shields.io/badge/◇-blue) integrated, awaiting first reproduction · 🔒 license-restricted (local build only)</sub>

@@ -1,35 +1,38 @@
-"""BEHAVIOR-1K benchmark implementation (BEHAVIOR Challenge 2025 protocol).
+"""BEHAVIOR-1K benchmark implementation (BEHAVIOR Challenge 2026 protocol).
 
 BEHAVIOR-1K is a long-horizon household-activity benchmark built on OmniGibson (NVIDIA Isaac Sim).
-The 2025 BEHAVIOR Challenge defines a 50-task evaluation suite (B10/B20/B30/B40/B50) using the
-R1Pro mobile-manipulation robot.
+The 2026 BEHAVIOR Challenge evaluates 100 tasks (B100) on the R1Pro mobile manipulator.
 
-Protocol version: this adapter implements the 2025 challenge stack (BEHAVIOR-1K v3.7.2, Isaac
-Sim 4.5.0, B50) over the harness's own WebSocket protocol. It is NOT the 2026 challenge path
-(v3.9.1, 100 tasks, ``python -m omnigibson.eval.eval`` with its own wire protocol), so a passing
-run does not establish 2026 submission compatibility. See issue #113 and
-https://behavior.stanford.edu/challenge/evaluation.html.
+Protocol version: BEHAVIOR-1K v3.9.4, Isaac Sim 5.1.0, Python 3.11.  Episodes run through upstream's own
+``omnigibson.eval.evaluator.BatchedEvaluator`` (one logical env), so scene setup, instance loading, metrics
+and timeouts match ``python -m omnigibson.eval.eval``; only the policy transport is the harness WebSocket
+protocol instead of upstream's.  The 2025 stack (v3.7.2, B50) is no longer supported.
 
 References:
-    - https://behavior.stanford.edu
-    - https://github.com/StanfordVL/BEHAVIOR-1K
-    - OmniGibson/omnigibson/learning/eval.py (official Evaluator)
+    - https://behavior.stanford.edu/challenge/evaluation.html
+    - https://github.com/StanfordVL/BEHAVIOR-1K (OmniGibson/omnigibson/eval/{eval,evaluator}.py)
 
 Key facts:
-    - Robot: R1Pro (23-D absolute joint-position action space).
-    - Action layout (matching ``ACTION_QPOS_INDICES["R1Pro"]``):
-        base[0:3], torso[3:7], left_arm[7:14], left_gripper[14:15],
-        right_arm[15:22], right_gripper[22:23].
-    - Cameras: head 720x720, left_wrist 480x480, right_wrist 480x480.
-    - Success: ``info["done"]["success"]`` (binary); the challenge separately reports a partial
-      Q-score, but we only surface the binary flag here — partial scoring lives in the official
-      ``score_utils.compute_final_q_score``.
-    - Max steps default: 5000 (or 2× human demo length when known).
+    - Robot: R1Pro (default ``omnigibson/eval/r1pro.yaml``), 23-D action:
+        base[0:3] (holonomic velocity), torso[3:7], left_arm[7:14], left_gripper[14:15],
+        right_arm[15:22], right_gripper[22:23] (absolute joint positions; grippers in [-1, 1]).
+    - Cameras: ``env_wrapper`` decides resolution/modalities.  ``DefaultWrapper`` (upstream CLI default) gives
+      224x224 RGB; ``RGBDFullResWrapper`` (official RGB-D track) gives 720/480 RGB + ``depth_linear``.
+    - Instances: test instance ids 301-340; ``public_test`` indices 0-19 map to 301-320, and the challenge
+      reports indices 0-9 with one rollout each.  ``train`` takes raw instance ids (the demo instances).
+    - Timeout: 1.5x the task's mean human-demo length unless ``max_steps`` is set.
+    - Time budget (v3.9.4): ``max_steps`` seconds of wall clock per rollout, starting once the first policy
+      query returns (that query is free; ``server.timeout`` caps it); later queries are capped at 600 s.  A rollout that
+      runs over scores zero with a ``failure_reason``, as upstream's ``evaluate_instances_batched``.
+    - Metrics: binary ``success`` and the ranking metric ``q_score`` (fraction of goal predicates newly
+      satisfied, max over goal options; 1.0 on success), plus upstream's efficiency metrics.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -45,504 +48,340 @@ from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 logger = logging.getLogger(__name__)
 
-# 50-task BEHAVIOR Challenge 2025 evaluation suite.
-# Mirrors omnigibson.learning.utils.eval_utils.TASK_NAMES_TO_INDICES.
-B50_TASKS: list[str] = [
-    # B10
-    "turning_on_radio",
-    "picking_up_trash",
-    "putting_away_Halloween_decorations",
-    "cleaning_up_plates_and_food",
-    "can_meat",
-    "setting_mousetraps",
-    "hiding_Easter_eggs",
-    "picking_up_toys",
-    "rearranging_kitchen_furniture",
-    "putting_up_Christmas_decorations_inside",
-    # B20
-    "set_up_a_coffee_station_in_your_kitchen",
-    "putting_dishes_away_after_cleaning",
-    "preparing_lunch_box",
-    "loading_the_car",
-    "carrying_in_groceries",
-    "bringing_in_wood",
-    "moving_boxes_to_storage",
-    "bringing_water",
-    "tidying_bedroom",
-    "outfit_a_basic_toolbox",
-    # B30
-    "sorting_vegetables",
-    "collecting_childrens_toys",
-    "putting_shoes_on_rack",
-    "boxing_books_up_for_storage",
-    "storing_food",
-    "clearing_food_from_table_into_fridge",
-    "assembling_gift_baskets",
-    "sorting_household_items",
-    "getting_organized_for_work",
-    "clean_up_your_desk",
-    # B40
-    "setting_the_fire",
-    "clean_boxing_gloves",
-    "wash_a_baseball_cap",
-    "wash_dog_toys",
-    "hanging_pictures",
-    "attach_a_camera_to_a_tripod",
-    "clean_a_patio",
-    "clean_a_trumpet",
-    "spraying_for_bugs",
-    "spraying_fruit_trees",
-    # B50
-    "make_microwave_popcorn",
-    "cook_cabbage",
-    "chop_an_onion",
-    "slicing_vegetables",
-    "chopping_wood",
-    "cook_hot_dogs",
-    "cook_bacon",
-    "freeze_pies",
-    "canning_food",
-    "make_pizza",
-]
-
-# 23-D R1Pro action: matches ACTION_QPOS_INDICES["R1Pro"].
-R1PRO_ACTION_DIM = 23
-
-# Sensor key suffixes in OmniGibson's flattened observation dict.
-# After ``flatten_obs_dict``, RGB lives at ``{camera_name}{RGB_SUFFIX}``
-# and the R1Pro proprioceptive vector at ``PROPRIO_KEY``.
-RGB_SUFFIX = "::rgb"
-PROPRIO_KEY = "robot_r1::proprio"
-
-# Default camera names from ROBOT_CAMERA_NAMES["R1Pro"].
-R1PRO_CAMERAS: dict[str, str] = {
-    "head": "robot_r1::robot_r1:zed_link:Camera:0",
-    "left_wrist": "robot_r1::robot_r1:left_realsense_link:Camera:0",
-    "right_wrist": "robot_r1::robot_r1:right_realsense_link:Camera:0",
+# B100 task names and instructions, copied from the 2026-challenge-demos dataset's ``meta/tasks.jsonl``
+# (``task_index`` equals the ``Task ID`` column of upstream's ``B100_task_misc.csv``).
+_TASKS_FILE = Path(__file__).with_name("tasks.jsonl")
+TASK_INSTRUCTIONS: dict[str, str] = {
+    row["task_name"]: row["task"] for row in map(json.loads, _TASKS_FILE.read_text().splitlines())
 }
+B100_TASKS: list[str] = list(TASK_INSTRUCTIONS)
 
-
-def _humanize(task_name: str) -> str:
-    """``"turning_on_radio"`` → ``"turning on radio"``."""
-    return task_name.replace("_", " ")
+R1PRO_ACTION_DIM = 23
+CAMERA_ROLES = ("head", "left_wrist", "right_wrist")
+EVAL_MODES = ("train", "public_test", "hidden_test")
 
 
 class Behavior1KBenchmark(StepBenchmark):
     """BEHAVIOR-1K (OmniGibson) household-activity benchmark.
 
     Non-obvious behaviors:
-        - **Heavy lazy imports**: ``omnigibson`` and Isaac Sim are imported inside ``_init_og()``
-          rather than at module top.  Importing OmniGibson boots the Isaac Sim runtime and consumes
-          several gigabytes of VRAM, so we delay until ``get_tasks()`` / ``reset()`` actually need
-          it.  Also keeps ``vla-eval test --validate`` (a pure import-string check) fast.
-        - **Action format**: ``env.step()`` expects a ``torch.Tensor``, not numpy.  Converted in
-          ``step()``.
-        - **Observation flattening**: OmniGibson's nested observation
-          (``obs["robot_r1"]["sensors"]["zed"]["rgb"]``) is flattened with a ``::`` delimiter via
-          the official ``flatten_obs_dict`` helper.  We then look up cameras by their canonical
-          sensor key.
-        - **Task description**: BehaviorTask does not expose a natural language instruction; we use
-          the snake-case task name with underscores replaced by spaces, matching common VLA practice.
-        - **Single robot supported**: R1Pro only (the BEHAVIOR Challenge 2025 standard track).  A1
-          is reachable through OmniGibson but not exercised here.
+        - **Upstream evaluator reuse**: one ``BatchedEvaluator(num_envs=1)`` per task, rebuilt on task change.
+          ``reset`` calls its ``load_batch`` (robot reset, TRO instance load, settle, env reset) and ``step`` its
+          ``_apply_actions`` (env step, light sync, metric update), so the protocol stays upstream's.
+        - **Heavy lazy imports**: ``omnigibson`` boots Isaac Sim, and ``omnigibson.eval.utils.eval_utils`` reads
+          the task metadata from ``gm.DATA_PATH`` at import, so imports wait until the first episode.
+        - **Time budget**: with one env, upstream's accounted time (policy queries plus simulator steps) is
+          the wall clock between the first action and now, so ``step`` measures it there.  A query that never
+          returns hits ``server.timeout`` (600 s in the configs) and becomes a harness error, not a zero score.
+        - **Threads**: Isaac Sim runs on a worker thread (see ``start_episode``) so the orchestrator's event
+          loop survives ``SimulationApp`` start-up.
 
     Args:
-        tasks: Subset of B50 task names to evaluate.  ``None`` runs all 50.
-        partial_scene_load: Pass through to OmniGibson — load only rooms relevant to the task to
-            speed up scene construction.
-        max_steps: Per-episode step cap.  ``None`` keeps OmniGibson's default (5000 in
-            ``generate_basic_environment_config``).
-        send_proprio: Include the R1Pro proprio vector (``robot_r1::proprio``, 256-D) in observations.
-        camera_names: Which cameras to forward to the model server.  Defaults to all three
-            (``head``, ``left_wrist``, ``right_wrist``).
-        env_wrapper_target: Hydra ``_target_`` for the env wrapper.  By default we use OmniGibson's
-            ``EnvironmentWrapper`` no-op wrapper; override to plug in challenge-specific behaviour.
-        task_instance_id: Per-instance TRO state(s) to load after ``env.reset()``, mirroring the
-            official ``Evaluator.load_task_instance``.  Without this the env starts from
-            BehaviorTask's default instance (idx 0); with it set, the cached
-            ``<scene>_task_<activity>_instances/<...>-tro_state.json`` is applied so the initial
-            object placement matches the recorded demos.  Required for demo-replay reproductions.
-
-            Accepts:
-                - ``None`` — use BehaviorTask's default instance every episode (no TRO state load).
-                - ``int`` — fix the same instance for every episode.
-                - ``list[int]`` — sweep instances; episode ``i`` uses ``ids[i % len(ids)]``.  Use
-                  this to reproduce the challenge protocol (50 tasks × 10 instances).
+        tasks: Subset of B100 task names.  ``None`` runs all 100.
+        mode: Instance split, as upstream ``--mode``: ``public_test``, ``hidden_test`` or ``train``.
+        instance_indices: Upstream ``--instance-indices``.  For test splits they index the split (public 0-19);
+            for ``train`` they are raw instance ids.  Episode ``i`` uses ``instance_indices[i % len]``.
+        max_steps: Episode timeout.  ``None`` keeps upstream's 1.5x mean human-demo length per task.
+        env_wrapper: Upstream eval wrapper (``--env-wrapper``); it fixes camera resolution and modalities.
+        robot_config: Path (inside the container) to a custom robot YAML (``--robot-config``).
+        partial_scene_load: Load only the task's rooms from ``B100_task_misc.csv`` (upstream always does).
+        send_proprio: Include the robot proprio vector (``<robot name>::proprio``) as ``states``.
+        camera_names: Camera roles to forward.  Defaults to ``head``, ``left_wrist``, ``right_wrist``.
+        time_budget: Enforce the challenge's wall-clock budget and per-query timeout (upstream default).
     """
 
-    _ALL_RECORD_FIELDS = frozenset({"reward", "done", "terminated", "truncated", "success"})
+    _ALL_RECORD_FIELDS = frozenset({"done", "terminated", "truncated", "success"})
 
     def __init__(
         self,
         tasks: list[str] | None = None,
-        partial_scene_load: bool = True,
+        mode: str = "public_test",
+        instance_indices: list[int] | None = None,
         max_steps: int | None = None,
+        env_wrapper: str = "omnigibson.eval.wrappers.DefaultWrapper",
+        robot_config: str | None = None,
+        partial_scene_load: bool = True,
         send_proprio: bool = False,
         camera_names: list[str] | None = None,
-        env_wrapper_target: str = "omnigibson.envs.env_wrapper.EnvironmentWrapper",
-        task_instance_id: int | list[int] | None = None,
+        time_budget: bool = True,
     ) -> None:
         super().__init__()
-        if tasks is not None:
-            unknown = [t for t in tasks if t not in B50_TASKS]
-            if unknown:
-                raise ValueError(f"Unknown BEHAVIOR-1K tasks: {unknown}")
-        self._task_names: list[str] = list(tasks) if tasks else list(B50_TASKS)
-        self._partial_scene_load = partial_scene_load
+        unknown = [t for t in tasks or [] if t not in TASK_INSTRUCTIONS]
+        if unknown:
+            raise ValueError(f"Unknown BEHAVIOR-1K tasks: {unknown}")
+        if mode not in EVAL_MODES:
+            raise ValueError(f"mode must be one of {EVAL_MODES}, got {mode!r}")
+        self._task_names: list[str] = list(tasks) if tasks else list(B100_TASKS)
+        self._mode = mode
+        self._instance_indices = [int(i) for i in instance_indices] if instance_indices else list(range(10))
         self._max_steps = max_steps
+        self._env_wrapper = env_wrapper
+        self._robot_config = robot_config
+        self._partial_scene_load = partial_scene_load
         self._send_proprio = send_proprio
-        self._camera_names = camera_names or list(R1PRO_CAMERAS.keys())
-        unknown_cams = [c for c in self._camera_names if c not in R1PRO_CAMERAS]
+        self._camera_names = list(camera_names or CAMERA_ROLES)
+        self._time_budget = time_budget
+        unknown_cams = [c for c in self._camera_names if c not in CAMERA_ROLES]
         if unknown_cams:
-            raise ValueError(f"Unknown R1Pro cameras: {unknown_cams}. Valid: {list(R1PRO_CAMERAS)}")
-        self._env_wrapper_target = env_wrapper_target
-        # Normalize int|list|None to list[int]|None so reset() can index by ``episode_idx`` uniformly.
-        if task_instance_id is None:
-            self._task_instance_ids: list[int] | None = None
-        elif isinstance(task_instance_id, int):
-            self._task_instance_ids = [task_instance_id]
-        else:
-            if not task_instance_id:
-                raise ValueError("task_instance_id list must not be empty")
-            self._task_instance_ids = [int(i) for i in task_instance_id]
+            raise ValueError(f"Unknown camera roles: {unknown_cams}. Valid: {list(CAMERA_ROLES)}")
 
-        self._env: Any = None
+        self._evaluator: Any = None
         self._current_task_name: str | None = None
-        self._available_tasks: dict[str, Any] | None = None
+        self._initialized = False
 
     # ------------------------------------------------------------------
     # Lazy initialization
     # ------------------------------------------------------------------
 
     def _init_og(self) -> None:
-        """First-time import + side-effect setup for OmniGibson."""
-        if self._available_tasks is not None:
+        """First-time asset check + OmniGibson import, on the main thread (OmniGibson installs a SIGINT handler)."""
+        if self._initialized:
             return
-        from gello.robots.sim_robot.og_teleop_utils import load_available_tasks
-        from omnigibson.macros import gm, macros
+        from omnigibson.macros import gm
 
-        # Match the official challenge eval defaults from learning/eval.py.
-        # ``HEADLESS=True`` is critical: without it Isaac Sim tries to start
-        # the XR viewport extension and segfaults on a headless GPU node.
         gm.HEADLESS = True
-        gm.USE_GPU_DYNAMICS = False
-        gm.ENABLE_TRANSITION_RULES = True
-        with macros.unlocked():
-            macros.robots.manipulation_robot.GRASP_WINDOW = 0.75
-
+        # As eval.py: skip the unused 1280x720 viewer render product in headless runs.
+        gm.RENDER_VIEWER_CAMERA = False
         self._ensure_assets(Path(gm.DATA_PATH))
-        self._available_tasks = load_available_tasks()
-        missing = [t for t in self._task_names if t not in self._available_tasks]
-        if missing:
-            raise RuntimeError(
-                f"BEHAVIOR-1K tasks not available in installed dataset: {missing}. "
-                "Check that the 2025-challenge-task-instances data is mounted at gm.DATA_PATH."
-            )
+        import omnigibson.eval.evaluator  # noqa: F401  (reads B100 metadata from gm.DATA_PATH)
+
+        self._initialized = True
 
     def _ensure_assets(self, data_path: Path) -> None:
-        """Make sure BEHAVIOR-1K scene + task data is available at ``data_path``.
+        """Make sure the 2026 scene, robot and task-instance data is at ``data_path``.
 
-        First call on a fresh host prompts for licence acceptance and runs OmniGibson's three
-        ``download_*`` helpers.  Idempotent: a populated directory short-circuits via the marker check.
+        A fresh cache prompts for the BEHAVIOR Dataset ToS and runs setup.sh's three download helpers.
         """
-        marker = data_path / "2025-challenge-task-instances"
-        if marker.exists():
+        from omnigibson.utils.asset_utils import (
+            BEHAVIOR_1K_ASSET_VERSION,
+            get_behavior_1k_assets_version,
+            get_key_path,
+        )
+
+        installed = get_behavior_1k_assets_version()
+        if installed is not None and installed != BEHAVIOR_1K_ASSET_VERSION:
+            raise RuntimeError(
+                f"{data_path} holds behavior-1k-assets {installed}, but this stack needs {BEHAVIOR_1K_ASSET_VERSION}. "
+                "Point the behavior1k asset cache at an empty directory to download the 2026 assets."
+            )
+        if (data_path / "2026-challenge-task-instances").exists() and installed and Path(get_key_path()).exists():
             return
         ensure_license(
             "behavior-dataset-tos",
             url="https://behavior.stanford.edu/dataset",
-            description="BEHAVIOR Dataset ToS (one-time, ~35 GiB download).",
+            description="BEHAVIOR Dataset ToS (one-time, ~32 GiB download).",
         )
         data_path.mkdir(parents=True, exist_ok=True)
         from omnigibson.utils.asset_utils import (
-            download_2025_challenge_task_instances,
+            download_2026_challenge_task_instances,
             download_behavior_1k_assets,
             download_omnigibson_robot_assets,
         )
 
-        logger.info("Fetching BEHAVIOR-1K assets into %s", data_path)
+        logger.info("Fetching BEHAVIOR-1K 2026 assets into %s", data_path)
         download_omnigibson_robot_assets()
         download_behavior_1k_assets(accept_license=True)
-        download_2025_challenge_task_instances()
+        download_2026_challenge_task_instances()
 
-    def _make_env(self, task_name: str) -> Any:
-        """Build a fresh OmniGibson env for *task_name*."""
-        # Isaac Sim's SimulationApp.__init__ calls signal.signal(SIGINT, ...) which raises ValueError
-        # when invoked from a non-main thread — but we *must* off-load env construction to a worker
-        # so the orchestrator's asyncio loop survives.  The handler installed at our main-thread
-        # import of omnigibson is already in place, so it's safe to no-op the additional registration.
+    def _make_evaluator(self, task_name: str) -> Any:
+        """Build upstream's evaluator for *task_name* (also boots Isaac Sim on first use).
+
+        A previous task's scene is dropped with ``og.clear()``: ``env.close()`` is a no-op upstream."""
+        # SimulationApp.__init__ calls signal.signal(), which raises off the main thread.  OmniGibson's own
+        # handler is already installed by the main-thread import, so the extra registration can be skipped.
         import signal as _signal
-        import threading
 
-        _orig_signal = None
-        if threading.current_thread() is not threading.main_thread():
-            _orig_signal = _signal.signal
-            setattr(_signal, "signal", lambda *a, **kw: None)
-
+        orig_signal = _signal.signal
+        setattr(_signal, "signal", lambda *a, **kw: None)
         try:
-            return self._make_env_inner(task_name)
+            import omnigibson as og
+            from omegaconf import OmegaConf
+            from omnigibson.eval.evaluator import BatchedEvaluator
+            from omnigibson.eval.utils.eval_utils import DEFAULT_EVAL_SEED, seed_everything
+
+            if self._evaluator is not None:
+                self._evaluator = None
+                og.clear()
+            seed_everything(DEFAULT_EVAL_SEED)
+            cfg = OmegaConf.create(
+                {
+                    "env_wrapper": {"_target_": self._env_wrapper},
+                    "policy_name": "local",
+                    # Never queried: actions come from the harness.  Required by BatchedEvaluator.__init__.
+                    "model": {"_target_": "omnigibson.eval.policies.LocalPolicy", "action_dim": None},
+                    "headless": True,
+                    "partial_scene_load": self._partial_scene_load,
+                    "max_steps": self._max_steps,
+                    "write_video": False,
+                    "mode": self._mode,
+                    "seed": DEFAULT_EVAL_SEED,
+                    "num_envs": 1,
+                    "task": {"name": task_name},
+                    "robot": OmegaConf.load(self._robot_config) if self._robot_config else None,
+                }
+            )
+            return BatchedEvaluator(cfg)
         finally:
-            if _orig_signal is not None:
-                setattr(_signal, "signal", _orig_signal)
+            setattr(_signal, "signal", orig_signal)
 
-    def _make_env_inner(self, task_name: str) -> Any:
-        import omnigibson as og
-        from gello.robots.sim_robot.og_teleop_cfg import DISABLED_TRANSITION_RULES
-        from gello.robots.sim_robot.og_teleop_utils import (
-            augment_rooms,
-            generate_robot_config,
-            get_task_relevant_room_types,
-        )
-        from hydra.utils import instantiate
-        from omegaconf import OmegaConf
-        from omnigibson.learning.utils.eval_utils import (
-            PROPRIOCEPTION_INDICES,
-            generate_basic_environment_config,
-        )
-
-        # The official eval disables a curated set of transition rules to match the data-collection setup.
-        for rule in DISABLED_TRANSITION_RULES:
-            rule.ENABLED = False
-
-        assert self._available_tasks is not None
-        task_cfg = self._available_tasks[task_name][0]
-        cfg = generate_basic_environment_config(task_name=task_name, task_cfg=task_cfg)
-
-        if self._partial_scene_load:
-            relevant_rooms = get_task_relevant_room_types(activity_name=task_name)
-            relevant_rooms = augment_rooms(relevant_rooms, task_cfg["scene_model"], task_name)
-            cfg["scene"]["load_room_types"] = relevant_rooms
-
-        cfg["robots"] = [generate_robot_config(task_name=task_name, task_cfg=task_cfg)]
-        cfg["robots"][0]["obs_modalities"] = ["proprio", "rgb"]
-        cfg["robots"][0]["proprio_obs"] = list(PROPRIOCEPTION_INDICES["R1Pro"].keys())
-
-        if self._max_steps is not None:
-            cfg["task"]["termination_config"]["max_steps"] = self._max_steps
-        cfg["task"]["include_obs"] = False
-
-        env = og.Environment(configs=cfg)
-        wrapper_cfg = OmegaConf.create({"_target_": self._env_wrapper_target})
-        env = instantiate(wrapper_cfg, env=env)
-        return env
+    @property
+    def _state(self) -> Any:
+        return self._evaluator.instance_eval_states[0]
 
     # ------------------------------------------------------------------
     # Benchmark ABC
     # ------------------------------------------------------------------
 
     def get_tasks(self) -> list[Task]:
-        # Avoid booting Isaac Sim during config validation: defer the
-        # import-side-effect until we actually have a chance to run.
-        return [{"name": _humanize(t), "task_name": t, "suite": "behavior_1k"} for t in self._task_names]
+        return [{"name": t, "task_name": t, "suite": "behavior_1k"} for t in self._task_names]
 
     def reset(self, task: Task) -> Any:
-        self._init_og()
+        from omnigibson.eval.evaluator import resolve_instance_ids
+
         task_name = task["task_name"]
-        if self._env is None or self._current_task_name != task_name:
-            if self._env is not None:
-                try:
-                    self._env.close()
-                except Exception:
-                    logger.exception("Failed to close previous OmniGibson env")
-            self._env = self._make_env(task_name)
+        if self._evaluator is None or self._current_task_name != task_name:
+            self._evaluator = self._make_evaluator(task_name)
             self._current_task_name = task_name
-        obs, _ = self._env.reset()
-        # Optional per-instance TRO state load (matches official ``Evaluator.load_task_instance``).
-        # When unset, BehaviorTask uses its default instance (idx 0) — the env still runs, but object
-        # placements may diverge from a particular demo.  When a list is provided, sweep instances by
-        # ``episode_idx`` so consecutive episodes hit different recorded states (the 50-task ×
-        # 10-instance challenge protocol).
-        if self._task_instance_ids is not None:
-            episode_idx = int(task.get("episode_idx", 0))
-            instance_id = self._task_instance_ids[episode_idx % len(self._task_instance_ids)]
-            obs = self._load_task_instance(instance_id)
-        self._recorder.record_video(self._extract_frame(obs))
-        return obs
-
-    def _load_task_instance(self, instance_id: int) -> Any:
-        """Apply per-instance object/robot state JSON, then re-fetch obs.
-
-        Ports the v3.7.2 ``Evaluator.load_task_instance`` (public-test branch).  Reads
-        ``<get_task_instance_path(scene)>/json/<scene>_task_<activity>_instances/<...>-tro_state.json``
-        and pushes the recorded object/robot state into the running env.
-
-        Compatible only with the v3.7.2 OmniGibson API: uses ``robot.model_name``,
-        ``entity.is_system`` / ``entity.exists``.
-        """
-        import json
-        import os
-
-        import omnigibson as og
-        from omnigibson.utils.asset_utils import get_task_instance_path
-        from omnigibson.utils.python_utils import recursively_convert_to_torch
-
-        env = self._env
-        task = env.task
-        scene_model = task.scene_name
-        tro_filename = task.get_cached_activity_scene_filename(
-            scene_model=scene_model,
-            activity_name=task.activity_name,
-            activity_definition_id=task.activity_definition_id,
-            activity_instance_id=instance_id,
-        )
-        tro_file_path = os.path.join(
-            get_task_instance_path(scene_model),
-            f"json/{scene_model}_task_{task.activity_name}_instances/{tro_filename}-tro_state.json",
-        )
-        with open(tro_file_path, "r") as f:
-            tro_state = recursively_convert_to_torch(json.load(f))
-
-        robot = env.scene.object_registry("name", "robot_r1")
-        for tro_key, tro_substate in tro_state.items():
-            if tro_key == "robot_poses":
-                if robot is None:
-                    raise RuntimeError("BEHAVIOR-1K _load_task_instance: robot 'robot_r1' not found in scene")
-                model_name = getattr(robot, "model_name", None) or getattr(robot, "model", None)
-                if model_name not in tro_substate:
-                    raise KeyError(
-                        f"BEHAVIOR-1K instance {instance_id}: no presampled robot pose "
-                        f"for robot.model_name={model_name!r}; keys={list(tro_substate)}"
-                    )
-                pose0 = tro_substate[model_name][0]
-                robot.set_position_orientation(pose0["position"], pose0["orientation"])
-                env.scene.write_task_metadata(key=tro_key, data=tro_substate)
-            else:
-                task.object_scope[tro_key].load_state(tro_substate, serialized=False)
-
-        # Settle objects so loaded poses are stable before evaluation.
-        for _ in range(25):
-            og.sim.step_physics()
-            for entity in task.object_scope.values():
-                if entity is not None and not getattr(entity, "is_system", False) and getattr(entity, "exists", True):
-                    entity.keep_still()
-
-        env.scene.update_initial_file()
-        env.scene.reset()
-
-        # Re-fetch the observation after the state load so the model server sees the post-load
-        # images / proprio.
-        obs, _ = env.get_obs()
+        index = self._instance_indices[int(task.get("episode_idx", 0)) % len(self._instance_indices)]
+        self._instance_id = resolve_instance_ids(task_name, [index], mode=self._mode)[0]
+        self._evaluator.load_batch({0: self._instance_id})
+        self._steps = 0
+        self._failure: str | None = None
+        self._deadline: float | None = None
+        obs = self._state.obs
+        self._recorder.record_video(self._frame(obs))
         return obs
 
     def step(self, action: Action) -> StepResult:
+        if self._time_budget and (failure := self._check_budget(time.monotonic())):
+            return self._fail(failure)
         import torch as th
 
         raw = action.get("actions", action.get("action"))
-        tensor = th.as_tensor(raw, dtype=th.float32).flatten()
-        if tensor.shape[0] != R1PRO_ACTION_DIM:
-            raise ValueError(f"BEHAVIOR-1K expects a {R1PRO_ACTION_DIM}-D R1Pro joint action, got {tensor.shape[0]}D.")
+        tensor = th.as_tensor(np.asarray(raw), dtype=th.float32).flatten()
+        action_dim = self._state.env_accessor.robot.action_dim
+        if tensor.shape[0] != action_dim:
+            raise ValueError(f"BEHAVIOR-1K robot expects a {action_dim}-D action, got {tensor.shape[0]}D.")
 
-        assert self._env is not None
-        obs, reward, terminated, truncated, info = self._env.step(tensor, n_render_iterations=1)
-        info = dict(info)
-        info["truncated"] = bool(truncated)
-        done = bool(terminated) or bool(truncated)
-        done_info = info.get("done") or {}
-        success = bool(done_info.get("success", False))
+        terminated, truncated, info = self._evaluator._apply_actions(tensor.unsqueeze(0), [0])
+        self._steps += 1
+        self._recorder.record_video(self._frame(self._state.obs))
+        # As upstream, a step that ends past the deadline fails the rollout even if it terminated.
+        if self._deadline is not None and time.monotonic() >= self._deadline:
+            return self._fail("group_time_budget_exceeded")
+        term, trunc = bool(terminated[0]), bool(truncated[0])
+        success = self._state.env_accessor.success
+        self._recorder.record_step(done=term or trunc, terminated=term, truncated=trunc, success=success)
+        self._obs_ready = time.monotonic()
+        return StepResult(obs=self._state.obs, reward=0.0, done=term or trunc, info={"success": success})
 
-        self._recorder.record_video(self._extract_frame(obs))
-        self._recorder.record_step(
-            reward=float(reward),
-            done=done,
-            terminated=bool(terminated),
-            truncated=bool(truncated),
-            success=success,
-        )
+    def _check_budget(self, now: float) -> str | None:
+        """Failure reason for the query that just returned, as ``evaluate_instances_batched`` would record it."""
+        from omnigibson.eval.utils.network_utils import POLICY_RESPONSE_TIMEOUT
 
-        return StepResult(obs=obs, reward=float(reward), done=done, info=info)
+        if self._deadline is None:
+            # The first query is uncharged and, like EPISODE_START before it, bounded by ``server.timeout``.
+            self._deadline = now + self._evaluator.max_steps
+            return None
+        if now >= self._deadline:
+            return "group_time_budget_exceeded"
+        if now - self._obs_ready > POLICY_RESPONSE_TIMEOUT:
+            return "policy_query_timeout"
+        return None
 
-    def _extract_frame(self, raw_obs: Any) -> np.ndarray | None:
-        from omnigibson.learning.utils.eval_utils import flatten_obs_dict
+    def _fail(self, reason: str) -> StepResult:
+        logger.warning("Rollout failed at step %d for instance %d: %s", self._steps, self._instance_id, reason)
+        self._failure = reason
+        self._recorder.record_step(done=True, terminated=False, truncated=True, success=False)
+        return StepResult(obs=self._state.obs, reward=0.0, done=True, info={"success": False})
 
-        flat = flatten_obs_dict(raw_obs)
+    def _frame(self, obs: dict) -> np.ndarray | None:
+        names = self._evaluator.robot_camera_names
         for cam in self._camera_names:
-            key = R1PRO_CAMERAS[cam] + RGB_SUFFIX
-            value = flat.get(key)
-            if value is None:
-                continue
-            if hasattr(value, "cpu"):
-                value = value.cpu().numpy()
-            arr = np.asarray(value, dtype=np.uint8)
-            if arr.ndim == 3 and arr.shape[-1] == 4:
-                arr = arr[..., :3]
-            return np.ascontiguousarray(arr)
+            value = obs.get(f"{names[cam]}::rgb") if cam in names else None
+            if value is not None:
+                return _to_rgb(value)
         return None
 
     def make_obs(self, raw_obs: Any, task: Task) -> Observation:
-        from omnigibson.learning.utils.eval_utils import flatten_obs_dict
-
-        flat = flatten_obs_dict(raw_obs)
-
+        names = self._evaluator.robot_camera_names
         images: dict[str, np.ndarray] = {}
+        depth: dict[str, np.ndarray] = {}
         for cam in self._camera_names:
-            key = R1PRO_CAMERAS[cam] + RGB_SUFFIX
-            if key not in flat:
+            if cam not in names:
                 continue
-            value = flat[key]
-            if hasattr(value, "cpu"):  # torch.Tensor
-                value = value.cpu().numpy()
-            arr = np.asarray(value, dtype=np.uint8)
-            # OmniGibson VisionSensor returns (H, W, 4) RGBA — drop alpha.
-            if arr.ndim == 3 and arr.shape[-1] == 4:
-                arr = arr[..., :3]
-            images[cam] = np.ascontiguousarray(arr)
+            if (rgb := raw_obs.get(f"{names[cam]}::rgb")) is not None:
+                images[cam] = _to_rgb(rgb)
+            if (d := raw_obs.get(f"{names[cam]}::depth_linear")) is not None:
+                depth[cam] = np.asarray(_to_numpy(d), dtype=np.float32)
 
-        out: Observation = {
-            "images": images,
-            "task_description": task["name"],
-        }
-
-        if self._send_proprio:
-            proprio = flat.get(PROPRIO_KEY)
-            if proprio is not None:
-                if hasattr(proprio, "cpu"):
-                    proprio = proprio.cpu().numpy()
-                out["states"] = np.asarray(proprio, dtype=np.float32)
-
+        out: Observation = {"images": images, "task_description": TASK_INSTRUCTIONS[task["task_name"]]}
+        if depth:
+            out["depth"] = depth
+        if self._send_proprio and (proprio := raw_obs.get(f"{self._evaluator.robot_name}::proprio")) is not None:
+            out["states"] = np.asarray(_to_numpy(proprio), dtype=np.float32)
         return out
 
     def check_done(self, step_result: StepResult) -> bool:
         return step_result.done
 
     def get_step_result(self, step_result: StepResult) -> EpisodeResult:
-        done_info = step_result.info.get("done", {}) or {}
-        success = bool(done_info.get("success", False))
-        return {"success": success}
+        """Upstream's per-rollout record (``BatchedEvaluator.run.record_fn``), flattened to scalars."""
+        state = self._state
+        record: dict[str, Any] = {}
+        if self._failure is None or self._steps > 0:
+            for metric in state.metrics:
+                record.update(metric.aggregate())
+        if self._failure is not None:  # record_fn's zero score for a failed rollout
+            import omnigibson as og
+            from omnigibson.eval.evaluator import EVAL_TIMEOUT_MULTIPLIER
+
+            zeros = {"base": 0.0, "left": 0.0, "right": 0.0}
+            record["q_score"] = {"final": 0.0}
+            record.setdefault("agent_distance", dict(zeros))
+            record["normalized_agent_distance"] = dict(zeros)
+            sim_time = self._steps * og.sim.get_rendering_dt()
+            record.setdefault("time", {"simulator_steps": self._steps, "simulator_time": sim_time})
+            record["time"]["normalized_time"] = 1 / EVAL_TIMEOUT_MULTIPLIER
+        q_score = record.get("q_score", {}).get("final", 0.0)
+        result: dict[str, Any] = {
+            "success": self._failure is None and bool(state.env_accessor.success),
+            "q_score": float(q_score),
+            "instance_id": int(self._instance_id),
+        }
+        if self._failure is not None:
+            result["failure_reason"] = self._failure
+        for group in ("time", "agent_distance", "normalized_agent_distance"):
+            for key, value in record.get(group, {}).items():
+                name = key if group == "time" else f"{group}_{key}"
+                result[name] = float(value) if math.isfinite(value) else None
+        return result
+
+    def get_metric_keys(self) -> dict[str, str]:
+        return {"success": "mean", "q_score": "mean"}
 
     def get_metadata(self) -> dict[str, Any]:
+        # max_steps None leaves the runner unbounded; upstream's per-task timeout ends the episode.
         return {
             "action_dim": R1PRO_ACTION_DIM,
-            "max_steps": self._max_steps if self._max_steps is not None else 5000,
+            "max_steps": self._max_steps,
             "robot": "R1Pro",
             "n_tasks": len(self._task_names),
+            "mode": self._mode,
         }
 
     def cleanup(self) -> None:
-        if self._env is not None:
-            try:
-                self._env.close()
-            except Exception:
-                logger.exception("BEHAVIOR-1K env close failed")
-            self._env = None
-        # Intentionally NOT calling ``omnigibson.shutdown()`` here: Isaac Sim's shutdown path can hang
-        # for many minutes (waiting on hydra texture cleanup, render contexts, etc.) which prevents
-        # the orchestrator from writing the result JSON at the end of the run.  Process exit reclaims
-        # everything; leaving Isaac Sim alone is the lesser evil.
+        # Not calling ``og.shutdown()`` (BatchedEvaluator.__exit__ does): Isaac Sim's shutdown can hang for
+        # minutes and block the result write.  Process exit reclaims everything.
+        self._evaluator = None
 
-    # Async bridge override: run sync reset()/step() on a worker thread.  Booting Isaac Sim from the
-    # orchestrator's main thread tears down the running asyncio event loop (SimulationApp installs
-    # its own), which makes the next ``await conn.act(...)`` raise NoEventLoopError.  Off-loading
-    # to ``anyio.to_thread.run_sync`` keeps the orchestrator loop intact while Isaac Sim does its
-    # synchronous work.
+    # Isaac Sim's SimulationApp installs its own event loop when booted from the main thread, which breaks
+    # the orchestrator's ``await conn.act(...)``.  Run env construction / stepping on a worker thread.
 
     async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
         self._t0 = time.monotonic()
         self._task = task
         self._recorder = recorder or NullEpisodeRecorder()
-        # Run imports + signal-handler registration on the main thread (Python's signal module forbids
-        # setting handlers from a worker thread, and OmniGibson registers SIGINT during its top-level
-        # ``__init__.py``).  Only the env construction / reset itself is offloaded to the worker
-        # thread, which is what actually trashes the asyncio event loop.
         self._init_og()
         raw_obs = await _run_in_thread(self.reset, task)
         self._last_result = StepResult(obs=raw_obs, reward=0.0, done=False, info={})
@@ -551,9 +390,7 @@ class Behavior1KBenchmark(StepBenchmark):
         self._last_result = await _run_in_thread(self.step, action)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
-        return {
-            "joints": DimSpec("joints", R1PRO_ACTION_DIM, "joint_positions_r1pro"),
-        }
+        return {"joints": DimSpec("joints", R1PRO_ACTION_DIM, "joint_positions_r1pro")}
 
     def get_observation_spec(self) -> dict[str, DimSpec]:
         spec: dict[str, DimSpec] = {"language": LANGUAGE}
@@ -562,3 +399,16 @@ class Behavior1KBenchmark(StepBenchmark):
         if self._send_proprio:
             spec["state"] = RAW
         return spec
+
+
+def _to_numpy(value: Any) -> np.ndarray:
+    # Tiled (multi-env) sensors return CUDA tensors; single-env ones CPU tensors.
+    return value.detach().cpu().numpy() if hasattr(value, "detach") else np.asarray(value)
+
+
+def _to_rgb(value: Any) -> np.ndarray:
+    """OmniGibson VisionSensor RGB is (H, W, 4) RGBA uint8; drop alpha."""
+    arr = np.asarray(_to_numpy(value), dtype=np.uint8)
+    if arr.ndim == 3 and arr.shape[-1] == 4:
+        arr = arr[..., :3]
+    return np.ascontiguousarray(arr)
