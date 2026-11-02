@@ -43,7 +43,7 @@ exactly:
 
 Chunking mirrors the upstream ``eval_one_episode`` loop: the policy's full
 action chunk is executed open-loop, then the policy is queried again
-(``chunk_size`` defaults to the model's action horizon, ensemble "newest").
+(``chunk_size`` defaults to the model's action horizon).
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
@@ -116,7 +116,7 @@ class RoboDojoPi05ModelServer(PredictModelServer):
         cfg = _config.get_config(config_name)
         if chunk_size is None:
             chunk_size = int(cfg.model.action_horizon)
-        super().__init__(chunk_size=chunk_size, action_ensemble="newest", **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.checkpoint = checkpoint
 
         logger.info("Loading norm stats: %s/assets/%s", checkpoint, norm_asset_id)
@@ -147,7 +147,7 @@ class RoboDojoPi05ModelServer(PredictModelServer):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return {"images": IMAGE_RGB, "state": RAW, "language": LANGUAGE}
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         images_in = obs.get("images") or {}
         images: dict[str, np.ndarray] = {}
         for target, sources in _CAMERA_MAP.items():

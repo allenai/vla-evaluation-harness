@@ -1,12 +1,12 @@
 """Benchmark ABCs: the environment interface for evaluation.
 
-Two classes:
-
-* :class:`Benchmark` — async, universal contract.  Runners depend only on
-  this.  Suitable for both simulation and real-robot environments.
+* :class:`BenchmarkCommon` — what every benchmark declares (tasks, specs, metrics, metadata).
+* :class:`Benchmark` — async, universal contract for one environment.  Runners depend
+  only on this.  Suitable for both simulation and real-robot environments.
 * :class:`StepBenchmark` — sync convenience subclass.  Users implement
   ``reset`` / ``step`` / ``make_obs`` and the class auto-bridges to the
   async parent methods.
+* :class:`VectorStepBenchmark` — sync, ``num_envs`` environments stepped together.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from vla_eval.specs import DimSpec
 
 import numpy as np
 
+from vla_eval.types import Action, Batch, EpisodeResult, Observation, Task
 from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
-from vla_eval.types import Action, EpisodeResult, Observation, Task
 
 
 def repeat_last_hold(last_action: Action | None, action_dim: int) -> Action:
@@ -47,29 +47,13 @@ class StepResult:
 
 
 # ---------------------------------------------------------------------------
-# Async Benchmark ABC (parent)
+# Benchmark ABCs
 # ---------------------------------------------------------------------------
 
 
-class Benchmark(ABC):
-    """Universal async benchmark contract.
-
-    Runners call these methods — they never touch sync helpers directly.
-
-    Command methods (mutate state):
-        - ``start_episode(task)`` → None (stores env internally).
-        - ``apply_action(action)`` → None (actuate only).
-
-    Query methods (read state):
-        - ``get_observation()`` → observation dict for the model server.
-        - ``is_done()`` → bool.
-        - ``get_time()`` → environment time in seconds.
-
-    Data methods:
-        - ``get_tasks()`` → list of task dicts.
-        - ``get_result()`` → episode result dict.
-        - ``get_metadata()`` → benchmark defaults / metadata.
-    """
+class BenchmarkCommon(ABC):
+    """What every benchmark declares, whatever it steps: its tasks, render backends,
+    action/observation specs, aggregated metrics, metadata, real-time hold and cleanup."""
 
     #: Render backends this benchmark can run on (see ``render: gpu|cpu`` / ``--render``).
     #: Default is GPU-only, so a benchmark that has not been verified on CPU fails fast
@@ -100,35 +84,6 @@ class Benchmark(ABC):
     @abstractmethod
     def get_tasks(self) -> list[Task]:
         """Return the list of tasks this benchmark provides."""
-
-    # -- abstract: commands -----------------------------------------------
-
-    @abstractmethod
-    async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
-        """Initialise an episode. ``recorder`` is always non-None (Null when recording is off),
-        so subclasses can call ``recorder.record_*`` unconditionally."""
-
-    @abstractmethod
-    async def apply_action(self, action: Action) -> None:
-        """Execute *action* in the environment (fire-and-forget)."""
-
-    # -- abstract: queries ------------------------------------------------
-
-    @abstractmethod
-    async def get_observation(self) -> Observation:
-        """Read the current observation from the environment."""
-
-    @abstractmethod
-    async def is_done(self) -> bool:
-        """Return ``True`` when the episode should end."""
-
-    @abstractmethod
-    async def get_time(self) -> float:
-        """Return the current environment time (seconds since episode start)."""
-
-    @abstractmethod
-    async def get_result(self) -> EpisodeResult:
-        """Return the episode result (at least ``{"success": bool}``)."""
 
     # -- optional overrides -----------------------------------------------
 
@@ -199,6 +154,56 @@ class Benchmark(ABC):
     def render(self) -> np.ndarray | None:
         """Render current env state as image. Optional override."""
         return None
+
+
+class Benchmark(BenchmarkCommon):
+    """Universal async benchmark contract.
+
+    Runners call these methods — they never touch sync helpers directly.
+
+    Command methods (mutate state):
+        - ``start_episode(task)`` → None (stores env internally).
+        - ``apply_action(action)`` → None (actuate only).
+
+    Query methods (read state):
+        - ``get_observation()`` → observation dict for the model server.
+        - ``is_done()`` → bool.
+        - ``get_time()`` → environment time in seconds.
+
+    Data methods:
+        - ``get_tasks()`` → list of task dicts.
+        - ``get_result()`` → episode result dict.
+        - ``get_metadata()`` → benchmark defaults / metadata.
+    """
+
+    # -- abstract: commands -----------------------------------------------
+
+    @abstractmethod
+    async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
+        """Initialise an episode. ``recorder`` is always non-None (Null when recording is off),
+        so subclasses can call ``recorder.record_*`` unconditionally."""
+
+    @abstractmethod
+    async def apply_action(self, action: Action) -> None:
+        """Execute *action* in the environment (fire-and-forget)."""
+
+    # -- abstract: queries ------------------------------------------------
+
+    @abstractmethod
+    async def get_observation(self) -> Observation:
+        """Read the current observation from the environment."""
+
+    @abstractmethod
+    async def is_done(self) -> bool:
+        """Return ``True`` when the episode should end."""
+
+    @abstractmethod
+    async def get_time(self) -> float:
+        """Return the current environment time (seconds since episode start)."""
+
+    @abstractmethod
+    async def get_result(self) -> EpisodeResult:
+        """Return the episode result (at least ``{"success": bool}``)."""
 
 
 # ---------------------------------------------------------------------------
@@ -277,3 +282,41 @@ class StepBenchmark(Benchmark, ABC):
 
     async def get_result(self) -> EpisodeResult:
         return self.get_step_result(self._last_result)
+
+
+# ---------------------------------------------------------------------------
+# Vectorized (several environments stepped together)
+# ---------------------------------------------------------------------------
+
+
+class VectorStepBenchmark(BenchmarkCommon):
+    """``num_envs`` environments stepped together (MuJoCo Warp, ManiSkill3, Isaac Lab); sync only.
+
+    Contract (slots are env indices; observations and actions are :data:`Batch` columns, row ``i`` for ``slots[i]``):
+        - ``reset(slots, tasks, recorders)`` → first observations; other slots' episodes are unaffected.
+        - ``step(slots, actions)`` → ``(observations, done)``; slots not listed stay inert.
+        - ``result(slot)`` → the ended episode's EpisodeResult, called before the slot is reset again.
+
+    ``partial_reset``: ``reset`` may start slots while others run; else episodes run in waves of ``num_envs``.
+    The harness counts steps and ``max_steps``, and calls everything on the orchestrator's thread.
+    """
+
+    partial_reset: ClassVar[bool] = False
+
+    def __init__(self, num_envs: int = 1) -> None:
+        super().__init__()
+        if num_envs < 1:
+            raise ValueError(f"num_envs must be >= 1, got {num_envs}")
+        self.num_envs = num_envs
+
+    @abstractmethod
+    def reset(self, slots: list[int], tasks: list[Task], recorders: list[EpisodeRecorder]) -> Batch:
+        """Start ``tasks[i]`` in environment ``slots[i]``; return the first observation of each."""
+
+    @abstractmethod
+    def step(self, slots: list[int], actions: Batch) -> tuple[Batch, np.ndarray]:
+        """Advance every environment one step; return ``slots``' observations and ``done`` flags."""
+
+    @abstractmethod
+    def result(self, slot: int) -> EpisodeResult:
+        """The result of the episode that just ended in ``slot``."""

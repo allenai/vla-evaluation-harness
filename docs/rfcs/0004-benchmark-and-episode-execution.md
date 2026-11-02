@@ -133,7 +133,7 @@ Coordinates the full evaluation flow:
 6. **Collect results**: pass episode metrics to `ResultCollector`
 7. **Shutdown**: SIGTERM → 10s wait → SIGKILL, generate final report
 
-**Execution model**: single session by default (one model server, one benchmark client). Benchmarks run sequentially. The interface supports multi-session via `session_id` in `SessionContext` without changes.
+**Execution model**: single session by default (one model server, one benchmark client). Benchmarks run sequentially. The interface supports multi-session via `session_id` (now `Row.episode.session_id`, RFC-0009) without changes.
 
 ## Configuration
 

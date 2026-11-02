@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 import websockets
 
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder, RecordingError
 from vla_eval.types import EpisodeResult, Task
+
+logger = logging.getLogger(__name__)
 
 
 class EpisodeError(RuntimeError):
@@ -40,6 +43,55 @@ def phase(error: type[EpisodeError]) -> Iterator[None]:
         raise
     except Exception as exc:
         raise error(f"{type(exc).__name__}: {exc}") from exc
+
+
+def failure_reason(error: BaseException) -> str:
+    """The ``failure_reason`` of an episode that ended in ``error``."""
+    if isinstance(error, ConnectionError):
+        return "server_unreachable"
+    if isinstance(error, websockets.exceptions.ConnectionClosed):
+        return "connection_closed"
+    if isinstance(error, TimeoutError):
+        return "timeout"
+    return error.phase if isinstance(error, EpisodeError) else "exception"
+
+
+def episode_status(result: Mapping[str, Any]) -> Literal["success", "fail"]:
+    """The status of an episode that ended with ``result``."""
+    metrics = result.get("metrics")
+    return "success" if isinstance(metrics, dict) and metrics.get("success") else "fail"
+
+
+def episode_end_payload(result: Mapping[str, Any] | None = None, error: BaseException | None = None) -> dict[str, Any]:
+    """``EPISODE_END`` payload: ``result`` with its ``status``, or ``status: error`` and why (``error``)."""
+    if error is not None:
+        return {"status": "error", "failure_reason": failure_reason(error)}
+    assert result is not None
+    return {**result, "status": episode_status(result), "failure_reason": None}
+
+
+async def end_failed_episode(conn: Any, error: BaseException) -> None:
+    """Tell the server the episode failed with ``error``; a failure to tell never replaces ``error``."""
+    try:
+        await conn.end_episode(episode_end_payload(error=error))
+    except Exception as exc:
+        logger.debug("EPISODE_END not sent: %s: %s", type(exc).__name__, exc)
+
+
+def episode_start_payload(task: Task, recorder: EpisodeRecorder | None, **extra: Any) -> dict[str, Any]:
+    """``EPISODE_START`` payload: the task's plain fields, plus the recording handle when one is active."""
+    payload: dict[str, Any] = {
+        "task": {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))},
+        **extra,
+    }
+    if recorder is not None and recorder.is_active:
+        payload["recording"] = {
+            "sid": recorder.sid,
+            "eid": recorder.eid,
+            "eval_id": recorder.eval_id,
+            "db_path": recorder.db_path,
+        }
+    return payload
 
 
 class EpisodeRunner(ABC):

@@ -19,6 +19,10 @@ class MessageType(str, enum.Enum):
     EPISODE_START = "episode_start"
     EPISODE_END = "episode_end"
     ERROR = "error"
+    # VECTOR_STEP {ends: [[slot, result]], starts: [[slot, episode_start]], slots, observations: columns} ->
+    # VECTOR_RESULT {actions: columns, rows = slots without an error, in order; errors: [[slot, detail]]}.
+    VECTOR_STEP = "vector_step"
+    VECTOR_RESULT = "vector_result"
 
 
 PROTOCOL_VERSION = 1

@@ -7,7 +7,7 @@ import logging
 import os
 import sqlite3
 import time
-from collections.abc import Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -225,11 +225,14 @@ class RecordingStore:
                 [(eval_id, i, t) for i, t in enumerate(task_idxs)],
             )
 
-    def claim(self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int) -> int | None:
+    def claim(
+        self, eval_id: str, shard_id: int, task_idx: int | None, num_shards: int, exclude: Collection[int] = ()
+    ) -> int | None:
         """Next item for ``shard_id``. Items are task-sorted and shard k's home block is those with
         ``item * num_shards // n == k``. Order: its own unfinished item (a rerun after a crash), the loaded task
         (own block forward, else others' from the end), its own block forward, then the end of the block with
-        the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task."""
+        the most unclaimed items, so idle shards help the most-behind shard and do not pile onto one task.
+        ``exclude``: the shard's items still running (a vector benchmark holds several), never handed out again."""
         with self.transaction():
             n = self._conn.execute("SELECT COUNT(*) FROM work_queue WHERE eval_id = ?", (eval_id,)).fetchone()[0]
             rows = self._conn.execute(
@@ -237,7 +240,7 @@ class RecordingStore:
                 "AND (shard_id = ? OR shard_id IS NULL)",
                 (eval_id, shard_id),
             ).fetchall()
-            mine = [i for i, _, s in rows if s == shard_id]
+            mine = [i for i, _, s in rows if s == shard_id and i not in exclude]
             free = [(i, t) for i, t, s in rows if s is None]
             if mine:
                 return min(mine)
@@ -450,6 +453,11 @@ class EpisodeRecorder:
         return True
 
     @property
+    def records_steps(self) -> bool:
+        """Whether ``record_step`` keeps anything (a benchmark can skip building rows otherwise)."""
+        return self._record_step
+
+    @property
     def sid(self) -> str:
         return self._sid
 
@@ -563,6 +571,10 @@ class NullEpisodeRecorder(EpisodeRecorder):
         return False
 
     @property
+    def records_steps(self) -> bool:  # type: ignore[override]
+        return False
+
+    @property
     def sid(self) -> str:  # type: ignore[override]
         return ""
 
@@ -613,7 +625,7 @@ class StepRecorder:
     """
 
     def __init__(self, db_path: str | Path, sid: str, eid: str) -> None:
-        self._store = RecordingStore(db_path)
+        self._db_path = db_path  # opened in close(): SQLite connections are bound to their thread
         self._sid = sid
         self._eid = eid
         self._steps: dict[int, dict[str, Any]] = {}
@@ -631,11 +643,15 @@ class StepRecorder:
             return
         self._closed = True
         try:
-            self._store.upsert_step_rows(self._sid, self._eid, self._steps)
+            store = RecordingStore(self._db_path)
+        except Exception as exc:
+            raise RecordingError(f"Failed to save steps sid={self._sid} eid={self._eid}") from exc
+        try:
+            store.upsert_step_rows(self._sid, self._eid, self._steps)
         except Exception as exc:
             raise RecordingError(f"Failed to save steps sid={self._sid} eid={self._eid}") from exc
         finally:
-            self._store.close()
+            store.close()
 
     def __enter__(self) -> StepRecorder:
         return self

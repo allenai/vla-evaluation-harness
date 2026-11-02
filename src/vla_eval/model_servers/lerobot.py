@@ -50,7 +50,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
@@ -120,7 +120,6 @@ class LeRobotModelServer(PredictModelServer):
         robot_type: str = "",
         *,
         chunk_size: int | None = None,
-        action_ensemble: str = "newest",
         compile_model: bool | None = None,
         policy_kwargs: dict[str, Any] | None = None,
         features: dict[str, dict[str, Any]] | None = None,
@@ -160,13 +159,15 @@ class LeRobotModelServer(PredictModelServer):
                 ``select_action`` loop, one action per call, for policies that
                 feed executed-step observations back into their context (e.g.
                 LingBot-VA's autoregressive video stream). Forces chunk_size=1
-                so the policy sees every step's observation.
+                so the policy sees every step's observation; one episode at a time.
             preprocessor_overrides: Per-step config overrides forwarded to LeRobot's
                 ``make_pre_post_processors``; a ``device_processor`` entry replaces the bridge's.
             quat_no_antipodal: Ask the benchmark for robosuite axis-angle (no antipodal flip),
                 LeRobot's LIBERO convention; forwarded as an observation param.
         """
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        if use_select_action:
+            kwargs["max_rows"] = 1  # the action queue lives in the one policy object
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.policy_type = policy_type
         self.checkpoint = checkpoint
         self.state_key = None if state_key in (None, "None", "none") else state_key
@@ -375,7 +376,7 @@ class LeRobotModelServer(PredictModelServer):
         out[top : top + fit_h, left : left + fit_w] = scaled
         return out
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         torch = self._torch
         from lerobot.policies.utils import prepare_observation_for_inference
 
@@ -401,14 +402,13 @@ class LeRobotModelServer(PredictModelServer):
                 chunk = self._policy.predict_action_chunk(frame)
         chunk = self._postprocess(chunk)
 
-        # (B, n_steps, action_dim) -> (n_steps, action_dim); vla-eval buffers per session.
+        # (B, n_steps, action_dim) -> (n_steps, action_dim); vla-eval buffers per episode.
         actions = chunk.squeeze(0).detach().to("cpu").numpy().astype(np.float32)
         return {"actions": actions}
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        # Clear any per-policy observation-history queues between episodes.
+    def reset_episodes(self, rows: Rows) -> None:
+        # Clear any per-policy observation-history queues between episodes (global: once per call).
         self._policy.reset()
-        await super().on_episode_start(config, ctx)
 
 
 if __name__ == "__main__":

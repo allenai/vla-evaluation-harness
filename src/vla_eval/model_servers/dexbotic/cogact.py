@@ -29,11 +29,12 @@ from pathlib import Path
 from typing import Any
 
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
-from vla_eval.types import Action, Observation
+from vla_eval import columns
+from vla_eval.types import Action, Batch, Observation
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,6 @@ class CogACTModelServer(PredictModelServer):
         chunk_size: int | None = None,
         chunk_size_map: dict[str, int] | None = None,
         camera_keys: list[str] | None = None,
-        action_ensemble: str = "newest",
         image_resolution: int = 224,
         **kwargs: Any,
     ) -> None:
@@ -84,7 +84,6 @@ class CogACTModelServer(PredictModelServer):
         resolved_chunk_size = chunk_size if chunk_size is not None else 12
         super().__init__(
             chunk_size=resolved_chunk_size,
-            action_ensemble=action_ensemble,
             **kwargs,
         )
         self.model_path = model_path
@@ -156,25 +155,24 @@ class CogACTModelServer(PredictModelServer):
             stats = stats["norm_stats"]
         return stats.get("default", default)
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        """Resolve per-suite chunk_size from ``chunk_size_map`` if set.
-
-        Stores the resolved chunk_size in ``_session_chunk_sizes`` instead
-        of mutating ``self.chunk_size`` to avoid race conditions when
-        multiple sessions run concurrently.
-        """
-        if self.chunk_size_map is not None:
-            suite = config.get("task", {}).get("suite", "")
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        """Resolve each episode's chunk_size from ``chunk_size_map`` if set; an unknown suite fails that row."""
+        if self.chunk_size_map is None:
+            return None
+        failed: dict[int, Exception] = {}
+        for i, episode in enumerate(rows.episodes):
+            suite = episode.config.get("task", {}).get("suite", "")
             if suite not in self.chunk_size_map:
-                raise ValueError(
+                failed[i] = ValueError(
                     f"Suite {suite!r} not found in chunk_size_map "
                     f"{set(self.chunk_size_map)}. Use --chunk_size for a "
                     f"fixed value, or add the suite to --chunk_size_map."
                 )
+                continue
             cs = self.chunk_size_map[suite]
-            self._session_chunk_sizes[ctx.session_id] = cs
-            logger.info("Suite %r → chunk_size=%d (session=%s)", suite, cs, ctx.session_id)
-        await super().on_episode_start(config, ctx)
+            episode.chunk_size = cs
+            logger.info("Suite %r → chunk_size=%d (session=%s)", suite, cs, episode.session_id)
+        return failed
 
     def _obs_to_pil_images(self, obs: Observation) -> list[Any]:
         """Extract images from an observation and convert to PIL RGB.
@@ -217,7 +215,7 @@ class CogACTModelServer(PredictModelServer):
             out[i, 13] = raw[13]
         return out.astype(np.float32)
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         import torch
         from dexbotic.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
         from dexbotic.tokenization import conversation as conversation_lib
@@ -255,7 +253,10 @@ class CogACTModelServer(PredictModelServer):
             raw_actions = self._convert_actions(raw_actions, np.asarray(joint_state))
         return {"actions": raw_actions}
 
-    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[dict[str, Any]]:
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        obs_batch = columns.split(obs, len(rows))
+        if self.max_batch_size == 1:  # unbatched: inference_action, as max_batch_size 1 always did
+            return columns.stack([self.predict(obs_batch[0], rows[0])])
         import torch
         from dexbotic.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
         from dexbotic.tokenization import conversation as conversation_lib
@@ -388,7 +389,7 @@ class CogACTModelServer(PredictModelServer):
             if joint_state is not None:
                 raw_actions = self._convert_actions(raw_actions, np.asarray(joint_state))
             results.append({"actions": raw_actions})
-        return results
+        return columns.stack(results)
 
 
 if __name__ == "__main__":

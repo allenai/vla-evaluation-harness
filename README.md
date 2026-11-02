@@ -144,7 +144,7 @@ A full evaluation takes hours sequentially. Two layers of parallelism bring this
   <img src=".github/assets/speedup_comparison.png" alt="Wall-clock evaluation time: sequential vs batch parallel across LIBERO (47×), CALVIN (16×), SimplerEnv (12×)" width="700">
 </p>
 
-**Episode sharding** splits `(task, episode)` pairs across N independent processes ([RFC-0006](docs/rfcs/0006-episode-sharding.md)). Each shard connects to the same model server, where a [`BatchPredictModelServer`](docs/rfcs/0007-batch-predict-model-server.md) **batches their inference requests** into a single forward pass. The two axes multiply together.
+**Episode sharding** splits `(task, episode)` pairs across N independent processes ([RFC-0006](docs/rfcs/0006-episode-sharding.md)). Each shard connects to the same model server, where a model server that overrides `predict_batch` **batches their inference requests** into a single forward pass. The two axes multiply together.
 
 ### Episode Sharding (environment parallelism)
 
@@ -167,12 +167,13 @@ Benchmark containers run as root by default, so `output_dir` ends up root-owned 
 
 ### Batch Model Server (GPU parallelism)
 
-Enable batching in the model server config by setting `max_batch_size > 1`:
+A model server that overrides `predict_batch(obs, rows)` infers the observations of several episodes (shards, or a
+vector benchmark's environments) in one call. Enable batching in its config by setting `max_batch_size > 1`:
 
 ```yaml
 args:
-  max_batch_size: 16    # max observations per GPU forward pass (>1 enables batching)
-  max_wait_time: 0.05   # seconds to wait before dispatching a partial batch
+  max_batch_size: 16    # max observations per GPU forward pass (default 1: no batching)
+  max_wait_time: 0.05   # seconds to wait before dispatching a partial batch (default 0.01)
 ```
 
 ### Tuning & Combined Effect

@@ -1,6 +1,4 @@
-# VLANeXt — LIBERO-Goal
-# Checkpoint: DravenALG/VLANeXt (HuggingFace)
+# VLANeXt-B — LIBERO-goal, weights VLANeXt_libero_goal.pt
 extends: _base.yaml
 args:
-  checkpoint: DravenALG/VLANeXt
   suite: libero_goal

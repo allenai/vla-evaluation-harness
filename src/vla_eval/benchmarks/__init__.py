@@ -1,5 +1,5 @@
 """Benchmark ABCs and registry."""
 
-from vla_eval.benchmarks.base import Benchmark, StepBenchmark, StepResult
+from vla_eval.benchmarks.base import Benchmark, BenchmarkCommon, StepBenchmark, StepResult, VectorStepBenchmark
 
-__all__ = ["Benchmark", "StepBenchmark", "StepResult"]
+__all__ = ["Benchmark", "BenchmarkCommon", "StepBenchmark", "StepResult", "VectorStepBenchmark"]

@@ -58,3 +58,6 @@ EpisodeResult: TypeAlias = dict[str, Any]
 At minimum contains ``{"success": bool}``.  Benchmarks may include
 additional metrics (e.g. ``completed_subtasks``, ``reward``).
 """
+
+Batch: TypeAlias = dict[str, Any]
+"""Column batch (``vla_eval.columns``): a (nested) dict of columns, an array with a leading row axis or a list."""

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,13 +42,23 @@ def ensure_git_clone(name: str, repo: str, rev: str, *, shallow: bool = False) -
         return target
 
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Clone beside the target and rename once checked out: a concurrent or failed clone never looks finished.
+    tmp = target.with_name(f"{target.name}.tmp-{os.getpid()}")
+    shutil.rmtree(tmp, ignore_errors=True)
     logger.info("Cloning %s @ %s -> %s", repo, rev, target)
-    if shallow:
-        subprocess.check_call(["git", "clone", "--depth", "1", "--branch", rev, repo, str(target)])
-    else:
-        # Full clone for arbitrary commit SHAs (GitHub rejects shallow-fetch by SHA).
-        subprocess.check_call(["git", "clone", repo, str(target)])
-        subprocess.check_call(["git", "-C", str(target), "checkout", rev])
+    try:
+        if shallow:
+            subprocess.check_call(["git", "clone", "--depth", "1", "--branch", rev, repo, str(tmp)])
+        else:
+            # Full clone for arbitrary commit SHAs (GitHub rejects shallow-fetch by SHA).
+            subprocess.check_call(["git", "clone", repo, str(tmp)])
+            subprocess.check_call(["git", "-C", str(tmp), "checkout", rev])
+        tmp.rename(target)
+    except OSError:
+        if not (target / ".git").exists():  # not another process winning the rename
+            raise
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return target
 
 

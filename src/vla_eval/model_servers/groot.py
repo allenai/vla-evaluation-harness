@@ -41,9 +41,10 @@ from vla_eval.specs import (
     ROTATION_EULER,
     DimSpec,
 )
-from vla_eval.types import Action, Observation
+from vla_eval import columns
+from vla_eval.types import Batch
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Rows
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
@@ -68,10 +69,9 @@ class GR00TModelServer(PredictModelServer):
         observation_params: str | dict | None = None,
         *,
         chunk_size: int = 16,
-        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.model_path = model_path
         self.embodiment_tag = embodiment_tag
         self._layout = _STATE_LAYOUTS.get(str(embodiment_tag).rsplit(".", 1)[-1].upper(), "passthrough")
@@ -204,7 +204,8 @@ class GR00TModelServer(PredictModelServer):
 
     _BRIDGE_DEFAULT_ROT = np.array([[0, 0, 1.0], [0, 1.0, 0], [-1.0, 0, 0]])
 
-    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        obs_batch = columns.split(obs, len(rows))
         B = len(obs_batch)
 
         if self.image_resolution:
@@ -303,11 +304,11 @@ class GR00TModelServer(PredictModelServer):
                 # Transform: normalize [0,1]→[-1,1] then invert sign.
                 actions[..., -1] = 1.0 - 2.0 * actions[..., -1]
             outputs.append({"actions": actions})
-        return outputs
+        return columns.stack(outputs)
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        self._policy.reset()
-        await super().on_episode_start(config, ctx)
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        self._policy.reset()  # a no-op at the pinned rev (Gr00tPolicy keeps no state), so rows don't interfere
+        return None
 
 
 if __name__ == "__main__":

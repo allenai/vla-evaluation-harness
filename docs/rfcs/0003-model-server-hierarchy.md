@@ -7,6 +7,9 @@
 - **Requires:** RFC-0001
 - **Superseded-By:** —
 
+> **Superseded in part by the row API ([RFC-0009](0009-vector-benchmarks.md)):** `predict(obs, row)` / `predict_batch(obs,
+> rows)`; callbacks take `Rows`; `SessionContext` and action ensembling are removed; CI/LAAS live in `LiveModelServer`.
+
 ## Summary
 
 Three-level class hierarchy for model servers: an async base (`ModelServer`), a blocking convenience layer (`PredictModelServer`), and a planned batched variant (`BatchPredictModelServer`). The hierarchy lets most researchers implement a single `predict()` method while preserving full async control for advanced use cases.

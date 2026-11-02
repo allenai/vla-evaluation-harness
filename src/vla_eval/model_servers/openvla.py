@@ -26,7 +26,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, POSITION_DELTA, ROTATION_AA, DimSpec
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row
 from vla_eval.types import Action, Observation
 from vla_eval.model_servers.predict import PredictModelServer
 
@@ -49,10 +49,9 @@ class OpenVLAModelServer(PredictModelServer):
         jpeg_roundtrip: bool = False,
         center_crop: bool = False,
         chunk_size: int = 1,
-        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.model_path = model_path
         self.unnorm_key = unnorm_key
         self.jpeg_roundtrip = jpeg_roundtrip
@@ -115,7 +114,7 @@ class OpenVLAModelServer(PredictModelServer):
 
         return pil
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         import torch
 
         pil_image = self._preprocess_image(obs)

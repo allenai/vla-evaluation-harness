@@ -1,6 +1,4 @@
-# VLANeXt — LIBERO-Long (10-task)
-# Checkpoint: DravenALG/VLANeXt (HuggingFace)
+# VLANeXt-B — LIBERO-10 (Long), weights VLANeXt_libero_10.pt
 extends: _base.yaml
 args:
-  checkpoint: DravenALG/VLANeXt
   suite: libero_10

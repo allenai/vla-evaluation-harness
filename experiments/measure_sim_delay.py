@@ -16,16 +16,15 @@ Or run this script directly inside the container:
 from __future__ import annotations
 
 import time
-from typing import Any
 
 import anyio
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.types import Action, Batch, EpisodeResult, Observation
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
-from vla_eval.types import Action, Observation
 
 
 class InstantServer(PredictModelServer):
@@ -38,28 +37,27 @@ class InstantServer(PredictModelServer):
         self.step_timestamps: list[float] = []
         self._episode_start_time: float | None = None
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         self.timestamps.append(time.monotonic())
         self.call_count += 1
-        print(f"  predict() call #{self.call_count} at step {ctx.step}")
+        print(f"  predict() call #{self.call_count} at step {row.step}")
         if self.chunk_size and self.chunk_size > 1:
             return {"actions": np.zeros((self.chunk_size, 7), dtype=np.float32)}
         return {"actions": np.zeros(7, dtype=np.float32)}
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        await super().on_episode_start(config, ctx)
+    def reset_episodes(self, rows: Rows) -> None:
+        config = rows.episodes[0].config
         self._episode_start_time = time.monotonic()
         self.call_count = 0
         self.timestamps = []
         self.step_timestamps = []
         print(f"\n=== Episode started: {config.get('task', {}).get('name', '?')} ===")
 
-    async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
+    async def on_observation(self, obs: Batch, rows: Rows) -> None:
         self.step_timestamps.append(time.monotonic())
-        await super().on_observation(obs, ctx)
+        await super().on_observation(obs, rows)
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        await super().on_episode_end(result, ctx)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
         if not self.step_timestamps:
             return
         total_steps = len(self.step_timestamps)

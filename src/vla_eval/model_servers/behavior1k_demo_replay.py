@@ -39,10 +39,10 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.behavior1k.benchmark import R1PRO_ACTION_DIM
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, DimSpec
-from vla_eval.types import Action, Observation
+from vla_eval.types import Action, EpisodeResult, Observation
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,6 @@ class Behavior1KDemoReplayModelServer(PredictModelServer):
         **kwargs: Any,
     ) -> None:
         kwargs.setdefault("chunk_size", 1)
-        kwargs.setdefault("action_ensemble", "newest")
         super().__init__(**kwargs)
         if not demo_root or not episodes:
             raise ValueError("demo_root and episodes ({task_name: episode_index}) are required")
@@ -80,11 +79,8 @@ class Behavior1KDemoReplayModelServer(PredictModelServer):
         self.action_dim = int(action_dim)
         self.on_overrun = on_overrun
 
-        self._actions: dict[int, np.ndarray] = {}
-        # ``PredictModelServer`` can serve concurrent benchmark sessions (one connection per shard),
-        # so the cursor is keyed per (session, episode).  ``on_episode_start`` / ``on_episode_end``
-        # keep the dicts bounded.
-        self._cursor: dict[tuple[str, str], tuple[np.ndarray, int]] = {}
+        self._actions: dict[int, np.ndarray] = {}  # by dataset episode_index
+        self._demo: dict[int, np.ndarray] = {}  # by row id: the running episode's demo
 
     def _load(self, episode_index: int) -> np.ndarray:
         if episode_index in self._actions:
@@ -123,29 +119,22 @@ class Behavior1KDemoReplayModelServer(PredictModelServer):
             "language": LANGUAGE,
         }
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        await super().on_episode_start(config, ctx)
-        task_name = (config.get("task") or {}).get("task_name")
-        if task_name not in self.episodes:
-            raise KeyError(f"No demo episode configured for task {task_name!r}; episodes={self.episodes}")
-        self._cursor[(ctx.session_id, ctx.episode_id)] = (self._load(self.episodes[task_name]), 0)
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception]:
+        failed: dict[int, Exception] = {}
+        for i, row in enumerate(rows):
+            task_name = (row.episode.config.get("task") or {}).get("task_name")
+            if task_name not in self.episodes:
+                failed[i] = KeyError(f"No demo episode configured for task {task_name!r}; episodes={self.episodes}")
+                continue
+            self._demo[row.id] = self._load(self.episodes[task_name])
+        return failed
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        self._cursor.pop((ctx.session_id, ctx.episode_id), None)
-        await super().on_episode_end(result, ctx)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        for rid in rows.ids.tolist():
+            self._demo.pop(rid, None)
 
-    def predict(self, obs: Observation, ctx: SessionContext | None = None) -> Action:
-        if ctx is None:
-            raise RuntimeError("Behavior1KDemoReplayModelServer.predict requires a SessionContext")
-        key = (ctx.session_id, ctx.episode_id)
-        if key not in self._cursor:
-            raise RuntimeError(
-                f"predict() called before on_episode_start for session={ctx.session_id} "
-                f"episode={ctx.episode_id}; the harness must send EPISODE_START first."
-            )
-        actions, idx = self._cursor[key]
-        self._cursor[key] = (actions, idx + 1)
-
+    def predict(self, obs: Observation, row: Row) -> Action:
+        actions, idx = self._demo[row.id], row.step  # every observation reaches predict (chunk_size 1)
         if idx < len(actions):
             return {"actions": actions[idx].copy()}
         if self.on_overrun == "hold":

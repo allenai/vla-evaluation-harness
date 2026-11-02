@@ -29,7 +29,7 @@ from typing import Any
 import numpy as np
 
 from vla_eval.benchmarks.behavior1k.benchmark import R1PRO_ACTION_DIM
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, DimSpec
 from vla_eval.types import Action, Observation
@@ -42,7 +42,6 @@ class Behavior1KBaselineModelServer(PredictModelServer):
 
     def __init__(self, action_dim: int = R1PRO_ACTION_DIM, **kwargs: Any) -> None:
         kwargs.setdefault("chunk_size", 1)
-        kwargs.setdefault("action_ensemble", "newest")
         super().__init__(**kwargs)
         self.action_dim = int(action_dim)
 
@@ -61,7 +60,7 @@ class Behavior1KBaselineModelServer(PredictModelServer):
 
     # -- inference --------------------------------------------------------
 
-    def predict(self, obs: Observation, ctx: SessionContext | None = None) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         return {"actions": np.zeros(self.action_dim, dtype=np.float32)}
 
 

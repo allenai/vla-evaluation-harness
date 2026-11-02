@@ -56,7 +56,7 @@ from pathlib import Path
 from typing import Any
 
 from vla_eval.specs import LANGUAGE, RAW, DimSpec
-from vla_eval.types import Action, Observation
+from vla_eval.types import Action, EpisodeResult, Observation
 
 # Workaround: nvidia-cuda-nvcc-cu12 exposes __file__=None (namespace package),
 # which crashes jax 0.4.35's CUDA path detection.  Patch before any jax import.
@@ -72,7 +72,7 @@ except ImportError:
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,6 @@ class RTCModelServer(PredictModelServer):
         obs_history: Number of observation history frames to stack (default 1,
             since the env already provides stacked observations).
         chunk_size: Action chunk size for the harness (default 8 = prediction_horizon).
-        action_ensemble: Ensemble strategy for overlapping chunks.
         inference_delay: Artificial delay in seconds added before each predict()
             call, for benchmarking inference latency sensitivity.
     """
@@ -134,10 +133,9 @@ class RTCModelServer(PredictModelServer):
         inference_delay: float = 0.0,
         *,
         chunk_size: int = DEFAULT_PREDICTION_HORIZON,
-        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.checkpoint_dir = checkpoint_dir
         self.rtc_src_path = rtc_src_path
         self.action_dim = action_dim
@@ -149,12 +147,11 @@ class RTCModelServer(PredictModelServer):
 
         # Per-level model cache: level_name -> (policy, jit_action_fn)
         self._models: dict[str, Any] = {}
-        self._current_model: Any = None
-        self._current_jit_action: Any = None
-        self._obs_buffer: dict[str, list[np.ndarray]] = {}
+        self._row_jit_action: dict[int, Any] = {}  # the level's policy, per row
+        self._obs_buffer: dict[int, list[np.ndarray]] = {}
         self._rtc_model_module: Any = None
-        # Per-session RNG state: split on each predict() call for stochastic policy
-        self._session_rng: dict[str, Any] = {}
+        # Per-row RNG state: split on each predict() call for stochastic policy
+        self._session_rng: dict[int, Any] = {}
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"actions": RAW}
@@ -254,38 +251,42 @@ class RTCModelServer(PredictModelServer):
 
         logger.info("All %d models loaded.", len(self._models))
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
         """Select the correct per-level model based on task metadata."""
         import jax
-        from anyio.to_thread import run_sync
 
-        # Load all models on first episode (in thread to avoid blocking the event loop
-        # during JAX JIT warmup, which can take 30s+ and cause ping timeout disconnects).
+        # Load all models on first episode (on the inference thread: JAX JIT warmup can take 30s+).
         if not self._models:
-            await run_sync(self._load_all_models)
+            self._load_all_models()
 
-        task = config.get("task", {})
-        level = task.get("level")
-        if level is None:
-            level = next(iter(self._models))
-            logger.warning("No level in task config; falling back to %r", level)
+        failed: dict[int, Exception] = {}
+        for i, (rid, episode) in enumerate(zip(rows.ids.tolist(), rows.episodes)):
+            task = episode.config.get("task", {})
+            level = task.get("level")
+            if level is None:
+                level = next(iter(self._models))
+                logger.warning("No level in task config; falling back to %r", level)
 
-        if level not in self._models:
-            raise ValueError(f"No RTC model loaded for level={level!r}. Available: {list(self._models.keys())}")
+            if level not in self._models:
+                failed[i] = ValueError(
+                    f"No RTC model loaded for level={level!r}. Available: {list(self._models.keys())}"
+                )
+                continue
 
-        _policy, jit_action = self._models[level]
-        self._current_jit_action = jit_action
+            _policy, jit_action = self._models[level]
+            self._row_jit_action[rid] = jit_action
 
-        # Create a unique RNG per episode from the episode_id hash.
-        # This ensures the diffusion policy's noise sampling varies across episodes,
-        # producing different trajectories even when the env initial state is identical.
-        episode_seed = int(hashlib.sha256(ctx.episode_id.encode()).hexdigest(), 16) % (2**31)
-        self._session_rng[ctx.session_id] = jax.random.PRNGKey(episode_seed)
-        logger.info("Selected model for level=%s session=%s (episode_seed=%d)", level, ctx.session_id, episode_seed)
+            # Create a unique RNG per episode from the episode_id hash.
+            # This ensures the diffusion policy's noise sampling varies across episodes,
+            # producing different trajectories even when the env initial state is identical.
+            episode_seed = int(hashlib.sha256(episode.episode_id.encode()).hexdigest(), 16) % (2**31)
+            self._session_rng[rid] = jax.random.PRNGKey(episode_seed)
+            logger.info(
+                "Selected model for level=%s session=%s (episode_seed=%d)", level, episode.session_id, episode_seed
+            )
+        return failed
 
-        await super().on_episode_start(config, ctx)
-
-    def _get_obs_with_history(self, obs: Observation, ctx: SessionContext) -> np.ndarray:
+    def _get_obs_with_history(self, obs: Observation, row: Row) -> np.ndarray:
         """Build observation, optionally with history stacking.
 
         When ``obs_history == 1`` (default), returns the state vector directly
@@ -305,8 +306,8 @@ class RTCModelServer(PredictModelServer):
         if self.obs_history <= 1:
             return state
 
-        sid = ctx.session_id
-        if ctx.is_first or sid not in self._obs_buffer:
+        sid = row.id
+        if row.is_first or sid not in self._obs_buffer:
             self._obs_buffer[sid] = [state.copy() for _ in range(self.obs_history)]
         else:
             self._obs_buffer[sid].append(state.copy())
@@ -315,32 +316,31 @@ class RTCModelServer(PredictModelServer):
 
         return np.concatenate(self._obs_buffer[sid])
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         import jax
 
         if self.inference_delay > 0:
             time.sleep(self.inference_delay)
 
-        if self._current_jit_action is None:
-            raise RuntimeError("No model selected — on_episode_start must be called first")
+        jit_action = self._row_jit_action.get(row.id)
+        if jit_action is None:
+            raise RuntimeError("No model selected — reset_episodes must be called first")
 
-        obs_vec = self._get_obs_with_history(obs, ctx)
+        obs_vec = self._get_obs_with_history(obs, row)
 
         # Split the per-episode RNG so each step gets a unique key.
         # This makes the diffusion policy stochastic across episodes.
         # Fallback: if OBSERVATION arrives before EPISODE_START (e.g. reconnect),
         # initialise a deterministic RNG so predict() doesn't crash.
-        if ctx.session_id not in self._session_rng:
-            logger.warning(
-                "predict() called without prior EPISODE_START session=%s — using fallback RNG", ctx.session_id[:8]
-            )
-            self._session_rng[ctx.session_id] = jax.random.PRNGKey(0)
-        rng = self._session_rng[ctx.session_id]
+        if row.id not in self._session_rng:
+            logger.warning("predict() called without prior EPISODE_START row=%d — using fallback RNG", row.id)
+            self._session_rng[row.id] = jax.random.PRNGKey(0)
+        rng = self._session_rng[row.id]
         rng, step_rng = jax.random.split(rng)
-        self._session_rng[ctx.session_id] = rng
+        self._session_rng[row.id] = rng
 
         # Run flow-matching inference: expects (batch, obs_dim)
-        actions = self._current_jit_action(step_rng, obs_vec[None])[0]
+        actions = jit_action(step_rng, obs_vec[None])[0]
         actions = np.asarray(actions, dtype=np.float32)
 
         # Ensure correct shape: (prediction_horizon, action_dim)
@@ -349,11 +349,12 @@ class RTCModelServer(PredictModelServer):
 
         return {"actions": actions}
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        """Clear observation history buffer and RNG state on episode end."""
-        self._obs_buffer.pop(ctx.session_id, None)
-        self._session_rng.pop(ctx.session_id, None)
-        await super().on_episode_end(result, ctx)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        """Clear observation history buffer, RNG state and policy on episode end."""
+        for rid in rows.ids.tolist():
+            self._obs_buffer.pop(rid, None)
+            self._session_rng.pop(rid, None)
+            self._row_jit_action.pop(rid, None)
 
 
 if __name__ == "__main__":

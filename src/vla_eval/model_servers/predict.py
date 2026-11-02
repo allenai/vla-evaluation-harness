@@ -1,563 +1,319 @@
-"""PredictModelServer: unified model server for single and batched inference.
-
-Subclass and override ``predict()`` for single-observation inference, or
-``predict_batch()`` for GPU-batched multi-session inference, or both.
-
-.. warning::
-
-    **DRAFT** – Continuous Inference (CI) and Latency-Aware Action Selection
-    (LAAS) support is implemented but **has not been tested against a real
-    model or environment**.  The request-response (non-CI) path is unaffected.
-"""
+"""PredictModelServer: override ``predict(obs, row)`` (one episode's observation), or ``predict_batch(obs, rows)``
+(column batch, a row per episode) when batched inference beats per-row; the default calls ``predict`` per row."""
 
 from __future__ import annotations
 
 import logging
-import time
-from collections.abc import Callable
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
 import anyio
 import numpy as np
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from anyio.abc import TaskGroup, TaskStatus
-from anyio.to_thread import run_sync as _run_in_thread
+from anyio.abc import TaskGroup
+from anyio.lowlevel import checkpoint
 
-from vla_eval.model_servers.base import ModelServer, SessionContext
-from vla_eval.model_servers.chunking import ActionChunkBuffer, get_ensemble_fn
-from vla_eval.types import Action, Observation
+from vla_eval import columns
+from vla_eval.types import Action, Batch, EpisodeResult, Observation
+from vla_eval.model_servers.base import ModelServer, Row, Rows
 
 logger = logging.getLogger(__name__)
 
-_QUEUE_DEPTH_COOLDOWN: float = 10.0  # minimum seconds between queue depth warnings
+_ENDED = RuntimeError("the episode ended")
+_STOPPED = RuntimeError("model server stopped")
 
 
-@dataclass
-class _PendingRequest:
-    obs: Observation
-    ctx: SessionContext
-    _event: anyio.Event = field(default_factory=anyio.Event)
-    _result: Action | None = field(default=None, init=False)
-    _exception: BaseException | None = field(default=None, init=False)
-
-    def set_result(self, result: Action) -> None:
-        self._result = result
-        self._event.set()
-
-    def set_exception(self, exc: BaseException) -> None:
-        self._exception = exc
-        self._event.set()
-
-    async def wait(self) -> Action:
-        await self._event.wait()
-        if self._exception is not None:
-            raise self._exception
-        assert self._result is not None
-        return self._result
-
-    @property
-    def done(self) -> bool:
-        return self._event.is_set()
+@dataclass(eq=False)
+class _Request:
+    obs: Batch
+    rows: Rows
+    wait: bool  # may wait max_wait_time for other connections' requests
+    done: anyio.Event = field(default_factory=anyio.Event)
+    actions: Batch = field(default_factory=dict)
+    errors: dict[int, Exception] = field(default_factory=dict)
+    queued_at: float = field(default_factory=anyio.current_time)
 
 
 class PredictModelServer(ModelServer):
-    """Model server with blocking ``predict()`` / ``predict_batch()`` interface.
+    """Args:
+    chunk_size: Actions per inference; the rest of each ``[T, D]`` chunk is served from a per-episode buffer.
+    max_batch_size: Most rows per ``predict_batch`` call (``None``: no limit); raise it to batch episodes.
+    max_wait_time: Seconds to wait for other connections' requests before inferring a partial batch.
+    max_rows: Most concurrent episodes (``None``: no limit); 1 for a model whose state is not per episode.
 
-    Override ``predict()`` for single-observation inference, or
-    ``predict_batch()`` for GPU-batched inference across concurrent sessions.
-
-    Single vs batched dispatch:
-        When ``max_batch_size == 1`` (default), each observation is dispatched
-        directly via ``predict()`` in a thread-pool executor.
-
-        When ``max_batch_size > 1``, observations are collected into a queue
-        and dispatched as a batch via ``predict_batch()``.  This requires
-        ``predict_batch()`` to be overridden; otherwise a ``NotImplementedError``
-        is raised at runtime.
-
-    Relationship between predict() and predict_batch():
-        - Override ``predict()`` only → single inference.  Setting
-          ``max_batch_size > 1`` raises ``NotImplementedError``.
-        - Override ``predict_batch()`` only → ``predict()`` automatically
-          delegates to ``predict_batch([obs], [ctx])[0]``.
-        - Override both → ``predict()`` is used for CI mode and single
-          dispatch; ``predict_batch()`` is used for batched dispatch.
-
-    Action chunking:
-        When ``chunk_size > 1``, the first call to ``predict()`` should return
-        a 2-D array of shape ``(chunk_size, action_dim)``.  Subsequent
-        observations consume buffered actions without calling ``predict()``
-        again until the buffer is empty.
-
-        If ``predict()`` returns a 1-D array ``(action_dim,)``, chunking is
-        bypassed regardless of ``chunk_size``.
-
-    Action ensemble (for overlapping chunks):
-        - ``"newest"`` (default): use the latest chunk's action.
-        - ``"average"``: element-wise mean of old and new.
-        - ``"ema"``: exponential moving average (controlled by ``ema_alpha``).
-        - A callable ``(old, new) -> blended`` for custom logic.
-
-    The chunk buffer is **deleted** on each ``episode_start``, allowing
-    ``chunk_size`` to change between episodes (see CogACT's ``chunk_size_map``).
-
-    Continuous Inference (CI) – **DRAFT, untested**:
-        When ``continuous_inference=True``, the server runs a background loop
-        that continuously calls ``predict()`` with the latest observation.
-        ``on_observation()`` merely buffers the obs and returns immediately.
-        The chunk buffer is **not used** in CI mode; each inference produces
-        a single action (or the temporally appropriate one via LAAS).
-
-    Latency-Aware Action Selection (LAAS) – **DRAFT, untested**:
-        When ``laas=True`` (requires ``continuous_inference=True``), the server
-        skips stale actions in a chunk based on inference latency.  If
-        inference took *d* seconds and the environment runs at ``hz`` Hz,
-        ``delay_steps = int(d * hz)`` actions are skipped.
-
-    Args:
-        chunk_size: Number of actions per inference call (default None = no
-            chunking or trimming; the model's raw output is used as-is).
-        action_ensemble: Strategy for blending overlapping action chunks.
-        ema_alpha: Blend ratio for "ema" ensemble (higher = more weight on new).
-        max_batch_size: Maximum observations per batch (default 1 = no batching).
-            Setting > 1 requires ``predict_batch()`` to be overridden.
-        max_wait_time: Seconds to wait for a full batch before dispatching a
-            partial one (default 0.01).  Only used when ``max_batch_size > 1``.
-        continuous_inference: Enable CI mode (default False). **DRAFT**.
-        laas: Enable LAAS (default False, requires CI). **DRAFT**.
-        hz: Environment step frequency for LAAS delay computation.
+    The hooks below run on one model thread, in arrival order; ``__init__`` runs on the caller's thread, so
+    create thread-bound state (CUDA graphs, JAX) in the first ``reset_episodes`` / ``predict``.
     """
 
     def __init__(
         self,
         *,
         chunk_size: int | None = None,
-        action_ensemble: str | Callable[[np.ndarray, np.ndarray], np.ndarray] = "newest",
-        ema_alpha: float = 0.5,
-        max_batch_size: int = 1,
+        max_batch_size: int | None = 1,
         max_wait_time: float = 0.01,
-        continuous_inference: bool = False,
-        laas: bool = False,
-        hz: float = 10.0,
+        max_rows: int | None = None,
     ) -> None:
+        super().__init__()
         self.chunk_size = chunk_size
-        self.action_ensemble = action_ensemble
-        self.ema_alpha = ema_alpha
         self.max_batch_size = max_batch_size
         self.max_wait_time = max_wait_time
-        self.continuous_inference = continuous_inference
-        self.laas = laas
-        self.hz = hz
-
-        self._chunk_buffers: dict[str, ActionChunkBuffer] = {}
-        self._session_chunk_sizes: dict[str, int] = {}
-        # Loop-bound state; (re)created in on_serve_start for each serve.
-        self._tg: TaskGroup | None = None
-        self._predict_lock = anyio.Lock()  # one predict() on the GPU at a time (non-batched and CI paths)
-        self._thread_limiter = anyio.CapacityLimiter(1)  # own token: never starved by other run_sync users
-        self._send_stream: MemoryObjectSendStream[_PendingRequest] | None = None
-        self._receive_stream: MemoryObjectReceiveStream[_PendingRequest] | None = None
-        self._dispatch_running = False
-        # CI state (per session)
-        self._ci_loops: dict[str, tuple[anyio.CancelScope, anyio.Event]] = {}  # per session: scope, exited
-        self._obs_slots: dict[str, tuple[Observation, SessionContext, float]] = {}
-        self._obs_events: dict[str, anyio.Event] = {}
-
-    async def on_serve_start(self, tg: TaskGroup) -> None:
-        self._tg = tg
-        self._predict_lock = anyio.Lock()
-        self._thread_limiter = anyio.CapacityLimiter(1)
-        self._send_stream = self._receive_stream = None
-        self._dispatch_running = False
-        self._chunk_buffers.clear()
-        self._ci_loops.clear()
-        self._obs_slots.clear()
-        self._obs_events.clear()
-
-    def _task_group(self) -> TaskGroup:
-        if self._tg is None:
-            raise RuntimeError("background inference loops need serve_async(): serve this model server first")
-        return self._tg
+        self.max_rows = max_rows
+        self._chunked = np.zeros(0, bool)  # by row id: the episode has a chunk size
+        self._buffers: dict[int, deque[Any]] = {}  # chunked rows' remaining actions
+        self._queue: list[_Request] = []
+        self._wake = anyio.Event()
 
     # ------------------------------------------------------------------
-    # Inference methods — override one or both
+    # Override these
     # ------------------------------------------------------------------
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
-        """Run inference on a single observation.  Blocking call.
-
-        Default implementation delegates to ``predict_batch([obs], [ctx])[0]``.
-        Override this for single-observation inference, or leave it to use
-        the default delegation when only ``predict_batch()`` is overridden.
-
-        Returns:
-            dict with ``"actions"`` key containing the raw model output.
-            The base class normalizes the result (float32 cast, chunk trim)
-            via ``_normalize_result()`` before further processing.
-        """
-        if type(self).predict_batch is not PredictModelServer.predict_batch:
-            return self.predict_batch([obs], [ctx])[0]
-        raise NotImplementedError(f"{type(self).__name__} must override predict() or predict_batch()")
-
-    def predict_batch(
-        self,
-        obs_batch: list[Observation],
-        ctx_batch: list[SessionContext],
-    ) -> list[Action]:
-        """Run batched inference.  Blocking call.
-
-        Required when ``max_batch_size > 1``.  ``len(result)`` must equal
-        ``len(obs_batch)``.
-        """
-        raise NotImplementedError(f"{type(self).__name__} must override predict_batch() to use max_batch_size > 1")
-
-    # ------------------------------------------------------------------
-    # Chunking helpers (shared by single / batch / CI paths)
-    # ------------------------------------------------------------------
-
-    def _get_chunk_size(self, ctx: SessionContext) -> int | None:
-        """Return the effective chunk_size for a session."""
-        return self._session_chunk_sizes.get(ctx.session_id, self.chunk_size)
-
-    def _try_serve_from_buffer(self, ctx: SessionContext) -> np.ndarray | None:
-        """Return a buffered action if available, else ``None``."""
-        cs = self._get_chunk_size(ctx)
-        if cs is None:
-            return None
-        sid = ctx.session_id
-        if sid not in self._chunk_buffers:
-            ensemble_fn = get_ensemble_fn(self.action_ensemble, self.ema_alpha)
-            self._chunk_buffers[sid] = ActionChunkBuffer(cs, ensemble_fn)
-        buf = self._chunk_buffers[sid]
-        if not buf.empty:
-            return buf.pop()
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        """Reset the state of ``rows`` (``episode.config``: the ``EPISODE_START`` payload).  Blocking.
+        Return ``{position: exception}`` for starts that failed, or raise to fail them all."""
         return None
 
-    def _normalize_result(self, result: Action, ctx: SessionContext) -> Action:
-        """Normalize predict() output: cast to float32 and trim to chunk_size."""
-        actions = result.get("actions")
-        if actions is None:
-            return result
-        actions = np.asarray(actions, dtype=np.float32)
-        cs = self._get_chunk_size(ctx)
-        if cs is not None and actions.ndim == 2:
-            actions = actions[:cs]
-        return {**result, "actions": actions}
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        """Episodes in ``rows`` ended (``results[i]``: the ``EPISODE_END`` payload).  Blocking."""
 
-    async def _process_and_send(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        """Post-process inference result (chunking) and send action."""
-        actions = result.get("actions")
-        if actions is None:
-            await ctx.send_action(result)
-            return
+    def predict(self, obs: Observation, row: Row) -> Action:
+        """One observation of the episode in ``row``.  Blocking."""
+        raise NotImplementedError(f"{type(self).__name__} must override predict() or predict_batch()")
 
-        if not isinstance(actions, np.ndarray):
-            actions = np.asarray(actions)
-
-        cs = self._get_chunk_size(ctx)
-        if cs is None or actions.ndim == 1:
-            await ctx.send_action(result)
-            return
-
-        # Push chunk and pop first action
-        buf = self._chunk_buffers[ctx.session_id]
-        buf.push_chunk(actions)
-        action = buf.pop()
-        if action is not None:
-            await ctx.send_action({"actions": action})
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        """Observation columns of ``rows`` to action columns, a row each.  Blocking."""
+        actions, errors = self._predict_rows(obs, rows)
+        if errors:
+            raise next(iter(errors.values()))
+        return actions
 
     # ------------------------------------------------------------------
-    # on_observation: CI vs single vs batch dispatch
+    # ModelServer callbacks
     # ------------------------------------------------------------------
 
-    async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
-        """Framework calls this on each observation.
+    async def on_serve_start(self, tg: TaskGroup) -> None:
+        await super().on_serve_start(tg)
+        self._queue, self._wake = [], anyio.Event()
+        tg.start_soon(self._dispatch)
 
-        Dispatch strategy:
-        - CI mode: buffer obs for background loop, return immediately.
-        - ``max_batch_size > 1``: enqueue for batched dispatch via
-          ``predict_batch()``.
-        - Otherwise: direct dispatch via ``predict()`` in executor.
-        """
-        if self.continuous_inference:
-            sid = ctx.session_id
-            event = self._obs_events.get(sid)
-            if event is None:
-                logger.warning("CI observation before EPISODE_START session=%s — dropping", sid[:8])
-                return
-            self._obs_slots[sid] = (obs, ctx, time.monotonic())
-            event.set()
+    async def on_episode_start(self, rows: Rows) -> dict[int, Exception] | None:
+        for episode in rows.episodes:
+            episode.chunk_size = self.chunk_size
+        failed = await self.run_on_model_thread(self.reset_episodes, rows)
+        if len(self._chunked) < len(self._table):
+            self._chunked = np.concatenate([self._chunked, np.zeros(len(self._table) - len(self._chunked), bool)])
+        for rid, episode in zip(rows.ids.tolist(), rows.episodes):
+            self._chunked[rid] = episode.chunk_size is not None
+        return failed
+
+    async def on_observation(self, obs: Batch, rows: Rows) -> None:
+        idx = rows.ids
+        if self._chunked[idx].all() and all(self._buffers.get(i) for i in idx.tolist()):  # no inference to wait for
+            await self.send_action(
+                rows, columns.stack([{"actions": self._buffers[i].popleft()} for i in idx.tolist()])
+            )
             return
+        vector = rows._pending is not None and rows._pending.vector
+        req = _Request(obs, rows, wait=len(rows) == 1 and not vector)
+        self._queue.append(req)
+        self._wake.set()
+        await req.done.wait()
+        await self._reply(rows, req.actions, req.errors)
 
-        # Serve from chunk buffer if available (skip inference)
-        buffered = self._try_serve_from_buffer(ctx)
-        if buffered is not None:
-            await ctx.send_action({"actions": buffered})
+    async def on_episode_end(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        try:
+            await self.run_on_model_thread(self.finish_episodes, rows, results)
+        finally:
+            for rid in rows.ids.tolist():
+                self._buffers.pop(rid, None)
+
+    async def _reply(self, rows: Rows, actions: Batch, errors: dict[int, Exception]) -> None:
+        if not errors:
+            await self.send_action(rows, actions)
             return
-
-        t0 = time.monotonic()
-        if self.max_batch_size > 1:
-            result = await self._dispatch_batched(obs, ctx)
-        else:
-            async with self._predict_lock:
-                result = await _run_in_thread(self.predict, obs, ctx, limiter=self._thread_limiter)
-        logger.debug(
-            "inference step=%d %.1fms session=%s", ctx.step, (time.monotonic() - t0) * 1000, ctx.session_id[:8]
-        )
-
-        result = self._normalize_result(result, ctx)
-        await self._process_and_send(result, ctx)
+        ok = [i for i in range(len(rows)) if i not in errors]
+        if ok:
+            await self.send_action(rows.take(ok), actions)
+        by_error: dict[int, tuple[Exception, list[int]]] = {}
+        for i, exc in errors.items():
+            by_error.setdefault(id(exc), (exc, []))[1].append(i)
+        for exc, positions in by_error.values():
+            await self.send_error(rows.take(positions), exc)
 
     # ------------------------------------------------------------------
-    # Batch dispatch (queue + background loop)
+    # Dispatch: coalesce requests, serve chunk buffers, infer
     # ------------------------------------------------------------------
 
-    async def _dispatch_batched(self, obs: Observation, ctx: SessionContext) -> Action:
-        """Enqueue observation and await batched result."""
-        self._ensure_dispatch_loop()
-        assert self._send_stream is not None
-        req = _PendingRequest(obs=obs, ctx=ctx)
-        await self._send_stream.send(req)
-        return await req.wait()
-
-    def _ensure_dispatch_loop(self) -> None:
-        """Lazily start the dispatch loop, restarting if it crashed."""
-        if self._dispatch_running:
-            return
-        self._send_stream, self._receive_stream = anyio.create_memory_object_stream()  # element type: _PendingRequest
-        self._dispatch_running = True
-        self._task_group().start_soon(self._run_dispatch_loop)
-
-    async def _run_dispatch_loop(self) -> None:
+    async def _dispatch(self) -> None:
         try:
             await self._dispatch_loop()
-        except anyio.get_cancelled_exc_class():
-            raise
-        except Exception:
-            logger.exception("Batch dispatch loop crashed")
-        finally:
-            self._dispatch_running = False
+        finally:  # shutdown: no request waits forever
+            _fail(self._queue, _STOPPED)
+            self._queue = []
 
     async def _dispatch_loop(self) -> None:
-        """Pipelined batch dispatch: collect next batch while GPU runs.
-
-        Without pipelining the loop is serial:
-            collect → GPU → collect → GPU → ...
-        Fast GPUs (e.g. H100) finish before many requests arrive, so
-        batches stay small and throughput is low.
-
-        With pipelining we overlap collection and inference:
-            collect₀ → GPU₀ + collect₁ → GPU₁ + collect₂ → ...
-        _collect continuously receives from the stream while _infer
-        processes batches.  After GPU finishes, if pending isn't full
-        we wait up to max_wait_time for more.
-        """
-        assert self._receive_stream is not None
-        stream = self._receive_stream
-        pending: list[_PendingRequest] = []
-        has_items = anyio.Event()
-        batch_full = anyio.Event()
-        stream_closed = False
-
-        async with anyio.create_task_group() as tg:
-
-            async def _collect() -> None:
-                nonlocal has_items, batch_full, stream_closed
-                async for req in stream:
-                    pending.append(req)
-                    has_items.set()
-                    if len(pending) >= self.max_batch_size:
-                        batch_full.set()
-                stream_closed = True
-                has_items.set()
-
-            async def _infer() -> None:
-                nonlocal pending, has_items, batch_full
-                _last_depth_warning = 0.0
-                try:
-                    while True:
-                        await has_items.wait()
-                        has_items = anyio.Event()
-
-                        if not pending:
-                            if stream_closed:
-                                break
-                            continue
-
-                        batch = pending[: self.max_batch_size]
-                        pending = pending[self.max_batch_size :]
-
-                        if len(pending) > self.max_batch_size * 2:
-                            now = time.monotonic()
-                            if now - _last_depth_warning >= _QUEUE_DEPTH_COOLDOWN:
-                                _last_depth_warning = now
-                                logger.warning(
-                                    "Batch queue depth %d exceeds 2x max_batch_size (%d). "
-                                    "Consider increasing max_batch_size or reducing shard count.",
-                                    len(pending),
-                                    self.max_batch_size,
-                                )
-
-                        obs_batch = [r.obs for r in batch]
-                        ctx_batch = [r.ctx for r in batch]
-                        try:
-                            results = await _run_in_thread(
-                                self.predict_batch,
-                                obs_batch,
-                                ctx_batch,
-                                limiter=self._thread_limiter,
-                            )
-                            if len(results) != len(batch):
-                                raise RuntimeError(
-                                    f"predict_batch returned {len(results)} results for {len(batch)} inputs"
-                                )
-                            for req, result in zip(batch, results):
-                                req.set_result(result)
-                        except Exception as exc:
-                            for req in batch:
-                                if not req.done:
-                                    req.set_exception(exc)
-
-                        # Grace period AFTER GPU: accumulate items for next batch
-                        if not stream_closed and len(pending) < self.max_batch_size:
-                            batch_full = anyio.Event()
-                            with anyio.move_on_after(self.max_wait_time):
-                                await batch_full.wait()
-
-                        if pending:
-                            has_items.set()
-                        elif stream_closed:
-                            break
-                finally:
-                    err = RuntimeError("Dispatch loop terminated")
-                    for req in pending:
-                        if not req.done:
-                            req.set_exception(err)
-
-            tg.start_soon(_collect)
-            tg.start_soon(_infer)
-
-    # ------------------------------------------------------------------
-    # CI loop — DRAFT, untested
-    # ------------------------------------------------------------------
-
-    async def _ci_loop(self, session_id: str) -> None:
-        """Background loop: wait for obs → infer → send action → repeat.
-
-        DRAFT — not tested against a real model or environment.
-        """
         while True:
-            event = self._obs_events.get(session_id)
-            if event is None:
+            await self._wake.wait()
+            self._wake = anyio.Event()
+            while self._queue:
+                # wait for single-episode requests of other connections; a vector step is a whole step already
+                if self.max_wait_time > 0 and not self._full() and all(r.wait for r in self._queue):
+                    deadline = self._queue[0].queued_at + self.max_wait_time  # from the oldest request's arrival
+                    with anyio.CancelScope(deadline=deadline):
+                        while not self._full() and all(r.wait for r in self._queue):
+                            await self._wake.wait()
+                            self._wake = anyio.Event()
+                batch = [self._queue.pop(0)]
+                rows = len(batch[0].rows)
+                limit = self.max_batch_size
+                while self._queue and (limit is None or rows + len(self._queue[0].rows) <= limit):
+                    rows += len(self._queue[0].rows)
+                    batch.append(self._queue.pop(0))
+                await self._run(batch)
+
+    def _full(self) -> bool:
+        return self.max_batch_size is not None and sum(len(r.rows) for r in self._queue) >= self.max_batch_size
+
+    async def _run(self, batch: list[_Request]) -> None:
+        if len(batch) > 1:
+            try:
+                obs = columns.concat([r.obs for r in batch])
+            except Exception:  # requests of different shapes: one at a time
+                try:
+                    for r in batch:
+                        await self._run([r])
+                finally:  # cancelled: the rest fail
+                    _fail(batch, _STOPPED)
                 return
-            await event.wait()
-            self._obs_events[session_id] = anyio.Event()
+            rows = _merge([r.rows for r in batch])
+        else:
+            obs, rows = batch[0].obs, batch[0].rows
+        try:
+            actions, errors = await self._infer(obs, rows)
+            start = ok_seen = 0
+            for r in batch:
+                n = len(r.rows)
+                r.errors = {i - start: errors[i] for i in range(start, start + n) if i in errors}
+                ok = n - len(r.errors)
+                r.actions = actions if len(batch) == 1 else columns.take(actions, range(ok_seen, ok_seen + ok))
+                ok_seen += ok
+                start += n
+            for r in batch:
+                r.done.set()
+        except Exception as exc:
+            logger.exception("dispatch failed")
+            _fail(batch, exc)
+        finally:  # cancelled
+            _fail(batch, _STOPPED)
 
-            slot = self._obs_slots.get(session_id)
-            if slot is None:
+    async def _infer(self, obs: Batch, rows: Rows) -> tuple[Batch, dict[int, Exception]]:
+        """The actions of every position that did not fail, in order, and the failures by position.  One
+        model-thread call."""
+        n = len(rows)
+        ids = rows.ids
+        await checkpoint()  # the last await before the model call, so a row ending meanwhile is filtered here
+        current = self._current(rows)
+        errors: dict[int, Exception] = {}
+        if not current.all():  # ended while queued: not inferred
+            errors = dict.fromkeys(np.flatnonzero(~current).tolist(), _ENDED)
+        chunked = np.flatnonzero(self._chunked[ids] & current).tolist()
+        served: dict[int, Any] = {}
+        for i in chunked:
+            buffer = self._buffers.get(int(ids[i]))
+            if buffer:
+                served[i] = buffer.popleft()
+        todo = [i for i in range(n) if i not in served and i not in errors] if served or errors else list(range(n))
+        parts: list[tuple[list[int], Batch]] = []
+        if todo:
+            failed, parts = await self._run_submitted(self._work, obs, rows, todo)
+            errors.update(failed)
+        if not chunked:
+            return columns.concat([p for _, p in parts]), errors
+        # A chunked row returns its chunk's first action and keeps the rest; every row returns "actions" only.
+        current = self._current(rows)  # a row that ended meanwhile keeps no buffer: its id may run another episode
+        action: dict[int, Any] = {i: a for i, a in served.items() if i not in errors}
+        for positions, out in parts:
+            for j, i in enumerate(positions):
+                try:
+                    a = out["actions"][j]
+                    cs = rows._episodes[i].chunk_size
+                    if cs is not None and np.ndim(a) == 2:
+                        a = a[:cs]
+                        if current[i]:
+                            self._buffers[int(ids[i])] = deque(a[1:])
+                        a = a[0]
+                    action[i] = a
+                except Exception as exc:  # e.g. an empty chunk: this row alone
+                    errors[i] = exc
+        return columns.stack([{"actions": action[i]} for i in range(n) if i not in errors]), errors
+
+    def _work(
+        self, obs: Batch, rows: Rows, todo: list[int]
+    ) -> tuple[dict[int, Exception], list[tuple[list[int], Batch]]]:
+        """On the model thread: predict the ``todo`` positions, in slices of ``max_batch_size``."""
+        errors: dict[int, Exception] = {}
+        n = len(rows)
+        parts: list[tuple[list[int], Batch]] = []
+        batched = type(self).predict_batch is not PredictModelServer.predict_batch
+        size = (self.max_batch_size if batched else None) or max(len(todo), 1)  # predict runs row by row anyway
+        for start in range(0, len(todo), size):
+            group = todo[start : start + size]
+            sub, sub_rows = (obs, rows) if len(group) == n else (columns.take(obs, group), rows.take(group))
+            try:
+                if not batched:
+                    out, failed = self._predict_rows(sub, sub_rows)
+                else:
+                    out, failed = self.predict_batch(sub, sub_rows), {}
+                    if not isinstance(out, dict) or columns.num_rows(out) != len(group):
+                        raise RuntimeError(
+                            f"predict_batch returned {type(out).__name__} for {len(group)} rows: it takes and returns "
+                            "column batches (a row per episode), no longer lists of dicts"
+                        )
+                    out = _float32(out)
+            except Exception as exc:
+                errors.update(dict.fromkeys(group, exc))
                 continue
+            errors.update({group[j]: exc for j, exc in failed.items()})
+            parts.append(([i for j, i in enumerate(group) if j not in failed], out))
+        return errors, parts
 
-            obs, ctx, obs_time = slot
-
+    def _predict_rows(self, obs: Batch, rows: Rows) -> tuple[Batch, dict[int, Exception]]:
+        """:meth:`predict` per row; a row's exception fails it alone."""
+        out: list[Action] = []
+        failed: dict[int, Exception] = {}
+        for i, row_obs in enumerate(columns.split(obs, len(rows))):
             try:
-                async with self._predict_lock:
-                    result = await _run_in_thread(self.predict, obs, ctx, limiter=self._thread_limiter)
-            except Exception:
-                logger.exception("CI inference error session=%s", session_id)
-                continue
+                action = _float32(self.predict(row_obs, rows[i]))
+                if out and action.keys() != out[0].keys():
+                    raise RuntimeError(f"action keys {sorted(action)} differ from the batch's {sorted(out[0])}")
+                out.append(action)
+            except Exception as exc:
+                failed[i] = exc
+        return columns.stack(out), failed
 
-            result = self._normalize_result(result, ctx)
 
-            actions = result.get("actions")
-            try:
-                if actions is None:
-                    await ctx.send_action(result)
-                    continue
+def _fail(requests: list[_Request], exc: Exception) -> None:
+    """Complete the requests not completed yet with ``exc`` for every row."""
+    for r in requests:
+        if not r.done.is_set():
+            r.actions, r.errors = {}, dict.fromkeys(range(len(r.rows)), exc)
+            r.done.set()
 
-                action = self._pick_action(actions, obs_time)
-                await ctx.send_action({"actions": action})
-            except Exception:
-                logger.exception("CI send_action error session=%s", session_id)
-                break
 
-    def _pick_action(self, actions: np.ndarray, obs_time: float) -> np.ndarray:
-        """Select a single action from inference output, applying LAAS if enabled.
+def _merge(parts: list[Rows]) -> Rows:
+    """The rows of several requests, one after another (for inference: no replies through them)."""
+    return Rows(
+        np.concatenate([r.ids for r in parts]),
+        np.concatenate([r.step for r in parts]),
+        np.concatenate([r._episodes for r in parts]),
+        np.concatenate([r._gen for r in parts]),
+    )
 
-        DRAFT — not tested.
-        """
-        if actions.ndim == 1:
-            return actions
 
-        if self.laas and self.hz > 0:
-            delay = time.monotonic() - obs_time
-            delay_steps = int(delay * self.hz)
-            idx = min(delay_steps, len(actions) - 1)
-            if delay_steps >= len(actions):
-                logger.warning(
-                    "LAAS: delay_steps=%d >= chunk_size=%d (%.0fms latency at %.0fHz). "
-                    "Entire chunk is stale; sending last action.",
-                    delay_steps,
-                    len(actions),
-                    delay * 1000,
-                    self.hz,
-                )
-            return actions[idx]
-
-        # CI without LAAS: use first action in chunk
-        return actions[0]
-
-    # ------------------------------------------------------------------
-    # Episode lifecycle
-    # ------------------------------------------------------------------
-
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        """Reset chunk buffer on episode start and start CI loop if enabled.
-
-        Deletes (not clears) the buffer so it is recreated with the current
-        ``chunk_size`` on the next observation.  Subclasses can override
-        this and call ``self._session_chunk_sizes[ctx.session_id] = N``
-        before ``super()`` to set per-session chunk sizes safely.
-        """
-        sid = ctx.session_id
-        self._chunk_buffers.pop(sid, None)
-
-        if self.continuous_inference:
-            await self._stop_ci(sid)
-            self._obs_events[sid] = anyio.Event()
-            self._obs_slots.pop(sid, None)
-            await self._task_group().start(self._run_ci_loop, sid)
-            logger.info("CI loop started session=%s laas=%s hz=%.1f", sid, self.laas, self.hz)
-
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        """Clean up chunk buffer and stop CI loop."""
-        sid = ctx.session_id
-        self._chunk_buffers.pop(sid, None)
-        self._session_chunk_sizes.pop(sid, None)
-
-        if self.continuous_inference:
-            await self._stop_ci(sid)
-
-    async def _run_ci_loop(
-        self, session_id: str, *, task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED
-    ) -> None:
-        exited = anyio.Event()
-        with anyio.CancelScope() as scope:
-            self._ci_loops[session_id] = (scope, exited)
-            task_status.started()
-            try:
-                await self._ci_loop(session_id)
-            except Exception:
-                logger.exception("CI loop crashed session=%s", session_id)  # one session, not the server
-            finally:
-                exited.set()
-
-    async def _stop_ci(self, session_id: str) -> None:
-        """Cancel the CI loop for a session and wait for it to exit (in-flight inference finishes first)."""
-        entry = self._ci_loops.pop(session_id, None)
-        if entry is not None:
-            scope, exited = entry
-            scope.cancel()
-            await exited.wait()
-        self._obs_slots.pop(session_id, None)
-        self._obs_events.pop(session_id, None)
+def _float32(actions: Batch) -> Batch:
+    """``actions`` as float32 (an array, or each item of a list column), as every model's actions travel."""
+    a = actions.get("actions")
+    if a is None:
+        return actions
+    if isinstance(a, list):
+        return {**actions, "actions": [np.asarray(x, np.float32) for x in a]}
+    return {**actions, "actions": np.asarray(a, np.float32)}

@@ -38,14 +38,15 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.model_servers.base import ModelServer, SessionContext
+from vla_eval.model_servers.base import Row, Rows
+from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, STATE_JOINT, DimSpec
-from vla_eval.types import Observation
+from vla_eval.types import Action, EpisodeResult, Observation
 
 logger = logging.getLogger(__name__)
 
 
-class MolmoBotModelServer(ModelServer):
+class MolmoBotModelServer(PredictModelServer):
     """MolmoBot VLA model server replicating SynthVLAPolicy behavior.
 
     Args:
@@ -63,15 +64,15 @@ class MolmoBotModelServer(ModelServer):
         states_mode: str = "cross_attn",
         max_joint_delta: float = 0.2,
     ) -> None:
-        super().__init__()
+        super().__init__()  # chunk_size None: every observation reaches predict; the chunk is buffered here
         self.hf_repo = hf_repo
         self.execute_horizon = execute_horizon
         self.states_mode = states_mode
         self.max_joint_delta = float(max_joint_delta)
 
-        # Per-session state: obs_history (list of per-cam image lists),
+        # Per-row state: obs_history (list of per-cam image lists),
         # action_buffer (list of (arm, gripper) tuples), buffer_index (int).
-        self._sessions: dict[str, dict[str, Any]] = {}
+        self._sessions: dict[int, dict[str, Any]] = {}
 
         from vla_eval.dirs import require_model_available
 
@@ -99,20 +100,22 @@ class MolmoBotModelServer(ModelServer):
 
     # -- lifecycle --------------------------------------------------------
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+    def reset_episodes(self, rows: Rows) -> None:
         # Reset per-episode state.
         from collections import deque
 
         max_history = (self.n_obs_steps - 1) * self.obs_step_delta + 1
-        self._sessions[ctx.session_id] = {
-            "obs_history": deque(maxlen=max_history),
-            "action_buffer": [],
-            "buffer_index": 0,
-            "step_count": 0,
-        }
+        for rid in rows.ids.tolist():
+            self._sessions[rid] = {
+                "obs_history": deque(maxlen=max_history),
+                "action_buffer": [],
+                "buffer_index": 0,
+                "step_count": 0,
+            }
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        self._sessions.pop(ctx.session_id, None)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        for rid in rows.ids.tolist():
+            self._sessions.pop(rid, None)
 
     # -- specs ------------------------------------------------------------
 
@@ -132,9 +135,9 @@ class MolmoBotModelServer(ModelServer):
 
     # -- inference --------------------------------------------------------
 
-    async def on_observation(self, obs: Observation, ctx: SessionContext) -> None:
+    def predict(self, obs: Observation, row: Row) -> Action:
         state = self._sessions.setdefault(
-            ctx.session_id,
+            row.id,
             {"obs_history": [], "action_buffer": [], "buffer_index": 0, "step_count": 0},
         )
 
@@ -177,7 +180,7 @@ class MolmoBotModelServer(ModelServer):
 
         # Concatenate arm (7) + gripper (1) into flat 8D action vector for the wire.
         action_vec = np.concatenate([predicted_arm.astype(np.float32), action_dict["gripper"].astype(np.float32)])
-        await ctx.send_action({"actions": action_vec})
+        return {"actions": action_vec}
 
     # -- internals --------------------------------------------------------
 

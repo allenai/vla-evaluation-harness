@@ -356,7 +356,14 @@ def cmd_test(args: argparse.Namespace) -> None:
             except ValueError as e:
                 _stderr_console().print(f"[red]ERROR: {e}[/red]")
                 sys.exit(1)
-            if t.category == "server":
+            if args.validate_only:  # resolve import strings only; never start servers or containers
+                if t.category != "benchmark":
+                    _stderr_console().print(
+                        f"[red]ERROR: --validate checks benchmark configs: {config_path_str}[/red]"
+                    )
+                    sys.exit(1)
+                validate_tests.append(SmokeTest("validate", t.name, t.config_path, t.description))
+            elif t.category == "server":
                 server_tests.append(t)
             else:
                 benchmark_tests.append(t)
@@ -804,6 +811,7 @@ examples:
   vla-eval test --benchmark libero                  test a specific benchmark by registry name
   vla-eval test --benchmark libero --render cpu     test it software-rendered, with no GPU attached
   vla-eval test -c configs/model_servers/cogact.yaml   test an arbitrary config file
+  vla-eval test -c configs/benchmarks/libero/spatial.yaml --validate   validate one config, run nothing
   vla-eval test --dry-run                           preview what would run
 """,
     )

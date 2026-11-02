@@ -72,7 +72,7 @@ src/vla_eval/
 ├── cli/              # CLI entry point (argparse)
 ├── benchmarks/       # Benchmark adapters (LIBERO + LIBERO-Pro/Plus/Mem, CALVIN, ManiSkill2, SimplerEnv, RoboCasa, RoboCasa365, VLABench, MIKASA-Robo, RoboTwin, RoboCerebra, RoboMME, MolmoSpaces, Kinetix, BEHAVIOR-1K)
 ├── model_servers/    # Model server ABCs, utilities, and implementations
-├── runners/          # Episode execution loops (sync, live)
+├── runners/          # Episode execution loops (sync, live, vector)
 ├── results/          # Result collection and shard merging
 ├── protocol/         # msgpack message definitions
 ├── orchestrator.py   # Top-level evaluation orchestrator
@@ -94,6 +94,14 @@ src/vla_eval/
 9. Smoke-test: `vla-eval test -c configs/<name>.yaml` (runs 1 episode with an EchoModelServer; no real model or GPU needed, but requires Docker + the benchmark image)
 
 See `benchmarks/libero/` for a complete reference implementation.
+
+### Vectorized Benchmarks
+
+For simulators that step many environments per call (MuJoCo Warp, ManiSkill3), subclass `VectorStepBenchmark`:
+`reset(slots, tasks, recorders) -> Batch`, `step(slots, actions) -> (Batch, done)`, `result(slot)`. A `Batch` is a
+dict of columns, a row per slot (`vla_eval.columns`). Set `partial_reset = True` if slots can reset while others
+run. An episode's outcome must depend only on its task, never its slot. Pair it with a server that overrides
+`predict_batch` and sets `max_batch_size` to `num_envs`. See [RFC-0009](docs/rfcs/0009-vector-benchmarks.md).
 
 ### Render Backends
 
@@ -140,8 +148,8 @@ depends on the Mesa driver. See [render backends](docs/render-backends.md).
 ## Adding a Model Server
 
 1. Create `src/vla_eval/model_servers/<name>.py` as a **uv script** with [PEP 723](https://peps.python.org/pep-0723/) inline metadata
-2. Subclass `PredictModelServer` from `model_servers/predict.py` (or `ModelServer` from `model_servers/base.py` for advanced async use cases)
-3. Implement `predict(obs, ctx) -> dict`. Load the model inside `__init__` (no lazy-load hook)
+2. Subclass `PredictModelServer` from `model_servers/predict.py`
+3. Implement `predict(obs, row) -> dict` or `predict_batch(obs, rows) -> Batch` (below). Load the model inside `__init__` (no lazy-load hook)
 4. Use `run_server()` for the CLI entrypoint. **Do not write manual argparse**:
    ```python
    if __name__ == "__main__":
@@ -153,12 +161,30 @@ depends on the Mesa driver. See [render backends](docs/render-backends.md).
 
 See `model_servers/cogact.py` for a complete reference implementation.
 
-`ctx.session_id` can span multiple episodes; use `ctx.episode_id` to identify an episode.
-Reset policy-owned history, action queues, and other episode state in `on_episode_start`,
-then `await super().on_episode_start(config, ctx)` to preserve the base lifecycle.
-For concurrent clients, keep that state per session and reset only the starting session.
-The base class resets its own chunk buffers, not your policy's internal state.
-See [the Push-T example](examples/pusht_train_eval/train.py) for a single-session policy reset.
+Every running episode is a row; inference and the episode hooks are batched over rows.
+
+- `predict(obs, row)`: one episode's observation dict. `predict_batch(obs, rows)`: observation columns (a row per
+  episode) to action columns; override it when batched inference beats per-row (default: `predict` per row).
+- `max_batch_size` (default 1) caps rows per call; requests from several connections coalesce within `max_wait_time`.
+- `reset_episodes(rows)` / `finish_episodes(rows, results)`: blocking. `rows.episodes[i].config` is the
+  `EPISODE_START` payload; return `{i: exc}` to fail one start, or raise to fail all. `results[i]` carries
+  `status` (`success|fail|error|aborted`) and `failure_reason`.
+- Every hook runs on one model thread (`await self.run_on_model_thread(fn, *args)` from a `ModelServer`).
+- Per-episode state: key it by `row.id` (`rows.ids` in hooks); ids are reused, so reset it in `reset_episodes`.
+- `max_rows=1`: the model's state is global (e.g. its own action queue), so one episode at a time.
+- `chunk_size`: `[T, D]` per row, served from a per-episode buffer (`rows.episodes[i].chunk_size` overrides it).
+
+Continuous inference (real-time, live mode): subclass `LiveModelServer` (`model_servers/live.py`) with the same
+`predict` / `reset_episodes` / `finish_episodes`. Each episode's latest observation is inferred in a loop, one at a
+time, and `select(action, latency, row)` picks what to send (default: the first action, or with `laas=True, hz=...`
+the one `latency * hz` steps in). No batching and no `VECTOR_STEP`.
+
+Anything else (async producers, streaming, a policy that must see every observation, as `vlanext.py` does): subclass
+`ModelServer` and implement `on_observation(obs, rows)`, answering each row once with
+`await self.send_action(rows, actions)` / `send_error`, now or later. A reply through rows of an ended episode, or one
+already answered, is dropped.
+
+See [the Push-T example](examples/pusht_train_eval/train.py) for a global policy reset per episode.
 
 ## Config Conventions
 

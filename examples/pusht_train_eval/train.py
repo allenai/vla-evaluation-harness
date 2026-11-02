@@ -20,6 +20,7 @@ from lerobot.policies import make_pre_post_processors
 from lerobot.policies.diffusion import DiffusionConfig, DiffusionPolicy
 from lerobot.policies.utils import prepare_observation_for_inference
 from lerobot.utils.feature_utils import dataset_to_policy_features
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, DimSpec
 
@@ -29,14 +30,14 @@ HERE = Path(__file__).resolve().parent
 
 
 class PolicyServer(PredictModelServer):
-    """Serves the live policy. ``select_action`` keeps the policy's own observation
-    history and action queue, so one action comes back per observation."""
+    """Serves the live policy.  ``select_action`` keeps global history and action queue state,
+    hence one episode at a time (``max_rows=1``)."""
 
     def __init__(self, policy: DiffusionPolicy, preprocess: Any, postprocess: Any, device: torch.device) -> None:
-        super().__init__()
+        super().__init__(max_rows=1)
         self.policy, self.preprocess, self.postprocess, self.device = policy, preprocess, postprocess, device
 
-    def predict(self, obs: dict[str, Any], ctx: Any) -> dict[str, Any]:
+    def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
         frame = {
             "observation.image": np.ascontiguousarray(obs["images"]["agentview"], dtype=np.uint8),
             "observation.state": np.asarray(obs["state"], dtype=np.float32),
@@ -46,9 +47,8 @@ class PolicyServer(PredictModelServer):
             action = self.postprocess(self.policy.select_action(frame))
         return {"actions": action.squeeze(0).cpu().numpy().astype(np.float32)}
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: Any) -> None:
+    def reset_episodes(self, rows: Rows) -> None:
         self.policy.reset()  # clear the history/action queues between episodes
-        await super().on_episode_start(config, ctx)
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {"position": ACTION_XY_ABSOLUTE}

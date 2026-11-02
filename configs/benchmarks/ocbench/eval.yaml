@@ -1,0 +1,17 @@
+# OCBench on MuJoCo Warp: the 28 tasks, 500 episodes each, 500 worlds stepped together (VectorStepBenchmark).
+# Needs `pip install "ocbench[mjwarp]"` and a CUDA GPU; MUJOCO_GL=egl on a headless host.  A model server that
+# implements predict_batch over columns keeps the harness within ~10 % of OCBench's own loop.
+server:
+  url: "ws://localhost:8000"
+  timeout: 600
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.ocbench.benchmark:OCBenchBenchmark"
+    episodes_per_task: 500
+    recording:
+      record_step: false  # a row per world and step (5000 x 500 per wave) otherwise
+    params:
+      num_envs: 500  # pair with a model server whose max_batch_size is at least this
+      seed: 0  # the seed root: episode i resets as world i of OCBench's evaluate_mjwarp with this root

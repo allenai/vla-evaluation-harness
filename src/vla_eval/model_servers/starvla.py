@@ -51,10 +51,11 @@ import numpy as np
 from PIL import Image as PILImage
 from transforms3d.euler import euler2axangle
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval import columns
+from vla_eval.types import Batch, EpisodeResult
+from vla_eval.model_servers.base import Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import GRIPPER_CLOSE_POS, IMAGE_RGB, LANGUAGE, RAW, DimSpec
-from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
 
@@ -146,14 +147,13 @@ class StarVLAModelServer(PredictModelServer):
         observation_params: str | None = None,
         image_size: list[int] | None = None,
         chunk_size: int = 1,
-        action_ensemble: str = "newest",
         euler_to_axisangle: bool = False,
         gripper_invert: bool = True,
         adaptive_ensemble_horizon: int | None = None,
         adaptive_ensemble_alpha: float = 0.1,
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.checkpoint = checkpoint
         self.unnorm_key = unnorm_key
         self.unnorm_type = unnorm_type
@@ -162,7 +162,7 @@ class StarVLAModelServer(PredictModelServer):
         self.gripper_invert = gripper_invert
         self._ensemble_horizon = adaptive_ensemble_horizon
         self._ensemble_alpha = adaptive_ensemble_alpha
-        self._ensemblers: dict[str, _AdaptiveEnsembler] = {}
+        self._ensemblers: dict[int, _AdaptiveEnsembler] = {}  # by row id
         self._image_size: tuple[int, int] | None = (image_size[0], image_size[1]) if image_size else None
         self._observation_params: dict[str, Any] = {}
         if observation_params:
@@ -427,7 +427,9 @@ class StarVLAModelServer(PredictModelServer):
             normalized[..., 6] = np.where(normalized[..., 6] < 0.5, 0, 1)
         return np.where(mask, 0.5 * (normalized + 1) * (high - low) + low, normalized)
 
-    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        obs_batch = columns.split(obs, len(rows))
+        row_ids = rows.ids.tolist()
 
         def _prepare_img(img: Any) -> PILImage.Image:
             if isinstance(img, np.ndarray):
@@ -473,7 +475,7 @@ class StarVLAModelServer(PredictModelServer):
 
             # Adaptive ensemble BEFORE euler→axisangle (reference applies
             # ensemble on euler values, then converts the ensembled action).
-            ensembler = self._ensemblers.get(ctx_batch[i].session_id)
+            ensembler = self._ensemblers.get(row_ids[i])
             if ensembler is not None:
                 actions = ensembler(actions)[np.newaxis]  # (D,) → (1, D)
 
@@ -483,16 +485,17 @@ class StarVLAModelServer(PredictModelServer):
                     axis, angle = euler2axangle(actions[t, 3], actions[t, 4], actions[t, 5])
                     actions[t, 3:6] = axis * angle
             outputs.append({"actions": actions})
-        return outputs
+        return columns.stack(outputs)
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
         if self._ensemble_horizon is not None:
-            self._ensemblers[ctx.session_id] = _AdaptiveEnsembler(self._ensemble_horizon, self._ensemble_alpha)
-        await super().on_episode_start(config, ctx)
+            for rid in rows.ids.tolist():
+                self._ensemblers[rid] = _AdaptiveEnsembler(self._ensemble_horizon, self._ensemble_alpha)
+        return None
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        self._ensemblers.pop(ctx.session_id, None)
-        await super().on_episode_end(result, ctx)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        for rid in rows.ids.tolist():
+            self._ensemblers.pop(rid, None)
 
 
 if __name__ == "__main__":
