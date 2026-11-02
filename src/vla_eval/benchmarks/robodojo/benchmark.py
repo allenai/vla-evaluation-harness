@@ -328,6 +328,7 @@ class RoboDojoBenchmark(StepBenchmark):
         taken = {lid for ep, lid in self._counted_layouts.items() if ep != episode_idx}
         spares = [i for i in own if i not in taken]
         layout_id = episode_idx
+        env_failed = False  # this episode saw a failure other than layout instability
         while True:
             raw_obs = self._try_layout(env, layout_id, task_name)
             if not isinstance(raw_obs, Exception):
@@ -338,13 +339,14 @@ class RoboDojoBenchmark(StepBenchmark):
             # An unstable layout is the layout's fault (deterministic, so a restart would not help); the
             # env built and simulated it. Any other failure counts toward the cap.
             unstable = type(raw_obs).__name__ == "UnStableError"
+            env_failed = env_failed or not unstable
             self._failed_resets = 0 if unstable else self._failed_resets + 1
             if self._failed_resets >= MAX_FAILED_RESETS:
                 raise EnvUnusableError(self._unusable_message(task_name))
             layout_id = next((i for i in spares if i not in self._tried_spares), -1)
             if layout_id < 0:
                 # Out of spares after an env failure: hand the episode back for a retry rather than score an error.
-                raise (RuntimeError if unstable else EnvUnusableError)(
+                raise (EnvUnusableError if env_failed else RuntimeError)(
                     f"RoboDojo: shard {shard_id}/{num_shards} has no spare layout left for {task_name} "
                     f"({len(own)} of {max(total - self._native_eval_num, 0)} spares are this shard's, "
                     f"{len(own) - len(spares)} counted before a resume)"
