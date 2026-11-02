@@ -75,8 +75,9 @@ instances with disjoint `--filter` regexes (one lane per GPU).
   Generalization tasks (25 standard + 25 via their `_random` variants). Each task enforces
   its own `step_lim` (300–1900); the harness cap only backstops it.
 - Bad layouts (scene instability, broken scene builds) are skipped and replaced from the
-  group's spares (ids at or past `eval_num`; 55–65 layouts per task), so one shard counts the
-  same set as the official in-order queue; each episode result records the `layout_id` it ran.
+  group's spares (ids at or past `eval_num`; 55–65 layouts per task); each episode result
+  records the `layout_id` it ran. Whether a layout settles depends on what the env ran before, so
+  the counted set matches the official in-order queue only when no reset fails.
 - Sharded runs (`--num-shards`) split the spares round-robin by shard, so shards never share a
   layout. After 5 failed resets in a row the env refuses further episodes (failed resets leak
   render resources until Kit crashes).

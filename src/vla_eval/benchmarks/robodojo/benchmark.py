@@ -10,9 +10,10 @@ upstream ``EvalEnv.run_eval()``:
   ``Assets/Eval_Layout/RoboDojo/<config_name>/<seed>/<task>_<layout_id>.json``,
   then ``run_reward()`` initialises the task's reward state. Episode ``episode_idx``
   runs layout ``episode_idx``; a broken one is replaced by a spare (ids ``>= eval_num``;
-  groups ship 55–65 layouts for 50 counted episodes), so one shard counts the same set
-  as upstream's in-order seed queue. Shards split the spares round-robin by
-  ``shard_id`` and never share a layout; each episode result records its ``layout_id``.
+  groups ship 55–65 layouts for 50 counted episodes). Shards split the spares round-robin
+  by ``shard_id`` and never share a layout; each episode result records its ``layout_id``.
+  Stability depends on what the env ran before, so the counted set matches upstream's
+  in-order seed queue only when no reset fails.
 * One ``take_action(dict)`` = one policy step; ``is_episode_end()`` computes the
   reward, flips ``success``/``end_flag``, and enforces the task's own ``step_lim``.
   The harness-side ``max_steps`` is only a safety net and must stay above every
