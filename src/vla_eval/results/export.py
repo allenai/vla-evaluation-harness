@@ -260,5 +260,5 @@ def print_export_summary(aggregates: list[dict[str, Any]]) -> None:
         console.print(f"\n{'=' * 60}")
         console.print(f"[bold]Benchmark: {body['benchmark']}[/bold] (mode: {body.get('mode')})")
         console.print(f"{'=' * 60}")
-        print_task_table(console, body["tasks"], rate, rate_color)
+        print_task_table(console, body["tasks"], rate, rate_color, body.get("ci95_success"))
         console.print(f"{'=' * 60}\n")

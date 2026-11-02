@@ -324,6 +324,24 @@ def cmd_export(args: argparse.Namespace) -> None:
     print_export_summary(aggregates)
 
 
+def cmd_compare(args: argparse.Namespace) -> None:
+    """Compare two runs' aggregates episode by episode, or one run against a reported score."""
+    from vla_eval.results.compare import build_report, print_report
+
+    if args.b is None and args.reference is None:
+        _stderr_console().print("[red]ERROR: give a second aggregate B, --reference, or both[/red]")
+        sys.exit(2)
+    try:
+        report = build_report(args.a, args.b, metric=args.metric, reference=args.reference, tolerance=args.tolerance)
+    except (OSError, ValueError) as exc:
+        _stderr_console().print(f"[red]ERROR: {exc}[/red]")
+        sys.exit(1)
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print_report(report)
+
+
 def cmd_test(args: argparse.Namespace) -> None:
     """Run smoke tests across CLI commands."""
     from vla_eval.cli.smoke import (
@@ -782,6 +800,38 @@ server-level key (host/port).
     export_parser.add_argument("-o", "--output-dir", help="Artifact directory (default: DB parent)")
     export_parser.add_argument("--verbose", "-v", action="store_true")
     export_parser.set_defaults(func=cmd_export)
+
+    compare_parser = sub.add_parser(
+        "compare",
+        help="Compare two runs (paired by episode) or one run against a reported score",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Compare aggregate JSONs (<benchmark>_aggregate.json from run/export) on one metric.",
+        epilog="""\
+Episodes pair on (task, task_idx, episode_id) — task_idx only when both runs
+record it — so a pair is the same task and initial state. Binary metrics get the
+exact McNemar test; the A − B interval is a paired bootstrap stratified by task.
+With no pairs, the runs are compared as independent samples (Newcombe for rates).
+Harness errors count as failures, as in the aggregate's mean.
+
+--reference P prints the reproduction verdict (docs/reproductions/README.md):
+  ✅ P within A's 95% CI · 🟡 outside, |A − P| <= --tolerance · 🔧 beyond it
+P is a fraction (0.969) or a percentage (96.9%); non-rate metrics use their own
+scale, so set --tolerance on that scale too.
+
+  vla-eval compare ours/libero_spatial_aggregate.json theirs/libero_spatial_aggregate.json
+  vla-eval compare ours/libero_spatial_aggregate.json --reference 96.9%
+""",
+    )
+    compare_parser.add_argument("a", help="Aggregate JSON of run A")
+    compare_parser.add_argument("b", nargs="?", help="Aggregate JSON of run B (optional with --reference)")
+    compare_parser.add_argument("--reference", metavar="P", help="Reported score to judge A against")
+    compare_parser.add_argument("--metric", default="success", help="Per-episode metric (default: success)")
+    compare_parser.add_argument(
+        "--tolerance", type=float, default=0.05, help="Verdict tolerance on the metric's scale (default: 0.05)"
+    )
+    compare_parser.add_argument("--json", action="store_true", help="Print the report as JSON")
+    compare_parser.add_argument("--verbose", "-v", action="store_true")
+    compare_parser.set_defaults(func=cmd_compare)
 
     # test command
     test_parser = sub.add_parser(

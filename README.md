@@ -265,6 +265,17 @@ Use `vla-eval export DB [-o DIR]` to export recorded results (default: DB parent
 When `filename_stem` is omitted, per-episode artifacts use a benchmark-scoped path:
 `{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}`. Custom stems can still reference serializable task fields such as `{name}` plus `{status}`.
 
+### Intervals and comparison
+
+Every `mean_<metric>` in an aggregate, overall and per task, comes with `ci95_<metric>` (`[lo, hi]`) and `n_<metric>` (episodes averaged; harness errors count as failures, as in the mean). Binary metrics use the Wilson score interval; others (e.g. CALVIN chain length) a seeded percentile bootstrap. The summary table prints the success interval.
+
+`vla-eval compare A B` compares two `<benchmark>_aggregate.json` files. Episodes pair on `(task, task_idx, episode_id)`, i.e. same task and initial state; binary metrics get the exact McNemar test, and A − B a task-stratified paired bootstrap interval. Runs with no pairs are compared as independent samples (Newcombe interval). `--metric` picks the metric, `--json` prints machine-readable output.
+
+```bash
+vla-eval compare ours/libero_spatial_aggregate.json theirs/libero_spatial_aggregate.json
+vla-eval compare ours/libero_spatial_aggregate.json --reference 96.9%   # reproduction verdict
+```
+
 ### Tracking (wandb / trackio)
 
 Mirror aggregate metrics to a remote dashboard:

@@ -60,6 +60,7 @@ LIBERO cells are 4-suite averages unless the cell names a suite; single-suite re
 **Cell format:** status / [reported%](HF checkpoint link). Bold = our reproduced score. Per-codebase reproduction details live in the per-codebase docs linked below; rows without a per-codebase doc (currently VLANeXt) hyperlink the bolded score to the landing PR instead.
 
 **Status:** ✅ within 95% CI · 🟡 outside CI but ≤5pp · 🔧 in progress or >5pp with known cause · ⬜ not attempted · `·` no score / no checkpoint. CI is binomial at p=0.95 (±1.9pp for 500 episodes).
+`vla-eval compare <aggregate.json> --reference 96.9%` computes the verdict (Wilson interval); with a second aggregate it also gives the paired difference and exact McNemar p-value.
 
 ## Benchmarks with No Model Coverage Yet
 

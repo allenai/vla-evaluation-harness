@@ -6,6 +6,8 @@ import json
 from datetime import datetime, UTC
 from typing import Any, NotRequired, TypedDict
 
+from vla_eval.results.stats import metric_interval, metric_values
+
 
 class EpisodeResult(TypedDict):
     """Single episode result.
@@ -24,7 +26,8 @@ class EpisodeResult(TypedDict):
 
 
 class TaskResult(TypedDict):
-    """Per-task aggregate.  ``{agg}_{key}`` fields added by :func:`_aggregate_metrics`."""
+    """Per-task aggregate.  ``{agg}_{key}`` (and, for ``mean``, ``ci95_{key}`` / ``n_{key}``) fields added by
+    :func:`_aggregate_metrics`."""
 
     task: str
     episodes: list[EpisodeResult]
@@ -34,7 +37,8 @@ class TaskResult(TypedDict):
 
 
 class BenchmarkResult(TypedDict):
-    """Top-level result.  ``{agg}_{key}`` fields added by :func:`_aggregate_metrics`."""
+    """Top-level result.  ``{agg}_{key}`` (and, for ``mean``, ``ci95_{key}`` / ``n_{key}``) fields added by
+    :func:`_aggregate_metrics`."""
 
     benchmark: str
     mode: str
@@ -83,20 +87,27 @@ def _build_task_result(task_name: str, episodes: list, metric_keys: dict[str, st
 
 
 def _aggregate_metrics(result: Any, episodes: Any, metric_keys: dict[str, str]) -> None:
-    """Compute metric aggregates from ``episode["metrics"]`` and insert into *result*."""
+    """Compute metric aggregates from ``episode["metrics"]`` and insert into *result*.
+
+    A ``mean`` also gets ``ci95_{key}`` (``[lo, hi]``: Wilson for binary values, seeded bootstrap otherwise; see
+    :mod:`vla_eval.results.stats`) and ``n_{key}``, the number of episodes it averages.
+    """
     for key, agg_type in metric_keys.items():
-        values = [
-            m[key]
-            for e in episodes
-            if isinstance((m := e.get("metrics", {})), dict) and key in m and isinstance(m[key], (int, float, bool))
-        ]
+        values = metric_values(episodes, key)
         fn = _AGG_FNS.get(agg_type)
         if fn is not None and values:
             result[f"{agg_type}_{key}"] = round(fn(values), 4)
+            if agg_type == "mean":
+                result[f"ci95_{key}"], result[f"n_{key}"] = metric_interval(values)
 
 
-def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) -> None:
-    """Print per-task summary table with error annotations. Shared by collector and export."""
+def _ci_tag(ci: Any) -> str:
+    """`` [lo, hi]`` (percent) for a ``ci95_success`` value, or nothing when the aggregate has none."""
+    return f" [dim]\\[{ci[0] * 100:.1f}, {ci[1] * 100:.1f}][/dim]" if isinstance(ci, list) and len(ci) == 2 else ""
+
+
+def print_task_table(console: Any, tasks: list, rate: float, rate_color: str, ci: Any = None) -> None:
+    """Print per-task summary table with 95% intervals and error annotations. Shared by collector and export."""
     total_errors = 0
     for task in tasks:
         n = task["num_episodes"]
@@ -106,9 +117,11 @@ def print_task_table(console: Any, tasks: list, rate: float, rate_color: str) ->
         tr = task.get("mean_success", 0.0)
         tc = "green" if tr >= 0.5 else "red"
         err_tag = f" [yellow]⚠ {errs} errors[/yellow]" if errs else ""
-        console.print(f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}] ({successes}/{n}){err_tag}")
+        ci_tag = _ci_tag(task.get("ci95_success"))
+        line = f"  {task['task']:40s} [{tc}]{tr:6.1%}[/{tc}]{ci_tag} ({successes}/{n}){err_tag}"
+        console.print(line, soft_wrap=True)  # one row per task, even past 80 columns
     console.print(f"{'─' * 60}")
-    console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]")
+    console.print(f"  {'Overall':40s} [{rate_color}]{rate:6.1%}[/{rate_color}]{_ci_tag(ci)}")
     if total_errors:
         console.print(f"  [yellow]⚠ {total_errors} episodes had errors — success rate may be understated[/yellow]")
 
@@ -195,7 +208,7 @@ class ResultCollector:
         console.print(f"\n{'=' * 60}")
         console.print(f"[bold]Benchmark: {result['benchmark']}[/bold] (mode: {result['mode']})")
         console.print(f"{'=' * 60}")
-        print_task_table(console, result["tasks"], rate, rate_color)
+        print_task_table(console, result["tasks"], rate, rate_color, result.get("ci95_success"))
         console.print(f"{'=' * 60}\n")
 
     def to_json(self, config: dict[str, Any] | None = None) -> str:
