@@ -359,6 +359,14 @@ def test_serve_cmd_passes_the_latency_block_and_overrides():
     ]
 
 
+def test_serve_cmd_keeps_a_server_own_latency_arg():
+    """KinetixRTCServer takes ``latency`` itself (rtc.md: ``--arg latency=wall``): it stays a class arg."""
+    config = yaml.safe_load(Path("configs/model_servers/rtc/_base.yaml").read_text())
+    cmd = _build_serve_cmd("uv", Path("s.py"), config, overrides=["latency=wall", "latency.delay_steps=2"])
+    assert "--args.latency=steps" in cmd
+    assert cmd[-2:] == ["--args.latency=wall", "--latency.delay_steps=2"]
+
+
 def _drive(argv: list[str], monkeypatch, server_cls: type[ModelServer] = Chunker) -> Any:
     captured: dict[str, Any] = {}
 

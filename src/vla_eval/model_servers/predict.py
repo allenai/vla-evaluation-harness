@@ -22,8 +22,9 @@ class PredictModelServer(ModelServer):
     """
 
     assumes_whole_chunks: bool = False
-    """``predict`` assumes the first ``chunk_size`` actions of its previous chunk all ran (e.g. it tracks the last
-    commanded pose).  ``DelayedChunkServer``, which skips a chunk's first actions, refuses such a server."""
+    """``predict`` carries state from its previous chunk that assumes that chunk ran as returned (e.g. its last action
+    as the next call's proprio or commanded pose).  ``DelayedChunkServer``, which skips a chunk's first actions,
+    refuses such a server."""
 
     def __init__(
         self,

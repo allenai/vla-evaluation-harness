@@ -569,7 +569,12 @@ def run_server(server_cls: type[ModelServer]) -> None:
             latency = Latency(**cfg.latency.as_dict())
         except ValueError as exc:
             both = cfg.latency.delay_steps is not None and cfg.latency.delay_s is not None
-            hint = " (to replace the config's, null it: vla-eval serve --arg latency.delay_steps=null)" if both else ""
+            hint = (
+                " (to replace the config's, null the one being replaced: --arg latency.delay_steps=null or "
+                "--arg latency.delay_s=null)"
+                if both
+                else ""
+            )
             parser.error(f"latency: {exc}{hint}")
 
     server = server_cls(**cfg.args.as_dict())

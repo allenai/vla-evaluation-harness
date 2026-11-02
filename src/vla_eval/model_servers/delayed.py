@@ -16,9 +16,9 @@ Kinetix's steps ``d .. s + d - 1`` come from a second sample.  Delay is charged 
 served from a landed chunk costs nothing.  The step is the episode's observation index; nothing waits on wall time.
 
 The wrapped ``predict`` must not depend on which of its earlier actions ran: under a delay, each chunk after the first
-skips its first ``d`` actions.  A server whose state assumes its first ``chunk_size`` actions ran (e.g. X-VLA's
-RoboTwin and Google Robot profiles, which carry the last commanded pose to the next call) sets ``assumes_whole_chunks``
-and is refused.
+skips its first ``d`` actions.  A server whose state assumes its previous chunk ran as returned (e.g. X-VLA, which
+carries that chunk's last action into the next call as proprio, commanded pose or position base) sets
+``assumes_whole_chunks`` and is refused.
 
 Enable it from a model-server config, with no change to the server script::
 

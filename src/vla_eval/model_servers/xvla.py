@@ -371,8 +371,11 @@ class XVLAModelServer(PredictModelServer):
         self.benchmark_profile = benchmark_profile
         self.output_action_dim = output_action_dim
         self.use_predicted_proprio = use_predicted_proprio
-        # RoboTwin tracks the commanded end pose, Google Robot accumulates positions: both from the whole chunk
-        self.assumes_whole_chunks = output_action_dim == 16 or benchmark_profile == "simpler"
+        # Each carries its previous chunk's last action into the next call, as if the whole chunk ran: predicted
+        # proprio, RoboTwin's commanded end pose, Google Robot's accumulated positions.
+        self.assumes_whole_chunks = (
+            bool(use_predicted_proprio) or output_action_dim == 16 or benchmark_profile == "simpler"
+        )
         self._image_keys = profile.image_keys if profile is not None else ()
         self._predicted_proprio_dims = (
             profile.predicted_proprio_dims

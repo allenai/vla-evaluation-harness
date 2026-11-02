@@ -259,10 +259,12 @@ def _build_serve_cmd(
     Server-level keys (``port`` / ``host``) emit at the inner root; everything
     in the yaml's ``args:`` block emits under ``--args.*`` so jsonargparse maps
     them onto ``server_cls.__init__``; the ``latency:`` block under ``--latency.*``
-    (an override ``latency=...`` / ``latency.<key>=...`` too).
+    (an override ``latency.<key>=...`` too, and ``latency=...`` unless the server
+    itself takes a ``latency`` arg, as ``KinetixRTCServer`` does).
     """
     cmd: list[str] = [uv, "run", str(script)]
     args_block = dict(config.get("args") or {})
+    own_latency = "latency" in args_block  # a server arg (KinetixRTCServer), not DelayedChunkServer's block
     for k in _SERVER_LEVEL_KEYS:
         if k in args_block:
             cmd.append(f"--{k}={_stringify_arg(args_block.pop(k))}")
@@ -278,7 +280,8 @@ def _build_serve_cmd(
         key, sep, value = override.partition("=")
         if not key or not sep:
             raise ValueError(f"--arg must be KEY=VALUE, got {override!r}")
-        prefix = "" if key in _SERVER_LEVEL_KEYS or key.partition(".")[0] == "latency" else "args."
+        block = key.startswith("latency.") or (key == "latency" and not own_latency)
+        prefix = "" if key in _SERVER_LEVEL_KEYS or block else "args."
         cmd.append(f"--{prefix}{key}={value}")
     return cmd
 
