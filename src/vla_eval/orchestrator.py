@@ -38,7 +38,7 @@ from vla_eval.registry import resolve_import_string
 from vla_eval.render import apply_render_mode, normalize_render_mode
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
-from vla_eval.runners.base import episode_status, failure_reason
+from vla_eval.runners.base import EnvUnusableError, episode_status, failure_reason
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
@@ -186,6 +186,7 @@ class Orchestrator:
         self._progress_path: Path | None = None
         self._progress_last: tuple[int, int, int] | None = None
         self._store: RecordingStore | None = None
+        self.hard_exit = False  # a benchmark asked for os._exit after the run (Benchmark.hard_exit)
 
         # Trackers are instantiated on every shard so config errors surface
         # fast, but live emission only fires when there's a single writer —
@@ -257,6 +258,18 @@ class Orchestrator:
             + ("; the items went back to the queue" if self.requeue_unhealthy and release else "")
         )
 
+    def _stop_if_unusable(self, e: _Entry, error: BaseException | None, unfinished: Collection[int]) -> None:
+        """After an :class:`EnvUnusableError`, put the shard's ``unfinished`` queue items back and exit (code 3)."""
+        if not isinstance(error, EnvUnusableError):
+            return
+        release = [(e.eval_id, i) for i in unfinished] if e.dynamic else []
+        if release:
+            self._queue().release(release)
+        raise UnhealthyShardError(
+            f"{e.name}: the environment is unusable ({error})"
+            + ("; the shard's unfinished items went back to the queue" if release else "")
+        ) from error
+
     def _update_progress(self, completed: int, total: int, errors: int) -> None:
         """Atomic per-shard progress file for live monitoring; skips no-op writes."""
         if self._progress_path is None:
@@ -307,6 +320,7 @@ class Orchestrator:
         except Exception:
             await conn.close()
             raise
+        self.hard_exit = self.hard_exit or bool(getattr(benchmark, "hard_exit", False))
 
         # Spec cross-validation
         try:
@@ -459,24 +473,26 @@ class Orchestrator:
     async def _run_one_at_a_time(
         self, benchmark: Any, runner: SyncEpisodeRunner | LiveEpisodeRunner, conn: Connection, e: _Entry
     ) -> dict[str, Any]:
-        def my_items() -> Iterator[tuple[int, tuple[int, Any, int]]]:
+        def my_items() -> Iterator[tuple[int, int | None, tuple[int, Any, int]]]:
+            """``(finished items so far, queue item or None, work item)``."""
             if not e.dynamic:
                 for i, w in enumerate(e.work_items):
-                    yield i, w
+                    yield i, None, w
                     self._check_health(None, i)
                 return
             assert self.shard_id is not None and self.num_shards is not None
             store, shard = self._queue(), self.shard_id
             store.seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
+            benchmark.resume(store.completed_results(e.eval_id))
             task_idx = None
             while (item := store.claim(e.eval_id, shard, task_idx, self.num_shards)) is not None:
-                yield store.queue_progress(e.eval_id)[0], e.work_items[item]
+                yield store.queue_progress(e.eval_id)[0], item, e.work_items[item]
                 store.finish(e.eval_id, item)  # not reached when the loop aborts: a rerun redoes it
                 self._check_health(e.eval_id, item)
                 task_idx = e.work_items[item][0]
 
         try:
-            for item_idx, (task_idx, task, ep) in my_items():
+            for item_idx, item, (task_idx, task, ep) in my_items():
                 self._episode_errored = False
                 task_name, task = self._episode_task(e, task, ep)
                 watchdog.pet(f"{e.safe_name} {task_name} ep{ep}")
@@ -491,6 +507,7 @@ class Orchestrator:
                 except Exception as exc:
                     error = exc
                 self._episode_ended(e, recorder, task_name, ep, result, error, lambda: item_idx + 1)
+                self._stop_if_unusable(e, error, () if item is None else (item,))
                 if isinstance(error, ConnectionError):
                     logger.error("%s: server unreachable, aborting benchmark", e.name)
                     return self._finalize_benchmark(
@@ -528,6 +545,7 @@ class Orchestrator:
         ended = 0
         if e.dynamic:
             self._queue().seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
+            benchmark.resume(self._queue().completed_results(e.eval_id))
 
         def end(
             episode: VectorEpisode,
@@ -540,17 +558,21 @@ class Orchestrator:
             item, ep, task_name = episode.ref
             active -= 1
 
+            unusable = isinstance(error, EnvUnusableError)
+
             def done() -> int:
                 nonlocal ended
                 ended += 1
                 if item is None:
                     return ended
-                claimed.discard(item)
-                if not aborted:  # an aborted run's item is redone on rerun
+                if not unusable:  # released below with the shard's other in-flight items
+                    claimed.discard(item)
+                if not (aborted or unusable):  # an aborted run's item is redone on rerun
                     self._queue().finish(e.eval_id, item)
                 return self._queue().queue_progress(e.eval_id)[0]
 
             self._episode_ended(e, episode.recorder, task_name, ep, result, error, done)
+            self._stop_if_unusable(e, error, claimed)
             if not aborted:  # the server went away: a partial result, as in the one-at-a-time loop
                 self._check_health(e.eval_id if e.dynamic else None, ended - 1 if item is None else item, claimed)
 

@@ -279,6 +279,13 @@ class RecordingStore:
                 "UPDATE work_queue SET done = 0, shard_id = NULL WHERE eval_id = ? AND item = ?", items
             )
 
+    def completed_results(self, eval_id: str) -> list[dict[str, Any]]:
+        """The ``metrics`` of the entry's episodes that ended without error, from any process."""
+        rows = self._conn.execute(
+            "SELECT metrics FROM episode_results WHERE eval_id = ? AND status != 'error'", (eval_id,)
+        )
+        return [json.loads(m) for (m,) in rows if m]
+
     def queue_progress(self, eval_id: str) -> tuple[int, int]:
         """``(done, total)`` over every shard of the entry."""
         row = self._conn.execute(

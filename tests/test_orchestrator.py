@@ -924,6 +924,52 @@ async def test_unsharded_runs_never_exit_unhealthy(echo_server, tmp_path):
     assert result["num_errors"] == 8
 
 
+class UnusableAfterOne(StubBenchmark):
+    """The first episode works, then the environment is gone for good."""
+
+    calls = 0
+    hard_exit = True
+
+    def reset(self, task):
+        from vla_eval.runners.base import EnvUnusableError
+
+        UnusableAfterOne.calls += 1
+        if UnusableAfterOne.calls > 1:
+            raise EnvUnusableError("simulator wedged")
+        return super().reset(task)
+
+
+class ResumeRecordingStub(StubBenchmark):
+    resumed: list = []
+
+    def resume(self, results):
+        ResumeRecordingStub.resumed = results
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_exits_its_shard_and_a_rerun_finishes_the_queue(echo_server, tmp_path):
+    from vla_eval.orchestrator import UnhealthyShardError
+    from vla_eval.results.export import export_db
+
+    UnusableAfterOne.calls = 0
+    config = _config(echo_server, tmp_path, "x")
+    # One success first: unlike the start-of-shard health check, an unusable env exits whatever ran before.
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=UnusableAfterOne):
+        orch = Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-x", no_save=False)
+        with pytest.raises(UnhealthyShardError, match="unusable"):
+            await orch.run()
+    assert orch.hard_exit
+    db = sqlite3.connect(tmp_path / "recording-ev-x.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue ORDER BY item").fetchall()
+    db.close()
+    assert sorted(queue, key=str) == [(0, None)] * 5 + [(1, 0)]  # the failed item went back, unclaimed
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=ResumeRecordingStub):
+        await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-x", no_save=False).run()
+    assert len(ResumeRecordingStub.resumed) == 1  # the first process's one completed episode, not its error
+    (aggregate,) = export_db(tmp_path / "recording-ev-x.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
+
+
 def test_episode_error_phases():
     from vla_eval.runners.base import EnvStepError, ModelActError, phase
 

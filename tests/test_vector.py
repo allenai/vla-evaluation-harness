@@ -16,6 +16,7 @@ import websockets.exceptions
 from vla_eval.benchmarks.base import BenchmarkCommon, VectorStepBenchmark
 from vla_eval.orchestrator import Orchestrator, UnhealthyShardError
 from vla_eval.recording import RecordingStore
+from vla_eval.runners.base import EnvUnusableError
 
 from tests.conftest import BatchLogServer, LogServer, start_server, stop_server
 
@@ -292,6 +293,29 @@ async def test_unhealthy_shard_requeues_failed_and_in_flight_items(echo_server, 
     assert len(_episodes(healthy)) == 6
     (aggregate,) = export_db(tmp_path / "recording-ev-vu.sqlite", tmp_path)
     assert aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
+
+
+class UnusableOnSecondResetStub(StubVectorBenchmark):
+    def reset(self, slots, tasks, recorders):
+        if self.resets:
+            raise EnvUnusableError("simulator wedged")
+        return super().reset(slots, tasks, recorders)
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_releases_the_shards_in_flight_items(echo_server, tmp_path):
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, name="x", episodes=3, num_envs=2)
+    with pytest.raises(UnhealthyShardError, match="unusable"):
+        await _run(UnusableOnSecondResetStub, config, shard_id=0, num_shards=1, eval_id="ev-vx")
+    db = sqlite3.connect(tmp_path / "recording-ev-vx.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue").fetchall()
+    db.close()
+    assert sorted(queue, key=str) == [(0, None)] * 4 + [(1, 0)] * 2  # the first wave ran; nothing stays claimed
+    await _run(StubVectorBenchmark, config, shard_id=0, num_shards=1, eval_id="ev-vx")
+    (aggregate,) = export_db(tmp_path / "recording-ev-vx.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
 
 
 def _echo(step: dict[str, Any]) -> dict[str, Any]:

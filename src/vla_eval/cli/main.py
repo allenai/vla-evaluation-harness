@@ -212,7 +212,12 @@ def cmd_run(args: argparse.Namespace) -> None:
         results = anyio.run(orchestrator.run)
     except UnhealthyShardError as exc:
         logger.error("%s", exc)
-        sys.exit(3)
+        _exit(orchestrator, 3)
+    except BaseException:
+        if orchestrator.hard_exit:
+            logger.exception("Evaluation failed")
+            _exit(orchestrator, 1)
+        raise
 
     # Print final summary
     for r in results:
@@ -226,6 +231,18 @@ def cmd_run(args: argparse.Namespace) -> None:
 
         output_dir = Path(config.get("output_dir", "./results")).resolve()
         export_eval(output_dir, orchestrator.eval_id)
+    if orchestrator.hard_exit:
+        _exit(orchestrator, 0)
+
+
+def _exit(orchestrator: Orchestrator, code: int) -> None:
+    """Exit with ``code``; via ``os._exit`` (results are already written) when a benchmark asks for it."""
+    if not orchestrator.hard_exit:
+        sys.exit(code)
+    logging.shutdown()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
 
 
 # yaml convention puts these under ``args:`` but they belong to the WS server,

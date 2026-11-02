@@ -23,7 +23,13 @@ upstream ``EvalEnv.run_eval()``:
 
 Scene-instability and other reset-time failures move on to a spare (the official
 protocol neither counts nor retries them); an episode errors out once its shard has no
-spare left, and the env refuses further resets after ``MAX_FAILED_RESETS`` in a row.
+spare left, and ``MAX_FAILED_RESETS`` in a row raise ``EnvUnusableError`` (the shard exits 3).
+
+Like upstream ``main.py`` between rounds, every reset after the first closes the used scene and
+the next ``reset()`` relaunches it: a soft reset on a used scene leaks render products and Vulkan
+descriptors, keeps state that changes later layouts' stability, and never respawns the rigid and
+articulated objects some tasks need. ``close()`` only works on the thread that built the env, so
+all Kit calls run on one dedicated thread.
 """
 
 from __future__ import annotations
@@ -32,14 +38,17 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
 from anyio.to_thread import run_sync as _run_in_thread
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult
 from vla_eval.recording import EpisodeRecorder, NullEpisodeRecorder
+from vla_eval.runners.base import EnvUnusableError
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
 from vla_eval.types import Action, EpisodeResult, Observation, Task
 
@@ -53,9 +62,10 @@ ACTION_DIM = sum(ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
-# Failed resets in a row after which the env is unusable: each leaks its cameras and Vulkan
-# descriptors (never closed, see reset()); about a dozen can end in a Kit descriptor-set crash.
+# Failed resets in a row after which the env counts as unusable (a broken asset or a sick Kit).
 MAX_FAILED_RESETS = 5
+
+_T = TypeVar("_T")
 
 
 class _NoopModelClient:
@@ -93,6 +103,7 @@ class RoboDojoBenchmark(StepBenchmark):
     """
 
     _ALL_RECORD_FIELDS = frozenset({"reward", "done", "success", "score"})
+    hard_exit = True  # Kit segfaults in interpreter teardown (omni.graph.core)
 
     def __init__(
         self,
@@ -115,10 +126,14 @@ class RoboDojoBenchmark(StepBenchmark):
         self._enable_planner = bool(enable_planner)
         self._stream_upstream_videos = bool(stream_upstream_videos)
         self._env: Any = None
+        self._scene_used = False  # reset since the env (re)launched its scene; see _fresh_scene
         self._app: Any = None
+        # Every Kit/env call runs here: close() deadlocks off the env's creating thread.
+        self._env_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="robodojo-env")
         self._current_task_name = ""
         self._native_eval_num = 0
         self._spare_cursor = 0  # spares this shard has tried
+        self._counted_layouts: set[int] = set()  # by earlier processes of this eval (resume())
         self._failed_resets = 0  # in a row, across episodes
         self._current_layout_id = -1
         self._recorder: EpisodeRecorder = NullEpisodeRecorder()
@@ -142,6 +157,14 @@ class RoboDojoBenchmark(StepBenchmark):
         # Upstream writes eval_result/ relative to the checkout; the harness output_dir
         # is already pinned absolute before benchmarks run (cli/main.py), so chdir is safe.
         os.chdir(self._root)
+
+        # Isaac Lab swaps the root log handlers for a WARNING-level one at every sim launch; keep the
+        # harness's INFO lines (episode progress, reset timing) on the handlers the CLI set up.
+        harness_logger, root_handlers = logging.getLogger("vla_eval"), logging.getLogger().handlers
+        if root_handlers and not harness_logger.handlers:
+            for handler in root_handlers:
+                harness_logger.addHandler(handler)
+            harness_logger.propagate = False
 
         # AppLauncher must run before any module that imports Isaac/Omniverse.
         from isaaclab.app import AppLauncher
@@ -232,7 +255,6 @@ class RoboDojoBenchmark(StepBenchmark):
         info = env.robot_action_dim_info
         actual_dims = tuple(dim for pair in zip(info["arm_dim"], info["ee_dim"]) for dim in pair)
         if actual_dims != ACTION_DIMS:
-            self._bounded_close(env)
             raise RuntimeError(f"RoboDojo embodiment reports action dims {actual_dims}, expected {ACTION_DIMS}")
         logger.info(
             "RoboDojo env built: task=%s step_lim=%s native_eval_num=%s layout_group=%s",
@@ -279,8 +301,7 @@ class RoboDojoBenchmark(StepBenchmark):
     def reset(self, task: Task) -> Any:
         task_name = str(task["name"])
         if self._env is not None and task_name != self._current_task_name:
-            # Measured: env.close() on a clean stack_blocks scene never returns (>180s), so
-            # clear_instance() is never reached and a second env raises "context already exists".
+            # A second EvalEnv in one Kit process raised "context already exists".
             raise RuntimeError(
                 "RoboDojo runs one task per process; split multi-task configs into "
                 "one `vla-eval run` per task (see scripts/run_robodojo_protocol.sh)"
@@ -288,6 +309,7 @@ class RoboDojoBenchmark(StepBenchmark):
         if self._env is None:
             self._env = self._build_env(task_name)
             self._current_task_name = task_name
+            self._scene_used = False
         env = self._env
         total = len(env.seed_manager.seed_list)
         counted = min(self._native_eval_num, total)
@@ -298,9 +320,10 @@ class RoboDojoBenchmark(StepBenchmark):
                 "lower episodes_per_task"
             )
         if self._failed_resets >= MAX_FAILED_RESETS:
-            raise RuntimeError(self._unusable_message(task_name))
+            raise EnvUnusableError(self._unusable_message(task_name))
         shard_id, num_shards = int(task.get("shard_id", 0)), int(task.get("num_shards", 1))
-        spares = range(self._native_eval_num + shard_id, total, num_shards)
+        own = range(self._native_eval_num + shard_id, total, num_shards)
+        spares = [i for i in own if i not in self._counted_layouts]
         layout_id = episode_idx
         while True:
             raw_obs = self._try_layout(env, layout_id, task_name)
@@ -311,34 +334,47 @@ class RoboDojoBenchmark(StepBenchmark):
                 return raw_obs
             self._failed_resets += 1
             if self._failed_resets >= MAX_FAILED_RESETS:
-                raise RuntimeError(self._unusable_message(task_name))
+                raise EnvUnusableError(self._unusable_message(task_name))
             if self._spare_cursor >= len(spares):
                 raise RuntimeError(
                     f"RoboDojo: shard {shard_id}/{num_shards} has no spare layout left for {task_name} "
-                    f"({len(spares)} of {max(total - self._native_eval_num, 0)} spares are this shard's)"
+                    f"({len(own)} of {max(total - self._native_eval_num, 0)} spares are this shard's, "
+                    f"{len(own) - len(spares)} counted before a resume)"
                 )
             layout_id = spares[self._spare_cursor]
             self._spare_cursor += 1
 
+    def resume(self, results: list[EpisodeResult]) -> None:
+        # A rerun shard restarts its spare cursor; never count a spare an earlier process counted.
+        self._counted_layouts = {r["layout_id"] for r in results if isinstance(r.get("layout_id"), int)}
+
     def _unusable_message(self, task_name: str) -> str:
-        return (
-            f"RoboDojo: {self._failed_resets} resets in a row failed for {task_name}; the env is unusable "
-            "(each failed reset leaks cameras and descriptors), so it refuses further episodes"
-        )
+        return f"RoboDojo: {self._failed_resets} resets in a row failed for {task_name}; the env is unusable"
+
+    def _fresh_scene(self, env: Any) -> None:
+        """Close a used scene so the next ``env.reset()`` relaunches it, as upstream does per round."""
+        if not self._scene_used:
+            self._scene_used = True
+            return
+        started = time.monotonic()
+        env.close()
+        logger.info("RoboDojo closed the used scene in %.1fs", time.monotonic() - started)
 
     def _try_layout(self, env: Any, layout_id: int, task_name: str) -> Any:
         """Reset onto ``layout_id``; the first observation, or None if the scene failed."""
         try:
+            self._fresh_scene(env)
+            started = time.monotonic()
             env.reset(seed=[layout_id])
             env.run_reward()
             # Upstream registers the task's process-score checks BEFORE stepping; each
             # get_reward() then accumulates progress. Registering late scores 0.
             if hasattr(env, "get_score"):
                 env.get_score()
-            return env.get_obs()
+            raw_obs = env.get_obs()
+            logger.info("RoboDojo layout %d reset in %.1fs", layout_id, time.monotonic() - started)
+            return raw_obs
         except Exception:
-            # Never close() here: teardown destroys the cameras and any later
-            # reset dies in init_cameras. Just move on to a spare layout.
             logger.warning("RoboDojo layout %d failed for %s", layout_id, task_name, exc_info=True)
             return None
 
@@ -473,51 +509,32 @@ class RoboDojoBenchmark(StepBenchmark):
             spec["state"] = STATE_JOINT
         return spec
 
-    @staticmethod
-    def _bounded_close(env: Any) -> None:
-        import threading
-
-        def _close() -> None:
-            try:
-                env.close()
-            except Exception:
-                logger.exception("RoboDojo env close failed")
-
-        # EvalEnv.close() has been measured to hang past 180s even on a clean scene;
-        # bound it so callers make progress and the harness can still write results.
-        closer = threading.Thread(target=_close, name="robodojo-env-close", daemon=True)
-        closer.start()
-        closer.join(timeout=60)
-        if closer.is_alive():
-            logger.warning("RoboDojo env close still hanging after 60s; abandoning it")
-
-    def _close_env(self) -> None:
-        if self._env is None:
-            return
-        env = self._env
-        self._env = None
-        self._bounded_close(env)
-
     def cleanup(self) -> None:
-        self._close_env()
-        # Like behavior1k, never call SimulationApp.close() — Kit teardown can hang;
-        # the benchmark container's process exit reclaims the GPU.
+        # Never close the env or SimulationApp: Kit teardown can hang, and the process exits without it.
+        self._env = None
         self._app = None
+        self._env_thread.shutdown(wait=False)
 
     def render(self) -> np.ndarray | None:
         if self._env is None:
             return None
-        return self._extract_frame(self._env.get_obs())
+        return self._extract_frame(self._on_env_thread_blocking(self._env.get_obs))
 
-    # Async bridge override (as in behavior1k): keep Isaac on a worker thread so its
-    # own asyncio loop cannot tear down the orchestrator's.
+    # Async bridge override: Isaac runs off the event loop (its own asyncio loop would tear down the
+    # orchestrator's), always on the one env thread.
+
+    def _on_env_thread_blocking(self, fn: Callable[..., _T], *args: Any) -> _T:
+        return self._env_thread.submit(fn, *args).result()
+
+    async def _on_env_thread(self, fn: Callable[..., _T], *args: Any) -> _T:
+        return await _run_in_thread(self._on_env_thread_blocking, fn, *args)
 
     async def start_episode(self, task: Task, recorder: EpisodeRecorder | None = None) -> None:
         self._t0 = time.monotonic()
         self._task = task
         self._recorder = recorder or NullEpisodeRecorder()
-        raw_obs = await _run_in_thread(self.reset, task)
+        raw_obs = await self._on_env_thread(self.reset, task)
         self._last_result = StepResult(obs=raw_obs, reward=0.0, done=False, info={})
 
     async def apply_action(self, action: Action) -> None:
-        self._last_result = await _run_in_thread(self.step, action)
+        self._last_result = await self._on_env_thread(self.step, action)

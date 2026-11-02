@@ -74,10 +74,11 @@ instances with disjoint `--filter` regexes (one lane per GPU).
 - Episode counts follow the published `_task.yml`: 50 per task, except the 12
   Generalization tasks (25 standard + 25 via their `_random` variants). Each task enforces
   its own `step_lim` (300–1900); the harness cap only backstops it.
+- Like upstream between rounds, every reset after the first closes the used scene and relaunches it
+  (on the env's own thread, the only one where `close()` returns); soft resets leaked and broke tasks.
 - Bad layouts (scene instability, broken scene builds) are skipped and replaced from the
   group's spares (ids at or past `eval_num`; 55–65 layouts per task); each episode result
-  records the `layout_id` it ran. Whether a layout settles depends on what the env ran before, so
-  the counted set matches the official in-order queue only when no reset fails.
+  records the `layout_id` it ran. The counted set is upstream's; only the choice of spare can differ.
 - Sharded runs (`--num-shards`) split the spares round-robin by shard, so shards never share a
-  layout. After 5 failed resets in a row the env refuses further episodes (failed resets leak
-  render resources until Kit crashes).
+  layout; a resumed shard skips spares already counted. After 5 failed resets in a row the shard
+  returns its unfinished items to the queue and exits 3; rerun it with the same `--eval-id`.

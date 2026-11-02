@@ -28,6 +28,11 @@ class EnvStartError(EpisodeError):
     phase = "env_start"  # start_episode + first observation
 
 
+class EnvUnusableError(EnvStartError):
+    """Raised by a benchmark whose environment can run no further episode in this process: the orchestrator puts
+    the shard's unfinished queue items back and the run exits with code 3."""
+
+
 class ModelStartError(EpisodeError):
     phase = "model_start"  # the server failed EPISODE_START
 
