@@ -11,7 +11,7 @@
 # vla-eval = { path = "../../..", editable = true }
 #
 # [tool.uv]
-# exclude-newer = "2026-05-08T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 """BEHAVIOR-1K demo-replay model server.
 

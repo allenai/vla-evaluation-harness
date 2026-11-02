@@ -333,8 +333,8 @@ checkout; installing a skill does not install the harness or simulator dependenc
 npx skills add . --list
 # Install into another project from a local checkout.
 npx skills add /path/to/vla-evaluation-harness --agent codex claude-code --skill '*'
-# Install a selected skill from the public repository after this change lands.
-npx skills add worv-ai/vla-evaluation-harness-public --agent codex --skill add-benchmark
+# Install a selected skill from the public repository.
+npx skills add allenai/vla-evaluation-harness --agent codex --skill add-benchmark
 ```
 
 `.agents/skills` and `.claude/skills` point to the same source. Shared repository

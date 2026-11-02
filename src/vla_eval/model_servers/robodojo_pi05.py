@@ -6,6 +6,8 @@
 #     "lerobot==0.4.4",  # imported via openpi.training.data_loader; the fork keeps it in a
 #                        # local-only dependency-group, so consumers must pin it directly
 #     "numpy>=1.24",
+#     "pandas<3.1",  # 3.1 refuses numpy<2 at import, which the override below forces
+#     "pyarrow<26",  # 26 requires numpy>=2 at import; openpi holds numpy<2
 #     "pytest",  # not declared in openpi's deps but imported by openpi.models_pytorch
 #     "chex",    # not declared in openpi's deps but imported by openpi.models
 # ]
@@ -18,7 +20,7 @@
 # openpi = { git = "https://github.com/XPolicyLab/XPolicyLab.git", rev = "fe71eb54675cef495fea817a637386a4f4529153", subdirectory = "policy/Pi_05/openpi" }
 #
 # [tool.uv]
-# exclude-newer = "2026-07-13T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # # The fork's own overrides don't propagate to consumers; without them
 # # lerobot(numpy>=2) vs openpi(numpy<2) is unresolvable.
 # override-dependencies = [
@@ -49,8 +51,6 @@ action chunk is executed open-loop, then the policy is queried again
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from typing import Any
 
 import numpy as np
@@ -59,11 +59,6 @@ from vla_eval.model_servers.base import Row
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
-
-# uv run puts this file's dir on sys.path, where the sibling lerobot.py model server
-# shadows the installed lerobot package openpi imports — drop it (same as lerobot.py).
-_here = os.path.dirname(os.path.abspath(__file__))
-sys.path[:] = [p for p in sys.path if p and os.path.abspath(p) != _here]
 
 logger = logging.getLogger(__name__)
 

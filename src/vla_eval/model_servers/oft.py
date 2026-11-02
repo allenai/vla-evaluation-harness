@@ -9,6 +9,7 @@
 #     "numpy>=1.24",
 #     "accelerate",
 #     "timm",
+#     "tensorflow-metadata<1.21",  # 1.21 imports protobuf>=5 APIs yet allows 4.x, which tensorflow pins here
 # ]
 #
 # [tool.uv.sources]
@@ -16,7 +17,7 @@
 # openvla-oft = { git = "https://github.com/moojink/openvla-oft.git", rev = "e4287e94541f459edc4feabc4e181f537cd569a8" }
 #
 # [tool.uv]
-# exclude-newer = "2026-02-24T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 """OpenVLA-OFT model server.
 

@@ -4,6 +4,7 @@
 #     "vla-eval",
 #     "openpi",
 #     "numpy>=1.24",
+#     "pyarrow<26",  # 26 requires numpy>=2 at import; openpi holds numpy<2
 #     "pytest",  # not declared in openpi's deps but imported by openpi.models_pytorch
 #     "chex",    # not declared in openpi's deps but imported by openpi.models
 # ]
@@ -13,7 +14,7 @@
 # openpi = { git = "https://github.com/Physical-Intelligence/openpi.git", rev = "981483dca0fd9acba698fea00aa6e52d56a66c58" }
 #
 # [tool.uv]
-# exclude-newer = "2026-02-24T00:00:00Z"
+# exclude-newer = "2026-10-31T00:00:00Z"
 # ///
 """π₀ / π₀-FAST model server.
 

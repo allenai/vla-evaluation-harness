@@ -284,7 +284,7 @@ class Connection:
         Only used in live mode (LiveEpisodeRunner).  Sync mode uses
         ``act()`` (send + recv) directly and never starts the listener.
 
-        On connection loss the listener raises instead of reconnecting: a new
+        On connection loss (or any recv error) the listener raises instead of reconnecting: a new
         server-side session would lack EPISODE_START.  ``listening()`` re-raises
         it so the orchestrator fails the episode via episode-level error isolation.
         """
@@ -292,9 +292,15 @@ class Connection:
         _recv_count = 0
         try:
             while True:
+                # A recv error (dropped or misused socket) is unrecoverable and may not await, so retrying
+                # would spin the event loop; end the listener instead.
                 try:
                     msg = await self.recv()
-                    _recv_count += 1
+                except Exception as exc:
+                    logger.warning("Listener recv failed after %d msgs: %r", _recv_count, exc)
+                    raise
+                _recv_count += 1
+                try:
                     if msg.seq < self._episode_seq or (msg.type == MessageType.ACTION and msg.seq <= self._action_seq):
                         logger.debug("Dropped stale %s seq %d", msg.type.value, msg.seq)  # earlier episode or action
                     elif msg.type == MessageType.ACTION and self._action_callback is not None:
@@ -306,11 +312,6 @@ class Connection:
                         logger.error("Server error in listener: %s", msg.payload)
                     else:
                         logger.debug("Listener received msg type=%s #%d", msg.type, _recv_count)
-                except cancelled:
-                    raise
-                except (ConnectionError, websockets.exceptions.ConnectionClosed):
-                    logger.warning("Connection lost in listener loop (received %d msgs)", _recv_count)
-                    raise
                 except Exception:
                     logger.exception("Error processing message in listener loop, continuing")
         except cancelled:
