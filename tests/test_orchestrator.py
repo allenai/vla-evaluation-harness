@@ -965,7 +965,8 @@ async def test_an_unusable_env_exits_its_shard_and_a_rerun_finishes_the_queue(ec
     assert sorted(queue, key=str) == [(0, None)] * 5 + [(1, 0)]  # the failed item went back, unclaimed
     with patch("vla_eval.orchestrator.resolve_import_string", return_value=ResumeRecordingStub):
         await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-x", no_save=False).run()
-    assert len(ResumeRecordingStub.resumed) == 1  # the first process's one completed episode, not its error
+    # The first process's one completed episode, not its error.
+    assert [(r["task_name"], r["episode_id"]) for r in ResumeRecordingStub.resumed] == [("task_0", 0)]
     (aggregate,) = export_db(tmp_path / "recording-ev-x.sqlite", tmp_path)
     assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
 

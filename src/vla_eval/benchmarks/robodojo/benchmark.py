@@ -134,7 +134,7 @@ class RoboDojoBenchmark(StepBenchmark):
         self._current_task_name = ""
         self._native_eval_num = 0
         self._spare_cursor = 0  # spares this shard has tried
-        self._counted_layouts: set[int] = set()  # by earlier processes of this eval (resume())
+        self._counted_layouts: dict[int, int] = {}  # episode_idx -> layout, by earlier processes (resume())
         self._failed_resets = 0  # in a row, across episodes
         self._current_layout_id = -1
         self._recorder: EpisodeRecorder = NullEpisodeRecorder()
@@ -324,7 +324,9 @@ class RoboDojoBenchmark(StepBenchmark):
             raise EnvUnusableError(self._unusable_message(task_name))
         shard_id, num_shards = int(task.get("shard_id", 0)), int(task.get("num_shards", 1))
         own = range(self._native_eval_num + shard_id, total, num_shards)
-        spares = [i for i in own if i not in self._counted_layouts]
+        # A retried episode may reuse its own (a crash after its result was written, before the queue knew).
+        taken = {lid for ep, lid in self._counted_layouts.items() if ep != episode_idx}
+        spares = [i for i in own if i not in taken]
         layout_id = episode_idx
         while True:
             raw_obs = self._try_layout(env, layout_id, task_name)
@@ -347,9 +349,13 @@ class RoboDojoBenchmark(StepBenchmark):
             layout_id = spares[self._spare_cursor]
             self._spare_cursor += 1
 
-    def resume(self, results: list[EpisodeResult]) -> None:
+    def resume(self, results: list[dict[str, Any]]) -> None:
         # A rerun shard restarts its spare cursor; never count a spare an earlier process counted.
-        self._counted_layouts = {r["layout_id"] for r in results if isinstance(r.get("layout_id"), int)}
+        self._counted_layouts = {
+            int(r["episode_id"]): r["metrics"]["layout_id"]
+            for r in results
+            if isinstance(r["metrics"].get("layout_id"), int) and r.get("episode_id") is not None
+        }
 
     def _unusable_message(self, task_name: str) -> str:
         return f"RoboDojo: {self._failed_resets} resets in a row failed for {task_name}; the env is unusable"

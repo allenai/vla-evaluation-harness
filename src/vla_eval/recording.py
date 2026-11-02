@@ -280,11 +280,12 @@ class RecordingStore:
             )
 
     def completed_results(self, eval_id: str) -> list[dict[str, Any]]:
-        """The ``metrics`` of the entry's episodes that ended without error, from any process."""
+        """``{task_name, episode_id, metrics}`` of the entry's episodes that ended without error, from any process."""
         rows = self._conn.execute(
-            "SELECT metrics FROM episode_results WHERE eval_id = ? AND status != 'error'", (eval_id,)
+            "SELECT task_name, episode_id, metrics FROM episode_results WHERE eval_id = ? AND status != 'error'",
+            (eval_id,),
         )
-        return [json.loads(m) for (m,) in rows if m]
+        return [{"task_name": t, "episode_id": ep, "metrics": json.loads(m or "{}")} for t, ep, m in rows]
 
     def queue_progress(self, eval_id: str) -> tuple[int, int]:
         """``(done, total)`` over every shard of the entry."""

@@ -78,8 +78,13 @@ async def test_shards_split_the_spares_and_a_resumed_shard_skips_counted_ones() 
     bench, _ = _bench(total=12, broken={0, 1, 2})
     assert await _run(bench, [0, 1], shard_id=1, num_shards=2) == [7, 9]
     resumed, _ = _bench(total=12, broken={0, 1, 2})
-    resumed.resume([{"layout_id": 7}, {"layout_id": 9}, {"success": False}])
+    done = [{"task_name": "t", "episode_id": ep, "metrics": {"layout_id": lid}} for ep, lid in ((0, 7), (1, 9))]
+    resumed.resume([*done, {"task_name": "t", "episode_id": 5, "metrics": {"success": False}}])
     assert await _run(resumed, [2], shard_id=1, num_shards=2) == [11]
+    # Episode 1 retried (killed after its result was written, before the queue's finish): its own spare is free.
+    again, _ = _bench(total=12, broken={0, 1, 2})
+    again.resume(done)
+    assert await _run(again, [1], shard_id=1, num_shards=2) == [9]
 
 
 @pytest.mark.anyio

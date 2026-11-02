@@ -156,9 +156,9 @@ class BenchmarkCommon(ABC):
             "(see Benchmark.get_hold_action / repeat_last_hold)."
         )
 
-    def resume(self, results: list[EpisodeResult]) -> None:
-        """Results of the entry's episodes that earlier processes completed, before a queued (sharded) run's first
-        episode; e.g. per-shard resources they used up.  Optional override."""
+    def resume(self, results: list[dict[str, Any]]) -> None:
+        """``{task_name, episode_id, metrics}`` of the entry's episodes completed so far, by any process, before a
+        queued (sharded) run's first episode; e.g. per-shard resources they used up.  Optional override."""
 
     def cleanup(self) -> None:
         """Release benchmark resources (environments, renderers, etc.). Optional override."""
