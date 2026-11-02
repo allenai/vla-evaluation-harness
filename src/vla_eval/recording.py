@@ -7,7 +7,7 @@ import logging
 import os
 import sqlite3
 import time
-from collections.abc import Collection, Generator, Iterable
+from collections.abc import Callable, Collection, Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -36,7 +36,48 @@ def _json_default(obj: Any) -> Any:
 def _image_of(metadata: dict[str, Any]) -> dict[str, Any] | None:
     """The benchmark image identity in eval metadata (host differences between shards are expected)."""
     block = (metadata.get("provenance") or {}).get("benchmark")
-    return {k: block.get(k) for k in ("image", "digest", "id")} if isinstance(block, dict) else None
+    return {k: block.get(k) for k in ("digest", "id", "runtime")} if isinstance(block, dict) else None
+
+
+def _images_differ(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Known to be different images: ``digest`` when both have one; else ``id`` when both ran one runtime (an ``id``
+    is store-specific: classic and containerd Docker differ for one image).  Missing is unknown, not different;
+    the reference is not compared, so a mirror pull of the same digest agrees."""
+    if a["digest"] and b["digest"]:
+        return a["digest"] != b["digest"]
+    if a["digest"] or b["digest"]:
+        return False
+    return bool(a["id"] and b["id"] and a["runtime"] == b["runtime"] and a["id"] != b["id"])
+
+
+def _server_of(metadata: dict[str, Any]) -> dict[str, Any] | None:
+    """The model server's stable identity in eval metadata: ``class``, ``script.sha256`` and ``args`` (``None``
+    where unknown); its host may differ between shards."""
+    prov = (metadata.get("server_info") or {}).get("provenance")
+    if not isinstance(prov, dict):
+        return None
+    script = prov.get("script")
+    sha = script.get("sha256") if isinstance(script, dict) else None
+    return {"class": prov.get("class"), "script.sha256": sha, "args": prov.get("args")}
+
+
+def _servers_differ(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Known to be different servers: a field both shards report differs."""
+    return any(a[k] is not None and b[k] is not None and a[k] != b[k] for k in a)
+
+
+def _render_of(metadata: dict[str, Any]) -> Any:
+    render = metadata.get("render")
+    # Ignore the flag itself, or every later agreeing shard would re-warn.
+    return {k: v for k, v in render.items() if k != "divergent"} if isinstance(render, dict) else render
+
+
+_DIVERGENCE_CHECKS: list[tuple[str, str, Callable[[dict[str, Any]], Any], Callable[[Any, Any], bool]]] = [
+    ("Renderer provenance", "render", _render_of, lambda a, b: a != b),
+    ("Benchmark image", "provenance.benchmark", _image_of, _images_differ),
+    ("Model server", "server_info.provenance", _server_of, _servers_differ),
+]
+"""What shards of one eval must agree on: (label, metadata path flagged ``divergent``, extract, differ)."""
 
 
 SCHEMA_SQL = """
@@ -293,7 +334,7 @@ class RecordingStore:
         return int(row[0]), int(row[1])
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
-        """Keep the first metadata; flag renderer or benchmark-image disagreement between shards."""
+        """Keep the first metadata; flag renderer, benchmark-image or model-server disagreement between shards."""
         with self.transaction():
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO eval_metadata (eval_id, safe_name, metadata) VALUES (?, ?, ?)",
@@ -303,14 +344,9 @@ class RecordingStore:
                 return
             row = self._conn.execute("SELECT metadata FROM eval_metadata WHERE eval_id = ?", (eval_id,)).fetchone()
             first = json.loads(row[0]) if row else {}
-            for what, path, stored, mine in (
-                ("Renderer provenance", "render", first.get("render"), metadata.get("render")),
-                ("Benchmark image", "provenance.benchmark", _image_of(first), _image_of(metadata)),
-            ):
-                if isinstance(stored, dict):
-                    # Ignore the flag itself, or every later agreeing shard would re-warn.
-                    stored = {k: v for k, v in stored.items() if k != "divergent"}
-                if stored is None or mine is None or stored == mine:
+            for what, path, extract, differ in _DIVERGENCE_CHECKS:
+                stored, mine = extract(first), extract(metadata)
+                if stored is None or mine is None or not differ(stored, mine):
                     continue
                 logger.warning(
                     "%s differs across shards for eval_id=%s (stored=%r, this shard=%r); flagging %s.divergent",

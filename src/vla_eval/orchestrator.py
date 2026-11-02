@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+import anyio
+import anyio.to_thread
 import websockets
 
 from vla_eval import __version__, watchdog
@@ -393,7 +395,7 @@ class Orchestrator:
             # applied can differ from requested (e.g. RoboMME's auto lavapipe probe)
             "render": {"requested": self._render_mode, "applied_env": render_env},
             # the image the host launched (VLA_EVAL_IMAGE*) and this host; the server's is in server_info
-            "provenance": {"benchmark": benchmark_provenance()},
+            "provenance": {"benchmark": await anyio.to_thread.run_sync(benchmark_provenance)},  # runs nvidia-smi
         }
         rec_cfg = _effective_recording_config(cfg.recording, no_save=self.no_save)
         if self._store is not None and rec_cfg is not None:

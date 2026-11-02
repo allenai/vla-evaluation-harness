@@ -355,7 +355,8 @@ def build_docker_command(
     image_identity: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Container arguments shared by production runs and smoke tests.  ``image_ref``: what to run (default
-    ``docker.image``); ``image_identity``: passed in as ``VLA_EVAL_IMAGE*`` env for the run's provenance."""
+    ``docker.image``); ``image_identity``: passed in as ``VLA_EVAL_IMAGE*`` env for the run's provenance, with
+    ``dev``."""
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     if docker_cfg.image is None:
         raise ValueError("docker.image must be set")
@@ -389,7 +390,8 @@ def build_docker_command(
 
     # Forward host-side results_dir for recorder._host_translate.
     cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
-    for var, value in image_env(image_identity or {}).items():
+    # dev: host src/ is mounted over the image's (below), so its digest is not the code that ran.
+    for var, value in image_env({**(image_identity or {}), "dev": dev}).items():
         cmd.extend(["-e", f"{var}={value}"])
 
     # The watchdog runs inside the container; forward the host override so long

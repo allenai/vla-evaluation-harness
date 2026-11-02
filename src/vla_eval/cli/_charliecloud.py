@@ -337,8 +337,9 @@ def image_identity(image: str, export: Path, root: Path, *, built: bool) -> dict
     """Identity of the export a run uses (``root``: where it is readable, i.e. mounted).  ``digest``: pinned in
     ``image``, else recorded at pull time (``PULL_RECORD``).  ``id``: sha256 of the image config ``ch-image`` kept
     (``ch/config.pulled.json``), the config digest; omitted for a build, whose copy is its base image's.  ``export``
-    and its mtime always: the only identity of a build or of an export made before pulls were recorded."""
-    identity: dict[str, Any] = {"image": image, "runtime": "charliecloud", "export": str(export)}
+    (relative to the export cache, else its name: an absolute path names the user's home) and its mtime always:
+    the only identity of a build or of an export made before pulls were recorded."""
+    identity: dict[str, Any] = {"image": image, "runtime": "charliecloud", "export": _portable_export(export)}
     try:
         identity["export_mtime"] = datetime.fromtimestamp(export.stat().st_mtime, UTC).isoformat(timespec="seconds")
         digest = split_image_ref(image)[2]
@@ -352,6 +353,14 @@ def image_identity(image: str, export: Path, root: Path, *, built: bool) -> dict
     except Exception as exc:
         logger.warning("could not resolve the identity of image %s: %s", image, exc)
     return identity
+
+
+def _portable_export(export: Path) -> str:
+    """``export`` relative to the export cache (``.squashfs/<name>.sqfs``), else its name."""
+    try:
+        return export.resolve().relative_to((dirs.home() / "charliecloud").resolve()).as_posix()
+    except (OSError, ValueError):
+        return export.name
 
 
 def read_metadata(img_dir: Path) -> dict[str, Any]:
@@ -491,6 +500,7 @@ def run_via_charliecloud(
         results_dir, config_path = prepare_container_config(config)
         cleanup.callback(Path(config_path).unlink, missing_ok=True)
         identity = image_identity(docker_cfg.image, export, img_dir, built=docker_cfg.build is not None)
+        identity["dev"] = dev  # host src/ mounted over the image's: its digest is not the code that ran
         if docker_cfg.build is None:
             warn_if_mutable(docker_cfg.image, identity)
         env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir, **image_env(identity)}

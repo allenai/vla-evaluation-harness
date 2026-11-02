@@ -674,14 +674,16 @@ def test_pull_records_the_registry_digest_inside_the_export(tmp_path: Path, monk
     identity = ch.image_identity("reg/img:latest", img, img, built=False)
     assert identity["digest"] == digest and identity["runtime"] == "charliecloud"
     assert identity["id"] == "sha256:" + hashlib.sha256(config).hexdigest()  # the image config digest
-    assert identity["export"] == str(img) and identity["export_mtime"].endswith("+00:00")
+    assert identity["export"] == img.name and identity["export_mtime"].endswith("+00:00")  # no home path
 
 
 def test_pulled_digest_resolution() -> None:
     assert ch._pulled_digest(_storage(), f"reg/img@{DIGEST}") == DIGEST  # a pin needs no cache
     assert ch._pulled_digest(_storage(), "reg/img:tag") is None  # nothing where expected: record nothing
-    digest = _pulled_manifest("reg/img:latest")
-    assert ch._pulled_digest(_storage(), "reg/img") == digest  # an untagged ref is stored as :latest
+    latest = _pulled_manifest("reg/img:latest", b'{"latest": 1}')
+    assert ch._pulled_digest(_storage(), "reg/img") == latest  # fallback: only a :latest manifest is cached
+    untagged = _pulled_manifest("reg/img")  # ch-image stores an untagged pull under its untagged name
+    assert untagged != latest and ch._pulled_digest(_storage(), "reg/img") == untagged
 
 
 def test_identity_of_builds_and_old_exports_is_the_export_itself(tmp_path: Path) -> None:
@@ -692,7 +694,7 @@ def test_identity_of_builds_and_old_exports_is_the_export_itself(tmp_path: Path)
     sqfs = tmp_path / "x.sqfs"
     sqfs.write_bytes(b"hsqs")  # pulled before pulls were recorded: only the config digest, read via the mount
     old = ch.image_identity("x:tag", sqfs, img, built=False)
-    assert old["export"] == str(sqfs) and "digest" not in old and old["id"].startswith("sha256:")
+    assert old["export"] == "x.sqfs" and "digest" not in old and old["id"].startswith("sha256:")
     assert ch.image_identity(f"x@{DIGEST}", sqfs, img, built=False)["digest"] == DIGEST
 
 
@@ -731,7 +733,12 @@ def test_run_via_charliecloud_passes_image_identity(tmp_path: Path, monkeypatch,
     config = {"output_dir": str(tmp_path / "out"), "render": "cpu", "docker": docker}
     with caplog.at_level("WARNING"):
         assert ch.run_via_charliecloud(config, no_save=True) == 0
-    for env in ("VLA_EVAL_IMAGE=reg/img:latest", f"VLA_EVAL_IMAGE_DIGEST={DIGEST}", f"VLA_EVAL_IMAGE_EXPORT={img}"):
+    export = f"VLA_EVAL_IMAGE_EXPORT={img.name}"  # relative to the export cache: no home path
+    for env in ("VLA_EVAL_IMAGE=reg/img:latest", f"VLA_EVAL_IMAGE_DIGEST={DIGEST}", export):
         assert f"--set-env={env}" in seen[0]
     assert "--set-env=VLA_EVAL_IMAGE_RUNTIME=charliecloud" in seen[0]
+    assert "--set-env=VLA_EVAL_IMAGE_DEV=1" not in seen[0]
     assert f"docker.image: reg/img@{DIGEST}" in caplog.text
+    monkeypatch.setattr("vla_eval.cli._docker.dev_src_mount_flags", lambda: ["-v", "/src:/workspace/src"])
+    assert ch.run_via_charliecloud(config, no_save=True, dev=True) == 0
+    assert "--set-env=VLA_EVAL_IMAGE_DEV=1" in seen[1]  # host src/ ran, not the image's

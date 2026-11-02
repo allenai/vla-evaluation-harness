@@ -39,10 +39,16 @@ retagged). Once the image is local, the host resolves what the run uses and pass
 |---|---|---|
 | `digest` (what a pin names) | `RepoDigests` from `docker image inspect`, the image's repository first | the pin; else sha256 of the manifest `ch-image pull` saved in its download cache, written into the export as `ch/vla-eval-pull.json` when it is created (older exports have none) |
 | `id` | image `Id` | sha256 of `ch/config.pulled.json`, the image config digest; none for `docker.build` |
-| also | | `export` path and mtime: the only identity of a build |
+| also | | `export` (relative to the export cache) and mtime: the only identity of a build |
 
-Local builds have no `digest`. A mutable tag (`:latest` or none) logs one warning with the pin for the digest
-it resolved. Shipped configs use `:latest`; pin in your own config to rerun on exactly the same image.
+Local builds have no `digest`. `--dev` adds `dev: true`: host `src/` ran, not the image's. A mutable tag
+(`:latest` or none) logs one warning with the pin for the digest it resolved. Shipped configs use `:latest`;
+pin in your own config to rerun on exactly the same image.
+
+Shards are flagged `divergent` only on a known difference: `digest` when both have one, else `id` when both
+ran one runtime (`id` differs between classic and containerd Docker stores for one image). The reference is
+not compared, so a mirror pull of the same digest agrees; a mirror that re-pushed the image under another
+digest still flags.
 
 ## SquashFS exports
 

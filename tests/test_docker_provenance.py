@@ -66,6 +66,19 @@ def test_identity_goes_in_as_env_and_the_resolved_ref_runs() -> None:
     assert not any(tok.startswith("VLA_EVAL_IMAGE") for tok in plain) and config["docker"]["image"] in plain
 
 
+def test_dev_mount_is_recorded(monkeypatch) -> None:
+    """``--dev`` runs host src/ over the image's: the digest alone no longer describes the code that ran."""
+    monkeypatch.setattr(_docker, "dev_src_mount_flags", lambda: ["-v", "/src:/workspace/src"])
+    config = {"docker": {"image": "ghcr.io/org/img:1"}}
+    identity = {"image": "ghcr.io/org/img:1", "digest": DIGEST, "runtime": "docker"}
+    cmd = build_docker_command("docker", config, "/out", "/cfg.yaml", "c", interactive=False, image_identity=identity)
+    assert "VLA_EVAL_IMAGE_DEV=1" not in cmd
+    cmd = build_docker_command(
+        "docker", config, "/out", "/cfg.yaml", "c", interactive=False, dev=True, image_identity=identity
+    )
+    assert "VLA_EVAL_IMAGE_DEV=1" in cmd and f"VLA_EVAL_IMAGE_DIGEST={DIGEST}" in cmd
+
+
 def _run_via_docker(monkeypatch, tmp_path: Path, image: str, **docker: Any) -> list[str]:
     monkeypatch.setattr("shutil.which", lambda name: name)
     monkeypatch.setattr(_docker, "check_docker_daemon", lambda d: None)

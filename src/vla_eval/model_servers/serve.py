@@ -174,7 +174,8 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                         extra["observation_spec"] = {k: v.to_dict() for k, v in obs_spec.items()}
                 except NotImplementedError:
                     pass
-                extra["provenance"] = await _provenance(model_server)
+                if model_server._provenance is not None:  # computed at server start
+                    extra["provenance"] = model_server._provenance
                 reply_payload = make_hello_payload(
                     model_server=type(model_server).__name__,
                     capabilities={
@@ -289,15 +290,6 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
             await end(_GONE)
             if open_rows:
                 await model_server._end_episodes(open_rows, [_GONE] * len(open_rows))
-
-
-async def _provenance(model_server: ModelServer) -> dict[str, Any]:
-    """``get_provenance`` made safe (``provenance.safe_provenance``), computed off the event loop once."""
-    if model_server._provenance is None:
-        from vla_eval.provenance import safe_provenance
-
-        model_server._provenance = await _run_in_thread(safe_provenance, model_server.get_provenance)
-    return model_server._provenance
 
 
 async def _try_reply(reply: Any, msg_type: MessageType, payload: dict[str, Any], seq: int) -> None:
@@ -461,6 +453,11 @@ async def serve_async(
     logger.info("Starting model server on ws://%s:%d", host, port)
     logger.info("HTTP config endpoint at http://%s:%d/config", host, port)
 
+    if model_server._provenance is None:  # before accepting connections, so HELLO never waits on it
+        from vla_eval.provenance import bounded_provenance
+
+        get = model_server.get_provenance
+        model_server._provenance = await _run_in_thread(bounded_provenance, get, abandon_on_cancel=True)
     process_request = _make_process_request(model_server)
     async with anyio.create_task_group() as tg:
 

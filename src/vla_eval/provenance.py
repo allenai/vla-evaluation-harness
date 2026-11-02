@@ -20,6 +20,7 @@ import platform
 import re
 import shutil
 import subprocess
+import threading
 import tomllib
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -34,12 +35,15 @@ IMAGE_ENV: Final = {
     "runtime": "VLA_EVAL_IMAGE_RUNTIME",
     "export": "VLA_EVAL_IMAGE_EXPORT",
     "export_mtime": "VLA_EVAL_IMAGE_EXPORT_MTIME",
+    "dev": "VLA_EVAL_IMAGE_DEV",
 }
 """Image identity field -> the env var carrying it into the container."""
 
 REDACTED: Final = "<redacted>"
 MAX_BYTES: Final = 32 * 1024
 """HELLO's ``provenance`` beyond this (as JSON) is replaced by an error: it rides every connection."""
+TIMEOUT_S: Final = 60.0
+"""``get_provenance`` still running after this at server start is recorded as an error instead."""
 
 _NVIDIA_SMI_TIMEOUT_S: Final = 5.0
 
@@ -72,17 +76,22 @@ def host_info() -> dict[str, Any]:
 
 
 def _nvidia_gpus() -> list[dict[str, Any]] | None:
-    """``[{"name", "driver", "count"}]`` from ``nvidia-smi``; ``None`` without it."""
+    """``[{"name", "driver", "count"}]`` from ``nvidia-smi``; ``None`` without it.  A stuck ``nvidia-smi`` is killed
+    and abandoned after ``_NVIDIA_SMI_TIMEOUT_S``, not waited on (one in uninterruptible sleep never exits)."""
     smi = shutil.which("nvidia-smi")
     if smi is None:
         return None
-    out = subprocess.run(
-        [smi, "--query-gpu=name,driver_version", "--format=csv,noheader"],
-        capture_output=True,
-        text=True,
-        timeout=_NVIDIA_SMI_TIMEOUT_S,
-        check=True,
-    ).stdout
+    cmd = [smi, "--query-gpu=name,driver_version", "--format=csv,noheader"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        out, _ = proc.communicate(timeout=_NVIDIA_SMI_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        if proc.stdout is not None:
+            proc.stdout.close()
+        raise
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
     gpus: list[dict[str, Any]] = []
     for line in filter(str.strip, out.splitlines()):
         name, _, driver = (part.strip() for part in line.rpartition(","))
@@ -130,18 +139,27 @@ def warn_if_mutable(image: str, identity: Mapping[str, Any]) -> None:
 
 
 def image_env(identity: Mapping[str, Any]) -> dict[str, str]:
-    """The ``VLA_EVAL_IMAGE*`` env carrying ``identity`` into the container (unset fields omitted)."""
-    return {var: str(identity[k]) for k, var in IMAGE_ENV.items() if identity.get(k) not in (None, "")}
+    """The ``VLA_EVAL_IMAGE*`` env carrying ``identity`` into the container (unset or false fields omitted)."""
+    return {
+        var: "1" if identity[k] is True else str(identity[k])
+        for k, var in IMAGE_ENV.items()
+        if identity.get(k) not in (None, "", False)
+    }
 
 
-def image_from_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+def image_from_env(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     """The image identity the host passed in (empty when run outside a vla-eval-launched container)."""
     env = os.environ if environ is None else environ
-    return {k: env[var] for k, var in IMAGE_ENV.items() if env.get(var)}
+    out: dict[str, Any] = {k: env[var] for k, var in IMAGE_ENV.items() if env.get(var)}
+    if "dev" in out:
+        out["dev"] = out["dev"] == "1"
+    return out
 
 
 def benchmark_provenance() -> dict[str, Any]:
-    """The benchmark side's block: image identity (``null`` when unknown, e.g. ``--no-docker``) and host."""
+    """The benchmark side's block: image identity (``null`` when unknown, e.g. ``--no-docker``), ``dev: true`` when
+    ``--dev`` mounted host source over the image's (its digest then does not describe the code that ran), and
+    host.  May run ``nvidia-smi``: call it off the event loop."""
     return {"image": None, "digest": None, **image_from_env(), "host": host_info()}
 
 
@@ -186,39 +204,87 @@ def _portable_path(p: Path) -> str:
 
 
 _SECRET_WORDS: Final = frozenset(
-    {"token", "secret", "secrets", "password", "passwd", "apikey", "credential", "credentials", "auth", "cookie"}
+    {
+        *("token", "secret", "secrets", "password", "passwords", "passwd", "pass", "pwd", "passphrase"),
+        *("apikey", "apikeys", "credential", "credentials", "auth", "authorization", "bearer", "cookie", "dsn"),
+    }
 )
-_SECRET_KEY_QUALIFIERS: Final = frozenset({"api", "access", "private", "secret", "auth", "signing", "encryption"})
-_USERINFO = re.compile(r"(?<=://)[^/@\s]+@")
+_HARMLESS_QUALIFIERS: Final = {
+    "key": frozenset(
+        {"image", "state", "unnorm", "camera", "video", "action", "modality", "policy", "language", "bench", "obs"}
+    ),
+    "token": frozenset({"max", "new", "num", "added", "special", "pad", "eos", "bos"}),
+}
+"""Words before a trailing ``key(s)``/``token(s)`` that name data, not a secret: those the shipped model servers and
+configs use (``unnorm_key``, ``image_keys``, ``wrist_image_key``, ``max_new_tokens``, ...)."""
+
+_URL_USERINFO = re.compile(
+    r"(?<=://)(?:[^\s/?#]*@"  # as urllib splits it: up to the authority's last @ (user:p@ss@host)
+    r"|[^\s/?#@:]*:(?!\d*(?:[/?#\s]|$))[^\s@]*@)"  # user:pa/ss@host: an authority whose ':x' is no port
+)
+_DSN_USERINFO = re.compile(r"(?:^|(?<=[\s=]))[\w.~%+-]+:[^\s@/:]+@(?!sha\d+:)(?=[\w.-]+(?::\d+)?(?:[/?\s]|$))")
+"""Scheme-less ``user:pass@host[:port][/db]``; not ``git@host:org/repo`` nor ``name:tag@sha256:...``."""
+_AUTH_VALUE = re.compile(r"(?i)^\s*(?:bearer\s+[\w.~+/-]{8,}=*|basic\s+[A-Za-z0-9+/]{8,}={0,2})\s*$")
+"""A whole value that is an auth header's (``Bearer <token>``, ``Basic <base64>``), not prose like ``basic setup``."""
+_AUTH_HEADER = re.compile(r"(?i)\b((?:proxy-)?authorization)\s*[:=]\s*\S+(?:\s+\S+)?")
+_QUERY_PARAM = re.compile(r"(?<=[?&])([^=&#\s]+)=([^&#\s]*)")
+_PACKAGE_KEYED: Final = frozenset({("script", "sources")})
+"""Mappings keyed by package name, not by what the value holds: ``google-auth`` is no secret."""
+
+
+def _words(name: object) -> list[str]:
+    """``name`` as lowercase words, split at non-alphanumerics, camelCase and acronyms (``HFToken``: hf, token)."""
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", str(name))
+    return re.findall(r"[a-z0-9]+", re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s).lower())
 
 
 def is_secret_key(name: object) -> bool:
-    """Whether an arg named ``name`` may hold a secret: a word ``token``/``secret``/``password``/``apikey``/
-    ``credential``/``auth``/``cookie``, a name ending ``api_key``/``access_key``/``private_key``/..., or ``key``
-    alone.  Words, not substrings: ``hf_token``/``apiKey`` match; ``tokenizer_name``/``max_tokens``/
-    ``unnorm_key``/``image_keys`` do not."""
-    words = re.findall(r"[a-z0-9]+", re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", str(name)).lower())
-    if any(w in _SECRET_WORDS for w in words):
-        return True
-    return words == ["key"] or (len(words) >= 2 and words[-1] == "key" and words[-2] in _SECRET_KEY_QUALIFIERS)
+    """Whether an arg named ``name`` may hold a secret: a word in ``_SECRET_WORDS`` (``token``, ``password``,
+    ``pass``, ``pwd``, ``auth``, ``authorization``, ``bearer``, ``dsn``, ...), or a trailing ``key``/``keys``/
+    ``token``/``tokens`` (``hf_key``, ``api_keys``, ``HFToken``, ``key``) unless the word before it is in
+    ``_HARMLESS_QUALIFIERS`` (``unnorm_key``, ``image_keys``, ``max_new_tokens``).  Words, not substrings:
+    ``tokenizer_name`` and ``keyframe`` do not match."""
+    words = _words(name)
+    if not words:
+        return False
+    last = words[-1].removesuffix("s")
+    if last in ("key", "token"):
+        return len(words) == 1 or words[-2] not in _HARMLESS_QUALIFIERS[last]
+    return any(w in _SECRET_WORDS for w in words) or last.endswith("token")  # hftoken, accesstoken
+
+
+def _scrub(text: str) -> str:
+    """``text`` without credentials: an auth header value (``Bearer ...``), URL or DSN userinfo, and secret-named
+    query parameters (``?token=...``)."""
+    if _AUTH_VALUE.match(text):
+        return REDACTED
+    text = _AUTH_HEADER.sub(r"\1: ***", text)
+    text = _DSN_USERINFO.sub("***@", _URL_USERINFO.sub("***@", text))
+    return _QUERY_PARAM.sub(lambda m: f"{m[1]}=***" if is_secret_key(m[1]) else m[0], text)
 
 
 def redact(value: Any) -> Any:
-    """``value`` made JSON-safe with secret-named entries (``is_secret_key``) replaced by ``REDACTED`` and URL
-    credentials (``scheme://user:pass@``) stripped.  ``None`` and booleans are kept: they hold no secret."""
+    """``value`` made JSON-safe with secret-named entries (``is_secret_key``) replaced by ``REDACTED`` and
+    credentials scrubbed from strings (``_scrub``).  ``None`` and booleans are kept: they hold no secret.  The
+    keys of ``script.sources`` are package names, so only their values are scrubbed."""
+    return _redact(value, ())
+
+
+def _redact(value: Any, path: tuple[str, ...]) -> Any:
     if isinstance(value, Mapping):
+        by_name = path not in _PACKAGE_KEYED
         out: dict[str, Any] = {}
         for k, v in value.items():
-            secret = is_secret_key(k) and v is not None and not isinstance(v, bool)
-            out[str(k)] = REDACTED if secret else redact(v)
+            secret = by_name and is_secret_key(k) and v is not None and not isinstance(v, bool)
+            out[str(k)] = REDACTED if secret else _redact(v, (*path, str(k)))
         return out
     if isinstance(value, (list, tuple, set, frozenset)):
-        return [redact(v) for v in value]
+        return [_redact(v, path) for v in value]
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, enum.Enum):
-        return redact(value.value)
-    return _USERINFO.sub("***@", str(value))
+        return _redact(value.value, path)
+    return _scrub(str(value))
 
 
 def model_server_provenance(server: Any) -> dict[str, Any]:
@@ -249,3 +315,18 @@ def safe_provenance(get: Callable[[], Mapping[str, Any]]) -> dict[str, Any]:
         return body
 
     return _guard(build)
+
+
+def bounded_provenance(get: Callable[[], Mapping[str, Any]], timeout: float | None = None) -> dict[str, Any]:
+    """``safe_provenance(get)``, or ``{"error": ...}`` once it has run ``timeout`` (default ``TIMEOUT_S``) seconds: a
+    stuck ``get`` is left on its daemon thread, not waited on.  Blocks: call it off the event loop."""
+    timeout = TIMEOUT_S if timeout is None else timeout
+    box: list[dict[str, Any]] = []
+    thread = threading.Thread(target=lambda: box.append(safe_provenance(get)), name="vla-eval-provenance", daemon=True)
+    thread.start()
+    thread.join(timeout)
+    if box:
+        return box[0]
+    if thread.is_alive():
+        return {"error": f"get_provenance did not return within {timeout:g} s"}
+    return {"error": "get_provenance did not return"}  # a BaseException ended the thread

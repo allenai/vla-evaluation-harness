@@ -282,17 +282,19 @@ Under sharding, aggregate emission defers to `vla-eval export`; per-episode trac
 
 Each exported aggregate carries a `provenance` block:
 
-- `benchmark`: the image the run used (`image`, `digest` = registry manifest digest, `id` = local image ID, `runtime`; Charliecloud adds `export` path and mtime) and the container's `host` (platform, Python, GPU name/driver). `null` image fields mean vla-eval did not launch the container (`--no-docker`); set `VLA_EVAL_IMAGE` / `VLA_EVAL_IMAGE_DIGEST` yourself to record one. Shards that ran different images set `benchmark.divergent`.
-- `model_server`: the server's `get_provenance()` from HELLO. By default its class, script path and sha256, PEP 723 pins (dependencies, `[tool.uv.sources]` revs, `exclude-newer`), `run_server` constructor args, and host.
+- `benchmark`: the image the run used (`image`, `digest` = registry manifest digest, `id` = local image ID, `runtime`; Charliecloud adds the `export` (relative to its cache) and its mtime), `dev: true` when `--dev` ran host `src/` over the image's (the digest then does not describe the code that ran), and the container's `host` (platform, Python, GPU name/driver). `null` image fields mean vla-eval did not launch the container (`--no-docker`); set `VLA_EVAL_IMAGE` / `VLA_EVAL_IMAGE_DIGEST` yourself to record one.
+- `model_server`: the server's `get_provenance()`, computed once at server start and sent in HELLO. By default its class, script path and sha256, PEP 723 pins (dependencies, `[tool.uv.sources]` revs, `exclude-newer`), `run_server` constructor args, and host.
 
-Constructor args whose names look secret (`hf_token`, `api_key`, `password`, ...) are redacted and URL credentials stripped; environment values and `docker.env` are never recorded. A run on a mutable tag (`:latest` or none) logs the digest pin that reproduces it:
+Shards that ran known-different images set `benchmark.divergent`: by `digest` when both have one, else by `id` within one runtime; a missing value or a different registry name alone is not a difference. Shards whose model servers report a different `class`, script sha256 or args set `model_server.divergent`. Hosts may differ.
+
+Constructor args whose names look secret are redacted: a word like `token`, `password`, `pass`, `auth`, `authorization`, `bearer` or `dsn`, or a trailing `key(s)`/`token(s)` (`hf_key`, `api_keys`, `HFToken`) unless it names data (`unnorm_key`, `image_keys`, `max_new_tokens`). Strings lose `Bearer`/`Basic` credentials, URL and `user:pass@host` userinfo, and secret-named query parameters. Environment values and `docker.env` are never recorded. A run on a mutable tag (`:latest` or none) logs the digest pin that reproduces it:
 
 ```yaml
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/libero@sha256:<digest>
 ```
 
-The benchmark block is recorded by the harness inside the image, so images built before this feature record nothing (use `--dev` or rebuild). See [runtimes](docs/runtimes.md#image-identity-and-pinning).
+The benchmark block is recorded by the harness inside the image, so images built before this feature record none (rebuild, or use `--dev`). A single-shard run on such an image also exports inside it, with the old exporter: its aggregate has no `provenance` block, only the server's under `server_info.provenance`, until you rerun `vla-eval export` on the host. See [runtimes](docs/runtimes.md#image-identity-and-pinning).
 
 ---
 
