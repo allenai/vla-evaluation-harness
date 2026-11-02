@@ -320,6 +320,29 @@ async def test_an_unusable_env_releases_the_shards_in_flight_items(echo_server, 
     assert "partial" not in aggregate and aggregate["num_episodes_total"] == 4 and aggregate["num_errors"] == 0
 
 
+class UnusableAtFirstResultStub(StubVectorBenchmark):
+    def result(self, slot):
+        if slot == 0:
+            raise EnvUnusableError("simulator wedged")
+        return super().result(slot)
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_still_releases_its_claims_when_the_server_drops_while_draining(tmp_path):
+    # Slot 0's episode (2 steps) ends unusable; slot 1's (3 steps) is still running when the server goes away.
+    config = _config("ws://fake:9999", tmp_path, name="d", episodes=4, num_envs=2, num_tasks=1, jitter=1)
+    with (
+        patch("vla_eval.orchestrator.Connection", FakeConnection),
+        patch.object(FakeConnection, "fail", {3: ConnectionError("unreachable after retries")}),
+    ):
+        with pytest.raises(UnhealthyShardError, match="unusable"):
+            await _run(UnusableAtFirstResultStub, config, shard_id=0, num_shards=1, eval_id="ev-vd")
+    db = sqlite3.connect(tmp_path / "recording-ev-vd.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue").fetchall()
+    db.close()
+    assert queue == [(0, None)] * 4
+
+
 def _echo(step: dict[str, Any]) -> dict[str, Any]:
     values = step["observations"].get("value", [])
     return {"actions": {"actions": [v * np.ones(7, dtype=np.float32) for v in values]} if len(values) else {}}

@@ -567,9 +567,9 @@ class Orchestrator:
                 ended += 1
                 if item is None:
                     return ended
-                if not isinstance(error, EnvUnusableError):  # else released once the run stops
+                # An aborted run's item is redone on rerun; an unusable env's is released once the run stops.
+                if not (aborted or isinstance(error, EnvUnusableError)):
                     claimed.discard(item)
-                if not (aborted or isinstance(error, EnvUnusableError)):  # an aborted run's item is redone on rerun
                     self._queue().finish(e.eval_id, item)
                 return self._queue().queue_progress(e.eval_id)[0]
 
@@ -624,6 +624,8 @@ class Orchestrator:
             if unusable:
                 self._stop_if_unusable(e, unusable[0], claimed)  # every episode has ended and is recorded
         except ConnectionError:
+            if unusable:
+                self._stop_if_unusable(e, unusable[0], claimed)
             logger.error("%s: server unreachable, aborting benchmark", e.name)
             return self._finalize_benchmark(
                 e.collector, e.cfg, e.safe_name, partial=True, server_info=conn.server_info
