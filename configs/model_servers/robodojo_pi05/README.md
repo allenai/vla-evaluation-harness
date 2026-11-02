@@ -34,8 +34,7 @@ them matched preserves the exact upstream deploy path).
 vla-eval serve -c configs/model_servers/robodojo_pi05/pi05.yaml
 # One smoke task:
 vla-eval run  -c configs/benchmarks/robodojo/smoke_test.yaml
-# Full protocol (one process per task — Isaac's SimulationContext is process-global,
-# so a single `vla-eval run` on eval.yaml would only complete the first task):
+# Full protocol (one `vla-eval run` and aggregate per task):
 scripts/run_robodojo_protocol.sh
 ```
 

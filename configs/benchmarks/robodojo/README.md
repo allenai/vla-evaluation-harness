@@ -50,10 +50,10 @@ vla-eval test -c configs/benchmarks/robodojo/smoke_test.yaml   # one-episode int
 scripts/run_robodojo_protocol.sh                               # full 42-task published protocol
 ```
 
-Isaac's simulation context is process-global, so each container run evaluates exactly
-one task (upstream's `eval_policy.sh` has the same shape). The protocol driver reads
-`eval.yaml` and launches one `vla-eval run` per task; parallelise by running several
-instances with disjoint `--filter` regexes (one lane per GPU).
+A process runs its tasks one after another (the next task closes the last one's EvalEnv first). Run `eval.yaml`
+directly, drive it with the protocol script (one `vla-eval run` and aggregate per task; disjoint `--filter`
+regexes per GPU), or shard it with `scripts/run_sharded.sh` (shards take whole tasks). Resuming after a crash or
+exit 3 needs the shared queue, so rerun through `run_sharded.sh` (also with `-n 1`) and the same eval id.
 
 ## Interface
 
@@ -68,20 +68,22 @@ instances with disjoint `--filter` regexes (one lane per GPU).
 
 ## Protocol notes
 
-- `seed` selects a published `Assets/Eval_Layout/RoboDojo/arx_x5/<seed>` layout group;
-  episode indices address the deterministic numbered layouts inside it, matching upstream's
-  layout ids one-to-one.
-- Episode counts follow the published `_task.yml`: 50 per task, except the 12
-  Generalization tasks (25 standard + 25 via their `_random` variants). Each task enforces
-  its own `step_lim` (300–1900); the harness cap only backstops it.
-- Like upstream between rounds, every reset after the first closes the used scene and relaunches it
-  (on the env's own thread, the only one where `close()` returns); soft resets leaked and broke tasks.
-- Bad layouts (scene instability, broken scene builds) are skipped and replaced from the
-  group's spares (ids at or past `eval_num`; 55–65 layouts per task); each episode result
-  records the `layout_id` it ran. The counted set is upstream's; only the choice of spare can differ.
-- Sharded runs (`--num-shards`) split the spares round-robin by shard, so shards never share a
-  layout (a shard out of spares errors an unstable layout's episode); a resumed shard skips spares
-  already counted.
-- After 5 failed resets in a row (unstable layouts aside), or such a failure with no spare left, the
-  shard returns its unfinished items to the queue and exits 3; rerun it with the same `--eval-id`
-  (`scripts/run_sharded.sh` does so itself).
+The adapter follows upstream `src/eval_client/main.py` (see the module docstring for line references):
+
+- `seed` selects a published `Assets/Eval_Layout/RoboDojo/arx_x5/<seed>` group. A task's layouts form a queue
+  in id order; each round takes the next `min(num_envs, episodes still to count)` ids on a fresh scene.
+- `num_envs` (default 1) must match the policy's upstream setting: 1 when its XPolicyLab `deploy.yml` has
+  `eval_batch: false`, else 10 (`robodojo_pi05` asks for 10). Layout stability depends on the round's
+  composition, slot order included, so counted sets match upstream only at equal `num_envs`.
+- Episode counts follow `_task.yml` (`episodes_per_task` may lower them, as upstream's `EVAL_NUM`): 50, or 25
+  for the 12 Generalization tasks and their `_random` variants (at most 5 envs). Each task enforces its own
+  `step_lim` (300–1900); the harness cap only backstops it.
+- Layouts that do not settle, envs a task flags unstable mid-episode (the Franka competition tasks) and rounds
+  that raise are recorded as `skipped`: not counted, not retried, left out of aggregates. PhysX-broken envs
+  abandon their layout and the round reruns with refills, as upstream's PhysX monitor does for tasks with
+  articulations. A task whose queue runs dry counts fewer episodes, as upstream.
+- A round's episodes end together and are scored then (`score`: 1.0 on success, else process score / 100), so
+  an episode's `steps` is its round's; its step rows stop where it ended.
+- Five failing rounds in a row or a dead PhysX context raise `EnvUnusableError`: the shard
+  returns its unfinished items and exits 3. A rerun with the same eval id resumes past every counted and
+  skipped layout (upstream's own resume retries the skipped ones).

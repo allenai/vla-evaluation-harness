@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Run the RoboDojo protocol one task per `vla-eval run` invocation.
 #
-# Isaac Lab's SimulationContext is process-global and RoboDojo env teardown
-# hangs, so a single process (container) can evaluate exactly one task —
-# upstream's eval_policy.sh has the same shape. This driver reads the task
+# One process per task, as upstream's eval_policy.sh, with an aggregate per
+# task (a single run of eval.yaml also works). This driver reads the task
 # table from a protocol config (default: configs/benchmarks/robodojo/eval.yaml),
 # materialises a single-task config per task, and runs them sequentially.
 #
