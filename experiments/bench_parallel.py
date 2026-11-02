@@ -22,10 +22,10 @@ import numpy as np
 import websockets
 
 from vla_eval.connection import Connection
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.types import Batch
+from vla_eval.model_servers.base import Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
-from vla_eval.types import Observation
 
 # ---------------------------------------------------------------------------
 # Model server with simulated delay
@@ -39,13 +39,9 @@ class SlowBatchEchoServer(PredictModelServer):
         super().__init__(max_batch_size=max_batch_size, max_wait_time=0.02)
         self.inference_delay = inference_delay
 
-    def predict_batch(
-        self,
-        obs_batch: list[Observation],
-        ctx_batch: list[SessionContext],
-    ) -> list[dict[str, Any]]:
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
         time.sleep(self.inference_delay)  # same delay for entire batch
-        return [{"actions": np.ones(7, dtype=np.float32)} for _ in obs_batch]
+        return {"actions": np.ones((len(rows), 7), dtype=np.float32)}
 
 
 # ---------------------------------------------------------------------------

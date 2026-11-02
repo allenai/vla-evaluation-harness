@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 import time
 import socket
-from typing import Any
+from typing import Any, NamedTuple
 
 import anyio
 import numpy as np
@@ -14,7 +15,8 @@ import pytest
 import websockets
 
 from vla_eval.benchmarks.base import StepBenchmark, StepResult, repeat_last_hold
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
+from vla_eval.model_servers.live import LiveModelServer
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve_async
 from vla_eval.tracking import Tracker
@@ -73,7 +75,7 @@ class BrokenTracker(Tracker):
 class EchoModelServer(PredictModelServer):
     """Echo model server: returns obs['value'] * ones(7)."""
 
-    def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+    def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
         return {"actions": obs.get("value", 0) * np.ones(7, dtype=np.float32)}
 
 
@@ -85,21 +87,103 @@ class RandomActionModelServer(PredictModelServer):
         self._rng = np.random.default_rng(seed)
         self._action_dim = action_dim
 
-    def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+    def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
         return {"actions": self._rng.standard_normal(self._action_dim).astype(np.float32)}
 
 
-class ChunkModelServer(PredictModelServer):
-    """Returns action chunks. Validates chunk buffering with StubBenchmark."""
+EMPTY = -2.0  # an observation value _Log answers with an empty chunk
 
-    def __init__(self, action_dim: int = 7) -> None:
-        super().__init__(chunk_size=4, action_ensemble="newest")
-        self._action_dim = action_dim
 
-    def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
-        assert self.chunk_size is not None
-        chunk = np.ones((self.chunk_size, self._action_dim), dtype=np.float32)
-        return {"actions": chunk}
+class Call(NamedTuple):
+    value: float
+    step: int
+    session: str
+    t: float  # monotonic, at the call's start
+
+
+class _Log:
+    """Echoes ``value`` (``out``: "echo" a ``[chunk_size, 7]`` chunk or ``[7]``, "ramp" ``value + arange(42)``
+    as ``[6, 7]``, "noactions" ``{"foo": value}``) after ``delay``; a negative value raises.  Logs calls, model
+    threads, starts and ends; a ``broken`` task fails to start, ``suite_chunk`` sets the episode's chunk size."""
+
+    def __init__(self, *, delay: float = 0.0, out: str = "echo", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.delay, self.out = delay, out
+        self.calls: list[Call] = []
+        self.threads: set[str] = set()
+        self.started: list[list[int]] = []
+        self.ended: list[list[int]] = []
+        self.results: list[dict[str, Any]] = []  # each end's status and failure_reason
+        self.ended_busy: list[bool] = []  # an inference was running when the episode finished
+        self.active = self.max_active = 0
+        self._lock = threading.Lock()
+
+    @property
+    def predicted(self) -> list[tuple[float, int]]:
+        return [(c.value, c.step) for c in self.calls]
+
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        self.threads.add(threading.current_thread().name)
+        self.started.append(rows.ids.tolist())
+        tasks = [e.config.get("task", {}) for e in rows.episodes]
+        for e, task in zip(rows.episodes, tasks):
+            if "suite_chunk" in task:
+                e.chunk_size = task["suite_chunk"]
+        return {i: ValueError("cannot load this task") for i, task in enumerate(tasks) if task.get("broken")}
+
+    def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
+        v = float(obs.get("value", 0.0))
+        with self._lock:
+            self.threads.add(threading.current_thread().name)
+            self.calls.append(Call(v, row.step, row.episode.session_id, time.monotonic()))
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+        time.sleep(self.delay)
+        with self._lock:
+            self.active -= 1
+        if v == EMPTY:
+            return {"actions": np.zeros((0, 7), np.float32)}
+        if v < 0:
+            raise ValueError("bad observation")
+        if self.out == "ramp":
+            return {"actions": v + np.arange(42, dtype=np.float64).reshape(6, 7)}
+        if self.out == "noactions":
+            return {"foo": v}
+        n = getattr(self, "chunk_size", None)
+        return {"actions": v * np.ones((n, 7) if n else 7, np.float32)}
+
+    def finish_episodes(self, rows: Rows, results: list[dict[str, Any]]) -> None:
+        self.threads.add(threading.current_thread().name)
+        self.ended.append(rows.ids.tolist())
+        self.ended_busy.append(self.active > 0)
+        self.results += [{k: r.get(k) for k in ("status", "failure_reason")} for r in results]
+
+
+class LogServer(_Log, PredictModelServer):
+    pass
+
+
+class BatchLogServer(LogServer):
+    """``predict_batch``: logs each batch's row ids and steps; a negative value fails the whole batch."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.batches: list[list[int]] = []
+        self.steps: list[list[int]] = []
+
+    def predict_batch(self, obs: dict[str, Any], rows: Rows) -> dict[str, Any]:
+        values = np.asarray(obs["value"], np.float32)
+        self.batches.append(rows.ids.tolist())
+        self.steps.append(rows.step.tolist())
+        if (values < 0).any():
+            raise ValueError("negative value")
+        if self.chunk_size:
+            return {"actions": values[:, None, None] * np.ones((len(rows), self.chunk_size, 7), np.float32)}
+        return {"actions": values[:, None] * np.ones((len(rows), 7), np.float32)}
+
+
+class LiveLogServer(_Log, LiveModelServer):
+    pass
 
 
 class StubBenchmark(StepBenchmark):
@@ -192,21 +276,5 @@ def free_port() -> int:
 async def echo_server(free_port: int):
     """Start an echo server and yield its WebSocket URL. Cleans up on exit."""
     task = await start_echo_server(free_port)
-    yield f"ws://127.0.0.1:{free_port}"
-    await stop_server(task)
-
-
-@pytest.fixture
-async def random_action_server(free_port: int):
-    """Start a RandomActionModelServer and yield its WebSocket URL."""
-    task = await start_server(RandomActionModelServer(), free_port)
-    yield f"ws://127.0.0.1:{free_port}"
-    await stop_server(task)
-
-
-@pytest.fixture
-async def chunk_server(free_port: int):
-    """Start a ChunkModelServer and yield its WebSocket URL."""
-    task = await start_server(ChunkModelServer(), free_port)
     yield f"ws://127.0.0.1:{free_port}"
     await stop_server(task)

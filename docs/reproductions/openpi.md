@@ -52,4 +52,4 @@ No checkpoints publicly available in openpi. Available checkpoints are:
 
 - openpi uses its own config/checkpoint system — not standard HF `from_pretrained`. Requires `openpi` package + GCS/S3 access.
 - LIBERO eval uses 3rd-person image + wrist image + proprioceptive state (8-dim).
-- `chunk_size=10`, `action_ensemble="newest"`.
+- `chunk_size=10`.

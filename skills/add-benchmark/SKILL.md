@@ -49,7 +49,9 @@ in `src/vla_eval/benchmarks/behavior1k/benchmark.py`.
 
 ## 3. Benchmark adapter
 
-Implement `StepBenchmark` under `src/vla_eval/benchmarks/<name>/`, following the
+Implement `StepBenchmark` (or `VectorStepBenchmark` for a simulator that steps many
+environments per call, see `docs/rfcs/0009-vector-benchmarks.md`) under
+`src/vla_eval/benchmarks/<name>/`, following the
 current `src/vla_eval/benchmarks/base.py` contracts. Keep simulator imports lazy.
 Add configs under `configs/benchmarks/<name>/` per `configs/README.md`.
 

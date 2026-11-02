@@ -72,9 +72,9 @@ from vla_eval.specs import (
     STATE_EE_POSE_DUAL_WXYZ,
     DimSpec,
 )
-from vla_eval.types import Action, Observation
+from vla_eval.types import Action, EpisodeResult, Observation
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 
 from vla_eval.rotation import (
@@ -348,13 +348,12 @@ class XVLAModelServer(PredictModelServer):
         *,
         benchmark_profile: str | None = None,
         chunk_size: int = 30,
-        action_ensemble: str = "newest",
         output_action_dim: int | None = None,
         use_predicted_proprio: bool | None = None,
         euler_offset: str | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         profile = _get_profile(benchmark_profile) if benchmark_profile is not None else None
         if output_action_dim is None and profile is not None:
             output_action_dim = profile.output_action_dim
@@ -393,14 +392,14 @@ class XVLAModelServer(PredictModelServer):
         self._euler_offset: np.ndarray | None = None
         if euler_offset is not None:
             self._euler_offset = np.array([float(x) for x in euler_offset.split(",")], dtype=np.float32)
-        # Closed-loop proprio: store raw 20-D actions per session so the
+        # Closed-loop proprio: store raw 20-D actions per row so the
         # next predict() call can feed the model its own last prediction.
         # Disabled when use_predicted_proprio=False (e.g. VLABench, which
         # always uses fresh env state in the official eval).
-        self._last_raw_actions: dict[str, np.ndarray] = {}
-        self._current_xyz: dict[str, np.ndarray] = {}
-        self._last_commanded: dict[str, np.ndarray] = {}  # RoboTwin: last executed 16-D ee action
-        self._task_prompts: dict[str, str] = {}
+        self._last_raw_actions: dict[int, np.ndarray] = {}
+        self._current_xyz: dict[int, np.ndarray] = {}
+        self._last_commanded: dict[int, np.ndarray] = {}  # RoboTwin: last executed 16-D ee action
+        self._task_prompts: dict[int, str] = {}
 
         import torch
         from transformers import AutoConfig, AutoModel, AutoProcessor
@@ -438,20 +437,25 @@ class XVLAModelServer(PredictModelServer):
             self.benchmark_profile or "custom",
         )
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        self._last_raw_actions.pop(ctx.session_id, None)
-        self._current_xyz.pop(ctx.session_id, None)
-        self._last_commanded.pop(ctx.session_id, None)
-        if self._instruction_from_task_name:
-            self._task_prompts[ctx.session_id] = config["task"]["name"].replace("_", " ")
-        await super().on_episode_start(config, ctx)
+    def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
+        failed: dict[int, Exception] = {}
+        for i, (rid, episode) in enumerate(zip(rows.ids.tolist(), rows.episodes)):
+            self._last_raw_actions.pop(rid, None)
+            self._current_xyz.pop(rid, None)
+            self._last_commanded.pop(rid, None)
+            if self._instruction_from_task_name:
+                try:
+                    self._task_prompts[rid] = episode.config["task"]["name"].replace("_", " ")
+                except Exception as exc:
+                    failed[i] = exc
+        return failed
 
-    async def on_episode_end(self, result: dict[str, Any], ctx: SessionContext) -> None:
-        self._last_raw_actions.pop(ctx.session_id, None)
-        self._current_xyz.pop(ctx.session_id, None)
-        self._last_commanded.pop(ctx.session_id, None)
-        self._task_prompts.pop(ctx.session_id, None)
-        await super().on_episode_end(result, ctx)
+    def finish_episodes(self, rows: Rows, results: list[EpisodeResult]) -> None:
+        for rid in rows.ids.tolist():
+            self._last_raw_actions.pop(rid, None)
+            self._current_xyz.pop(rid, None)
+            self._last_commanded.pop(rid, None)
+            self._task_prompts.pop(rid, None)
 
     def get_observation_params(self) -> dict[str, Any]:
         if self.benchmark_profile and self.benchmark_profile in _PROFILE_OBS_PARAMS:
@@ -479,13 +483,13 @@ class XVLAModelServer(PredictModelServer):
         spec["language"] = LANGUAGE
         return spec
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         import torch
         from PIL import Image
 
         if obs.get("episode_restart"):
-            self._last_raw_actions.pop(ctx.session_id, None)
-            self._last_commanded.pop(ctx.session_id, None)
+            self._last_raw_actions.pop(row.id, None)
+            self._last_commanded.pop(row.id, None)
 
         raw_images = _ordered_images(obs, self._image_keys)
         # Un-flip wrist image: benchmark sends all images flipped [::-1,::-1],
@@ -496,7 +500,7 @@ class XVLAModelServer(PredictModelServer):
 
         task_desc = obs.get("task_description", "")
         if self._instruction_from_task_name:
-            task_desc = self._task_prompts[ctx.session_id]
+            task_desc = self._task_prompts[row.id]
 
         # Process with XVLAProcessor
         inputs = self._processor(
@@ -510,14 +514,14 @@ class XVLAModelServer(PredictModelServer):
         # - LIBERO/CALVIN: feed model its own last prediction (closed-loop).
         # - VLABench: always use fresh env state (matches official eval).
         dim_proprio = self._model.action_space.dim_action
-        last_actions = self._last_raw_actions.get(ctx.session_id) if self.use_predicted_proprio else None
+        last_actions = self._last_raw_actions.get(row.id) if self.use_predicted_proprio else None
         if self.output_action_dim == 16:
             state = _obs_state_array(obs)
             if state is None or len(state) != 16:
                 raise ValueError(
                     "RoboTwin profile needs the 16-D end pose in obs['states']: send_state, and render_every == chunk_size"
                 )
-            commanded = self._last_commanded.get(ctx.session_id)
+            commanded = self._last_commanded.get(row.id)
             proprio = torch.tensor(_robotwin_proprio(state, commanded), device=device).unsqueeze(0)
         elif last_actions is not None:
             proprio_np = np.zeros(dim_proprio, dtype=np.float32)
@@ -574,12 +578,12 @@ class XVLAModelServer(PredictModelServer):
         raw_actions = actions[0].cpu().numpy()
 
         # Store raw 20-D actions for closed-loop proprio on next call
-        self._last_raw_actions[ctx.session_id] = raw_actions.copy()
+        self._last_raw_actions[row.id] = raw_actions.copy()
 
         if self.output_action_dim == 16:
             # the whole chunk runs before the next query, so its last action is the next commanded pose
             ee16 = _ee6d_to_robotwin_ee16(raw_actions[: self.chunk_size], self._gripper_threshold)
-            self._last_commanded[ctx.session_id] = ee16[-1]
+            self._last_commanded[row.id] = ee16[-1]
             return {"actions": ee16}
 
         # Convert EE6D 20-D → 7-D when requested
@@ -613,15 +617,15 @@ class XVLAModelServer(PredictModelServer):
                 converted = converted[::2][:10]
                 base_pose = obs.get("base_pose")
                 tcp_pose = obs.get("tcp_pose")
-                if ctx.session_id not in self._current_xyz and base_pose is not None and tcp_pose is not None:
-                    self._current_xyz[ctx.session_id] = _compute_ee_pos_wrt_base(
+                if row.id not in self._current_xyz and base_pose is not None and tcp_pose is not None:
+                    self._current_xyz[row.id] = _compute_ee_pos_wrt_base(
                         np.asarray(base_pose, dtype=np.float64),
                         np.asarray(tcp_pose, dtype=np.float64),
                     )
-                cur = self._current_xyz.get(ctx.session_id)
+                cur = self._current_xyz.get(row.id)
                 if cur is not None:
                     converted[:, :3] += cur
-                    self._current_xyz[ctx.session_id] = converted[-1, :3].copy()
+                    self._current_xyz[row.id] = converted[-1, :3].copy()
 
             return {"actions": converted}
 

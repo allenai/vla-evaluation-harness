@@ -256,7 +256,7 @@ def _free_port(host: str = "127.0.0.1") -> int:
 
 def run_validate(tests: list[SmokeTest]) -> SmokeResult:
     """Validate all benchmark configs by resolving import strings."""
-    from vla_eval.benchmarks.base import Benchmark
+    from vla_eval.benchmarks.base import BenchmarkCommon
     from vla_eval.registry import resolve_import_string
 
     t0 = time.monotonic()
@@ -274,8 +274,8 @@ def run_validate(tests: list[SmokeTest]) -> SmokeResult:
                 continue
             try:
                 cls = resolve_import_string(import_path)
-                if not (isinstance(cls, type) and issubclass(cls, Benchmark)):
-                    errors.append(f"{test.name}: {import_path!r} is not a Benchmark subclass")
+                if not (isinstance(cls, type) and issubclass(cls, BenchmarkCommon)):
+                    errors.append(f"{test.name}: {import_path!r} is not a Benchmark or VectorStepBenchmark subclass")
             except Exception as e:
                 errors.append(f"{test.name}: {import_path!r} -> {e}")
 
@@ -350,11 +350,11 @@ def _make_echo_server(action_dim: int) -> Any:
     """Create an EchoModelServer that returns zero actions."""
     import numpy as np
 
-    from vla_eval.model_servers.base import SessionContext
+    from vla_eval.model_servers.base import Row
     from vla_eval.model_servers.predict import PredictModelServer
 
     class _EchoModelServer(PredictModelServer):
-        def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+        def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
             return {"actions": np.zeros(action_dim, dtype=np.float32)}
 
     return _EchoModelServer()

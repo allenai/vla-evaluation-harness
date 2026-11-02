@@ -8,7 +8,16 @@ from typing import Any
 from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
-from vla_eval.runners.base import EnvStartError, EnvStepError, EpisodeRunner, ModelActError, phase
+from vla_eval.runners.base import (
+    EnvStartError,
+    EnvStepError,
+    EpisodeRunner,
+    ModelActError,
+    end_failed_episode,
+    episode_end_payload,
+    episode_start_payload,
+    phase,
+)
 from vla_eval.types import EpisodeResult, Task
 
 
@@ -24,7 +33,7 @@ class SyncEpisodeRunner(EpisodeRunner):
            b. ``benchmark.apply_action(action)``
            c. If ``benchmark.is_done()``: break
            d. ``benchmark.get_observation()`` → next observation
-        5. ``conn.end_episode()``
+        5. ``conn.end_episode()`` with the status (also when a step raised)
     """
 
     async def run_episode(
@@ -41,32 +50,26 @@ class SyncEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        ep_payload: dict[str, Any] = {"task": task_info}
-        if recorder is not None and recorder.is_active:
-            ep_payload["recording"] = {
-                "sid": recorder.sid,
-                "eid": recorder.eid,
-                "eval_id": recorder.eval_id,
-                "db_path": recorder.db_path,
-            }
-        await conn.start_episode(ep_payload)
+        await conn.start_episode(episode_start_payload(task, recorder))
+        try:
+            steps = range(max_steps) if max_steps is not None else itertools.count()
+            for step in steps:
+                with phase(ModelActError):
+                    action = await conn.act(obs_dict)
+                with phase(EnvStepError):
+                    await benchmark.apply_action(action)
+                    watchdog.pet()  # a slow simulator's episode can outlast the stall timeout
+                    if await benchmark.is_done():
+                        break
+                    obs_dict = await benchmark.get_observation()
 
-        steps = range(max_steps) if max_steps is not None else itertools.count()
-        for step in steps:
-            with phase(ModelActError):
-                action = await conn.act(obs_dict)
             with phase(EnvStepError):
-                await benchmark.apply_action(action)
-                watchdog.pet()  # a slow simulator's episode can outlast the stall timeout
-                if await benchmark.is_done():
-                    break
-                obs_dict = await benchmark.get_observation()
-
-        with phase(EnvStepError):
-            elapsed = await benchmark.get_time()
-            metrics = await benchmark.get_result()
+                elapsed = await benchmark.get_time()
+                metrics = await benchmark.get_result()
+        except Exception as exc:
+            await end_failed_episode(conn, exc)
+            raise
         episode_result: dict = {"metrics": metrics, "steps": step + 1, "elapsed_sec": round(elapsed, 3)}
 
-        await conn.end_episode(episode_result)
+        await conn.end_episode(episode_end_payload(episode_result))
         return episode_result

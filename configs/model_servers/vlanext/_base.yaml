@@ -1,11 +1,9 @@
-# VLANeXt model server (DravenALG/VLANeXt)
-# Qwen3-VL-2B + SigLIP2 + flow-matching diffusion action head, 8-action chunks.
-# Auto-clones VLANeXt to ~/.cache/vla-eval/vlanext on first run because the
-# upstream repo isn't pip-installable (non-SPDX license string). Set
-# VLANEXT_ROOT to override with a local editable clone.
-# Checkpoints: https://huggingface.co/DravenALG/VLANeXt
+# VLANeXt-B (DravenALG/VLANeXt @ d911e6b): Qwen3-VL-2B + flow-matching action head, 8-action chunks.
+# Mirrors upstream scripts/libero_bench_eval.py + config/libero_bench_config.yaml (crop 0.9, 5 flow steps,
+# 8 actions executed per inference). Upstream is cloned on first run; VLANEXT_ROOT overrides it.
+# Checkpoints: https://huggingface.co/DravenALG/VLANeXt (one .pt per suite, picked by `suite`).
 script: "src/vla_eval/model_servers/vlanext.py"
 args:
+  checkpoint: DravenALG/VLANeXt
   chunk_size: 8
-  action_ensemble: newest
   port: 8000

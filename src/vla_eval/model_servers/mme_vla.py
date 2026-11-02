@@ -43,7 +43,7 @@ from typing import Any
 
 import numpy as np
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Action, Observation
@@ -95,7 +95,6 @@ class MmeVlaModelServer(PredictModelServer):
         state_dim: Truncate benchmark state to this dimension.  RoboMME sends 9D; models expect 8D.
         image_resolution: Resize images to this square resolution.
         chunk_size: Number of actions per inference call.
-        action_ensemble: Ensemble strategy for overlapping chunks.
     """
 
     def __init__(
@@ -110,12 +109,11 @@ class MmeVlaModelServer(PredictModelServer):
         image_resolution: int | None = 224,
         *,
         chunk_size: int = 10,
-        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        if use_history and kwargs.get("max_batch_size", 1) > 1:
-            raise ValueError("use_history=True is incompatible with max_batch_size > 1 (memory is per-session)")
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        if use_history:
+            kwargs["max_rows"] = 1  # the policy's memory is global: one episode at a time
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.config_name = config_name
         self.checkpoint = checkpoint
         self.use_history = use_history
@@ -276,8 +274,7 @@ class MmeVlaModelServer(PredictModelServer):
     # Episode lifecycle
     # ------------------------------------------------------------------
 
-    async def on_episode_start(self, config: dict[str, Any], ctx: SessionContext) -> None:
-        await super().on_episode_start(config, ctx)
+    def reset_episodes(self, rows: Rows) -> None:
         if self.use_history and self._policy is not None and hasattr(self._policy, "reset"):
             self._policy.reset()
 
@@ -285,9 +282,9 @@ class MmeVlaModelServer(PredictModelServer):
     # Inference
     # ------------------------------------------------------------------
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         # Handle video history on first observation
-        if self.use_history and ctx.is_first and obs.get("video_history"):
+        if self.use_history and row.is_first and obs.get("video_history"):
             self._process_video_history(obs)
 
         # Build OpenPI observation dict

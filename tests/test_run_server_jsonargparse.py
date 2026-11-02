@@ -13,6 +13,7 @@ import pytest
 import yaml
 
 from vla_eval.model_servers.base import ModelServer
+from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import run_server
 
 
@@ -53,7 +54,7 @@ def _yaml_config(args_block: dict, script: str = "/unused/script.py") -> Path:
     return Path(path)
 
 
-class _BaseModelServer(ModelServer):
+class _BaseModelServer(PredictModelServer):
     """ModelServer subclass that records its ``__init__`` kwargs on self."""
 
     def __init__(self, **kwargs):
@@ -66,9 +67,6 @@ class _BaseModelServer(ModelServer):
 
     def get_observation_spec(self):
         return {}
-
-    async def on_observation(self, *a, **k):
-        pass
 
 
 class TestNullableArg:

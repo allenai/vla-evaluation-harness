@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 from pathlib import Path
 
 import pytest
@@ -93,8 +94,24 @@ def test_ensure_git_clone_shallow_argv(monkeypatch: pytest.MonkeyPatch, tmp_path
     calls: list[list[str]] = []
     monkeypatch.setattr(dirs.subprocess, "check_call", lambda argv: calls.append(argv))
 
-    dirs.ensure_git_clone("repo", "https://example.com/x.git", "main", shallow=True)
+    with pytest.raises(FileNotFoundError):  # the stub clones nothing, so there is nothing to rename
+        dirs.ensure_git_clone("repo", "https://example.com/x.git", "main", shallow=True)
 
-    assert calls == [
-        ["git", "clone", "--depth", "1", "--branch", "main", "https://example.com/x.git", str(tmp_path / "repo")]
-    ]
+    tmp = str(tmp_path / f"repo.tmp-{os.getpid()}")
+    assert calls == [["git", "clone", "--depth", "1", "--branch", "main", "https://example.com/x.git", tmp]]
+
+
+def test_ensure_git_clone_renames_into_place_after_checkout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The clone lands beside the target and is renamed only after the checkout succeeded."""
+    monkeypatch.setenv("VLA_EVAL_ASSETS_CACHE", str(tmp_path))
+    calls: list[list[str]] = []
+
+    def fake(argv: list[str]) -> None:
+        calls.append(argv)
+        if argv[1] == "clone":
+            (Path(argv[-1]) / ".git").mkdir(parents=True)
+
+    monkeypatch.setattr(dirs.subprocess, "check_call", fake)
+    assert dirs.ensure_git_clone("repo", "https://example.com/x.git", "abc") == tmp_path / "repo"
+    assert (tmp_path / "repo" / ".git").is_dir() and sorted(p.name for p in tmp_path.iterdir()) == ["repo"]
+    assert calls[1][:3] == ["git", "-C", str(tmp_path / f"repo.tmp-{os.getpid()}")]

@@ -29,9 +29,10 @@ from typing import Any
 import numpy as np
 
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
-from vla_eval.types import Action, Observation
+from vla_eval import columns
+from vla_eval.types import Action, Batch, Observation
 
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row, Rows
 from vla_eval.model_servers.predict import PredictModelServer
 
 logger = logging.getLogger(__name__)
@@ -56,10 +57,9 @@ class CogACTModelServer(PredictModelServer):
         num_ddim_steps: int = 10,
         *,
         chunk_size: int = 16,
-        action_ensemble: str = "newest",
         **kwargs: Any,
     ) -> None:
-        super().__init__(chunk_size=chunk_size, action_ensemble=action_ensemble, **kwargs)
+        super().__init__(chunk_size=chunk_size, **kwargs)
         self.model_path = model_path
         self.action_model_type = action_model_type
         self.future_action_window_size = future_action_window_size
@@ -108,7 +108,7 @@ class CogACTModelServer(PredictModelServer):
         img_array = next(iter(images_dict.values())) if isinstance(images_dict, dict) else images_dict
         return PILImage.fromarray(img_array).convert("RGB") if isinstance(img_array, np.ndarray) else img_array
 
-    def predict(self, obs: Observation, ctx: SessionContext) -> Action:
+    def predict(self, obs: Observation, row: Row) -> Action:
         pil_image = self._obs_to_pil(obs)
         prompt = obs.get("task_description", "")
 
@@ -122,7 +122,10 @@ class CogACTModelServer(PredictModelServer):
         )
         return {"actions": actions}
 
-    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[dict[str, Any]]:
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        obs_batch = columns.split(obs, len(rows))
+        if self.max_batch_size == 1:  # unbatched: predict_action, as max_batch_size 1 always did
+            return columns.stack([self.predict(obs_batch[0], rows[0])])
         pil_images = [self._obs_to_pil(obs) for obs in obs_batch]
         prompts = [obs.get("task_description", "") for obs in obs_batch]
 
@@ -134,7 +137,7 @@ class CogACTModelServer(PredictModelServer):
             use_ddim=self.use_ddim,
             num_ddim_steps=self.num_ddim_steps,
         )
-        return [{"actions": actions[i]} for i in range(len(obs_batch))]
+        return columns.stack([{"actions": actions[i]} for i in range(len(obs_batch))])
 
 
 if __name__ == "__main__":

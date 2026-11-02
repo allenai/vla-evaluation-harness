@@ -208,43 +208,48 @@ async def test_websocket_still_works_after_config_change(echo_server_url: str):
 # ── bench_demand unit tests (no Docker) ─────────────────────────────────
 
 from experiments.bench_demand import InstantServer, _extract_action_dim, _patch_config, print_demand_table  # noqa: E402
+from vla_eval.model_servers.base import Episode, Row  # noqa: E402
+
+
+def _row() -> Row:
+    return Row(0, 0, True, Episode(config={}, episode_id="e", session_id="s"))
 
 
 @pytest.mark.anyio
-async def test_instant_server_counts_observations():
-    """InstantServer.on_observation() should increment call_count for every observation."""
-    from vla_eval.model_servers.base import SessionContext
+async def test_instant_server_counts_observations(free_port):
+    """InstantServer counts every observation, each row of a vector step included."""
+    import numpy as np
+
+    from vla_eval.connection import Connection
+
+    def step(slots: list[int], starts: list) -> dict:
+        return {"ends": [], "starts": starts, "slots": slots, "observations": {"value": np.zeros(len(slots))}}
 
     server = InstantServer()
-    ctx = SessionContext(session_id="s", episode_id="e", mode="sync")
-
-    async def _noop_send(action: dict) -> None:
-        pass
-
-    ctx._send_action_fn = _noop_send
-
-    for i in range(4):
-        await server.on_observation({"value": float(i)}, ctx)
-    assert server.call_count == 4
+    task = await start_server(server, free_port)
+    try:
+        async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
+            reply = await conn.exchange(step([0], [[0, {}], [1, {}]]))
+            assert not reply["errors"] and np.asarray(reply["actions"]["actions"]).shape == (1, 7)
+            for _ in range(2):
+                await conn.exchange(step([0], []))
+            await conn.exchange(step([0, 1], []))
+    finally:
+        await stop_server(task)
+    assert server.call_count == 5
 
 
 def test_instant_server_scalar_action():
     """InstantServer should return 1D action."""
-    from vla_eval.model_servers.base import SessionContext
-
     server = InstantServer()
-    ctx = SessionContext(session_id="s", episode_id="e", mode="sync")
-    result = server.predict({}, ctx)
+    result = server.predict({}, _row())
     assert result["actions"].shape == (7,)
 
 
 def test_instant_server_custom_action_dim():
     """InstantServer should respect the configured action dimension."""
-    from vla_eval.model_servers.base import SessionContext
-
     server = InstantServer(action_dim=14)
-    ctx = SessionContext(session_id="s", episode_id="e", mode="sync")
-    result = server.predict({}, ctx)
+    result = server.predict({}, _row())
     assert result["actions"].shape == (14,)
 
 

@@ -32,8 +32,10 @@ from typing import Any
 
 import numpy as np
 
+from vla_eval import columns
 from vla_eval.benchmarks.robocasa365.benchmark import ACTION_COMPONENTS, STATE_KEYS, VIDEO_KEYS
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.types import Batch, Observation
+from vla_eval.model_servers.base import Rows
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.specs import (
     BASE_MOTION,
@@ -46,7 +48,6 @@ from vla_eval.specs import (
     ROTATION_AA,
     DimSpec,
 )
-from vla_eval.types import Action, Observation
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +127,8 @@ class RoboCasa365GR00TModelServer(PredictModelServer):
             denoising_steps=self.denoising_steps,
         )
 
-    def predict_batch(self, obs_batch: list[Observation], ctx_batch: list[SessionContext]) -> list[Action]:
-        del ctx_batch
+    def predict_batch(self, obs: Batch, rows: Rows) -> Batch:
+        obs_batch = columns.split(obs, len(rows))
         if not obs_batch:
             raise ValueError("obs_batch must not be empty")
         policy_obs: dict[str, Any] = {
@@ -138,7 +139,7 @@ class RoboCasa365GR00TModelServer(PredictModelServer):
             ),
         }
         flat = _flatten_actions(self._policy.get_action(policy_obs), len(obs_batch))
-        return [{"actions": flat[index]} for index in range(len(obs_batch))]
+        return columns.stack([{"actions": flat[index]} for index in range(len(obs_batch))])
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         return {

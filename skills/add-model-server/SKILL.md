@@ -1,6 +1,6 @@
 ---
 name: add-model-server
-description: Add or improve a VLA model integration in vla-eval, covering checkpoint setup, inference parity, session state, and serving validation.
+description: Add or improve a VLA model integration in vla-eval, covering checkpoint setup, inference parity, per-episode state, and serving validation.
 ---
 
 # Add a model server
@@ -47,8 +47,9 @@ Inspect upstream processors before adding transforms they already perform.
 | --- | --- |
 | `get_observation_params()` | Request benchmark-supported inputs such as wrist/state; verify actual delivery and config overrides. |
 | `get_observation_spec()` / `get_action_spec()` | Declare input/output semantics; shape checks alone cannot establish compatibility. |
-| `predict(obs, ctx)` | Return `{"actions": array}` shaped `(action_dim,)` or `(chunk_size, action_dim)`. |
-| `predict_batch(obs_batch, ctx_batch)` | Required for `max_batch_size > 1`; return one result per request in matching order. |
+| `predict(obs, row)` | One observation of one episode (`row.id`, `row.step`, `row.is_first`, `row.episode`); return `{"actions": array}` shaped `(action_dim,)` or `(chunk_size, action_dim)`. |
+| `predict_batch(obs, rows)` | Optional: observation columns (a row per episode) to action columns; implement when the model infers a batch faster than rows one by one, and set `max_batch_size`. |
+| `reset_episodes(rows)` / `finish_episodes(rows, results)` | Batched, blocking; `rows.episodes[i].config` is the `EPISODE_START` payload; `results[i]["status"]` says how it ended. |
 
 Read current contracts in `src/vla_eval/model_servers/base.py` and `predict.py`;
 `cogact.py` provides a concrete server/batching example. Do not fabricate or pad
@@ -59,10 +60,10 @@ missing inputs unless that behavior belongs to the upstream policy.
 - Identify ownership of history, recurrent state, action queues, and ensembling.
   Preserve replanning frequency; cached chunks may bypass observations needed by
   policies that update on every executed step.
-- Isolate mutable state per session. Sessions span episodes: reset policy-owned
-  state in `on_episode_start`, then await the superclass hook. Base buffers and
-  policy history are separate; reset only the starting session and clean up stale state.
-- Verify batching with mixed sessions, episode lengths, and resets. Compare single
+- Keep mutable state keyed by `row.id` (ids are reused): reset it in `reset_episodes`.
+  Global state → `max_rows=1`; a policy that must see every observation (e.g. a state history with buffered
+  chunks) subclasses `ModelServer` and keeps its own chunk queue, as `vlanext.py` does.
+- Verify batching with mixed episodes, episode lengths, and resets. Compare single
   and batched behavior with controlled inputs/randomness, allowing justified
   stochastic or numerical differences rather than requiring bitwise identity.
 
@@ -77,7 +78,7 @@ uv run vla-eval test -c configs/model_servers/<name>/<config>.yaml
 
 Compare upstream and adapter on the same observation/history: inspect intermediate
 tensors and decoded actions to locate the first divergence. Follow with a real
-rollout, consecutive episodes, and concurrent sessions where supported. If upstream
+rollout, consecutive episodes, and concurrent episodes where supported. If upstream
 also fails, report that limitation instead of tuning toward a published score.
 
 Host `tests/` is for model-independent harness logic. Do not add host pytest cases

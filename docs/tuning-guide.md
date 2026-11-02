@@ -7,8 +7,8 @@ Sharding + batching has three parameters:
 | Parameter | Where | What it controls |
 |-----------|-------|-----------------|
 | `num_shards` | CLI `--num-shards` | Number of parallel environment processes |
-| `max_batch_size` | `BatchPredictModelServer` | Max observations per GPU forward pass |
-| `max_wait_time` | `BatchPredictModelServer` | Seconds to wait before dispatching a partial batch |
+| `max_batch_size` | `PredictModelServer` | Max observations per `predict_batch` call (default 1: no batching) |
+| `max_wait_time` | `PredictModelServer` | Seconds to wait before dispatching a partial batch (default 0.01) |
 
 These interact: the optimal value of each depends on the others. Two benchmark scripts measure **demand** (environment side) and **supply** (model server side) independently.
 
@@ -54,7 +54,7 @@ uv run python experiments/bench_demand.py \
     --shards 1,2,4,8
 ```
 
-Starts an instant-response server and launches N real Docker shards against it. Counts `on_observation()` calls to measure actual observation rate (including chunk-buffered steps).
+Starts an instant-response server and launches N real Docker shards against it. Counts the observations reaching the server's `on_observation()` to measure actual observation rate (including chunk-buffered steps).
 
 **What to look for**: λ(N) grows linearly at first, then flattens at high N due to host contention.
 
@@ -97,7 +97,7 @@ Read the tables from Step 1 and Step 2.
    - Formula: `max_wait_time ≈ B* / predict_rate`, where `predict_rate = λ(N*) / chunk_size`
    - When chunk_size = 1 (every observation triggers a predict), this simplifies to `B* / λ(N*)`.
    - This is a starting point. Slightly higher values improve batch fill rate; slightly lower values reduce per-request latency.
-   - For `PredictModelServer` (no batching), this parameter does not apply.
+   - For a server that only implements `predict` (no `predict_batch`), batching gains nothing; keep `max_batch_size` at 1.
 
 ## Quick Reference
 

@@ -7,6 +7,9 @@
 - **Requires:** RFC-0003, RFC-0006
 - **Superseded-By:** —
 
+> **Superseded in part by the row API ([RFC-0009](0009-vector-benchmarks.md)):** `predict_batch(obs, rows)` takes
+> column batches and chunk buffers are per row; the queue-depth warning is removed.
+
 ## Summary
 
 Implementation design for `BatchPredictModelServer`, whose external interface is defined in RFC-0003. This RFC covers the internal queuing, dispatch loop, and per-session chunk buffer management that coalesce N concurrent observations into batched GPU inference.

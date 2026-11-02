@@ -4,7 +4,7 @@ smoke_config: libero_spatial.yaml
 
 # VLANeXt
 
-VLANeXt-specific LIBERO evaluation configs with custom preprocessor settings.
+LIBERO configs matching upstream's eval (`scripts/libero_bench_eval.py`): env seed 0, 10 wait steps.
 [Paper](https://arxiv.org/abs/2602.18532) | [GitHub](https://github.com/DravenALG/VLANeXt)
 
 **Docker image:** `ghcr.io/allenai/vla-evaluation-harness/libero:latest`

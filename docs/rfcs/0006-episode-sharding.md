@@ -133,7 +133,7 @@ The `run_via_docker` function (`cli/_docker.py`) forwards `--shard-id` and `--nu
 
 N shard processes connect to the same model server URL. The server already handles multiple WebSocket clients via `websockets.serve` (one coroutine per connection). `PredictModelServer` dispatches each request to `run_in_executor`, so N concurrent requests run in N threads.
 
-This is **not** true GPU batching; requests are serialized on the GPU. True batching requires `BatchPredictModelServer` (RFC-0003, future work). However, even without batching, sharding provides significant speedup because simulation time in one process overlaps with inference time in another.
+This is **not** true GPU batching; requests are serialized on the GPU. True batching requires `BatchPredictModelServer` (RFC-0003, future work; now `max_batch_size` on `PredictModelServer`, whose calls run on one model thread, RFC-0009). However, even without batching, sharding provides significant speedup because simulation time in one process overlaps with inference time in another.
 
 ## Implementation Scope
 

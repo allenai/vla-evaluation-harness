@@ -128,11 +128,12 @@ class ResultCollector:
         self.mode = mode
         self.metric_keys = metric_keys or {}
         self._episodes: dict[str, list[EpisodeResult]] = {}  # task -> episodes
+        self._errors = 0
 
     @property
     def error_count(self) -> int:
         """Count of episodes with a failure_reason across all tasks."""
-        return sum(1 for eps in self._episodes.values() for e in eps if e.get("failure_reason"))
+        return self._errors
 
     def record(self, task_name: str, episode_result: EpisodeResult) -> None:
         """Record a single episode result."""
@@ -145,6 +146,7 @@ class ResultCollector:
         if task_name not in self._episodes:
             self._episodes[task_name] = []
         self._episodes[task_name].append(episode_result)
+        self._errors += bool(episode_result.get("failure_reason"))
 
     def get_task_result(self, task_name: str) -> TaskResult:
         """Aggregate results for a single task."""

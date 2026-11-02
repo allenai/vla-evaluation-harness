@@ -28,6 +28,7 @@ RFCs capture significant architectural decisions and proposed changes. They exis
 | [0006](0006-episode-sharding.md) | Episode Sharding for Parallel Evaluation | Implemented |
 | [0007](0007-batch-predict-model-server.md) | BatchPredictModelServer Implementation | Implemented |
 | [0008](0008-python-api.md) | Python API for Training-Time Evaluation | Implemented |
+| [0009](0009-vector-benchmarks.md) | Vectorized Benchmarks | Implemented |
 
 ## Proposing a New RFC
 

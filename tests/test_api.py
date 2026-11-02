@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 import json
 from typing import Any
 
@@ -102,8 +104,7 @@ def test_benchmark_overrides_merge_params_and_replace_others() -> None:
 
 
 def test_serve_background_reusable_with_batched_server(tmp_path) -> None:
-    """A batched PredictModelServer spawns a dispatcher task outside serve_async's task group;
-    close() must drain it so a second evaluate() with the same server instance starts fresh."""
+    """A second evaluate() with the same batched server instance starts fresh (its dispatcher is per serve)."""
     from tests.conftest import RandomActionModelServer
 
     class Batched(RandomActionModelServer):
@@ -111,8 +112,8 @@ def test_serve_background_reusable_with_batched_server(tmp_path) -> None:
             super().__init__(action_dim=7)
             self.max_batch_size = 2
 
-        def predict_batch(self, obs_batch, ctx_batch):
-            return [self.predict(o, c) for o, c in zip(obs_batch, ctx_batch)]
+        def predict_batch(self, obs, rows):
+            return {"actions": np.stack([self.predict({}, rows[i])["actions"] for i in range(len(rows))])}
 
     server = Batched()
     for _ in range(2):

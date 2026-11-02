@@ -24,7 +24,15 @@ from vla_eval import watchdog
 from vla_eval.benchmarks.base import Benchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.action_buffer import ActionBuffer
-from vla_eval.runners.base import EnvStartError, EnvStepError, EpisodeRunner, phase
+from vla_eval.runners.base import (
+    EnvStartError,
+    EnvStepError,
+    EpisodeRunner,
+    end_failed_episode,
+    episode_end_payload,
+    episode_start_payload,
+    phase,
+)
 from vla_eval.runners.clock import Clock
 from vla_eval.types import EpisodeResult, Task
 
@@ -77,72 +85,66 @@ class LiveEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        task_info = {k: v for k, v in task.items() if isinstance(v, (str, int, float, bool, list))}
-        ep_payload: dict[str, Any] = {"task": task_info, "mode": "live"}
-        if recorder is not None and recorder.is_active:
-            ep_payload["recording"] = {
-                "sid": recorder.sid,
-                "eid": recorder.eid,
-                "eval_id": recorder.eval_id,
-                "db_path": recorder.db_path,
-            }
-        await conn.start_episode(ep_payload)
+        await conn.start_episode(episode_start_payload(task, recorder, mode="live"))
+        try:
+            # Stale-tick hold is embodiment-owned; get_hold_action(None) also covers
+            # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
+            action_buffer = ActionBuffer(hold_fn=benchmark.get_hold_action)
+            conn.on_action(lambda a: action_buffer.update(a))
 
-        # Stale-tick hold is embodiment-owned; get_hold_action(None) also covers
-        # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
-        action_buffer = ActionBuffer(hold_fn=benchmark.get_hold_action)
-        conn.on_action(lambda a: action_buffer.update(a))
+            step_period = 1.0 / self.hz
+            step_times: list[float] = []
+            step_count = 0
 
-        step_period = 1.0 / self.hz
-        step_times: list[float] = []
-        step_count = 0
-
-        async with conn.listening():
-            # --- Episode begins: clock starts, first obs sent ---
-            clock.reset()
-            await conn.send_observation(obs_dict)
-
-            # By default, no waiting for first action: the step loop starts
-            # immediately.  The model server computes concurrently; until it
-            # responds, action_buffer.get() returns a zero/held action — just
-            # like real deployment where physics does not pause for inference.
-            #
-            # When wait_first_action=True, we block until the first action
-            # arrives.  This is useful for sanity-checking that the live
-            # pipeline matches sync results (eliminates step-0 zero action).
-            if self.wait_first_action:
-                deadline = _time.monotonic() + 30.0
-                while not action_buffer.has_action():
-                    if _time.monotonic() > deadline:
-                        raise TimeoutError("wait_first_action: no action received within 30s")
-                    await anyio.sleep(0.0001)
-
-            steps = range(max_steps) if max_steps is not None else itertools.count()
-            for step in steps:
-                step_start = clock.time()
-
-                action = action_buffer.get()
-                watchdog.pet()
-
-                _t0 = _time.monotonic()
-                with phase(EnvStepError):
-                    await benchmark.apply_action(action)
-                    step_times.append(_time.monotonic() - _t0)
-                    step_count += 1
-                    if await benchmark.is_done():
-                        break
-                    obs_dict = await benchmark.get_observation()
-
-                # Send next observation
+            async with conn.listening():
+                # --- Episode begins: clock starts, first obs sent ---
+                clock.reset()
                 await conn.send_observation(obs_dict)
 
-                # Pacing via clock
-                await clock.wait_until(step_start + step_period)
+                # By default, no waiting for first action: the step loop starts
+                # immediately.  The model server computes concurrently; until it
+                # responds, action_buffer.get() returns a zero/held action — just
+                # like real deployment where physics does not pause for inference.
+                #
+                # When wait_first_action=True, we block until the first action
+                # arrives.  This is useful for sanity-checking that the live
+                # pipeline matches sync results (eliminates step-0 zero action).
+                if self.wait_first_action:
+                    deadline = _time.monotonic() + 30.0
+                    while not action_buffer.has_action():
+                        if _time.monotonic() > deadline:
+                            raise TimeoutError("wait_first_action: no action received within 30s")
+                        await anyio.sleep(0.0001)
 
-        elapsed = clock.time()
-        with phase(EnvStepError):
-            bench_metrics = await benchmark.get_result()
-        episode_result: dict = {"metrics": bench_metrics, "steps": step_count, "elapsed_sec": round(elapsed, 3)}
+                steps = range(max_steps) if max_steps is not None else itertools.count()
+                for step in steps:
+                    step_start = clock.time()
+
+                    action = action_buffer.get()
+                    watchdog.pet()
+
+                    _t0 = _time.monotonic()
+                    with phase(EnvStepError):
+                        await benchmark.apply_action(action)
+                        step_times.append(_time.monotonic() - _t0)
+                        step_count += 1
+                        if await benchmark.is_done():
+                            break
+                        obs_dict = await benchmark.get_observation()
+
+                    # Send next observation
+                    await conn.send_observation(obs_dict)
+
+                    # Pacing via clock
+                    await clock.wait_until(step_start + step_period)
+
+            elapsed = clock.time()
+            with phase(EnvStepError):
+                bench_metrics = await benchmark.get_result()
+            episode_result: dict = {"metrics": bench_metrics, "steps": step_count, "elapsed_sec": round(elapsed, 3)}
+        except Exception as exc:
+            await end_failed_episode(conn, exc)
+            raise
 
         # Real-time metrics
         metrics = action_buffer.get_metrics()
@@ -176,5 +178,5 @@ class LiveEpisodeRunner(EpisodeRunner):
                 self.hz,
             )
 
-        await conn.end_episode(episode_result)
+        await conn.end_episode(episode_end_payload(episode_result))
         return episode_result

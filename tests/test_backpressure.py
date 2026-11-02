@@ -1,4 +1,4 @@
-"""Tests for backpressure warnings in serve.py and predict.py."""
+"""Tests for the in-flight backpressure warning in serve.py."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from vla_eval.connection import Connection
-from vla_eval.model_servers.base import SessionContext
+from vla_eval.model_servers.base import Row
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers import serve as serve_module
 
@@ -31,25 +31,9 @@ class SlowModelServer(PredictModelServer):
         super().__init__()
         self._delay = delay
 
-    def predict(self, obs: dict[str, Any], ctx: SessionContext) -> dict[str, Any]:
+    def predict(self, obs: dict[str, Any], row: Row) -> dict[str, Any]:
         time.sleep(self._delay)
         return {"actions": np.zeros(7, dtype=np.float32)}
-
-
-class SlowBatchModelServer(PredictModelServer):
-    """Batch model server that sleeps during predict_batch."""
-
-    def __init__(self, delay: float = 0.5, max_batch_size: int = 2) -> None:
-        super().__init__(max_batch_size=max_batch_size, max_wait_time=0.05)
-        self._delay = delay
-
-    def predict_batch(
-        self,
-        obs_batch: list[dict[str, Any]],
-        ctx_batch: list[SessionContext],
-    ) -> list[dict[str, Any]]:
-        time.sleep(self._delay)
-        return [{"actions": np.zeros(7, dtype=np.float32)} for _ in obs_batch]
 
 
 # ---------------------------------------------------------------------------
@@ -111,40 +95,3 @@ async def test_inflight_counter_returns_to_zero(free_port):
         assert serve_module._inflight == 0
     finally:
         await stop_server(task)
-
-
-# ---------------------------------------------------------------------------
-# predict.py — batch queue depth warning
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.anyio
-async def test_batch_queue_depth_warning(free_port, caplog):
-    """Queue depth exceeding 2x max_batch_size should trigger warning."""
-    # Slow batch server: max_batch_size=2, slow inference
-    server = SlowBatchModelServer(delay=0.5, max_batch_size=2)
-
-    with patch(
-        "vla_eval.model_servers.predict._QUEUE_DEPTH_COOLDOWN",
-        0.0,
-    ):
-        task = await start_server(server, free_port)
-        try:
-            url = f"ws://127.0.0.1:{free_port}"
-            # Send many concurrent observations to overflow the batch queue
-            async with anyio.create_task_group() as tg:
-
-                async def send_obs(client_id: int) -> None:
-                    async with Connection(url) as conn:
-                        await conn.start_episode({"task": f"test_{client_id}"})
-                        await conn.act({"value": 1.0})
-
-                for i in range(8):
-                    tg.start_soon(send_obs, i)
-
-            warning_messages = [
-                r.message for r in caplog.records if r.levelno == logging.WARNING and "Batch queue depth" in r.message
-            ]
-            assert len(warning_messages) >= 1, f"Expected at least one queue depth warning, got: {warning_messages}"
-        finally:
-            await stop_server(task)

@@ -26,10 +26,10 @@ Status markers: ✅ implemented, 🚧 partial, 🔜 planned.
 | Component | Role | Status |
 |-----------|------|--------|
 | **Protocol** | WebSocket + msgpack serialization, message schema, numpy codec | ✅ |
-| **Model Server** | Runs model inference. User implements `predict()`. | ✅ |
+| **Model Server** | Runs model inference. User implements `predict()` or `predict_batch()`. | ✅ |
 | **Connection** | Client library for benchmark→server communication. Framework-provided. | ✅ |
-| **Benchmark** | Async environment interface; StepBenchmark supplies synchronous reset/step helpers. | ✅ |
-| **EpisodeRunner** | Episode execution strategy. Combines Benchmark + Connection. | ✅ Sync, ✅ Live |
+| **Benchmark** | Async environment interface; StepBenchmark supplies synchronous reset/step helpers; VectorStepBenchmark steps `num_envs` environments together. | ✅ |
+| **EpisodeRunner** | Episode execution strategy. Combines Benchmark + Connection. | ✅ Sync, ✅ Live, ✅ Vector |
 | **Orchestrator** | Coordinates evaluation: config parsing, benchmark creation, episode iteration, result saving. | ✅ |
 | **ResultCollector** | Aggregates episode→task→benchmark metrics. JSON output + summary table. | ✅ |
 | **Import Resolution** | Resolves `"module:Class"` import strings from config to actual classes. | ✅ |
@@ -79,6 +79,20 @@ Orchestrator          SyncEpisodeRunner        Connection         Model Server
     │◄─ episode_result ─────│                      │                    │
 ```
 
+## Vectorized Benchmarks
+
+A `VectorStepBenchmark` steps `num_envs` environments together; each step is one `VECTOR_STEP` round trip whose
+observation columns the server infers as one batch, a row per slot. Sync mode only.
+See [RFC-0009](rfcs/0009-vector-benchmarks.md).
+
+```
+Orchestrator ── VectorEpisodeRunner ── Connection ──► Model Server
+                 │ reset(slots, ...)   VECTOR_STEP     (one row per slot,
+                 │ step(slots, acts) ◄─VECTOR_RESULT   predict_batch(obs, rows))
+                 ▼
+          VectorStepBenchmark (num_envs environments)
+```
+
 ## Communication Protocol
 
 **WebSocket + msgpack** over a single connection.
@@ -114,15 +128,22 @@ Observations and actions are `dict[str, Any]`; the framework imposes **no fixed 
 | `states` | `np.ndarray` | Proprioception |
 | `task_description` | `str` | Natural language instruction |
 
-## Model Server Hierarchy
+## Model Server
 
 ```
-ModelServer (ABC)                    ← Advanced: async on_observation()
-├── PredictModelServer               ← Most models: blocking predict()
-└── BatchPredictModelServer          ← Batched inference across sessions
+ModelServer (ABC)            ← async callbacks: on_episode_start / on_observation / on_episode_end,
+│                              answered with send_action / send_error
+├── PredictModelServer       ← subclass this: predict(obs, row) or predict_batch(obs, rows), batched across
+│                              rows and connections; hooks reset_episodes / finish_episodes
+└── LiveModelServer          ← continuous inference: predict each episode's latest observation in a loop,
+                               select(action, latency, row) the action to send (LAAS); batch 1
 ```
 
-**`PredictModelServer`** wraps `predict()` in `run_in_executor` and manages action chunk buffers automatically. Supports `chunk_size`, `action_ensemble` ("newest", "average", "ema", callable), and `ema_alpha`.
+Every running episode is a **row** of the model server (a connection's episode, or a vector slot); `row.id` keys
+per-episode state. Hooks and options: see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-model-server).
+
+One call into the model runs at a time, on one model thread. The harness ends every episode the server started
+with `EPISODE_END {status, failure_reason}`; the server ends those a client dropped as `aborted`.
 
 The server runner (`model_servers/serve.py`) wraps any `ModelServer` into a WebSocket server with `serve(model_server, host, port)`.
 

@@ -53,10 +53,10 @@ from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.model_servers.serve import serve
 
 class CogACTModelServer(PredictModelServer):
-    chunk_size = 12
-    action_ensemble = "newest"
+    def __init__(self) -> None:
+        super().__init__(chunk_size=12)
 
-    def predict(self, obs, ctx):
+    def predict(self, obs, row):
         ...
 
 if __name__ == "__main__":
