@@ -279,6 +279,14 @@ class RecordingStore:
                 "UPDATE work_queue SET done = 0, shard_id = NULL WHERE eval_id = ? AND item = ?", items
             )
 
+    def completed_results(self, eval_id: str) -> list[dict[str, Any]]:
+        """``{task_name, episode_id, metrics}`` of the entry's episodes that ended without error, from any process."""
+        rows = self._conn.execute(
+            "SELECT task_name, episode_id, metrics FROM episode_results WHERE eval_id = ? AND status != 'error'",
+            (eval_id,),
+        )
+        return [{"task_name": t, "episode_id": ep, "metrics": json.loads(m or "{}")} for t, ep, m in rows]
+
     def queue_progress(self, eval_id: str) -> tuple[int, int]:
         """``(done, total)`` over every shard of the entry."""
         row = self._conn.execute(

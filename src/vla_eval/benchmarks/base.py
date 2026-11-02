@@ -64,6 +64,10 @@ class BenchmarkCommon(ABC):
     #: sync ``EPISODE_START``, a model server's sim clock advancing that much per step.  Live sends ``1 / hz``.
     step_dt: float | None = None
 
+    #: The process ends with ``os._exit`` once results are written, skipping interpreter teardown
+    #: (for simulators that crash there, e.g. Isaac Sim / Kit).
+    hard_exit: ClassVar[bool] = False
+
     @classmethod
     def configure_render(cls, mode: str) -> dict[str, str]:
         """Set process env for *mode* before any simulator import; return the applied env.
@@ -151,6 +155,10 @@ class BenchmarkCommon(ABC):
             "get_hold_action(); declare the embodiment's safe do-nothing action explicitly "
             "(see Benchmark.get_hold_action / repeat_last_hold)."
         )
+
+    def resume(self, results: list[dict[str, Any]]) -> None:
+        """``{task_name, episode_id, metrics}`` of the entry's episodes completed so far, by any process, before a
+        queued (sharded) run's first episode; e.g. per-shard resources they used up.  Optional override."""
 
     def cleanup(self) -> None:
         """Release benchmark resources (environments, renderers, etc.). Optional override."""

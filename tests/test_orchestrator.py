@@ -269,6 +269,47 @@ async def test_orchestrator_shards_share_a_work_queue(echo_server, tmp_path):
     assert sorted(keys) == sorted({(f"task_{t}", e) for t in range(2) for e in range(3)})
 
 
+class TaskRecordingStub(StubBenchmark):
+    """StubBenchmark keeping every task it was reset with."""
+
+    seen: list[dict] = []
+
+    def reset(self, task):
+        TaskRecordingStub.seen.append(dict(task))
+        return super().reset(task)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("no_save", [True, False], ids=["static_split", "shared_queue"])
+async def test_sharded_tasks_carry_shard_keys(echo_server, tmp_path, no_save):
+    """A sharded run's tasks name the shard next to ``episode_idx``; an unsharded run's do not."""
+    config = {
+        "server": {"url": echo_server},
+        "output_dir": str(tmp_path),
+        "benchmarks": [
+            {
+                "benchmark": "tests.conftest:StubBenchmark",
+                "name": "shard_keys",
+                "episodes_per_task": 2,
+                "max_steps": 50,
+                "params": {"done_at_step": 1, "num_tasks": 2},
+            }
+        ],
+    }
+    seen: dict[int | None, list[dict]] = {}
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=TaskRecordingStub):
+        for shard_id, num_shards in [(None, None), (0, 2), (1, 2)]:
+            TaskRecordingStub.seen = []
+            orch = Orchestrator(config, shard_id=shard_id, num_shards=num_shards, eval_id="ev-k", no_save=no_save)
+            await orch.run()
+            seen[shard_id] = TaskRecordingStub.seen
+
+    assert seen[None] and all("shard_id" not in t and "num_shards" not in t for t in seen[None])
+    ran = sorted((t["name"], t["episode_idx"]) for t in seen[0] + seen[1])
+    assert ran == [(f"task_{i}", e) for i in range(2) for e in range(2)]
+    assert all(t["shard_id"] == s and t["num_shards"] == 2 for s in (0, 1) for t in seen[s])
+
+
 @pytest.mark.anyio
 async def test_orchestrator_records_by_default_without_recording_block(echo_server, tmp_path):
     """Absent ``recording:`` still records episode results + step rows, with video off."""
@@ -881,6 +922,53 @@ async def test_unsharded_runs_never_exit_unhealthy(echo_server, tmp_path):
     with patch("vla_eval.orchestrator.resolve_import_string", return_value=BrokenAtReset):
         (result,) = await Orchestrator(config, eval_id="ev-s", no_save=False).run()
     assert result["num_errors"] == 8
+
+
+class UnusableAfterOne(StubBenchmark):
+    """The first episode works, then the environment is gone for good."""
+
+    calls = 0
+    hard_exit = True
+
+    def reset(self, task):
+        from vla_eval.runners.base import EnvUnusableError
+
+        UnusableAfterOne.calls += 1
+        if UnusableAfterOne.calls > 1:
+            raise EnvUnusableError("simulator wedged")
+        return super().reset(task)
+
+
+class ResumeRecordingStub(StubBenchmark):
+    resumed: list = []
+
+    def resume(self, results):
+        ResumeRecordingStub.resumed = results
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_exits_its_shard_and_a_rerun_finishes_the_queue(echo_server, tmp_path):
+    from vla_eval.orchestrator import UnhealthyShardError
+    from vla_eval.results.export import export_db
+
+    UnusableAfterOne.calls = 0
+    config = _config(echo_server, tmp_path, "x")
+    # One success first: unlike the start-of-shard health check, an unusable env exits whatever ran before.
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=UnusableAfterOne):
+        orch = Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-x", no_save=False)
+        with pytest.raises(UnhealthyShardError, match="unusable"):
+            await orch.run()
+    assert orch.hard_exit
+    db = sqlite3.connect(tmp_path / "recording-ev-x.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue ORDER BY item").fetchall()
+    db.close()
+    assert sorted(queue, key=str) == [(0, None)] * 5 + [(1, 0)]  # the failed item went back, unclaimed
+    with patch("vla_eval.orchestrator.resolve_import_string", return_value=ResumeRecordingStub):
+        await Orchestrator(config, shard_id=0, num_shards=1, eval_id="ev-x", no_save=False).run()
+    # The first process's one completed episode, not its error.
+    assert [(r["task_name"], r["episode_id"]) for r in ResumeRecordingStub.resumed] == [("task_0", 0)]
+    (aggregate,) = export_db(tmp_path / "recording-ev-x.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
 
 
 def test_episode_error_phases():

@@ -51,3 +51,17 @@ def test_cmd_run_rejects_record_video_with_no_save(monkeypatch) -> None:
         cli.cmd_run(args)
 
     assert exc.value.code == 1
+
+
+def test_exit_skips_interpreter_teardown_only_when_a_benchmark_asks(monkeypatch) -> None:
+    def fake_os_exit(code: int) -> None:
+        raise RuntimeError(f"os._exit({code})")
+
+    monkeypatch.setattr(cli.os, "_exit", fake_os_exit)
+    orchestrator = cli.Orchestrator({})
+    with pytest.raises(SystemExit) as exited:
+        cli._exit(orchestrator, 3)
+    assert exited.value.code == 3
+    orchestrator.hard_exit = True
+    with pytest.raises(RuntimeError, match=r"os\._exit\(3\)"):
+        cli._exit(orchestrator, 3)

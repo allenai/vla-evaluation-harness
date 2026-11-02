@@ -9,14 +9,14 @@
 #   docker build -t robodojo:cuda12.8 RoboDojo
 #   docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
 #
-# Eval assets (~90 GiB) are licence-restricted and mounted at runtime under
+# Eval assets (~38.5 GiB) are licence-restricted and mounted at runtime under
 # /workspace/RoboDojo/Assets — see configs/benchmarks/robodojo/README.md.
 ARG BASE_IMAGE=robodojo:cuda12.8
 FROM ${BASE_IMAGE}
 
 # Build-time license confirmation, same pattern as behavior1k: the upstream
 # image bundles Isaac Sim, so redistribution is gated on the NVIDIA EULA.
-ARG ACCEPT_NVIDIA_EULA=
+ARG ACCEPT_NVIDIA_EULA
 RUN if [ "$ACCEPT_NVIDIA_EULA" != "YES" ]; then \
         echo "Building the robodojo image requires accepting the NVIDIA Isaac Sim EULA:"; \
         echo "  https://docs.omniverse.nvidia.com/eula/"; \

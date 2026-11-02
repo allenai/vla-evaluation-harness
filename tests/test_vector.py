@@ -16,6 +16,7 @@ import websockets.exceptions
 from vla_eval.benchmarks.base import BenchmarkCommon, VectorStepBenchmark
 from vla_eval.orchestrator import Orchestrator, UnhealthyShardError
 from vla_eval.recording import RecordingStore
+from vla_eval.runners.base import EnvUnusableError
 
 from tests.conftest import BatchLogServer, LogServer, start_server, stop_server
 
@@ -292,6 +293,54 @@ async def test_unhealthy_shard_requeues_failed_and_in_flight_items(echo_server, 
     assert len(_episodes(healthy)) == 6
     (aggregate,) = export_db(tmp_path / "recording-ev-vu.sqlite", tmp_path)
     assert aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
+
+
+class UnusableOnSecondResetStub(StubVectorBenchmark):
+    def reset(self, slots, tasks, recorders):
+        if self.resets:
+            raise EnvUnusableError("simulator wedged")
+        return super().reset(slots, tasks, recorders)
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_releases_the_shards_in_flight_items(echo_server, tmp_path):
+    from vla_eval.results.export import export_db
+
+    config = _config(echo_server, tmp_path, name="x", episodes=4, num_envs=2, num_tasks=1)
+    with pytest.raises(UnhealthyShardError, match="unusable"):
+        await _run(UnusableOnSecondResetStub, config, shard_id=0, num_shards=1, eval_id="ev-vx")
+    db = sqlite3.connect(tmp_path / "recording-ev-vx.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue").fetchall()
+    errors = db.execute("SELECT COUNT(*) FROM episode_results WHERE status = 'error'").fetchone()[0]
+    db.close()
+    assert sorted(queue, key=str) == [(0, None)] * 2 + [(1, 0)] * 2  # the first wave ran; nothing stays claimed
+    assert errors == 2  # both episodes the failed reset started were recorded before the shard exited
+    await _run(StubVectorBenchmark, config, shard_id=0, num_shards=1, eval_id="ev-vx")
+    (aggregate,) = export_db(tmp_path / "recording-ev-vx.sqlite", tmp_path)
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 4 and aggregate["num_errors"] == 0
+
+
+class UnusableAtFirstResultStub(StubVectorBenchmark):
+    def result(self, slot):
+        if slot == 0:
+            raise EnvUnusableError("simulator wedged")
+        return super().result(slot)
+
+
+@pytest.mark.anyio
+async def test_an_unusable_env_still_releases_its_claims_when_the_server_drops_while_draining(tmp_path):
+    # Slot 0's episode (2 steps) ends unusable; slot 1's (3 steps) is still running when the server goes away.
+    config = _config("ws://fake:9999", tmp_path, name="d", episodes=4, num_envs=2, num_tasks=1, jitter=1)
+    with (
+        patch("vla_eval.orchestrator.Connection", FakeConnection),
+        patch.object(FakeConnection, "fail", {3: ConnectionError("unreachable after retries")}),
+    ):
+        with pytest.raises(UnhealthyShardError, match="unusable"):
+            await _run(UnusableAtFirstResultStub, config, shard_id=0, num_shards=1, eval_id="ev-vd")
+    db = sqlite3.connect(tmp_path / "recording-ev-vd.sqlite")
+    queue = db.execute("SELECT done, shard_id FROM work_queue").fetchall()
+    db.close()
+    assert queue == [(0, None)] * 4
 
 
 def _echo(step: dict[str, Any]) -> dict[str, Any]:

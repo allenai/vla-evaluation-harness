@@ -38,7 +38,7 @@ from vla_eval.registry import resolve_import_string
 from vla_eval.render import apply_render_mode, normalize_render_mode
 from vla_eval.specs import DimSpec, check_specs
 from vla_eval.results.collector import EpisodeResult, ResultCollector
-from vla_eval.runners.base import episode_status, failure_reason
+from vla_eval.runners.base import EnvUnusableError, episode_status, failure_reason
 from vla_eval.runners.live_runner import LiveEpisodeRunner
 from vla_eval.runners.clock import Clock
 from vla_eval.runners.sync_runner import SyncEpisodeRunner
@@ -186,6 +186,7 @@ class Orchestrator:
         self._progress_path: Path | None = None
         self._progress_last: tuple[int, int, int] | None = None
         self._store: RecordingStore | None = None
+        self.hard_exit = False  # a benchmark asked for os._exit after the run (Benchmark.hard_exit)
 
         # Trackers are instantiated on every shard so config errors surface
         # fast, but live emission only fires when there's a single writer —
@@ -257,6 +258,18 @@ class Orchestrator:
             + ("; the items went back to the queue" if self.requeue_unhealthy and release else "")
         )
 
+    def _stop_if_unusable(self, e: _Entry, error: BaseException | None, unfinished: Collection[int]) -> None:
+        """After an :class:`EnvUnusableError`, put the shard's ``unfinished`` queue items back and exit (code 3)."""
+        if not isinstance(error, EnvUnusableError):
+            return
+        release = [(e.eval_id, i) for i in unfinished] if e.dynamic else []
+        if release:
+            self._queue().release(release)
+        raise UnhealthyShardError(
+            f"{e.name}: the environment is unusable ({error})"
+            + ("; the shard's unfinished items went back to the queue" if release else "")
+        ) from error
+
     def _update_progress(self, completed: int, total: int, errors: int) -> None:
         """Atomic per-shard progress file for live monitoring; skips no-op writes."""
         if self._progress_path is None:
@@ -307,6 +320,7 @@ class Orchestrator:
         except Exception:
             await conn.close()
             raise
+        self.hard_exit = self.hard_exit or bool(getattr(benchmark, "hard_exit", False))
 
         # Spec cross-validation
         try:
@@ -444,34 +458,41 @@ class Orchestrator:
         self._update_progress(n, total, e.collector.error_count)
         self._episode_errored = error is not None
 
-    @staticmethod
-    def _episode_task(e: _Entry, task: Any, ep: int) -> tuple[str, Any]:
-        """The task's display name, and the task with this episode's ``episode_idx``."""
+    def _shard_keys(self) -> dict[str, int]:
+        """``shard_id``/``num_shards`` for a sharded run, so a benchmark can split per-shard resources."""
+        if self.num_shards is None or self.shard_id is None:
+            return {}
+        return {"shard_id": self.shard_id, "num_shards": self.num_shards}
+
+    def _episode_task(self, e: _Entry, task: Any, ep: int) -> tuple[str, Any]:
+        """The task's display name, and the task with this episode's ``episode_idx`` (and shard keys)."""
         max_ep = e.metadata.get("max_episodes_per_task")
         episode_idx = ep % max_ep if e.cfg.throughput_mode and max_ep is not None else ep
-        return task.get("name", str(task)), {**task, "episode_idx": episode_idx}
+        return task.get("name", str(task)), {**task, "episode_idx": episode_idx, **self._shard_keys()}
 
     async def _run_one_at_a_time(
         self, benchmark: Any, runner: SyncEpisodeRunner | LiveEpisodeRunner, conn: Connection, e: _Entry
     ) -> dict[str, Any]:
-        def my_items() -> Iterator[tuple[int, tuple[int, Any, int]]]:
+        def my_items() -> Iterator[tuple[int, int | None, tuple[int, Any, int]]]:
+            """``(finished items so far, queue item or None, work item)``."""
             if not e.dynamic:
                 for i, w in enumerate(e.work_items):
-                    yield i, w
+                    yield i, None, w
                     self._check_health(None, i)
                 return
             assert self.shard_id is not None and self.num_shards is not None
             store, shard = self._queue(), self.shard_id
             store.seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
+            benchmark.resume(store.completed_results(e.eval_id))
             task_idx = None
             while (item := store.claim(e.eval_id, shard, task_idx, self.num_shards)) is not None:
-                yield store.queue_progress(e.eval_id)[0], e.work_items[item]
+                yield store.queue_progress(e.eval_id)[0], item, e.work_items[item]
                 store.finish(e.eval_id, item)  # not reached when the loop aborts: a rerun redoes it
                 self._check_health(e.eval_id, item)
                 task_idx = e.work_items[item][0]
 
         try:
-            for item_idx, (task_idx, task, ep) in my_items():
+            for item_idx, item, (task_idx, task, ep) in my_items():
                 self._episode_errored = False
                 task_name, task = self._episode_task(e, task, ep)
                 watchdog.pet(f"{e.safe_name} {task_name} ep{ep}")
@@ -486,6 +507,7 @@ class Orchestrator:
                 except Exception as exc:
                     error = exc
                 self._episode_ended(e, recorder, task_name, ep, result, error, lambda: item_idx + 1)
+                self._stop_if_unusable(e, error, () if item is None else (item,))
                 if isinstance(error, ConnectionError):
                     logger.error("%s: server unreachable, aborting benchmark", e.name)
                     return self._finalize_benchmark(
@@ -516,6 +538,7 @@ class Orchestrator:
                 f"{e.name}: the model server does not take vector steps (vla-eval too old, or an episode-loop server)"
             )
         claimed: set[int] = set()  # queue items in flight
+        unusable: list[EnvUnusableError] = []  # once set, no new episode starts; the shard exits after the rest end
         held: tuple[int | None, tuple[int, Any, int]] | None = None  # the next task's first item, waiting
         group: int | None = None  # the running episodes' task_idx
         active = 0
@@ -523,6 +546,7 @@ class Orchestrator:
         ended = 0
         if e.dynamic:
             self._queue().seed_queue(e.eval_id, [t for t, _, _ in e.work_items])
+            benchmark.resume(self._queue().completed_results(e.eval_id))
 
         def end(
             episode: VectorEpisode,
@@ -535,22 +559,28 @@ class Orchestrator:
             item, ep, task_name = episode.ref
             active -= 1
 
+            if isinstance(error, EnvUnusableError):
+                unusable.append(error)
+
             def done() -> int:
                 nonlocal ended
                 ended += 1
                 if item is None:
                     return ended
-                claimed.discard(item)
-                if not aborted:  # an aborted run's item is redone on rerun
+                # An aborted run's item is redone on rerun; an unusable env's is released once the run stops.
+                if not (aborted or isinstance(error, EnvUnusableError)):
+                    claimed.discard(item)
                     self._queue().finish(e.eval_id, item)
                 return self._queue().queue_progress(e.eval_id)[0]
 
             self._episode_ended(e, episode.recorder, task_name, ep, result, error, done)
-            if not aborted:  # the server went away: a partial result, as in the one-at-a-time loop
+            if not (aborted or unusable):  # aborted: the server went away, a partial result as in the other loop
                 self._check_health(e.eval_id if e.dynamic else None, ended - 1 if item is None else item, claimed)
 
         def take() -> tuple[int | None, tuple[int, Any, int]] | None:
             nonlocal held
+            if unusable:
+                return None
             if held is not None:
                 nxt, held = held, None
                 return nxt
@@ -591,7 +621,11 @@ class Orchestrator:
         try:
             logger.info("%s: %d environments, one server session each", e.name, benchmark.num_envs)
             await runner.run(benchmark, conn, next_episode, end, max_steps=e.max_steps)
+            if unusable:
+                self._stop_if_unusable(e, unusable[0], claimed)  # every episode has ended and is recorded
         except ConnectionError:
+            if unusable:
+                self._stop_if_unusable(e, unusable[0], claimed)
             logger.error("%s: server unreachable, aborting benchmark", e.name)
             return self._finalize_benchmark(
                 e.collector, e.cfg, e.safe_name, partial=True, server_info=conn.server_info
@@ -694,10 +728,11 @@ class Orchestrator:
     ) -> None:
         """Dry-render the template so YAML key typos fail before any episode runs."""
         stem = rec_cfg.get("filename_stem") or DEFAULT_FILENAME_STEM
-        # episode_idx is injected per-iteration by the run loop, not present on first_task itself.
+        # episode_idx (and shard keys) are injected per-iteration by the run loop, not present on first_task itself.
         probe = {
             **serializable_task_kwargs(first_task),
             "episode_idx": 0,
+            **self._shard_keys(),
             **recording_filename_context(
                 benchmark_safe_name=benchmark_safe_name, task_idx=task_idx, episode_id=episode_id
             ),

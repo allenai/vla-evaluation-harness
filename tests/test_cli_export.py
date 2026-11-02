@@ -76,6 +76,7 @@ def test_run_propagates_export_failure(tmp_path, monkeypatch):
 
     class FinishedRun:
         eval_id = "test"
+        hard_exit = False
 
         def __init__(self, *args, **kwargs):
             pass
@@ -91,6 +92,17 @@ def test_run_propagates_export_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(cli.watchdog, "start", lambda _: None)
     monkeypatch.setattr(export, "export_eval", fail)
     with pytest.raises(OSError, match="output unavailable"):
+        cli.cmd_run(argparse.Namespace(config="unused"))
+
+    class HardExitRun(FinishedRun):
+        hard_exit = True
+
+    def os_exit(code):
+        raise RuntimeError(f"os._exit({code})")
+
+    monkeypatch.setattr(cli, "Orchestrator", HardExitRun)
+    monkeypatch.setattr(cli.os, "_exit", os_exit)
+    with pytest.raises(RuntimeError, match=r"os\._exit\(1\)"):  # still no interpreter teardown
         cli.cmd_run(argparse.Namespace(config="unused"))
 
 

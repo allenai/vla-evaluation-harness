@@ -208,24 +208,47 @@ def cmd_run(args: argparse.Namespace) -> None:
         no_save=no_save,
         requeue_unhealthy=requeue_unhealthy,
     )
+    code = 0
     try:
-        results = anyio.run(orchestrator.run)
-    except UnhealthyShardError as exc:
-        logger.error("%s", exc)
-        sys.exit(3)
+        try:
+            results = anyio.run(orchestrator.run)
+        except UnhealthyShardError as exc:
+            logger.error("%s", exc)
+            code = 3
+        else:
+            _report(results, config, orchestrator.eval_id, export=not no_save and shard_id is None)
+    except BaseException:
+        if not orchestrator.hard_exit:
+            raise
+        logger.exception("Evaluation failed")
+        code = 1
+    if code or orchestrator.hard_exit:
+        _exit(orchestrator, code)
 
-    # Print final summary
+
+def _report(results: list[dict[str, Any]], config: dict[str, Any], eval_id: str, *, export: bool) -> None:
     for r in results:
         errs = r.get("num_errors", 0)
         tail = f"  (⚠ {errs} episodes errored)" if errs else ""
         print(f"\n{r['benchmark']}: {r.get('mean_success', 0.0):.1%}{tail}")
 
     # Single-shard runs export immediately; the sharded launcher exports after wait.
-    if not no_save and shard_id is None:
+    if export:
         from vla_eval.results.export import export_eval
 
-        output_dir = Path(config.get("output_dir", "./results")).resolve()
-        export_eval(output_dir, orchestrator.eval_id)
+        export_eval(Path(config.get("output_dir", "./results")).resolve(), eval_id)
+
+
+def _exit(orchestrator: Orchestrator, code: int) -> None:
+    """Exit with ``code``; via ``os._exit`` (results are already written) when a benchmark asks for it."""
+    if not orchestrator.hard_exit:
+        sys.exit(code)
+    try:
+        logging.shutdown()
+        sys.stdout.flush()
+        sys.stderr.flush()
+    finally:
+        os._exit(code)
 
 
 # yaml convention puts these under ``args:`` but they belong to the WS server,
