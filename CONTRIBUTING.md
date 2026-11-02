@@ -169,6 +169,8 @@ Every running episode is a row; inference and the episode hooks are batched over
 - `reset_episodes(rows)` / `finish_episodes(rows, results)`: blocking. `rows.episodes[i].config` is the
   `EPISODE_START` payload; return `{i: exc}` to fail one start, or raise to fail all. `results[i]` carries
   `status` (`success|fail|error|aborted`) and `failure_reason`.
+- Readiness: the runner starts an episode (clock, first observation) once `reset_episodes` returns, so the first
+  inference must run at steady-state latency; warm up (compile etc.) in `__init__` or `reset_episodes`.
 - Every hook runs on one model thread (`await self.run_on_model_thread(fn, *args)` from a `ModelServer`).
 - Per-episode state: key it by `row.id` (`rows.ids` in hooks); ids are reused, so reset it in `reset_episodes`.
 - `max_rows=1`: the model's state is global (e.g. its own action queue), so one episode at a time.

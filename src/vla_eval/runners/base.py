@@ -27,6 +27,10 @@ class EnvStartError(EpisodeError):
     phase = "env_start"  # start_episode + first observation
 
 
+class ModelStartError(EpisodeError):
+    phase = "model_start"  # the server failed EPISODE_START
+
+
 class EnvStepError(EpisodeError):
     phase = "env_step"  # apply_action / is_done / get_observation / get_result
 
@@ -76,6 +80,17 @@ async def end_failed_episode(conn: Any, error: BaseException) -> None:
         await conn.end_episode(episode_end_payload(error=error))
     except Exception as exc:
         logger.debug("EPISODE_END not sent: %s: %s", type(exc).__name__, exc)
+
+
+async def start_model_episode(conn: Any, payload: dict[str, Any]) -> None:
+    """``EPISODE_START``, awaiting its ``EPISODE_READY``.  A start that timed out may still begin, so it is ended;
+    one the server failed (``ModelStartError``) never began."""
+    try:
+        with phase(ModelStartError):
+            await conn.start_episode(payload)
+    except TimeoutError as exc:
+        await end_failed_episode(conn, exc)
+        raise
 
 
 def episode_start_payload(task: Task, recorder: EpisodeRecorder | None, **extra: Any) -> dict[str, Any]:

@@ -1,5 +1,5 @@
-# Kinetix evaluation — real-time mode with wait_first_action (12 RTC tasks × 10 episodes)
-# Isolates the step-0 zero-action artifact from continuous timing pressure.
+# Kinetix evaluation — real-time mode (12 RTC tasks); the step loop starts once the server is ready.
+# The results in inference_delay_results.md were taken with the since removed wait_first_action: true.
 server:
   url: "ws://localhost:8000"
 
@@ -13,7 +13,6 @@ benchmarks:
     mode: live
     hz: 10.0
     pace: 1.0
-    wait_first_action: true
     episodes_per_task: 20
     params:
       seed: 0

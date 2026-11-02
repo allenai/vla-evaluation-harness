@@ -17,6 +17,7 @@ from vla_eval.runners.base import (
     episode_end_payload,
     episode_start_payload,
     phase,
+    start_model_episode,
 )
 from vla_eval.types import EpisodeResult, Task
 
@@ -27,7 +28,7 @@ class SyncEpisodeRunner(EpisodeRunner):
     Episode flow:
         1. ``benchmark.start_episode(task, recorder=...)``
         2. ``benchmark.get_observation()`` → initial observation.
-        3. ``conn.start_episode(task_info)``
+        3. ``conn.start_episode(task_info)``, awaiting the server's ``EPISODE_READY``
         4. Step loop (up to ``max_steps``):
            a. ``conn.act(obs)`` → action from model server
            b. ``benchmark.apply_action(action)``
@@ -50,7 +51,7 @@ class SyncEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        await conn.start_episode(episode_start_payload(task, recorder))
+        await start_model_episode(conn, episode_start_payload(task, recorder))
         try:
             steps = range(max_steps) if max_steps is not None else itertools.count()
             for step in steps:

@@ -125,6 +125,13 @@ class SlotOneResultErrorStub(StubVectorBenchmark):
         return super().result(slot)
 
 
+class TaskOneBrokenStub(StubVectorBenchmark):
+    """``task_1`` fails to start on the server."""
+
+    def get_tasks(self) -> list[dict[str, Any]]:
+        return [{**t, "broken": t["name"] == "task_1"} for t in super().get_tasks()]
+
+
 class SlotOneModelErrorStub(StubVectorBenchmark):
     """Slot 1 sends a value the server rejects."""
 
@@ -506,3 +513,15 @@ def test_server_image_format_sets_the_wire_encoding(tmp_path):
             Orchestrator(_config("ws://127.0.0.1:1", tmp_path) | {"server": {"image_format": "webp"}})
     finally:
         set_image_format("png")
+
+
+@pytest.mark.anyio
+async def test_a_failed_server_start_is_model_start_and_never_ended(log_server, tmp_path):
+    url, server = log_server
+    result = await _run(TaskOneBrokenStub, _config(url, tmp_path), no_save=True)
+    reasons = Counter(ep.get("failure_reason") for _, ep in _episodes(result))
+    assert reasons == {None: 4, "model_start": 4}
+    with anyio.fail_after(3):
+        while len(server.results) < 4:
+            await anyio.sleep(0.02)
+    assert len(server.results) == 4 and {r["status"] for r in server.results} == {"success"}

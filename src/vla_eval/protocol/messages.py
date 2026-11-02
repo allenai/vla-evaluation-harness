@@ -18,6 +18,8 @@ class MessageType(str, enum.Enum):
     ACTION = "action"
     EPISODE_START = "episode_start"
     EPISODE_END = "episode_end"
+    # Reply to EPISODE_START (its seq) once the episode started, when both HELLOs advertise ``episode_ready``.
+    EPISODE_READY = "episode_ready"
     ERROR = "error"
     # VECTOR_STEP {ends: [[slot, result]], starts: [[slot, episode_start]], slots, observations: columns} ->
     # VECTOR_RESULT {actions: columns, rows = slots without an error, in order; errors: [[slot, detail]]}.

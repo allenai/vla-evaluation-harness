@@ -49,7 +49,7 @@ Inspect upstream processors before adding transforms they already perform.
 | `get_observation_spec()` / `get_action_spec()` | Declare input/output semantics; shape checks alone cannot establish compatibility. |
 | `predict(obs, row)` | One observation of one episode (`row.id`, `row.step`, `row.is_first`, `row.episode`); return `{"actions": array}` shaped `(action_dim,)` or `(chunk_size, action_dim)`. |
 | `predict_batch(obs, rows)` | Optional: observation columns (a row per episode) to action columns; implement when the model infers a batch faster than rows one by one, and set `max_batch_size`. |
-| `reset_episodes(rows)` / `finish_episodes(rows, results)` | Batched, blocking; `rows.episodes[i].config` is the `EPISODE_START` payload; `results[i]["status"]` says how it ended. |
+| `reset_episodes(rows)` / `finish_episodes(rows, results)` | Batched, blocking; `rows.episodes[i].config` is the `EPISODE_START` payload; `results[i]["status"]` says how it ended. The episode begins once `reset_episodes` returns: warm up (compile etc.) there or in `__init__`, so the first inference runs at steady-state latency. |
 
 Read current contracts in `src/vla_eval/model_servers/base.py` and `predict.py`;
 `cogact.py` provides a concrete server/batching example. Do not fabricate or pad

@@ -16,8 +16,6 @@ import logging
 import time as _time
 from typing import Any
 
-import anyio
-
 import numpy as np
 
 from vla_eval import watchdog
@@ -32,6 +30,7 @@ from vla_eval.runners.base import (
     episode_end_payload,
     episode_start_payload,
     phase,
+    start_model_episode,
 )
 from vla_eval.runners.clock import Clock
 from vla_eval.types import EpisodeResult, Task
@@ -50,15 +49,9 @@ class LiveEpisodeRunner(EpisodeRunner):
     embodiment owns it (see :class:`~vla_eval.runners.action_buffer.ActionBuffer`).
     """
 
-    def __init__(
-        self,
-        hz: float = 10.0,
-        clock: Clock | None = None,
-        wait_first_action: bool = False,
-    ) -> None:
+    def __init__(self, hz: float = 10.0, clock: Clock | None = None) -> None:
         self.hz = hz
         self.clock = clock or Clock()
-        self.wait_first_action = wait_first_action
 
     async def run_episode(
         self,
@@ -71,12 +64,11 @@ class LiveEpisodeRunner(EpisodeRunner):
     ) -> EpisodeResult:
         """Run a single real-time episode.
 
-        The clock resets right before the first observation is sent, so setup
-        time (env reset, model server episode_start) is NOT counted.  The step
-        loop starts immediately — no waiting for the first action.  Until the
-        model server responds, the benchmark's hold action (``get_hold_action``)
-        supplies actions, faithfully reflecting real deployment where physics does
-        not pause for the controller to warm up.
+        The clock starts once the server's ``EPISODE_READY`` arrived, right before
+        the first observation is sent, so setup (env reset, the server's episode
+        start) is NOT counted.  The step loop does not wait for the first action:
+        until it arrives the benchmark's hold action (``get_hold_action``) is
+        applied, as a robot holds its pose while the controller computes.
         """
         clock = self.clock
 
@@ -85,7 +77,7 @@ class LiveEpisodeRunner(EpisodeRunner):
             await benchmark.start_episode(task, recorder=recorder)
             obs_dict = await benchmark.get_observation()
 
-        await conn.start_episode(episode_start_payload(task, recorder, mode="live"))
+        await start_model_episode(conn, episode_start_payload(task, recorder, mode="live"))
         try:
             # Stale-tick hold is embodiment-owned; get_hold_action(None) also covers
             # the pre-first-action fallback. Raises if the benchmark hasn't declared it.
@@ -97,24 +89,9 @@ class LiveEpisodeRunner(EpisodeRunner):
             step_count = 0
 
             async with conn.listening():
-                # --- Episode begins: clock starts, first obs sent ---
+                # --- Episode begins (the server is ready): clock starts, first obs sent ---
                 clock.reset()
                 await conn.send_observation(obs_dict)
-
-                # By default, no waiting for first action: the step loop starts
-                # immediately.  The model server computes concurrently; until it
-                # responds, action_buffer.get() returns a zero/held action — just
-                # like real deployment where physics does not pause for inference.
-                #
-                # When wait_first_action=True, we block until the first action
-                # arrives.  This is useful for sanity-checking that the live
-                # pipeline matches sync results (eliminates step-0 zero action).
-                if self.wait_first_action:
-                    deadline = _time.monotonic() + 30.0
-                    while not action_buffer.has_action():
-                        if _time.monotonic() > deadline:
-                            raise TimeoutError("wait_first_action: no action received within 30s")
-                        await anyio.sleep(0.0001)
 
                 steps = range(max_steps) if max_steps is not None else itertools.count()
                 for step in steps:

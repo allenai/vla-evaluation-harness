@@ -470,7 +470,7 @@ async def test_a_server_without_vector_step_refuses_it(free_port):
     conn = Connection(f"ws://127.0.0.1:{free_port}")
     await conn.connect()
     try:
-        assert conn.server_info["capabilities"] == {"vector_step": False}
+        assert conn.server_info["capabilities"] == {"vector_step": False, "episode_ready": True}
         step = {"ends": [], "starts": [[0, {"task": {"name": "t"}}]], "slots": [0], "observations": {"v": [1.0]}}
         with pytest.raises(RuntimeError, match="vector_step_unsupported"):
             await conn.exchange(step)
