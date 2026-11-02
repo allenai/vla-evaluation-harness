@@ -55,3 +55,31 @@ def test_non_allenai_image_has_no_mirror():
             with pytest.raises(SystemExit):
                 _docker.ensure_image_local("docker", other, auto_yes=True)
     assert [c[1] for c in calls] == ["pull"]
+
+
+DIGEST = "sha256:" + "ab" * 32
+PINNED = f"ghcr.io/allenai/vla-evaluation-harness/duobench@{DIGEST}"
+PINNED_MIRROR = f"ghcr.io/worv-ai/vla-evaluation-harness-public/duobench@{DIGEST}"
+
+
+def test_digest_pinned_mirror_fallback_runs_the_mirror_reference():
+    """A digest reference cannot be retagged, so the mirror's own reference is what runs."""
+    calls: list[list[str]] = []
+
+    def fake_call(cmd):
+        calls.append(cmd)
+        return 1 if cmd[-1] == PINNED else 0
+
+    with patch.object(_docker, "image_exists_locally", return_value=False):
+        with patch.object(_docker.subprocess, "call", side_effect=fake_call):
+            ref = _docker.ensure_image_local("docker", PINNED, auto_yes=True)
+    assert ref == PINNED_MIRROR
+    assert calls == [["docker", "pull", PINNED], ["docker", "pull", PINNED_MIRROR]]  # no `docker tag`
+
+
+def test_digest_pinned_image_already_pulled_from_the_mirror_is_reused():
+    with patch.object(_docker, "image_exists_locally", side_effect=lambda d, ref: ref == PINNED_MIRROR):
+        with patch.object(_docker.subprocess, "call", side_effect=AssertionError("no pull")):
+            assert _docker.ensure_image_local("docker", PINNED, auto_yes=False) == PINNED_MIRROR
+    with patch.object(_docker, "image_exists_locally", return_value=True):
+        assert _docker.ensure_image_local("docker", PINNED, auto_yes=False) == PINNED

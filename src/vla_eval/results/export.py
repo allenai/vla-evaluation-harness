@@ -199,6 +199,10 @@ def _build_aggregate(
         body["server_info"] = metadata["server_info"]
     if "render" in metadata:
         body["render"] = metadata["render"]
+    bench_prov = (metadata.get("provenance") or {}).get("benchmark")
+    server_prov = (metadata.get("server_info") or {}).get("provenance")
+    if bench_prov is not None or server_prov is not None:
+        body["provenance"] = {"benchmark": bench_prov, "model_server": server_prov}
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='eval_shards'").fetchone():
         shards = conn.execute("SELECT * FROM eval_shards WHERE eval_id = ?", (eval_id,)).fetchall()
         if shards:

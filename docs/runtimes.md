@@ -28,6 +28,22 @@ Storage locking uses `<storage>.vla-eval-lock`, owned by the current user and op
 The storage parent must allow creating it, or an administrator must provision it with those permissions.
 Keep this file in place; locking failures stop image preparation. Direct `ch-image` invocations do not use this lock.
 
+## Image identity and pinning
+
+`docker.image` may be pinned by digest (`<repository>@sha256:<digest>`) under either runtime. The public-mirror
+fallback pulls the same digest from the mirror; Docker then runs the mirror's reference (a digest cannot be
+retagged). Once the image is local, the host resolves what the run uses and passes it into the container as
+`VLA_EVAL_IMAGE*` env, recorded as the aggregate's `provenance.benchmark`:
+
+| | Docker | Charliecloud |
+|---|---|---|
+| `digest` (what a pin names) | `RepoDigests` from `docker image inspect`, the image's repository first | the pin; else sha256 of the manifest `ch-image pull` saved in its download cache, written into the export as `ch/vla-eval-pull.json` when it is created (older exports have none) |
+| `id` | image `Id` | sha256 of `ch/config.pulled.json`, the image config digest; none for `docker.build` |
+| also | | `export` path and mtime: the only identity of a build |
+
+Local builds have no `digest`. A mutable tag (`:latest` or none) logs one warning with the pin for the digest
+it resolved. Shipped configs use `:latest`; pin in your own config to rerun on exactly the same image.
+
 ## SquashFS exports
 
 The default `auto` prefers SquashFS when the packer, mount tools and `/dev/fuse` are available.

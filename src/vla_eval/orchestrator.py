@@ -23,6 +23,7 @@ from vla_eval.config import EvalConfig, ServerConfig
 from vla_eval.connection import Connection
 from vla_eval.protocol.image_codec import ImageFormat
 from vla_eval.protocol.numpy_codec import set_image_format
+from vla_eval.provenance import benchmark_provenance
 from vla_eval.recording import (
     DEFAULT_FILENAME_STEM,
     EpisodeRecorder,
@@ -391,6 +392,8 @@ class Orchestrator:
             "server_info": conn.server_info,
             # applied can differ from requested (e.g. RoboMME's auto lavapipe probe)
             "render": {"requested": self._render_mode, "applied_env": render_env},
+            # the image the host launched (VLA_EVAL_IMAGE*) and this host; the server's is in server_info
+            "provenance": {"benchmark": benchmark_provenance()},
         }
         rec_cfg = _effective_recording_config(cfg.recording, no_save=self.no_save)
         if self._store is not None and rec_cfg is not None:

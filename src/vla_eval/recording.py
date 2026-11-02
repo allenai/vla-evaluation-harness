@@ -33,6 +33,12 @@ def _json_default(obj: Any) -> Any:
     return str(obj)
 
 
+def _image_of(metadata: dict[str, Any]) -> dict[str, Any] | None:
+    """The benchmark image identity in eval metadata (host differences between shards are expected)."""
+    block = (metadata.get("provenance") or {}).get("benchmark")
+    return {k: block.get(k) for k in ("image", "digest", "id")} if isinstance(block, dict) else None
+
+
 SCHEMA_SQL = """
 BEGIN IMMEDIATE;
 
@@ -287,7 +293,7 @@ class RecordingStore:
         return int(row[0]), int(row[1])
 
     def upsert_eval_metadata(self, eval_id: str, safe_name: str, metadata: dict[str, Any]) -> None:
-        """Keep the first metadata; flag renderer disagreement between shards."""
+        """Keep the first metadata; flag renderer or benchmark-image disagreement between shards."""
         with self.transaction():
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO eval_metadata (eval_id, safe_name, metadata) VALUES (?, ?, ?)",
@@ -296,25 +302,28 @@ class RecordingStore:
             if cur.rowcount:
                 return
             row = self._conn.execute("SELECT metadata FROM eval_metadata WHERE eval_id = ?", (eval_id,)).fetchone()
-            stored = json.loads(row[0]).get("render") if row else None
-            if isinstance(stored, dict):
-                # Ignore the flag itself, or every later agreeing shard would re-warn.
-                stored = {k: v for k, v in stored.items() if k != "divergent"}
-            mine = metadata.get("render")
-            if stored is None or mine is None or stored == mine:
-                return
-            logger.warning(
-                "Renderer provenance differs across shards for eval_id=%s (stored=%r, this shard=%r); "
-                "flagging render.divergent",
-                eval_id,
-                stored,
-                mine,
-            )
-            self._conn.execute(
-                "UPDATE eval_metadata SET metadata = json_set(metadata, '$.render.divergent', json('true')) "
-                "WHERE eval_id = ?",
-                (eval_id,),
-            )
+            first = json.loads(row[0]) if row else {}
+            for what, path, stored, mine in (
+                ("Renderer provenance", "render", first.get("render"), metadata.get("render")),
+                ("Benchmark image", "provenance.benchmark", _image_of(first), _image_of(metadata)),
+            ):
+                if isinstance(stored, dict):
+                    # Ignore the flag itself, or every later agreeing shard would re-warn.
+                    stored = {k: v for k, v in stored.items() if k != "divergent"}
+                if stored is None or mine is None or stored == mine:
+                    continue
+                logger.warning(
+                    "%s differs across shards for eval_id=%s (stored=%r, this shard=%r); flagging %s.divergent",
+                    what,
+                    eval_id,
+                    stored,
+                    mine,
+                    path,
+                )
+                self._conn.execute(
+                    "UPDATE eval_metadata SET metadata = json_set(metadata, ?, json('true')) WHERE eval_id = ?",
+                    (f"$.{path}.divergent", eval_id),
+                )
 
     def upsert_episode_result(
         self,

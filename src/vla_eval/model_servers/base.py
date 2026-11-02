@@ -172,6 +172,9 @@ class ModelServer(ABC):
     supports_vector_step: bool = True
     """Whether clients may send ``VECTOR_STEP`` (HELLO capability ``vector_step``)."""
 
+    _launch_args: dict[str, Any] | None = None  # constructor kwargs as run_server parsed them
+    _provenance: dict[str, Any] | None = None  # get_provenance, made safe on the first HELLO
+
     def __init__(self) -> None:
         # Every model call on one thread, one at a time: CUDA graphs (torch.compile) and JAX are thread-bound.
         # The server owns it for its whole life (serve_async may run it again); serve() shuts it down.
@@ -322,6 +325,18 @@ class ModelServer(ABC):
         Override in subclasses to auto-detect from model config.
         """
         return {}
+
+    def get_provenance(self) -> dict[str, Any]:
+        """What produced this server's actions, sent once per connection in HELLO as ``provenance`` and saved with
+        each benchmark's results.  Default: class, script path, sha256 and PEP 723 pins (dependencies,
+        ``[tool.uv.sources]`` revs, ``exclude-newer``), constructor args from ``run_server`` with secret-named
+        values redacted, and host (platform, Python, GPUs).  Override to add what only the server knows, e.g.
+        a resolved checkpoint revision: ``{**super().get_provenance(), "checkpoint_rev": ...}``.  Called once,
+        off the event loop; keep it small (``provenance.MAX_BYTES``).  A failure is recorded, not raised.
+        """
+        from vla_eval.provenance import model_server_provenance
+
+        return model_server_provenance(self)
 
     # ------------------------------------------------------------------
     # Framework side (serve.py): rows, their episodes and observations

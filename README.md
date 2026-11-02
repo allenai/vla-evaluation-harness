@@ -278,6 +278,22 @@ The harness injects `id=<eval_id>` + `resume="allow"` so live (`vla-eval run`) a
 
 Under sharding, aggregate emission defers to `vla-eval export`; per-episode tracking is live-path only.
 
+### Provenance
+
+Each exported aggregate carries a `provenance` block:
+
+- `benchmark`: the image the run used (`image`, `digest` = registry manifest digest, `id` = local image ID, `runtime`; Charliecloud adds `export` path and mtime) and the container's `host` (platform, Python, GPU name/driver). `null` image fields mean vla-eval did not launch the container (`--no-docker`); set `VLA_EVAL_IMAGE` / `VLA_EVAL_IMAGE_DIGEST` yourself to record one. Shards that ran different images set `benchmark.divergent`.
+- `model_server`: the server's `get_provenance()` from HELLO. By default its class, script path and sha256, PEP 723 pins (dependencies, `[tool.uv.sources]` revs, `exclude-newer`), `run_server` constructor args, and host.
+
+Constructor args whose names look secret (`hf_token`, `api_key`, `password`, ...) are redacted and URL credentials stripped; environment values and `docker.env` are never recorded. A run on a mutable tag (`:latest` or none) logs the digest pin that reproduces it:
+
+```yaml
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/libero@sha256:<digest>
+```
+
+The benchmark block is recorded by the harness inside the image, so images built before this feature record nothing (use `--dev` or rebuild). See [runtimes](docs/runtimes.md#image-identity-and-pinning).
+
 ---
 
 ## Documentation

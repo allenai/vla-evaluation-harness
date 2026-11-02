@@ -174,6 +174,7 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                         extra["observation_spec"] = {k: v.to_dict() for k, v in obs_spec.items()}
                 except NotImplementedError:
                     pass
+                extra["provenance"] = await _provenance(model_server)
                 reply_payload = make_hello_payload(
                     model_server=type(model_server).__name__,
                     capabilities={
@@ -288,6 +289,15 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
             await end(_GONE)
             if open_rows:
                 await model_server._end_episodes(open_rows, [_GONE] * len(open_rows))
+
+
+async def _provenance(model_server: ModelServer) -> dict[str, Any]:
+    """``get_provenance`` made safe (``provenance.safe_provenance``), computed off the event loop once."""
+    if model_server._provenance is None:
+        from vla_eval.provenance import safe_provenance
+
+        model_server._provenance = await _run_in_thread(safe_provenance, model_server.get_provenance)
+    return model_server._provenance
 
 
 async def _try_reply(reply: Any, msg_type: MessageType, payload: dict[str, Any], seq: int) -> None:
@@ -553,6 +563,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
         host, port = _parse_address(cfg.address, host, port)
 
     server = server_cls(**cfg.args.as_dict())
+    server._launch_args = cfg.args.as_dict()  # a fresh copy for provenance (redacted when reported)
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -639,3 +640,98 @@ def test_reap_stale_mounts_removes_dead_and_empty_points(tmp_path: Path, monkeyp
     assert ch.reap_stale_mounts("fusermount", tmp_path) == 2
     assert not old.exists() and not dead.exists() and fresh.exists() and live.exists()
     assert calls == [["fusermount", "-u", "-z", str(dead)]]
+
+
+DIGEST = "sha256:" + "ab" * 32
+
+
+def _storage() -> Path:
+    return Path(os.path.realpath(os.environ["CH_IMAGE_STORAGE"]))
+
+
+def _pulled_manifest(ref: str, body: bytes = b'{"manifests": []}') -> str:
+    """Leave the manifest ``ch-image pull ref`` would have saved; returns its registry digest."""
+    path = _storage() / "dlcache" / (ref.replace("/", "%").replace(":", "+") + ".fat.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(body)
+    return "sha256:" + hashlib.sha256(body).hexdigest()
+
+
+def test_pull_records_the_registry_digest_inside_the_export(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path / "home")
+    digest = _pulled_manifest("reg/img:latest")
+    config = b'{"architecture": "amd64", "rootfs": {}}'
+
+    def fake_call(cmd, *a, **kw):
+        if cmd[0] == "ch-convert":
+            _fake_image(Path(cmd[-1]).parent).rename(Path(cmd[-1]))
+            (Path(cmd[-1]) / "ch" / "config.pulled.json").write_bytes(config)
+        return 0
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    img = ch.ensure_image_dir("reg/img:latest", auto_yes=True, gpu=False, tools={t: t for t in ch.TOOLS})
+    assert json.loads((img / ch.PULL_RECORD).read_text()) == {"ref": "reg/img:latest", "digest": digest}
+    identity = ch.image_identity("reg/img:latest", img, img, built=False)
+    assert identity["digest"] == digest and identity["runtime"] == "charliecloud"
+    assert identity["id"] == "sha256:" + hashlib.sha256(config).hexdigest()  # the image config digest
+    assert identity["export"] == str(img) and identity["export_mtime"].endswith("+00:00")
+
+
+def test_pulled_digest_resolution() -> None:
+    assert ch._pulled_digest(_storage(), f"reg/img@{DIGEST}") == DIGEST  # a pin needs no cache
+    assert ch._pulled_digest(_storage(), "reg/img:tag") is None  # nothing where expected: record nothing
+    digest = _pulled_manifest("reg/img:latest")
+    assert ch._pulled_digest(_storage(), "reg/img") == digest  # an untagged ref is stored as :latest
+
+
+def test_identity_of_builds_and_old_exports_is_the_export_itself(tmp_path: Path) -> None:
+    img = _fake_image(tmp_path)
+    (img / "ch" / "config.pulled.json").write_text("{}")  # a build keeps its base image's copy
+    built = ch.image_identity("x:vla-eval", img, img, built=True)
+    assert set(built) == {"image", "runtime", "export", "export_mtime"}
+    sqfs = tmp_path / "x.sqfs"
+    sqfs.write_bytes(b"hsqs")  # pulled before pulls were recorded: only the config digest, read via the mount
+    old = ch.image_identity("x:tag", sqfs, img, built=False)
+    assert old["export"] == str(sqfs) and "digest" not in old and old["id"].startswith("sha256:")
+    assert ch.image_identity(f"x@{DIGEST}", sqfs, img, built=False)["digest"] == DIGEST
+
+
+def test_digest_pinned_image_pulls_and_falls_back_to_the_mirror(tmp_path: Path, monkeypatch) -> None:
+    pinned = f"ghcr.io/allenai/vla-evaluation-harness/libero@{DIGEST}"
+    mirror = f"ghcr.io/worv-ai/vla-evaluation-harness-public/libero@{DIGEST}"
+    name = ch.image_dir_for(pinned, root=tmp_path).name
+    assert name == f"ghcr.io%allenai%vla-evaluation-harness%libero@sha256+{'ab' * 32}"
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path / "home")
+    calls: list[list[str]] = []
+
+    def fake_call(cmd, *a, **kw):
+        calls.append(list(cmd))
+        if cmd[0] == "ch-convert":
+            _fake_image(Path(cmd[-1]).parent).rename(Path(cmd[-1]))
+        return 1 if cmd[-1] == pinned else 0
+
+    monkeypatch.setattr(ch.subprocess, "call", fake_call)
+    img = ch.ensure_image_dir(pinned, auto_yes=True, gpu=False, tools={t: t for t in ch.TOOLS})
+    assert calls[0] == ["ch-image", "pull", pinned] and calls[1] == ["ch-image", "pull", mirror]
+    assert calls[2][-2] == mirror  # the mirror's reference is exported; nothing is retagged
+    assert json.loads((img / ch.PULL_RECORD).read_text()) == {"ref": mirror, "digest": DIGEST}
+
+
+def test_run_via_charliecloud_passes_image_identity(tmp_path: Path, monkeypatch, caplog) -> None:
+    monkeypatch.setattr(ch.dirs, "home", lambda: tmp_path / "home")
+    img = ch.image_dir_for("reg/img:latest")
+    img.parent.mkdir(parents=True)
+    _fake_image(tmp_path).rename(img)
+    (img / ch.PULL_RECORD).write_text(json.dumps({"ref": "reg/img:latest", "digest": DIGEST}))
+    monkeypatch.setattr(ch, "find_tools", lambda: {t: t for t in ch.TOOLS})
+    monkeypatch.setattr("vla_eval.docker_resources._detect_runtime", lambda: "cuda")
+    seen: list[list[str]] = []
+    monkeypatch.setattr("vla_eval.cli._docker.exec_child", lambda cmd, stop: seen.append(cmd) or 0)
+    docker = {"image": "reg/img:latest", "gpus": "none"}
+    config = {"output_dir": str(tmp_path / "out"), "render": "cpu", "docker": docker}
+    with caplog.at_level("WARNING"):
+        assert ch.run_via_charliecloud(config, no_save=True) == 0
+    for env in ("VLA_EVAL_IMAGE=reg/img:latest", f"VLA_EVAL_IMAGE_DIGEST={DIGEST}", f"VLA_EVAL_IMAGE_EXPORT={img}"):
+        assert f"--set-env={env}" in seen[0]
+    assert "--set-env=VLA_EVAL_IMAGE_RUNTIME=charliecloud" in seen[0]
+    assert f"docker.image: reg/img@{DIGEST}" in caplog.text

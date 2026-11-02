@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -11,12 +12,14 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from vla_eval import dirs
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.config import BuildConfig, CharliecloudConfig, DockerConfig
+from vla_eval.provenance import image_env, split_image_ref, warn_if_mutable
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +166,8 @@ def ensure_image_dir(
             sys.exit(1)
         tmp_dir = Path(f"{img_dir}.tmp-{os.getpid()}")  # ch-run cannot use ch-image's storage directly
         try:
-            storage_lock = _open_storage_lock(_storage_path(tools["ch-image"]))
+            storage = _storage_path(tools["ch-image"])
+            storage_lock = _open_storage_lock(storage)
         except (OSError, RuntimeError) as exc:
             con.print(f"[red]ERROR: cannot lock ch-image storage: {exc}[/red]")
             sys.exit(1)
@@ -192,6 +196,8 @@ def ensure_image_dir(
                             _remove(d)
             shutil.rmtree(tmp_dir, ignore_errors=True)
             ok = subprocess.call([tools["ch-convert"], "-i", "ch-image", "-o", "dir", pulled, str(tmp_dir)]) == 0
+            if ok and build is None:  # the pull's download cache still holds this image's manifest
+                _record_pull(tmp_dir, pulled, _pulled_digest(storage, pulled))
         # Inject the driver before packing the read-only SquashFS image.
         ok = ok and (not gpu or subprocess.call([tools["ch-fromhost"], "--nvidia", str(tmp_dir)]) == 0)
         tmp_out = tmp_dir
@@ -302,6 +308,52 @@ def host_driver_version() -> str:
         return "unknown"
 
 
+PULL_RECORD = "ch/vla-eval-pull.json"
+"""Written into each pulled export: the reference pulled and its registry digest."""
+
+
+def _pulled_digest(storage: Path, ref: str) -> str | None:
+    """Registry digest of what ``ch-image pull ref`` just fetched: the sha256 of the manifest (list) it saved raw in
+    its download cache, which is what ``ref@<digest>`` pins.  ``None`` when that file is not where expected."""
+    _, tag, pinned = split_image_ref(ref)
+    if pinned:
+        return pinned
+    for name in (ref,) if tag else (ref, f"{ref}:latest"):
+        path = storage / "dlcache" / (name.replace("/", "%").replace(":", "+") + ".fat.json")
+        with contextlib.suppress(OSError):
+            return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    return None
+
+
+def _record_pull(export: Path, ref: str, digest: str | None) -> None:
+    """Keep the pull's identity inside the export, so it can never describe another export."""
+    try:
+        (export / PULL_RECORD).write_text(json.dumps({"ref": ref, "digest": digest}))
+    except OSError as exc:
+        logger.warning("could not record the pulled digest of %s: %s", ref, exc)
+
+
+def image_identity(image: str, export: Path, root: Path, *, built: bool) -> dict[str, Any]:
+    """Identity of the export a run uses (``root``: where it is readable, i.e. mounted).  ``digest``: pinned in
+    ``image``, else recorded at pull time (``PULL_RECORD``).  ``id``: sha256 of the image config ``ch-image`` kept
+    (``ch/config.pulled.json``), the config digest; omitted for a build, whose copy is its base image's.  ``export``
+    and its mtime always: the only identity of a build or of an export made before pulls were recorded."""
+    identity: dict[str, Any] = {"image": image, "runtime": "charliecloud", "export": str(export)}
+    try:
+        identity["export_mtime"] = datetime.fromtimestamp(export.stat().st_mtime, UTC).isoformat(timespec="seconds")
+        digest = split_image_ref(image)[2]
+        if digest is None and not built and (root / PULL_RECORD).is_file():
+            digest = json.loads((root / PULL_RECORD).read_text()).get("digest")
+        config = root / "ch" / "config.pulled.json"
+        if not built and config.is_file():
+            identity["id"] = "sha256:" + hashlib.sha256(config.read_bytes()).hexdigest()
+        if digest:
+            identity["digest"] = digest
+    except Exception as exc:
+        logger.warning("could not resolve the identity of image %s: %s", image, exc)
+    return identity
+
+
 def read_metadata(img_dir: Path) -> dict[str, Any]:
     """Entrypoint/cwd that ch-image saved from the OCI config."""
     with open(img_dir / "ch" / "metadata.json") as f:
@@ -400,7 +452,7 @@ def run_via_charliecloud(
     except ValueError as exc:
         _stderr_console().print(f"[red]ERROR: {exc}[/red]")
         sys.exit(1)
-    img_dir = ensure_image_dir(
+    export = ensure_image_dir(
         docker_cfg.image,
         auto_yes=auto_yes,
         gpu=gpu,
@@ -419,13 +471,13 @@ def run_via_charliecloud(
 
     with contextlib.ExitStack() as cleanup:
         try:
-            img_dir = cleanup.enter_context(mount_image(img_dir, squashfuse))
+            img_dir = cleanup.enter_context(mount_image(export, squashfuse))
         except OSError as exc:
             if requested_format != "auto" or image_format != "squashfs":
                 _stderr_console().print(f"[red]ERROR: {exc}[/red]")
                 sys.exit(1)
             logger.warning("SquashFS mount failed; using directory export: %s", exc)
-            img_dir = ensure_image_dir(
+            export = img_dir = ensure_image_dir(
                 docker_cfg.image,
                 auto_yes=auto_yes,
                 gpu=gpu,
@@ -438,7 +490,10 @@ def run_via_charliecloud(
             sys.exit(1)
         results_dir, config_path = prepare_container_config(config)
         cleanup.callback(Path(config_path).unlink, missing_ok=True)
-        env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir}
+        identity = image_identity(docker_cfg.image, export, img_dir, built=docker_cfg.build is not None)
+        if docker_cfg.build is None:
+            warn_if_mutable(docker_cfg.image, identity)
+        env = {"VLA_EVAL_HOST_OUTPUT_DIR": results_dir, **image_env(identity)}
         if os.environ.get("VLA_EVAL_WATCHDOG_TIMEOUT_S"):
             env["VLA_EVAL_WATCHDOG_TIMEOUT_S"] = os.environ["VLA_EVAL_WATCHDOG_TIMEOUT_S"]
         for env_str in docker_cfg.env:

@@ -196,3 +196,20 @@ class TestActionConfigFile:
             assert s.cache_len == 2048
         finally:
             yaml_path.unlink()
+
+
+class TestProvenanceArgs:
+    """``run_server`` keeps the parsed constructor args for ``get_provenance``, which redacts secrets."""
+
+    def test_args_recorded_with_secrets_redacted(self, monkeypatch):
+        class S(_BaseModelServer):
+            def __init__(self, checkpoint: str = "org/model", hf_token: str | None = None, mode: _Mode = _Mode.FAST):
+                super().__init__(checkpoint=checkpoint, hf_token=hf_token, mode=mode)
+
+        yaml_path = _yaml_config({"checkpoint": "org/other", "hf_token": "hf_secret"})
+        try:
+            s = _drive(S, ["--config", str(yaml_path), "--args.mode", "SLOW"], monkeypatch)
+        finally:
+            yaml_path.unlink()
+        assert s._launch_args == {"checkpoint": "org/other", "hf_token": "hf_secret", "mode": _Mode.SLOW}
+        assert s.get_provenance()["args"] == {"checkpoint": "org/other", "hf_token": "<redacted>", "mode": "slow"}

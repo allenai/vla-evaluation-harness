@@ -113,7 +113,26 @@ def test_legacy_database_exports_without_tracking(tmp_path, monkeypatch):
 
     monkeypatch.setattr("vla_eval.tracking.get_reporting_trackers", unexpected)
     cli.cmd_export(argparse.Namespace(db=str(db), output_dir=None))
-    assert (tmp_path / "demo_aggregate.json").exists()
+    assert "provenance" not in json.loads((tmp_path / "demo_aggregate.json").read_text())  # none recorded
+
+
+def test_export_groups_benchmark_and_model_server_provenance(tmp_path):
+    from vla_eval.results.export import export_db
+
+    db = tmp_path / "prov.sqlite"
+    bench = {"image": "reg/img@sha256:ab", "digest": "sha256:ab", "host": {"python": "3.11.9"}}
+    server = {"class": "__main__.CogACTModelServer", "args": {"hf_token": "<redacted>"}}
+    store = RecordingStore(db)
+    store.upsert_eval_metadata(
+        "original-id-demo",
+        "demo",
+        {"benchmark": "demo", "server_info": {"provenance": server}, "provenance": {"benchmark": bench}},
+    )
+    store.close()
+    _database(db)  # the first metadata is kept
+    (aggregate,) = export_db(db, tmp_path)
+    assert aggregate["provenance"] == {"benchmark": bench, "model_server": server}
+    assert aggregate["server_info"] == {"provenance": server}  # existing keys unchanged
 
 
 def test_export_parser_accepts_positional_db(tmp_path, monkeypatch):

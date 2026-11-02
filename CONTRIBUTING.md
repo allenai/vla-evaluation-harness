@@ -181,6 +181,9 @@ Every running episode is a row; inference and the episode hooks are batched over
 - Per-episode state: key it by `row.id` (`rows.ids` in hooks); ids are reused, so reset it in `reset_episodes`.
 - `max_rows=1`: the model's state is global (e.g. its own action queue), so one episode at a time.
 - `chunk_size`: `[T, D]` per row, served from a per-episode buffer (`rows.episodes[i].chunk_size` overrides it).
+- `get_provenance()`: sent in HELLO, saved as each aggregate's `provenance.model_server`. The default records the
+  class, script sha256 and PEP 723 pins, `run_server` args (secret-named values redacted) and host. Add what only
+  the server resolves, e.g. `{**super().get_provenance(), "checkpoint_rev": rev}`; keep it small, never secrets.
 
 Your own real-time loop: subclass `DaemonModelServer` (`model_servers/daemons.py`) and write `run(self, ep)`, once
 per episode: answer `ep.observations()` with `req.reply(action)`, call the model via `ep.call`, stream with

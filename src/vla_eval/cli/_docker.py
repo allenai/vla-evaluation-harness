@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,7 @@ import yaml
 
 from vla_eval.cli._console import stderr_console as _stderr_console
 from vla_eval.config import BuildConfig, DockerConfig
+from vla_eval.provenance import image_env, split_image_ref, warn_if_mutable
 
 logger = logging.getLogger(__name__)
 
@@ -63,17 +66,30 @@ def build_image(docker: str, image: str, build: BuildConfig) -> bool:
     return False
 
 
+def _mirror_of(image: str) -> str | None:
+    """``image`` on its public mirror, or ``None`` when it has none."""
+    for primary, mirror_prefix in _REGISTRY_MIRRORS.items():
+        if image.startswith(primary):
+            return mirror_prefix + image.removeprefix(primary)
+    return None
+
+
 def ensure_image_local(
     docker: str, image: str, auto_yes: bool, build: BuildConfig | None = None, force_build: bool = False
-) -> None:
+) -> str:
     """Make sure ``image`` is available locally: build it when ``build`` is set (and it is missing or
-    *force_build*), otherwise prompt for ``docker pull`` when missing."""
+    *force_build*), otherwise prompt for ``docker pull`` when missing.  Returns the reference to run: ``image``,
+    or for a digest-pinned image only its public mirror serves, the mirror's (a digest cannot be retagged)."""
     if build is not None and (force_build or not image_exists_locally(docker, image)):
         if not build_image(docker, image, build):
             sys.exit(1)
-        return
+        return image
     if image_exists_locally(docker, image):
-        return
+        return image
+    mirror = _mirror_of(image)
+    pinned = split_image_ref(image)[2] is not None
+    if pinned and mirror is not None and image_exists_locally(docker, mirror):
+        return mirror
 
     con = _stderr_console()
     con.print(f"\n[yellow]⚠  Docker image '{image}' not found locally.[/yellow]")
@@ -91,16 +107,34 @@ def ensure_image_local(
 
     con.print(f"Pulling {image} ...")
     if subprocess.call([docker, "pull", image]) == 0:
-        return
-    for primary, mirror_prefix in _REGISTRY_MIRRORS.items():
-        if image.startswith(primary):
-            mirror = mirror_prefix + image.removeprefix(primary)
-            con.print(f"[yellow]Pull failed; retrying from public mirror: {mirror}[/yellow]")
-            if subprocess.call([docker, "pull", mirror]) == 0:
-                subprocess.call([docker, "tag", mirror, image])
-                return
+        return image
+    if mirror is not None:
+        con.print(f"[yellow]Pull failed; retrying from public mirror: {mirror}[/yellow]")
+        if subprocess.call([docker, "pull", mirror]) == 0:
+            if pinned:
+                return mirror
+            subprocess.call([docker, "tag", mirror, image])
+            return image
     con.print(f"[red]ERROR: docker pull failed for {image}.[/red]")
     sys.exit(1)
+
+
+def docker_image_identity(docker: str, image: str) -> dict[str, Any]:
+    """``image``'s identity from ``docker image inspect``: ``id`` (the local image ID) and ``digest`` (the
+    registry manifest digest from ``RepoDigests``, ``image``'s repository first, that ``repo@<digest>`` pins;
+    none for a local build).  Fields it cannot resolve are omitted; never raises."""
+    identity: dict[str, Any] = {"image": image, "runtime": "docker"}
+    try:
+        out = subprocess.run([docker, "image", "inspect", image], capture_output=True, text=True, timeout=60)
+        info = json.loads(out.stdout)[0]
+        repo, _, pinned = split_image_ref(image)
+        digests = [d.partition("@") for d in info.get("RepoDigests") or [] if "@" in d]
+        own = next((dg for r, _, dg in digests if r == repo), None)
+        digest = pinned or own or (digests[0][2] if digests else None)
+        identity.update({k: v for k, v in (("digest", digest), ("id", info.get("Id"))) if v})
+    except Exception as exc:
+        logger.warning("could not resolve the identity of image %s: %s", image, exc)
+    return identity
 
 
 RUNTIMES = ("docker", "charliecloud")
@@ -272,7 +306,10 @@ def run_via_docker(
         _stderr_console().print("[red]ERROR: 'docker.image' must be set in config[/red]")
         sys.exit(1)
 
-    ensure_image_local(docker, docker_cfg.image, auto_yes, build=docker_cfg.build, force_build=force_build)
+    image_ref = ensure_image_local(docker, docker_cfg.image, auto_yes, build=docker_cfg.build, force_build=force_build)
+    identity = {**docker_image_identity(docker, image_ref), "image": docker_cfg.image}
+    if docker_cfg.build is None:
+        warn_if_mutable(docker_cfg.image, identity)
 
     results_dir, docker_config_path = prepare_container_config(config)
     container_name = f"vla-eval-{os.getpid()}"
@@ -290,6 +327,8 @@ def run_via_docker(
             eval_id=eval_id,
             no_save=no_save,
             requeue_unhealthy=requeue_unhealthy,
+            image_ref=image_ref,
+            image_identity=identity,
         )
         logger.info("Running via Docker: %s", " ".join(cmd))
         return exec_docker(docker, cmd, container_name)
@@ -312,8 +351,11 @@ def build_docker_command(
     no_save: bool = False,
     requeue_unhealthy: bool = False,
     interactive: bool = True,
+    image_ref: str | None = None,
+    image_identity: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """Container arguments shared by production runs and smoke tests."""
+    """Container arguments shared by production runs and smoke tests.  ``image_ref``: what to run (default
+    ``docker.image``); ``image_identity``: passed in as ``VLA_EVAL_IMAGE*`` env for the run's provenance."""
     docker_cfg = DockerConfig.from_dict(config.get("docker"))
     if docker_cfg.image is None:
         raise ValueError("docker.image must be set")
@@ -347,6 +389,8 @@ def build_docker_command(
 
     # Forward host-side results_dir for recorder._host_translate.
     cmd.extend(["-e", f"VLA_EVAL_HOST_OUTPUT_DIR={results_dir}"])
+    for var, value in image_env(image_identity or {}).items():
+        cmd.extend(["-e", f"{var}={value}"])
 
     # The watchdog runs inside the container; forward the host override so long
     # episodes (e.g. RoboDojo's 1900-step tasks) aren't killed as stalls.
@@ -380,7 +424,7 @@ def build_docker_command(
     else:
         cmd.extend(gpu_docker_flag(docker_cfg.gpus))
 
-    cmd.append(docker_cfg.image)
+    cmd.append(image_ref or docker_cfg.image)
     cmd.extend(
         inner_run_args(
             shard_id=shard_id,
