@@ -306,16 +306,18 @@ class UnusableOnSecondResetStub(StubVectorBenchmark):
 async def test_an_unusable_env_releases_the_shards_in_flight_items(echo_server, tmp_path):
     from vla_eval.results.export import export_db
 
-    config = _config(echo_server, tmp_path, name="x", episodes=3, num_envs=2)
+    config = _config(echo_server, tmp_path, name="x", episodes=4, num_envs=2, num_tasks=1)
     with pytest.raises(UnhealthyShardError, match="unusable"):
         await _run(UnusableOnSecondResetStub, config, shard_id=0, num_shards=1, eval_id="ev-vx")
     db = sqlite3.connect(tmp_path / "recording-ev-vx.sqlite")
     queue = db.execute("SELECT done, shard_id FROM work_queue").fetchall()
+    errors = db.execute("SELECT COUNT(*) FROM episode_results WHERE status = 'error'").fetchone()[0]
     db.close()
-    assert sorted(queue, key=str) == [(0, None)] * 4 + [(1, 0)] * 2  # the first wave ran; nothing stays claimed
+    assert sorted(queue, key=str) == [(0, None)] * 2 + [(1, 0)] * 2  # the first wave ran; nothing stays claimed
+    assert errors == 2  # both episodes the failed reset started were recorded before the shard exited
     await _run(StubVectorBenchmark, config, shard_id=0, num_shards=1, eval_id="ev-vx")
     (aggregate,) = export_db(tmp_path / "recording-ev-vx.sqlite", tmp_path)
-    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 6 and aggregate["num_errors"] == 0
+    assert "partial" not in aggregate and aggregate["num_episodes_total"] == 4 and aggregate["num_errors"] == 0
 
 
 def _echo(step: dict[str, Any]) -> dict[str, Any]:

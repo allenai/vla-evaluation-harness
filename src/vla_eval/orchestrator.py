@@ -538,6 +538,7 @@ class Orchestrator:
                 f"{e.name}: the model server does not take vector steps (vla-eval too old, or an episode-loop server)"
             )
         claimed: set[int] = set()  # queue items in flight
+        unusable: list[EnvUnusableError] = []  # once set, no new episode starts; the shard exits after the rest end
         held: tuple[int | None, tuple[int, Any, int]] | None = None  # the next task's first item, waiting
         group: int | None = None  # the running episodes' task_idx
         active = 0
@@ -558,26 +559,28 @@ class Orchestrator:
             item, ep, task_name = episode.ref
             active -= 1
 
-            unusable = isinstance(error, EnvUnusableError)
+            if isinstance(error, EnvUnusableError):
+                unusable.append(error)
 
             def done() -> int:
                 nonlocal ended
                 ended += 1
                 if item is None:
                     return ended
-                if not unusable:  # released below with the shard's other in-flight items
+                if not isinstance(error, EnvUnusableError):  # else released once the run stops
                     claimed.discard(item)
-                if not (aborted or unusable):  # an aborted run's item is redone on rerun
+                if not (aborted or isinstance(error, EnvUnusableError)):  # an aborted run's item is redone on rerun
                     self._queue().finish(e.eval_id, item)
                 return self._queue().queue_progress(e.eval_id)[0]
 
             self._episode_ended(e, episode.recorder, task_name, ep, result, error, done)
-            self._stop_if_unusable(e, error, claimed)
-            if not aborted:  # the server went away: a partial result, as in the one-at-a-time loop
+            if not (aborted or unusable):  # aborted: the server went away, a partial result as in the other loop
                 self._check_health(e.eval_id if e.dynamic else None, ended - 1 if item is None else item, claimed)
 
         def take() -> tuple[int | None, tuple[int, Any, int]] | None:
             nonlocal held
+            if unusable:
+                return None
             if held is not None:
                 nxt, held = held, None
                 return nxt
@@ -618,6 +621,8 @@ class Orchestrator:
         try:
             logger.info("%s: %d environments, one server session each", e.name, benchmark.num_envs)
             await runner.run(benchmark, conn, next_episode, end, max_steps=e.max_steps)
+            if unusable:
+                self._stop_if_unusable(e, unusable[0], claimed)  # every episode has ended and is recorded
         except ConnectionError:
             logger.error("%s: server unreachable, aborting benchmark", e.name)
             return self._finalize_benchmark(

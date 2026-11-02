@@ -23,7 +23,8 @@ upstream ``EvalEnv.run_eval()``:
 
 Scene-instability and other reset-time failures move on to a spare (the official
 protocol neither counts nor retries them); an episode errors out once its shard has no
-spare left, and ``MAX_FAILED_RESETS`` in a row raise ``EnvUnusableError`` (the shard exits 3).
+spare left, and ``MAX_FAILED_RESETS`` in a row that are not layout instability raise
+``EnvUnusableError`` (the shard exits 3).
 
 Like upstream ``main.py`` between rounds, every reset after the first closes the used scene and
 the next ``reset()`` relaunches it: a soft reset on a used scene leaks render products and Vulkan
@@ -62,7 +63,7 @@ ACTION_DIM = sum(ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
-# Failed resets in a row after which the env counts as unusable (a broken asset or a sick Kit).
+# Failed resets in a row, other than unstable layouts, after which the env counts as unusable.
 MAX_FAILED_RESETS = 5
 
 _T = TypeVar("_T")
@@ -327,12 +328,14 @@ class RoboDojoBenchmark(StepBenchmark):
         layout_id = episode_idx
         while True:
             raw_obs = self._try_layout(env, layout_id, task_name)
-            if raw_obs is not None:
+            if not isinstance(raw_obs, Exception):
                 self._failed_resets = 0
                 self._current_layout_id = layout_id
                 self._recorder.record_video(self._extract_frame(raw_obs))
                 return raw_obs
-            self._failed_resets += 1
+            # An unstable layout is the layout's fault (deterministic, so a restart would not help); the
+            # env built and simulated it. Any other failure counts toward the cap.
+            self._failed_resets = 0 if type(raw_obs).__name__ == "UnStableError" else self._failed_resets + 1
             if self._failed_resets >= MAX_FAILED_RESETS:
                 raise EnvUnusableError(self._unusable_message(task_name))
             if self._spare_cursor >= len(spares):
@@ -361,7 +364,7 @@ class RoboDojoBenchmark(StepBenchmark):
         logger.info("RoboDojo closed the used scene in %.1fs", time.monotonic() - started)
 
     def _try_layout(self, env: Any, layout_id: int, task_name: str) -> Any:
-        """Reset onto ``layout_id``; the first observation, or None if the scene failed."""
+        """Reset onto ``layout_id``; the first observation, or the exception the scene failed with."""
         try:
             self._fresh_scene(env)
             started = time.monotonic()
@@ -374,9 +377,9 @@ class RoboDojoBenchmark(StepBenchmark):
             raw_obs = env.get_obs()
             logger.info("RoboDojo layout %d reset in %.1fs", layout_id, time.monotonic() - started)
             return raw_obs
-        except Exception:
+        except Exception as exc:
             logger.warning("RoboDojo layout %d failed for %s", layout_id, task_name, exc_info=True)
-            return None
+            return exc
 
     @staticmethod
     def _unflatten_action(values: Any) -> dict[str, np.ndarray]:

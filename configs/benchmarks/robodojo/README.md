@@ -80,5 +80,6 @@ instances with disjoint `--filter` regexes (one lane per GPU).
   group's spares (ids at or past `eval_num`; 55–65 layouts per task); each episode result
   records the `layout_id` it ran. The counted set is upstream's; only the choice of spare can differ.
 - Sharded runs (`--num-shards`) split the spares round-robin by shard, so shards never share a
-  layout; a resumed shard skips spares already counted. After 5 failed resets in a row the shard
-  returns its unfinished items to the queue and exits 3; rerun it with the same `--eval-id`.
+  layout (a shard out of spares errors the episode); a resumed shard skips spares already counted.
+- After 5 failed resets in a row (unstable layouts aside) the shard returns its unfinished items
+  to the queue and exits 3; rerun it with the same `--eval-id`.

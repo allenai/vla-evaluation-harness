@@ -12,12 +12,16 @@ from vla_eval.benchmarks.robodojo.benchmark import MAX_FAILED_RESETS, RoboDojoBe
 from vla_eval.runners.base import EnvUnusableError
 
 
+class UnStableError(RuntimeError):
+    """Named like RoboDojo's ``utils.cluttered_generator.UnStableError``."""
+
+
 class _FakeEnv:
     """Single-env EvalEnv whose reset fails on the ``broken`` layouts; logs the thread of every call."""
 
-    def __init__(self, total: int, broken: set[int]) -> None:
+    def __init__(self, total: int, broken: set[int], unstable: bool = False) -> None:
         self.seed_manager = SimpleNamespace(seed_list=list(range(total)))
-        self.broken = broken
+        self.broken, self.unstable = broken, unstable
         self.calls: list[tuple[str, int]] = []
         self.threads: set[int] = set()
         self.layout = -1
@@ -32,7 +36,7 @@ class _FakeEnv:
     def reset(self, seed: list[int]) -> None:
         self._log("reset", seed[0])
         if seed[0] in self.broken:
-            raise RuntimeError("scene unstable")
+            raise (UnStableError if self.unstable else RuntimeError)("scene failed")
         self.layout = seed[0]
 
     def run_reward(self) -> None:
@@ -42,9 +46,11 @@ class _FakeEnv:
         return {"vision": {}, "layout": self.layout}
 
 
-def _bench(total: int = 10, eval_num: int = 6, broken: set[int] | None = None) -> tuple[RoboDojoBenchmark, _FakeEnv]:
+def _bench(
+    total: int = 10, eval_num: int = 6, broken: set[int] | None = None, unstable: bool = False
+) -> tuple[RoboDojoBenchmark, _FakeEnv]:
     bench = RoboDojoBenchmark()
-    env = _FakeEnv(total, broken or set())
+    env = _FakeEnv(total, broken or set(), unstable)
     bench._env, bench._current_task_name, bench._native_eval_num = env, "t", eval_num
     return bench, env
 
@@ -82,3 +88,12 @@ async def test_failed_resets_in_a_row_make_the_env_unusable() -> None:
     with pytest.raises(EnvUnusableError):
         await _run(bench, [0])
     assert [a for name, a in env.calls if name == "reset"] == [0, 6, 7, 8, 9][:MAX_FAILED_RESETS]
+
+
+@pytest.mark.anyio
+async def test_unstable_layouts_never_make_the_env_unusable() -> None:
+    # Deterministic instability would fail the same way after a restart; only spare exhaustion ends the episode.
+    bench, _ = _bench(total=20, eval_num=6, broken=set(range(20)), unstable=True)
+    with pytest.raises(RuntimeError, match="no spare layout left") as raised:
+        await _run(bench, [0])
+    assert not isinstance(raised.value, EnvUnusableError)
