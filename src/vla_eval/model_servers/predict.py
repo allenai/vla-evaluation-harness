@@ -21,6 +21,10 @@ class PredictModelServer(ModelServer):
     create thread-bound state (CUDA graphs, JAX) in the first ``reset_episodes`` / ``predict``.
     """
 
+    assumes_whole_chunks: bool = False
+    """``predict`` assumes the first ``chunk_size`` actions of its previous chunk all ran (e.g. it tracks the last
+    commanded pose).  ``DelayedChunkServer``, which skips a chunk's first actions, refuses such a server."""
+
     def __init__(
         self,
         *,

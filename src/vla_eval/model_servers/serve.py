@@ -161,7 +161,7 @@ async def _handle_connection(ws: Any, model_server: ModelServer, tg: TaskGroup) 
                 offered = offered if isinstance(offered, dict) else {}
                 caps = frozenset(k for k in CAPABILITIES if offered.get(k) is True)
                 ready = offered.get("episode_ready") is True
-                extra: dict[str, Any] = {}
+                extra: dict[str, Any] = dict(model_server._hello_info())
                 obs_params = model_server.get_observation_params()
                 if obs_params:
                     extra["observation_params"] = obs_params
@@ -528,8 +528,9 @@ def run_server(server_cls: type[ModelServer]) -> None:
     ``--config <yaml>`` reads the model-server yaml directly via
     ``ActionConfigFile``; the yaml's ``args:`` sub-dict maps to
     ``server_cls.__init__`` kwargs. CLI overrides use ``--args.<key>=<value>``.
-    A top-level ``latency:`` block (``--latency.<key>=<value>``) wraps the server
-    in ``DelayedChunkServer``: simulated inference delay, sync mode.
+    A top-level ``latency:`` block (``--latency.<key>=<value>``; ``--latency=null``
+    drops it) wraps the server in ``DelayedChunkServer``: simulated inference
+    delay, sync mode.  It and the server class are checked before the model loads.
     """
     from jsonargparse import ActionConfigFile, ArgumentParser
 
@@ -560,12 +561,30 @@ def run_server(server_cls: type[ModelServer]) -> None:
     if cfg.address:
         host, port = _parse_address(cfg.address, host, port)
 
-    server = server_cls(**cfg.args.as_dict())
-    if cfg.latency is not None:
-        if not isinstance(server, PredictModelServer):
+    latency: Latency | None = None
+    if cfg.latency is not None:  # checked before the model loads
+        if not issubclass(server_cls, PredictModelServer):
             parser.error(f"latency: needs a PredictModelServer (chunked predict), got {server_cls.__name__}")
-        server = DelayedChunkServer(server, **cfg.latency.as_dict())
-        logger.info("Simulated inference delay: %s", cfg.latency.as_dict())
+        try:
+            latency = Latency(**cfg.latency.as_dict())
+        except ValueError as exc:
+            both = cfg.latency.delay_steps is not None and cfg.latency.delay_s is not None
+            hint = " (to replace the config's, null it: vla-eval serve --arg latency.delay_steps=null)" if both else ""
+            parser.error(f"latency: {exc}{hint}")
+
+    server = server_cls(**cfg.args.as_dict())
+    if latency is not None:
+        assert isinstance(server, PredictModelServer)  # its class was checked
+        try:
+            server = DelayedChunkServer(
+                server,
+                delay_steps=latency.delay_steps,
+                delay_s=latency.delay_s,
+                execute_steps=latency.execute_steps,
+            )
+        except ValueError as exc:
+            parser.error(f"latency: {exc}")
+        logger.info("Simulated inference delay: %s", latency)
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)

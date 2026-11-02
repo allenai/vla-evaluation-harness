@@ -258,7 +258,8 @@ def _build_serve_cmd(
 
     Server-level keys (``port`` / ``host``) emit at the inner root; everything
     in the yaml's ``args:`` block emits under ``--args.*`` so jsonargparse maps
-    them onto ``server_cls.__init__``; the ``latency:`` block under ``--latency.*``.
+    them onto ``server_cls.__init__``; the ``latency:`` block under ``--latency.*``
+    (an override ``latency=...`` / ``latency.<key>=...`` too).
     """
     cmd: list[str] = [uv, "run", str(script)]
     args_block = dict(config.get("args") or {})
@@ -277,7 +278,7 @@ def _build_serve_cmd(
         key, sep, value = override.partition("=")
         if not key or not sep:
             raise ValueError(f"--arg must be KEY=VALUE, got {override!r}")
-        prefix = "" if key in _SERVER_LEVEL_KEYS or key.startswith("latency.") else "args."
+        prefix = "" if key in _SERVER_LEVEL_KEYS or key.partition(".")[0] == "latency" else "args."
         cmd.append(f"--{prefix}{key}={value}")
     return cmd
 
@@ -761,7 +762,9 @@ args.* onto the class signature with full type validation. CLI overrides
 --arg KEY=VALUE compose with the yaml; KEY may be a class kwarg, a
 server-level key (host/port) or latency.<key>.  A top-level latency: block
 (delay_steps or delay_s, execute_steps) simulates inference delay in sync
-mode for any chunked server (DelayedChunkServer).
+mode for a chunked server (DelayedChunkServer).  null clears a key:
+--arg latency.delay_steps=null --arg latency.delay_s=0.1 switches the
+yaml's delay_steps to delay_s; --arg latency=null drops the block.
 """,
     )
     serve_parser.add_argument("--config", "-c", required=True, help="Path to model server YAML config")

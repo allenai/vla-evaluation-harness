@@ -1,29 +1,42 @@
-"""Simulated inference delay for any chunked ``PredictModelServer``, in sync mode: deterministic on any machine.
+"""Simulated inference delay for a chunked ``PredictModelServer``, in sync mode: deterministic on any machine.
 
 ``DelayedChunkServer`` wraps a server whose ``predict`` / ``predict_batch`` returns a ``[T, D]`` chunk and executes
-its chunks the way a policy whose inference takes ``d`` env steps would (naive async execution, as
-``KinetixRTCServer`` with ``method="naive"``, ``latency="steps"``):
+its chunks the way a policy whose inference takes ``d`` env steps would (naive async execution):
 
 - every ``s`` steps (``execute_steps``) it infers a chunk from that step's observation, on the model thread;
 - that chunk lands ``d`` steps later; until then the previous chunk keeps playing (its actions ``s .. s + d - 1``);
 - a chunk landing at step ``t + d`` is served from its action ``d``, the one meant for step ``t + d``.
 
-Each chunk thus serves ``s`` steps, from actions ``d .. s + d - 1`` (``s + d <= T``), and ``d <= s`` keeps one
-inference in flight.  The first chunk lands at once (official ``eval_flow.py``: computed before the loop), so ``d = 0``
-is exactly the wrapped server with ``chunk_size = s``.  Delay is charged per inference, not per message: a step served
-from a landed chunk costs nothing.  The step is the episode's observation index; nothing waits on wall time.
+The first chunk lands at once (official ``eval_flow.py``: computed before the loop) and serves steps ``0 .. s + d - 1``;
+each later chunk serves ``s`` steps, from actions ``d .. s + d - 1`` (``s + d <= T``).  ``d <= s`` keeps one inference
+in flight.  So ``d = 0`` is exactly the wrapped server with ``chunk_size = s``, and each step plays the action index
+``KinetixRTCServer`` plays with ``method="naive"``, ``latency="steps"``.  Kinetix infers twice from step 0's
+observation (an undelayed initial chunk, then chunk 0, landing at ``d``), this server once: for a stochastic policy,
+Kinetix's steps ``d .. s + d - 1`` come from a second sample.  Delay is charged per inference, not per message: a step
+served from a landed chunk costs nothing.  The step is the episode's observation index; nothing waits on wall time.
+
+The wrapped ``predict`` must not depend on which of its earlier actions ran: under a delay, each chunk after the first
+skips its first ``d`` actions.  A server whose state assumes its first ``chunk_size`` actions ran (e.g. X-VLA's
+RoboTwin and Google Robot profiles, which carry the last commanded pose to the next call) sets ``assumes_whole_chunks``
+and is refused.
 
 Enable it from a model-server config, with no change to the server script::
 
     extends: smolvla_libero.yaml
     latency: {delay_steps: 2, execute_steps: 10}   # or delay_s: 0.1, rounded up to whole steps of step_dt
 
-``delay_s`` needs the episode's ``step_dt`` (the benchmark's, sent in ``EPISODE_START``).  Live episodes are refused:
-live mode measures real latency.  Episodes infer one at a time (no cross-episode batching).
+``delay_s`` needs the episode's ``step_dt`` (the benchmark's, sent in ``EPISODE_START``).  HELLO reports the wrapped
+class (``inner_model_server``) and the ``latency`` block; results save them in ``server_info``.
+
+Limits: live episodes are refused (live mode measures real latency), and so is ``VECTOR_STEP`` (vector benchmarks).
+Episodes infer one at a time (no cross-episode batching): the wrapped server's engine is not used, so its
+``max_batch_size`` / ``max_wait_time`` (``GET /config``) do not apply.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import logging
 import math
 from dataclasses import dataclass
 from typing import Any
@@ -39,7 +52,10 @@ from vla_eval.types import EpisodeResult, Observation
 
 __all__ = ["DelayedChunkServer", "Latency"]
 
+logger = logging.getLogger(__name__)
+
 _EPS = 1e-9  # delay_s / step_dt rounding: 0.1 / 0.05 is 2 steps, not 3
+_ABORTED: EpisodeResult = {"status": "aborted", "failure_reason": None}  # a start rolled back after inner's reset
 
 
 @dataclass(frozen=True)
@@ -65,6 +81,8 @@ class Latency:
             raise ValueError(f"delay_s must be a finite number >= 0, got {self.delay_s!r}")
         if self.execute_steps is not None and not (_is_int(self.execute_steps) and self.execute_steps >= 1):
             raise ValueError(f"execute_steps must be an int >= 1, got {self.execute_steps!r}")
+        if self.delay_steps is not None and self.execute_steps is not None:
+            _check_delay(self.delay_steps, self.execute_steps)
 
     def steps(self, step_dt: float | None) -> int:
         """d for an episode of ``step_dt`` seconds per step."""
@@ -100,6 +118,11 @@ class DelayedChunkServer(DaemonModelServer):
     ) -> None:
         if not isinstance(inner, PredictModelServer):
             raise TypeError(f"DelayedChunkServer wraps a PredictModelServer, got {type(inner).__name__}")
+        if inner.assumes_whole_chunks:
+            raise ValueError(
+                f"{type(inner).__name__} assumes each chunk runs whole (assumes_whole_chunks): its predict "
+                "would go wrong when a delay skips a chunk's first actions"
+            )
         self.latency = Latency(delay_steps, delay_s, execute_steps)
         self.inner = inner
         self._batched = type(inner).predict_batch is not PredictModelServer.predict_batch
@@ -115,39 +138,52 @@ class DelayedChunkServer(DaemonModelServer):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         return self.inner.get_observation_spec()
 
+    def _hello_info(self) -> dict[str, Any]:
+        return {"inner_model_server": type(self.inner).__name__, "latency": dataclasses.asdict(self.latency)}
+
     # -- model thread ----------------------------------------------------------------------------------------------
 
     def reset_episodes(self, rows: Rows) -> dict[int, Exception] | None:
-        live = {i for i, episode in enumerate(rows.episodes) if episode.mode == "live"}
-        for episode in rows.episodes:  # as PredictionEngine: inner's reset may override it (e.g. per suite)
-            episode.chunk_size = self.inner.chunk_size
-        failed: dict[int, Exception] = dict.fromkeys(
-            live, ValueError("DelayedChunkServer simulates delay in sync mode; live mode measures real latency")
-        )
-        ok = [i for i in range(len(rows)) if i not in failed]
-        if ok:
-            out = self.inner.reset_episodes(rows if len(ok) == len(rows) else rows.take(ok)) or {}
-            failed.update({ok[j]: exc for j, exc in out.items()})
-        for i, row in enumerate(rows):
-            if i in failed:
-                continue
+        failed: dict[int, Exception] = {}
+        delays: dict[int, int] = {}
+        for i, episode in enumerate(rows.episodes):  # what needs no chunk size, before inner's reset
+            episode.chunk_size = self.inner.chunk_size  # as PredictionEngine: inner's reset may override it
             try:
-                self._schedules[row.id] = self._schedule(row.episode.chunk_size, row.episode.config.get("step_dt"))
+                if episode.mode == "live":
+                    raise ValueError("live mode measures real latency: DelayedChunkServer simulates it in sync")
+                delays[i] = self.latency.steps(episode.config.get("step_dt"))
+                if self.latency.execute_steps is not None:
+                    _check_delay(delays[i], self.latency.execute_steps)
             except Exception as exc:
                 failed[i] = exc
+        ok = [i for i in range(len(rows)) if i not in failed]
+        if not ok:
+            return failed
+        try:
+            out = self.inner.reset_episodes(rows if len(ok) == len(rows) else rows.take(ok)) or {}
+        except Exception as exc:
+            out = dict.fromkeys(range(len(ok)), exc)
+        failed.update({ok[j]: exc for j, exc in out.items()})
+        rollback: list[int] = []  # reset by inner, failed here: inner finishes them
+        for i in ok:
+            if i in failed:
+                continue
+            row = rows[i]
+            try:
+                s = self.latency.execute_steps or row.episode.chunk_size
+                if s is None:
+                    raise ValueError("latency needs execute_steps, or a chunk_size on the wrapped server")
+                _check_delay(delays[i], s)
+                self._schedules[row.id] = _Schedule(s, delays[i])
+            except Exception as exc:
+                failed[i] = exc
+                rollback.append(i)
+        if rollback:
+            try:
+                self.inner.finish_episodes(rows.take(rollback), [_ABORTED] * len(rollback))
+            except Exception:
+                logger.exception("finish failed while rolling back a start")
         return failed
-
-    def _schedule(self, chunk_size: int | None, step_dt: float | None) -> _Schedule:
-        s = self.latency.execute_steps or chunk_size
-        if s is None:
-            raise ValueError("latency needs execute_steps, or a chunk_size on the wrapped server")
-        d = self.latency.steps(step_dt)
-        if d > s:
-            raise ValueError(
-                f"a delay of {d} steps exceeds execute_steps={s}: one inference would start before "
-                "the last landed; raise execute_steps"
-            )
-        return _Schedule(s, d)
 
     def _chunk(self, obs: Observation, rows: Rows, need: int) -> np.ndarray:
         if self._batched:
@@ -187,6 +223,14 @@ class DelayedChunkServer(DaemonModelServer):
                 else:
                     landing = (j, chunk)
             await req.reply({"actions": plan[j - plan_t]})
+
+
+def _check_delay(d: int, s: int) -> None:
+    if d > s:
+        raise ValueError(
+            f"a delay of {d} steps exceeds execute_steps={s}: one inference would start before the last landed; "
+            "raise execute_steps"
+        )
 
 
 def _is_int(value: Any) -> bool:

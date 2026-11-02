@@ -479,6 +479,10 @@ class ModelServer(ABC):
     def _running(self) -> int:
         return self._size - len(self._free)
 
+    def _hello_info(self) -> dict[str, Any]:
+        """Extra HELLO fields, saved with the results in ``server_info`` (a wrapper: what it wraps)."""
+        return {}
+
 
 def _leaves(exc: BaseException) -> list[BaseException]:
     """The non-group exceptions of ``exc``, depth first."""
