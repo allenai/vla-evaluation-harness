@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import time
 
 import pytest
@@ -82,10 +84,30 @@ time.sleep(30)
 
 def test_panic_exits_even_when_logging_is_wedged() -> None:
     # Regression: logging.shutdown() blocked on the malloc lock and os._exit never ran.
-    import subprocess
-    import sys
-
     proc = subprocess.run([sys.executable, "-c", _WEDGED_LOGGING_SCRIPT], capture_output=True, text=True, timeout=20)
     assert proc.returncode == watchdog.PANIC_EXIT_CODE
     assert "Progress watchdog: no progress for" in proc.stderr
     assert "most recent call first" in proc.stderr  # faulthandler stack dump
+
+
+_FULL_STDERR_PIPE_SCRIPT = """
+import os, time
+from vla_eval import watchdog
+
+r, w = os.pipe()  # read end kept open but never drained, like a wedged tee reader
+os.set_blocking(w, False)
+try:
+    while True:
+        os.write(w, b"x" * 4096)
+except BlockingIOError:
+    pass
+os.set_blocking(w, True)
+os.dup2(w, 2)
+watchdog.ProgressWatchdog(0.2).start()
+time.sleep(30)
+"""
+
+
+def test_panic_exits_when_stderr_pipe_is_full() -> None:
+    proc = subprocess.run([sys.executable, "-c", _FULL_STDERR_PIPE_SCRIPT], capture_output=True, timeout=20)
+    assert proc.returncode == watchdog.PANIC_EXIT_CODE

@@ -59,17 +59,14 @@ class ProgressWatchdog:
                 self._panic(idle)
 
     def _panic(self, idle: float) -> None:
-        # The wedge may be a crash handler stuck inside free() on the thread that holds the
-        # glibc malloc arena lock (Isaac's breakpad after a SIGSEGV inside malloc). Closing
-        # logging handlers frees their buffers and blocked on that same lock, so os._exit was
-        # never reached. Skip logging entirely: one raw write of a short message (small
-        # strings come from pymalloc pools, not glibc), a faulthandler dump (writes to the fd
-        # without allocating), then exit.
+        # free() can block forever on a malloc lock held by a crashed thread, so skip logging; stderr may be a
+        # pipe nobody drains (RoboDojo tees fd 2), so write non-blocking. Only os._exit must be reached.
         msg = (
             f"Progress watchdog: no progress for {idle:.0f}s (phase: {self.phase()!r}) — process "
             f"wedged (likely a native sim hang); os._exit({PANIC_EXIT_CODE}).\n"
         )
         try:
+            os.set_blocking(2, False)
             os.write(2, msg.encode("utf-8", "replace"))
             faulthandler.dump_traceback(2, all_threads=True)
         except Exception:  # a closed/invalid stderr must not keep the process alive
