@@ -1,0 +1,16 @@
+# LADDER SimplerEnv-Long evaluation (54 tasks x 24 episodes, SAPIEN 3 / ManiSkill 3).
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/ladder-simpler:latest
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.ladder.benchmark:LadderSimplerBenchmark"
+    episodes_per_task: 24
+    action_dim: 7
+    params:
+      num_envs: 24
+      action_mode: "delta_ee"

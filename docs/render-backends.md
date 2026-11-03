@@ -58,6 +58,9 @@ path.
 | MIKASA-Robo | SAPIEN 3.0.0b1 | ✅ | ❌ | — | same |
 | BEHAVIOR-1K | OmniGibson (Isaac Sim) | ✅ | ❌ | — | Isaac Sim dumps core during extension startup with no GPU |
 | RoboDojo | Isaac Lab | ✅ | ❌ | — | Isaac reports `ERROR_INCOMPATIBLE_DRIVER` / "Failed to create any GPU devices" with no GPU; the RTX renderer has no software path |
+| LADDER (`SimplerEnv-Long`) | SAPIEN 3.0.3 | ✅ | ✅ | lavapipe (software Vulkan) | Uses Mesa 26.2.1 lavapipe in `/opt/lavapipe-env` and switches ManiSkill3 `sim_backend` to `cpu` |
+| LADDER (`RobotArena-Long`) | Genesis | ✅ | ❌ | — | Requires GPU rasterization / Taichi CUDA |
+| LADDER (`RoboLab-Long`) | Isaac Lab 3 (Isaac Sim 6) | ✅ | ❌ | — | Isaac RTX renderer requires NVIDIA GPU |
 
 **AMD GPUs**: the harness can attach ROCm devices — on a ROCm runtime, `docker.gpus`
 mounts `/dev/kfd` and `/dev/dri` instead of passing `--gpus` — but no benchmark's
