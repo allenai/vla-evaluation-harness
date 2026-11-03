@@ -1,6 +1,9 @@
 # VLABench evaluation environment (MuJoCo-based)
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+ARG PREV_IMAGE=ghcr.io/allenai/vla-evaluation-harness/vlabench:0.8.0
+FROM ${PREV_IMAGE} AS prev
+
 FROM ${BASE_IMAGE}
 
 ENV VLABENCH_ROOT=/app/VLABench/VLABench
@@ -52,10 +55,12 @@ RUN mkdir -p /app/VLABench && \
     uv pip install --no-cache-dir -e . && \
     rm -rf /app/VLABench/.git
 
-# Download assets (obj + scene from Google Drive)
-RUN cd /app/VLABench && \
-    python scripts/download_assets.py || \
-    echo "WARNING: Asset download failed — may need manual download"
+# Download assets (obj + scene from Google Drive). Drive's quota can refuse it; then reuse the
+# previous image's copy (same VLABENCH_REF), and fail the build only if neither works.
+RUN --mount=from=prev,source=/app/VLABench/VLABench/assets,target=/tmp/prev-assets \
+    cd /app/VLABench && \
+    { python scripts/download_assets.py \
+      || { rm -rf VLABench/assets && cp -a /tmp/prev-assets VLABench/assets; }; }
 
 WORKDIR /workspace
 COPY pyproject.toml README.md ./
