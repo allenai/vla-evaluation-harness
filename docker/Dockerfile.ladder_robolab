@@ -35,7 +35,7 @@ RUN mkdir -p /app/robolab_src /app/openpi_src /app/ladder/ladder/components/infe
     && curl -fsSL https://github.com/insait-institute/ladder/releases/download/v1.0.0/openpi_src.tar.gz \
        | tar -xz --strip-components=1 -C /app/openpi_src
 
-RUN uv pip install --no-cache-dir --prerelease=allow \
+RUN uv pip install --no-cache-dir --prerelease=allow --index-strategy unsafe-best-match \
         --extra-index-url https://pypi.nvidia.com \
         --extra-index-url https://download.pytorch.org/whl/cu128 \
         "isaacsim[all,extscache]==6.0.0.1" \
@@ -43,7 +43,7 @@ RUN uv pip install --no-cache-dir --prerelease=allow \
         "torch==2.11.0+cu128" \
         "torchvision==0.26.0+cu128" \
         "pytorch-kinematics==0.7.6" \
-        h5py imageio imageio-ffmpeg json_numpy matplotlib pandas python-dotenv requests "setuptools<81" tyro websockets \
+        h5py imageio imageio-ffmpeg json_numpy matplotlib pandas python-dotenv requests "setuptools<81" tyro websockets deepdiff frozendict overrides \
     && uv pip install --no-cache-dir --no-deps /app/openpi_src/packages/openpi-client
 
 ENV LADDER_ROOT=/app/ladder

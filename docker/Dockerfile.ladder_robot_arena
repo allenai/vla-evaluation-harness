@@ -19,8 +19,13 @@ RUN mkdir -p /app/ladder \
 
 RUN uv pip install --no-cache-dir "torch==2.7.0" --index-url https://download.pytorch.org/whl/cu128 \
     && uv pip install --no-cache-dir \
-        "genesis-world>=0.4.0" \
-        gymnasium numpy opencv-python-headless scipy pyyaml
+        "genesis-world==0.4.3" \
+        "quadrants==0.4.4" \
+        "numpy<2" \
+        "scipy<1.15" \
+        "opencv-python-headless<4.12" \
+        "opencv-python<4.12" \
+        gymnasium pyyaml deepdiff frozendict overrides
 
 # Download pinned RobotArena assets from LADDER v1.0.0 release
 RUN mkdir -p /app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data \

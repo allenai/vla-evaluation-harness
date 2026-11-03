@@ -40,20 +40,26 @@ def _intrinsic_xyz_to_matrix(euler: np.ndarray) -> np.ndarray:
 
 def _ensure_ladder_on_path(root: Path) -> None:
     """Ensure the ``ladder`` package is importable from *root* when not already installed."""
+    for p in (
+        root / "openpi_src" / "packages" / "openpi-client" / "src",
+        root / "robolab_src",
+        root / "build_support" / "python",
+        root,
+    ):
+        if p.is_dir():
+            s = str(p)
+            if s not in sys.path:
+                sys.path.insert(0, s)
     try:
-        import ladder  # noqa: F401
+        import ladder.components  # noqa: F401
 
         return
     except ImportError:
-        pass
+        sys.modules.pop("ladder", None)
     if not (root / "ladder").is_dir():
         raise FileNotFoundError(
             f"LADDER source tree not found at {root}. Set LADDER_ROOT or pass root=... in benchmark params."
         )
-    for p in (root / "build_support" / "python", root):
-        s = str(p)
-        if p.is_dir() and s not in sys.path:
-            sys.path.insert(0, s)
 
 
 class _LadderVectorBenchmark(VectorStepBenchmark):
