@@ -18,6 +18,9 @@
 # `vla-eval run`, scripts/run_sharded.sh shards whole tasks (see README).
 server:
   url: "ws://localhost:8000"
+  # Three 640x480 cameras per env, num_envs at once: PNG encoding saturates the benchmark CPU while
+  # the model server waits. Raw is a memcpy; use png/jpeg when the server is across a slow network.
+  image_format: raw
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robodojo:latest
