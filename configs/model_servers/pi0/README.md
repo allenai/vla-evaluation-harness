@@ -12,3 +12,4 @@ Flow-matching VLA from Physical Intelligence. [Paper](https://arxiv.org/abs/2410
 |------|-----------|------------|
 | `libero.yaml` | LIBERO | π₀ |
 | `libero_fast.yaml` | LIBERO | π₀-FAST |
+| `droid.yaml` | DROID / LADDER RoboLab-Long | π₀.₅ DROID |

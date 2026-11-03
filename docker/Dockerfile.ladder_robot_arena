@@ -1,0 +1,42 @@
+# LADDER RobotArena-Long evaluation environment (Genesis >= 0.4.0)
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+RUN conda create -n ladder_robot_arena python=3.11 pip -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "ladder_robot_arena", "/bin/bash", "-c"]
+
+WORKDIR /app
+ARG LADDER_REF=6c88eea
+RUN mkdir -p /app/ladder \
+    && cd /app/ladder \
+    && git init -q \
+    && git remote add origin https://github.com/insait-institute/ladder.git \
+    && git fetch -q --depth 1 origin "${LADDER_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && rm -rf .git
+
+RUN uv pip install --no-cache-dir "torch==2.7.0" --index-url https://download.pytorch.org/whl/cu128 \
+    && uv pip install --no-cache-dir \
+        "genesis-world>=0.4.0" \
+        gymnasium numpy opencv-python-headless scipy pyyaml
+
+# Download pinned RobotArena assets from LADDER v1.0.0 release
+RUN mkdir -p /app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data \
+    && curl -fsSL https://github.com/insait-institute/ladder/releases/download/v1.0.0/robot_arena_assets.tar.gz \
+       | tar -xz --strip-components=1 -C /app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data
+
+ENV LADDER_ROOT=/app/ladder
+ENV LADDER_ROBOT_ARENA_ASSETS=/app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data/examples/data
+
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "ladder_robot_arena", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/robot_arena_smoke.yaml"]

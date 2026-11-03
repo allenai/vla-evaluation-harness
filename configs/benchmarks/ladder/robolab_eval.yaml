@@ -1,0 +1,23 @@
+# LADDER RoboLab-Long full evaluation (44 tasks x 8 episodes, Isaac Sim 6 / Isaac Lab 3).
+server:
+  url: "ws://localhost:8000"
+
+docker:
+  image: ghcr.io/allenai/vla-evaluation-harness/ladder-robolab:latest
+  env:
+    - "NVIDIA_DRIVER_CAPABILITIES=all"
+    - "ACCEPT_EULA=Y"
+    - "OMNI_KIT_ACCEPT_EULA=YES"
+    - "PRIVACY_CONSENT=Y"
+    - "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json"
+    - "VK_DRIVER_FILES=/usr/share/vulkan/icd.d/nvidia_icd.json"
+
+output_dir: "./results"
+
+benchmarks:
+  - benchmark: "vla_eval.benchmarks.ladder.benchmark:LadderRoboLabBenchmark"
+    episodes_per_task: 8
+    action_dim: 8
+    params:
+      num_envs: 8
+      action_mode: "joint_pos"
