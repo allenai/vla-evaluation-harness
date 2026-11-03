@@ -50,9 +50,10 @@ RUN wget -qO /tmp/miniforge.sh \
 ENV PATH=/opt/conda/bin:$PATH
 
 # ── uv (fast Python package installer) ───────────────────────────────
-COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /usr/local/bin/uv
-# Pins simulator installs; harness installs drop it (env -u) so pyproject's exclude-newer applies.
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
+# Simulator installs resolve to this date. A config file, not ENV: a project's own
+# exclude-newer (the harness's pyproject) must win over it, and ENV would win over both.
 ARG UV_EXCLUDE_NEWER=2026-07-07
-ENV UV_EXCLUDE_NEWER=${UV_EXCLUDE_NEWER}
+RUN mkdir -p /etc/uv && printf 'exclude-newer = "%s"\n' "${UV_EXCLUDE_NEWER}" > /etc/uv/uv.toml
 
 WORKDIR /workspace
