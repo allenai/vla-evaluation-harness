@@ -1,6 +1,7 @@
 # Minimal RoboDojo smoke test: dual ARX-X5, one task, one episode.
 server:
   url: "ws://localhost:8000"
+  image_format: raw  # see eval.yaml
 
 docker:
   image: ghcr.io/allenai/vla-evaluation-harness/robodojo:latest
