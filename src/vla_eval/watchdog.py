@@ -7,6 +7,7 @@ os._exit reliably kills a process stuck in native code.
 
 from __future__ import annotations
 
+import faulthandler
 import logging
 import os
 import threading
@@ -55,15 +56,25 @@ class ProgressWatchdog:
         while not self._stopped.wait(poll):
             idle = self.idle_s()
             if idle > self._timeout_s:
-                logger.critical(
-                    "Progress watchdog: no progress for %.0fs (phase: %r) — process wedged "
-                    "(likely a native SAPIEN/Vulkan hang); os._exit(%d).",
-                    idle,
-                    self.phase(),
-                    PANIC_EXIT_CODE,
-                )
-                logging.shutdown()  # os._exit skips atexit — flush the panic log first
-                os._exit(PANIC_EXIT_CODE)
+                self._panic(idle)
+
+    def _panic(self, idle: float) -> None:
+        # The wedge may be a crash handler stuck inside free() on the thread that holds the
+        # glibc malloc arena lock (Isaac's breakpad after a SIGSEGV inside malloc). Closing
+        # logging handlers frees their buffers and blocked on that same lock, so os._exit was
+        # never reached. Skip logging entirely: one raw write of a short message (small
+        # strings come from pymalloc pools, not glibc), a faulthandler dump (writes to the fd
+        # without allocating), then exit.
+        msg = (
+            f"Progress watchdog: no progress for {idle:.0f}s (phase: {self.phase()!r}) — process "
+            f"wedged (likely a native sim hang); os._exit({PANIC_EXIT_CODE}).\n"
+        )
+        try:
+            os.write(2, msg.encode("utf-8", "replace"))
+            faulthandler.dump_traceback(2, all_threads=True)
+        except Exception:  # a closed/invalid stderr must not keep the process alive
+            pass
+        os._exit(PANIC_EXIT_CODE)
 
 
 _watchdog: ProgressWatchdog | None = None

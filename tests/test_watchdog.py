@@ -61,3 +61,31 @@ def test_pet_without_phase_keeps_phase_and_refreshes_idle():
     assert dog.idle_s() >= 50
     dog.pet()
     assert dog.idle_s() < 1 and dog.phase() == "bench task ep3"
+
+
+_WEDGED_LOGGING_SCRIPT = """
+import logging, threading, time
+from vla_eval import watchdog
+
+class Wedged(logging.Handler):
+    # Stands in for a handler stuck on the malloc lock held by a crashed thread.
+    def emit(self, record):
+        threading.Event().wait()
+    def flush(self):
+        threading.Event().wait()
+
+logging.getLogger().addHandler(Wedged())
+watchdog.ProgressWatchdog(0.2).start()
+time.sleep(30)
+"""
+
+
+def test_panic_exits_even_when_logging_is_wedged() -> None:
+    # Regression: logging.shutdown() blocked on the malloc lock and os._exit never ran.
+    import subprocess
+    import sys
+
+    proc = subprocess.run([sys.executable, "-c", _WEDGED_LOGGING_SCRIPT], capture_output=True, text=True, timeout=20)
+    assert proc.returncode == watchdog.PANIC_EXIT_CODE
+    assert "Progress watchdog: no progress for" in proc.stderr
+    assert "most recent call first" in proc.stderr  # faulthandler stack dump
