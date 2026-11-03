@@ -58,7 +58,6 @@ SIMPLER_TASKS: tuple[str, ...] = (
     "spoons4",
     "spoons5",
 )
-SIMPLER_LITE_TASKS: tuple[str, ...] = ("relay7e", "split3")
 
 ROBOT_ARENA_TASKS: tuple[str, ...] = (
     "scene36_1goal",
@@ -109,12 +108,6 @@ ROBOT_ARENA_TASKS: tuple[str, ...] = (
     "scene76_2goal",
     "scene76_2goal_ordered",
 )
-ROBOT_ARENA_LITE_TASKS: tuple[str, ...] = (
-    "scene36_1goal",
-    "scene45_6goal",
-    "scene54_split_3",
-    "scene76_2goal",
-)
 
 ROBOLAB_TASKS: tuple[str, ...] = (
     "comp_bin_1",
@@ -161,12 +154,6 @@ ROBOLAB_TASKS: tuple[str, ...] = (
     "comp_split_plate_8",
     "comp_transfer_2",
     "comp_transfer_3",
-)
-ROBOLAB_LITE_TASKS: tuple[str, ...] = (
-    "comp_ordered_bin_4",
-    "comp_relay_3",
-    "comp_route_10",
-    "comp_transfer_2",
 )
 
 # Published 8-episode object XY offset grid (widowx_composition_k8.yaml).

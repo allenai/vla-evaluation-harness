@@ -53,4 +53,4 @@ RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "ladder_simpler", "vla-eval"]
-CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/simpler_smoke.yaml"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/simpler.yaml"]

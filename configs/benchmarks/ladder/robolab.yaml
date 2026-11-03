@@ -1,4 +1,4 @@
-# LADDER-Lite RoboLab-Long subset (4 tasks x 8 episodes).
+# LADDER RoboLab-Long evaluation (44 tasks x 8 episodes, Isaac Sim 6 / Isaac Lab 3).
 server:
   url: "ws://localhost:8000"
 
@@ -20,5 +20,4 @@ benchmarks:
     action_dim: 8
     params:
       num_envs: 8
-      tasks: "lite"
       action_mode: "joint_pos"

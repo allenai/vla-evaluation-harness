@@ -9,11 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from vla_eval.benchmarks.ladder.base import _LadderVectorBenchmark, _ensure_ladder_on_path
-from vla_eval.benchmarks.ladder.tasks import (
-    ROBOT_ARENA_K8_OFFSETS,
-    ROBOT_ARENA_LITE_TASKS,
-    ROBOT_ARENA_TASKS,
-)
+from vla_eval.benchmarks.ladder.tasks import ROBOT_ARENA_K8_OFFSETS, ROBOT_ARENA_TASKS
 from vla_eval.dirs import assets_cache
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 
@@ -23,44 +19,11 @@ class LadderRobotArenaBenchmark(_LadderVectorBenchmark):
 
     SUITE_NAME: ClassVar[str] = "ladder_robot_arena"
     DEFAULT_TASKS: ClassVar[tuple[str, ...]] = ROBOT_ARENA_TASKS
-    LITE_TASKS: ClassVar[tuple[str, ...]] = ROBOT_ARENA_LITE_TASKS
     DEFAULT_MAX_STEPS: ClassVar[int] = 1000
     step_dt = 0.2
 
-    def __init__(
-        self,
-        num_envs: int = 8,
-        tasks: list[str] | str | None = None,
-        root: str | None = None,
-        assets_dir: str | None = None,
-        action_mode: str = "delta_ee",
-        control_mode: str | None = None,
-        max_episode_steps: int | None = None,
-        success_mode: str | None = None,
-        terminate_on_success: bool = True,
-        send_state: bool = True,
-        send_wrist_image: bool = True,
-        expose_oracle: bool = False,
-        expose_privileged: bool = False,
-        publish_depth: bool = False,
-        seed: int = 42,
-    ) -> None:
-        super().__init__(
-            num_envs=num_envs,
-            tasks=tasks,
-            root=root,
-            assets_dir=assets_dir,
-            action_mode=action_mode,
-            control_mode=control_mode,
-            max_episode_steps=max_episode_steps,
-            success_mode=success_mode,
-            terminate_on_success=terminate_on_success,
-            send_state=send_state,
-            send_wrist_image=send_wrist_image,
-            expose_oracle=expose_oracle,
-            expose_privileged=expose_privileged,
-            publish_depth=publish_depth,
-        )
+    def __init__(self, num_envs: int = 8, seed: int = 42, **kwargs: Any) -> None:
+        super().__init__(num_envs=num_envs, **kwargs)
         self._seed = int(seed)
         self._env: Any = None
         self._padded_single = False
@@ -116,8 +79,6 @@ class LadderRobotArenaBenchmark(_LadderVectorBenchmark):
             sim_freq=200,
             sim_substeps=1,
             rigid_constraint_timeconst=0.02,
-            expose_privileged=self._expose_privileged,
-            publish_depth=self._publish_depth,
             camera_width=640,
             camera_height=480,
             per_env_object_offsets=offsets,

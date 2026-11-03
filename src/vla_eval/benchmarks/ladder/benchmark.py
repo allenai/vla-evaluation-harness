@@ -17,12 +17,9 @@ from vla_eval.benchmarks.ladder.robolab import LadderRoboLabBenchmark
 from vla_eval.benchmarks.ladder.robot_arena import LadderRobotArenaBenchmark
 from vla_eval.benchmarks.ladder.simpler import SIMPLER_LAVAPIPE_ICD_ENV_VAR, LadderSimplerBenchmark
 from vla_eval.benchmarks.ladder.tasks import (
-    ROBOLAB_LITE_TASKS,
     ROBOLAB_TASKS,
     ROBOT_ARENA_K8_OFFSETS,
-    ROBOT_ARENA_LITE_TASKS,
     ROBOT_ARENA_TASKS,
-    SIMPLER_LITE_TASKS,
     SIMPLER_TASKS,
 )
 
@@ -30,12 +27,9 @@ __all__ = [
     "LadderRoboLabBenchmark",
     "LadderRobotArenaBenchmark",
     "LadderSimplerBenchmark",
-    "ROBOLAB_LITE_TASKS",
     "ROBOLAB_TASKS",
     "ROBOT_ARENA_K8_OFFSETS",
-    "ROBOT_ARENA_LITE_TASKS",
     "ROBOT_ARENA_TASKS",
     "SIMPLER_LAVAPIPE_ICD_ENV_VAR",
-    "SIMPLER_LITE_TASKS",
     "SIMPLER_TASKS",
 ]

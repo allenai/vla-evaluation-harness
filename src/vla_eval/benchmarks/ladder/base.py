@@ -67,7 +67,6 @@ class _LadderVectorBenchmark(VectorStepBenchmark):
 
     SUITE_NAME: ClassVar[str] = "ladder"
     DEFAULT_TASKS: ClassVar[tuple[str, ...]] = ()
-    LITE_TASKS: ClassVar[tuple[str, ...]] = ()
     DEFAULT_MAX_STEPS: ClassVar[int] = 1000
 
     def __init__(
@@ -78,22 +77,15 @@ class _LadderVectorBenchmark(VectorStepBenchmark):
         assets_dir: str | None = None,
         action_mode: str = "delta_ee",
         control_mode: str | None = None,
-        max_episode_steps: int | None = None,
-        success_mode: str | None = None,
         terminate_on_success: bool = True,
         send_state: bool = True,
         send_wrist_image: bool = True,
-        expose_oracle: bool = False,
-        expose_privileged: bool = False,
-        publish_depth: bool = False,
     ) -> None:
         super().__init__(num_envs)
         if isinstance(tasks, str):
-            resolved_tasks = list(self.LITE_TASKS if tasks == "lite" else [tasks])
+            resolved_tasks = [tasks]
         elif tasks is None:
             resolved_tasks = list(self.DEFAULT_TASKS)
-        elif list(tasks) == ["lite"]:
-            resolved_tasks = list(self.LITE_TASKS)
         else:
             resolved_tasks = list(tasks)
         unknown = [t for t in resolved_tasks if t not in self.DEFAULT_TASKS]
@@ -110,14 +102,9 @@ class _LadderVectorBenchmark(VectorStepBenchmark):
         self._assets_dir = Path(assets_dir).expanduser().resolve() if assets_dir else None
         self._action_mode = action_mode
         self._control_mode = control_mode
-        self._max_episode_steps = max_episode_steps
-        self._success_mode = success_mode
         self._terminate_on_success = bool(terminate_on_success)
         self._send_state = bool(send_state)
         self._send_wrist_image = bool(send_wrist_image)
-        self._expose_oracle = bool(expose_oracle)
-        self._expose_privileged = bool(expose_privileged)
-        self._publish_depth = bool(publish_depth)
 
         self._active_slots: list[int] = []
         self._slot_to_env: dict[int, int] = {}
@@ -271,10 +258,6 @@ class _LadderVectorBenchmark(VectorStepBenchmark):
                 obs_out["tcp_pose"] = np.concatenate(
                     [eef_pose[:3, 3], np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)]
                 )
-        if self._expose_oracle and oracle is not None:
-            obs_out["oracle"] = oracle
-        if self._expose_privileged and "privileged_state" in metadata:
-            obs_out["privileged_state"] = metadata["privileged_state"]
 
         frame = images.get("main")
         if frame is None and images:

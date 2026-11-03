@@ -60,4 +60,4 @@ RUN uv pip install --no-cache-dir -e .
 COPY configs/ configs/
 
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "ladder_robolab", "vla-eval"]
-CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/robolab_smoke.yaml"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/robolab.yaml"]

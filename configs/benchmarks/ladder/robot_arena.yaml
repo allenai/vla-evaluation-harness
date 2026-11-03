@@ -1,4 +1,4 @@
-# LADDER RobotArena-Long full evaluation (47 tasks x 8 episodes, Genesis).
+# LADDER RobotArena-Long evaluation (47 tasks x 8 episodes, Genesis).
 server:
   url: "ws://localhost:8000"
 

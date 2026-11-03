@@ -11,7 +11,7 @@ from typing import Any, ClassVar, TypeVar
 import numpy as np
 
 from vla_eval.benchmarks.ladder.base import _LadderVectorBenchmark, _ensure_ladder_on_path
-from vla_eval.benchmarks.ladder.tasks import ROBOLAB_LITE_TASKS, ROBOLAB_TASKS
+from vla_eval.benchmarks.ladder.tasks import ROBOLAB_TASKS
 from vla_eval.dirs import assets_cache
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 
@@ -31,7 +31,6 @@ class LadderRoboLabBenchmark(_LadderVectorBenchmark):
 
     SUITE_NAME: ClassVar[str] = "ladder_robolab"
     DEFAULT_TASKS: ClassVar[tuple[str, ...]] = ROBOLAB_TASKS
-    LITE_TASKS: ClassVar[tuple[str, ...]] = ROBOLAB_LITE_TASKS
     DEFAULT_MAX_STEPS: ClassVar[int] = 1500
     hard_exit: ClassVar[bool] = True
     step_dt = 1.0 / 15.0
@@ -39,37 +38,11 @@ class LadderRoboLabBenchmark(_LadderVectorBenchmark):
     def __init__(
         self,
         num_envs: int = 8,
-        tasks: list[str] | str | None = None,
-        root: str | None = None,
-        assets_dir: str | None = None,
         action_mode: str = "joint_pos",
-        control_mode: str | None = None,
-        max_episode_steps: int | None = None,
-        success_mode: str | None = None,
-        terminate_on_success: bool = True,
-        send_state: bool = True,
-        send_wrist_image: bool = True,
-        expose_oracle: bool = False,
-        expose_privileged: bool = False,
-        publish_depth: bool = False,
         image_size: tuple[int, int] = (224, 224),
+        **kwargs: Any,
     ) -> None:
-        super().__init__(
-            num_envs=num_envs,
-            tasks=tasks,
-            root=root,
-            assets_dir=assets_dir,
-            action_mode=action_mode,
-            control_mode=control_mode,
-            max_episode_steps=max_episode_steps,
-            success_mode=success_mode,
-            terminate_on_success=terminate_on_success,
-            send_state=send_state,
-            send_wrist_image=send_wrist_image,
-            expose_oracle=expose_oracle,
-            expose_privileged=expose_privileged,
-            publish_depth=publish_depth,
-        )
+        super().__init__(num_envs=num_envs, action_mode=action_mode, **kwargs)
         self._image_size = (int(image_size[0]), int(image_size[1]))
         self._env: Any = None
         self._env_cfg: Any = None

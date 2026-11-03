@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 import numpy as np
 
 from vla_eval.benchmarks.ladder.base import _LadderVectorBenchmark, _ensure_ladder_on_path
-from vla_eval.benchmarks.ladder.tasks import SIMPLER_LITE_TASKS, SIMPLER_TASKS
+from vla_eval.benchmarks.ladder.tasks import SIMPLER_TASKS
 from vla_eval.dirs import assets_cache
 from vla_eval.render import DEFAULT_RENDER_MODE, assert_lavapipe_vulkan, configure_sapien_render
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
@@ -22,7 +22,6 @@ class LadderSimplerBenchmark(_LadderVectorBenchmark):
 
     SUITE_NAME: ClassVar[str] = "ladder_simpler"
     DEFAULT_TASKS: ClassVar[tuple[str, ...]] = SIMPLER_TASKS
-    LITE_TASKS: ClassVar[tuple[str, ...]] = SIMPLER_LITE_TASKS
     DEFAULT_MAX_STEPS: ClassVar[int] = 1000
     step_dt = 0.2
 
@@ -35,39 +34,8 @@ class LadderSimplerBenchmark(_LadderVectorBenchmark):
         cls._render_mode = mode
         return applied
 
-    def __init__(
-        self,
-        num_envs: int = 24,
-        tasks: list[str] | str | None = None,
-        root: str | None = None,
-        assets_dir: str | None = None,
-        action_mode: str = "delta_ee",
-        control_mode: str | None = None,
-        max_episode_steps: int | None = None,
-        success_mode: str | None = None,
-        terminate_on_success: bool = True,
-        send_state: bool = True,
-        send_wrist_image: bool = True,
-        expose_oracle: bool = False,
-        expose_privileged: bool = False,
-        publish_depth: bool = False,
-    ) -> None:
-        super().__init__(
-            num_envs=num_envs,
-            tasks=tasks,
-            root=root,
-            assets_dir=assets_dir,
-            action_mode=action_mode,
-            control_mode=control_mode,
-            max_episode_steps=max_episode_steps,
-            success_mode=success_mode,
-            terminate_on_success=terminate_on_success,
-            send_state=send_state,
-            send_wrist_image=send_wrist_image,
-            expose_oracle=expose_oracle,
-            expose_privileged=expose_privileged,
-            publish_depth=publish_depth,
-        )
+    def __init__(self, num_envs: int = 24, **kwargs: Any) -> None:
+        super().__init__(num_envs=num_envs, **kwargs)
         self._env: Any = None
         self._current_key: tuple[str, int] | None = None
 
@@ -115,8 +83,6 @@ class LadderSimplerBenchmark(_LadderVectorBenchmark):
                 raytracing=False,
                 n_envs=n_envs,
                 episode_layouts=max(24, max(episode_ids, default=0) + 1),
-                expose_privileged=self._expose_privileged,
-                publish_depth=self._publish_depth,
             )
             if self._render_mode == "cpu" or not torch.cuda.is_available():
                 from mani_skill.utils.structs.types import SimConfig
@@ -125,7 +91,7 @@ class LadderSimplerBenchmark(_LadderVectorBenchmark):
                     return gym.make(
                         f"{task_name}-v1",
                         num_envs=n_envs,
-                        obs_mode="rgb+depth+segmentation" if self._publish_depth else "rgb+segmentation",
+                        obs_mode="rgb+segmentation",
                         sim_backend="cpu",
                         control_mode=ABS_CONTROL_MODE,
                         max_episode_steps=None,

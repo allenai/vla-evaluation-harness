@@ -1,4 +1,4 @@
-# LADDER SimplerEnv-Long full evaluation (54 tasks x 24 episodes, SAPIEN 3 / ManiSkill 3).
+# LADDER SimplerEnv-Long evaluation (54 tasks x 24 episodes, SAPIEN 3 / ManiSkill 3).
 server:
   url: "ws://localhost:8000"
 
