@@ -7,6 +7,7 @@ os._exit reliably kills a process stuck in native code.
 
 from __future__ import annotations
 
+import faulthandler
 import logging
 import os
 import threading
@@ -55,15 +56,22 @@ class ProgressWatchdog:
         while not self._stopped.wait(poll):
             idle = self.idle_s()
             if idle > self._timeout_s:
-                logger.critical(
-                    "Progress watchdog: no progress for %.0fs (phase: %r) — process wedged "
-                    "(likely a native SAPIEN/Vulkan hang); os._exit(%d).",
-                    idle,
-                    self.phase(),
-                    PANIC_EXIT_CODE,
-                )
-                logging.shutdown()  # os._exit skips atexit — flush the panic log first
-                os._exit(PANIC_EXIT_CODE)
+                self._panic(idle)
+
+    def _panic(self, idle: float) -> None:
+        # free() can block forever on a malloc lock held by a crashed thread, so skip logging; stderr may be a
+        # pipe nobody drains (RoboDojo tees fd 2), so write non-blocking. Only os._exit must be reached.
+        msg = (
+            f"Progress watchdog: no progress for {idle:.0f}s (phase: {self.phase()!r}) — process "
+            f"wedged (likely a native sim hang); os._exit({PANIC_EXIT_CODE}).\n"
+        )
+        try:
+            os.set_blocking(2, False)
+            os.write(2, msg.encode("utf-8", "replace"))
+            faulthandler.dump_traceback(2, all_threads=True)
+        except Exception:  # a closed/invalid stderr must not keep the process alive
+            pass
+        os._exit(PANIC_EXIT_CODE)
 
 
 _watchdog: ProgressWatchdog | None = None
