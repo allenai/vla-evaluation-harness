@@ -522,12 +522,28 @@ def _parse_address(address: str, default_host: str = "0.0.0.0", default_port: in
     return host, port
 
 
+def _with_latency(server: ModelServer, delay_steps: int | None, execute_steps: int | None) -> ModelServer:
+    """``server`` wrapped in ``DelayedChunkServer`` when a ``latency`` block is given, else unchanged."""
+    if delay_steps is None and execute_steps is None:
+        return server
+    if delay_steps is None or execute_steps is None:
+        raise ValueError("latency needs both delay_steps and execute_steps")
+    from vla_eval.model_servers.delayed_chunk import DelayedChunkServer
+    from vla_eval.model_servers.predict import PredictModelServer
+
+    if not isinstance(server, PredictModelServer):
+        raise TypeError(f"latency wraps a PredictModelServer, got {type(server).__name__}")
+    return DelayedChunkServer(server, delay_steps=delay_steps, execute_steps=execute_steps)
+
+
 def run_server(server_cls: type[ModelServer]) -> None:
     """Standard entrypoint for model server scripts.
 
     ``--config <yaml>`` reads the model-server yaml directly via
     ``ActionConfigFile``; the yaml's ``args:`` sub-dict maps to
     ``server_cls.__init__`` kwargs. CLI overrides use ``--args.<key>=<value>``.
+    An optional top-level ``latency: {delay_steps, execute_steps}`` wraps the
+    server in ``DelayedChunkServer`` (step-counted inference delay, sync mode).
     """
     from jsonargparse import ActionConfigFile, ArgumentParser
 
@@ -540,6 +556,8 @@ def run_server(server_cls: type[ModelServer]) -> None:
     # ``script`` is host-side yaml metadata; absorb here so the same yaml loads.
     parser.add_argument("--script", default=None, help=argparse.SUPPRESS)
     parser.add_class_arguments(server_cls, nested_key="args", fail_untyped=False, sub_configs=True)
+    parser.add_argument("--latency.delay_steps", type=int | None, default=None, help="d: steps a chunk lands late")
+    parser.add_argument("--latency.execute_steps", type=int | None, default=None, help="s: steps between inferences")
 
     cfg = parser.parse_args()
 
@@ -552,7 +570,7 @@ def run_server(server_cls: type[ModelServer]) -> None:
     if cfg.address:
         host, port = _parse_address(cfg.address, host, port)
 
-    server = server_cls(**cfg.args.as_dict())
+    server = _with_latency(server_cls(**cfg.args.as_dict()), cfg.latency.delay_steps, cfg.latency.execute_steps)
 
     logger.info("Starting server on ws://%s:%d", host, port)
     serve(server, host=host, port=port)
