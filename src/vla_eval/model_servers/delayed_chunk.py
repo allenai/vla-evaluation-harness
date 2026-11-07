@@ -18,7 +18,7 @@ from anyio.to_thread import run_sync as _run_in_thread
 
 from vla_eval import columns
 from vla_eval.model_servers.base import Rows
-from vla_eval.model_servers.daemons import DaemonModelServer, EpisodeContext
+from vla_eval.model_servers.daemons import DaemonModelServer, EpisodeContext, ObservationRequest
 from vla_eval.model_servers.predict import PredictModelServer
 from vla_eval.recording import StepRecorder
 from vla_eval.specs import DimSpec
@@ -104,15 +104,63 @@ class DelayedChunkServer(DaemonModelServer):
     # -- event loop ------------------------------------------------------------------------------------------------
 
     async def run(self, ep: EpisodeContext) -> None:
-        # TODO(yue): the schedule.  For each request in ep.observations(), with j = request.row.step:
-        #   - j == 0: infer the initial chunk (t=-1) and use it at once;
-        #   - j % s == 0: start an inference from this observation (ep.start_soon); it lands at j + d
-        #     (d == 0: wait for it now);
-        #   - at j: land the inference started at j - d, if any;
-        #   - reply {"actions": plan.chunk[j - plan.t']} where t' is the step the plan's index 0 maps to;
-        #   - record {"step": j, "chunk_src", "chunk_idx", "obs_step"} when st.recorder is set.
-        # ep.call(self._infer, request.obs, request.rows) runs the model; self._check_chunk on every chunk.
-        raise NotImplementedError
+        st = self._eps_state[ep.row_id]
+        d, s = self.delay, self.horizon
+
+        plan: _Inference | None = None  # the landed chunk in effect
+        pending: dict[int, _Inference] = {}  # inference start step -> inference
+
+        def land(inf: _Inference) -> None:
+            nonlocal plan
+            plan = inf
+
+        async def infer(inf: _Inference, req: ObservationRequest) -> None:
+            chunk = await ep.call(self._infer, req.obs, req.rows)
+            self._check_chunk(chunk)  # raising here fails the episode
+            inf.chunk = chunk
+            inf.done.set()
+
+        async for req in ep.observations():
+            j = req.row.step
+            if "env_step" in req.obs and int(req.obs["env_step"]) != j:
+                raise ValueError(
+                    f"repeated env steps (env_step) are not supported: env_step={req.obs['env_step']} at step {j}"
+                )
+
+            row: dict[str, Any] = {"step": j}
+
+            if j == 0:  # official: the initial chunk, no delay
+                plan = _Inference(-1)
+                await infer(plan, req)
+
+            # An inference started at j - d becomes effective at step j.
+            if (inf := pending.pop(j - d, None)) is not None:
+                await inf.done.wait()
+                land(inf)
+
+            if j % s == 0:  # a boundary: infer from this observation
+                inf = _Inference(j)
+                row["obs_step"] = j
+
+                if d == 0:
+                    await infer(inf, req)
+                    land(inf)
+                else:
+                    pending[j] = inf
+                    ep.start_soon(infer, inf, req)
+
+            assert plan is not None
+
+            # The initial chunk starts at step 0.
+            # A chunk inferred at step t first becomes effective at t + d,
+            # so its first used index is d.
+            idx = j - max(plan.t, 0)
+            row.update(chunk_src=plan.t, chunk_idx=idx)
+
+            if st.recorder is not None:
+                st.recorder.record(row)
+
+            await req.reply({"actions": plan.chunk[idx]})
 
     async def on_episode_end(self, rows: Rows, results: list[EpisodeResult]) -> None:
         recorders = [st.recorder for rid in rows.ids.tolist() if (st := self._eps_state.get(rid)) and st.recorder]
