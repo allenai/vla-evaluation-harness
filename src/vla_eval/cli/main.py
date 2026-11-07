@@ -281,7 +281,8 @@ def _build_serve_cmd(
 
     Server-level keys (``port`` / ``host``) emit at the inner root; everything
     in the yaml's ``args:`` block emits under ``--args.*`` so jsonargparse maps
-    them onto ``server_cls.__init__``.
+    them onto ``server_cls.__init__``; a top-level ``latency:`` block emits under
+    ``--latency.*`` (``run_server`` wraps the server in ``DelayedChunkServer``).
     """
     cmd: list[str] = [uv, "run", str(script)]
     args_block = dict(config.get("args") or {})
@@ -290,6 +291,8 @@ def _build_serve_cmd(
             cmd.append(f"--{k}={_stringify_arg(args_block.pop(k))}")
     for k, v in args_block.items():
         cmd.append(f"--args.{k}={_stringify_arg(v)}")
+    for k, v in (config.get("latency") or {}).items():
+        cmd.append(f"--latency.{k}={_stringify_arg(v)}")
     if port is not None:
         cmd.append(f"--port={port}")
     if address:
