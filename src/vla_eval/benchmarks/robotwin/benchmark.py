@@ -206,9 +206,11 @@ class RoboTwinBenchmark(StepBenchmark):
 
     Args:
         task_name: RoboTwin task (e.g. ``"grab_roller"``).
-        task_config: Config name under ``task_config/`` (default ``"demo_clean"``).
+        task_config: Config name under ``env_cfg/task_config/`` (default ``"demo_clean"``).
         seed: Base seed index.  Starting seed = ``100000 * (1 + seed)``.
-        instruction_type: Instruction variant (``"seen"`` or ``"unseen"``).
+        instruction_type: Instruction variant (``"seen"`` or ``"unseen"``). ``None`` (default)
+            takes the task config's ``eval_instruction``, as RoboTwin's eval does
+            (``demo_clean``: seen, ``demo_randomized``: unseen).
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
@@ -240,7 +242,7 @@ class RoboTwinBenchmark(StepBenchmark):
         task_name: str,
         task_config: str = "demo_clean",
         seed: int = 0,
-        instruction_type: str = "seen",
+        instruction_type: str | None = None,
         test_num: int = 100,
         skip_expert_check: bool = False,
         action_type: str = "qpos",
@@ -259,12 +261,14 @@ class RoboTwinBenchmark(StepBenchmark):
             raise ValueError(f"Invalid task_config: {task_config!r}")
         if action_type not in ("qpos", "ee"):
             raise ValueError(f"Invalid action_type: {action_type!r}")
+        if instruction_type not in (None, "seen", "unseen"):
+            raise ValueError(f"Invalid instruction_type: {instruction_type!r}")
         self.action_type = action_type
         self.send_state = send_state
         self.task_name = task_name
         self.task_config = task_config
         self.seed = seed
-        self.instruction_type = instruction_type
+        self.instruction_type = instruction_type or ""  # empty until _init_robotwin reads the task config
         self.test_num = test_num
         self.skip_expert_check = skip_expert_check
         # the fast path stubs out plan_path, which take_action(..., "ee") plans with
@@ -297,6 +301,7 @@ class RoboTwinBenchmark(StepBenchmark):
 
         config_path = os.path.join(
             ROBOTWIN_ROOT,
+            "env_cfg",
             "task_config",
             f"{self.task_config}.yml",
         )
@@ -305,6 +310,11 @@ class RoboTwinBenchmark(StepBenchmark):
 
         args["task_name"] = self.task_name
         args["task_config"] = self.task_config
+        if not self.instruction_type:  # as RoboTwin's resolve_eval_instruction
+            kind = str(args.get("eval_instruction", "")).strip().lower()
+            if kind not in ("seen", "unseen"):
+                raise ValueError(f"{config_path} must set eval_instruction to 'seen' or 'unseen', got {kind!r}")
+            self.instruction_type = kind
 
         from envs import CONFIGS_PATH
 
@@ -432,19 +442,23 @@ class RoboTwinBenchmark(StepBenchmark):
             return None
 
     def _instructions(self, episode_info: dict[str, Any], seed: int) -> dict[str, str]:
-        """One ``seen`` and one ``unseen`` instruction, drawn with ``seed`` (RoboTwin's own draw is unseeded)."""
+        """One ``seen`` and one ``unseen`` instruction for ``seed``, drawn as RoboTwin's ``build_instruction`` does.
+
+        Args:
+            episode_info: The ``info`` dict of the oracle's episode.
+            seed: The episode's seed.
+
+        Returns:
+            ``{"seen": ..., "unseen": ...}``.
+        """
         import random
 
         from generate_episode_instructions import generate_episode_descriptions
 
-        state = random.getstate()
-        random.seed(seed)  # generate_episode_descriptions samples with the global ``random``
-        try:
-            results = generate_episode_descriptions(self.task_name, [episode_info], 100)[0]  # independent of test_num
-        finally:
-            random.setstate(state)
-        rng = np.random.default_rng(seed)
-        return {kind: str(rng.choice(results[kind])) for kind in ("seen", "unseen")}
+        # RoboTwin passes test_num here; 100 (its default) keeps the draw independent of test_num
+        results = generate_episode_descriptions(self.task_name, [episode_info], 100, seed=seed)[0]
+        # a fresh "<seed>:select" stream per kind: RoboTwin draws once, for the requested kind only
+        return {kind: random.Random(f"{seed}:select").choice(results[kind]) for kind in ("seen", "unseen")}
 
     def fingerprint(self) -> str:
         """What the expert check depends on: the resolved configs, the task's code and the base task's code."""
