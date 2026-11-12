@@ -80,7 +80,7 @@ See [common-pitfalls.md](common-pitfalls.md) for detailed patterns.
 | **Checkpoint** | `2toINF/X-VLA-WidowX` (official) |
 | **Server config** | [`configs/model_servers/xvla/simpler_widowx.yaml`](../../configs/model_servers/xvla/simpler_widowx.yaml) |
 | **Benchmark config** | [`configs/benchmarks/simpler/widowx_vm.yaml`](../../configs/benchmarks/simpler/widowx_vm.yaml) |
-| **Results** | [`data/xvla-simpler/`](data/xvla-simpler/) |
+| **Results** | [`data/xvla/`](data/xvla/) |
 
 4 tasks × 24 episodes. Requires [patched ManiSkill2](https://github.com/255isWhite/SimplerEnv) for absolute EE control + sink camera alignment.
 
