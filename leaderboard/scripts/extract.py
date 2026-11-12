@@ -620,6 +620,7 @@ variance dimensions — differences along these still allow 'yes'.
 
 
 EXTRACTIONS_RAW_DIR = ROOT / ".cache" / "extractions_raw"
+EXTRACT_DISALLOWED_TOOLS = "Agent Task Bash NotebookEdit WebFetch WebSearch"
 
 
 def _call_claude_cli(
@@ -656,8 +657,11 @@ def _call_claude_cli(
         # otherwise spawns one Agent subagent per paper, which re-reads
         # the paper and re-runs extraction in its own context (2-3x
         # multiplier on tokens for no quality gain).
+        # The agent reads third-party paper text under bypassPermissions,
+        # so shell, network and notebook tools are off too: the task needs
+        # only Read / Grep / Glob on the papers and Write for the output.
         "--disallowed-tools",
-        "Agent",
+        EXTRACT_DISALLOWED_TOOLS,
     ]
     for d in extra_add_dirs:
         cmd += ["--add-dir", str(d.resolve())]
