@@ -196,3 +196,67 @@ class TestActionConfigFile:
             assert s.cache_len == 2048
         finally:
             yaml_path.unlink()
+
+
+class TestLatencyBlock:
+    """A top-level ``latency:`` block wraps the server in ``DelayedChunkServer``; without it nothing changes."""
+
+    class S(_BaseModelServer):
+        def __init__(self, cache_len: int = 4096):
+            super().__init__(cache_len=cache_len)
+
+    def test_cli_latency_wraps_the_server(self, monkeypatch):
+        from vla_eval.model_servers.delayed_chunk import DelayedChunkServer
+
+        s = _drive(
+            self.S,
+            ["--args.cache_len", "2048", "--latency.delay_steps", "2", "--latency.execute_steps", "10"],
+            monkeypatch,
+        )
+        assert isinstance(s, DelayedChunkServer)
+        assert (s.delay, s.horizon) == (2, 10)
+        assert isinstance(s.inner, self.S) and s.inner.cache_len == 2048
+
+    def test_yaml_latency_block_wraps_the_server(self, monkeypatch, tmp_path):
+        from vla_eval.model_servers.delayed_chunk import DelayedChunkServer
+
+        path = tmp_path / "server.yaml"
+        path.write_text(
+            yaml.safe_dump(
+                {
+                    "script": "/unused.py",
+                    "args": {"cache_len": 1024},
+                    "latency": {"delay_steps": 5, "execute_steps": 10},
+                }
+            )
+        )
+        s = _drive(self.S, ["--config", str(path)], monkeypatch)
+        assert isinstance(s, DelayedChunkServer) and (s.delay, s.horizon) == (5, 10)
+        assert s.inner.cache_len == 1024
+
+    def test_no_latency_block_leaves_the_server_unwrapped(self, monkeypatch):
+        s = _drive(self.S, ["--args.cache_len", "512"], monkeypatch)
+        assert type(s) is self.S and s.cache_len == 512
+
+    def test_half_a_latency_block_is_refused(self, monkeypatch):
+        with pytest.raises(ValueError, match="latency"):
+            _drive(self.S, ["--latency.delay_steps", "2"], monkeypatch)
+
+    def test_a_server_that_is_not_a_predict_server_is_refused(self, monkeypatch):
+        from vla_eval.model_servers.daemons import DaemonModelServer
+
+        class D(DaemonModelServer):
+            def __init__(self, backlog_size: int = 8) -> None:
+                super().__init__(backlog=backlog_size)
+
+        with pytest.raises(TypeError, match="PredictModelServer"):
+            _drive(D, ["--latency.delay_steps", "0", "--latency.execute_steps", "1"], monkeypatch)
+
+    def test_vla_eval_serve_forwards_the_latency_block(self):
+        from vla_eval.cli.main import _build_serve_cmd
+
+        config = {"args": {"cache_len": 1}, "latency": {"delay_steps": 2, "execute_steps": 10}}
+        cmd = _build_serve_cmd("uv", Path("s.py"), config)
+        assert "--args.cache_len=1" in cmd
+        assert "--latency.delay_steps=2" in cmd and "--latency.execute_steps=10" in cmd
+        assert not any(c.startswith("--latency") for c in _build_serve_cmd("uv", Path("s.py"), {"args": {}}))

@@ -134,6 +134,48 @@ To run on a specific GPU, set `CUDA_VISIBLE_DEVICES` before the command.
 
 Server configs live in `configs/model_servers/`. The `--sweep-batch-sizes` flag in `bench_supply.py` changes `max_batch_size` at runtime via the server's HTTP control plane (`GET /config?max_batch_size=B`), so you can sweep batch sizes without restarting.
 
+### Simulated inference latency (sync)
+
+In sync mode the simulator waits for every reply, so a slow model costs nothing. To measure how much inference
+latency hurts a chunked policy, add a top-level `latency:` block to its model-server config. The server is then
+wrapped in `DelayedChunkServer`, which plays chunks on the naive asynchronous schedule of
+`KinetixRTCServer` (`src/vla_eval/model_servers/rtc.py`, `method="naive"`, `latency="steps"`), counted in env steps:
+
+```yaml
+extends: smolvla_libero.yaml
+latency:
+  delay_steps: 2     # d: a chunk lands d steps after the observation it was inferred from
+  execute_steps: 10  # s: start a new inference every s steps
+```
+
+The schedule, for each episode:
+
+- Step 0: the initial chunk is inferred from the first observation and used at once (no delay).
+- Every `s` steps (step 0, s, 2s, ...): an inference starts from that step's observation.
+- That chunk lands `d` steps later and is served from index `d`; until then the previous chunk keeps playing.
+- Each step replies with the landed chunk's action for that step.
+
+`d = 0` is plain sync with `chunk_size = s` (the inner server's own `chunk_size` is bypassed). The delay is charged
+once per inference, not per message, and does not depend on the machine: the run is still a sync run, so results
+are reproducible and independent of the shard count.
+
+Requirements:
+
+- `0 <= delay_steps <= execute_steps` and `execute_steps >= 1`, checked when the server starts.
+- The model's chunk length `T` must satisfy `T >= s + d` (a chunk is served from index `d` for `s` steps). `T` is
+  only known after the first inference, so this is checked when the first chunk arrives; a chunk that is too short
+  fails that episode.
+- The inner server must be a `PredictModelServer` whose `predict` (or `predict_batch`) returns the full `[T, D]`
+  chunk; the LeRobot bridge does (SmolVLA LIBERO: `T = n_action_steps = 50`).
+- Repeated env steps (`env_step` in the observation differing from the step count, as Kinetix sends before the first
+  action) are not supported.
+
+With a recording enabled, each step row gets `chunk_src` (the step whose observation the served chunk came from;
+-1 for the initial chunk), `chunk_idx` (the index served), and, on steps that start an inference, `obs_step`.
+
+From the command line: `--latency.delay_steps=2 --latency.execute_steps=10` on the server script, or the `latency:`
+block in the yaml passed to `vla-eval serve`, which forwards it.
+
 ## Auxiliary Scripts
 
 Before running the demand/supply benchmarks, you may want to measure the basic timing properties of your setup:
