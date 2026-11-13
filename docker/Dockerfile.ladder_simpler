@@ -1,0 +1,56 @@
+# LADDER SimplerEnv-Long evaluation environment (ManiSkill 3.0.1 + SAPIEN 3.0.3)
+
+ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
+FROM ${BASE_IMAGE}
+
+RUN conda create -n ladder_simpler python=3.11 pip -y && conda clean -afy
+
+SHELL ["conda", "run", "-n", "ladder_simpler", "/bin/bash", "-c"]
+
+# Software Vulkan for `--render cpu`
+RUN conda create -y -p /opt/lavapipe-env -c conda-forge "mesa-lavapipe==26.2.1" \
+    && conda clean -afy \
+    && mkdir -p /opt/lavapipe \
+    && cp /opt/lavapipe-env/share/vulkan/icd.d/lvp_icd.x86_64.json /opt/lavapipe/lvp_icd.json
+
+WORKDIR /app
+ARG LADDER_REF=6c88eea
+RUN mkdir -p /app/ladder \
+    && cd /app/ladder \
+    && git init -q \
+    && git remote add origin https://github.com/insait-institute/ladder.git \
+    && git fetch -q --depth 1 origin "${LADDER_REF}" \
+    && git checkout -q FETCH_HEAD \
+    && rm -rf .git
+
+RUN uv pip install --no-cache-dir "torch>=2.5,<3" "torchvision>=0.20" --torch-backend cu121 \
+    && uv pip install --no-cache-dir \
+        "mani_skill==3.0.1" \
+        "sapien==3.0.3" \
+        gymnasium numpy opencv-python-headless scipy transforms3d trimesh pyyaml deepdiff frozendict overrides
+
+# Download pinned ManiSkill3 Bridge + WidowX assets and SAPIEN PhysX GPU lib from v1.0.0 release
+RUN mkdir -p /app/ladder/ladder/components/inference/robots/simpler/maniskill3 \
+    && curl -fsSL https://github.com/insait-institute/ladder/releases/download/v1.0.0/simpler_assets.tar.gz \
+       | tar -xz -C /app/ladder/ladder/components/inference/robots/simpler/maniskill3 \
+    && mkdir -p /app/ladder/ladder/components/inference/robots/simpler/maniskill3/data/robots/widowx \
+    && curl -fsSL https://github.com/haosulab/ManiSkill-WidowX250S/archive/6a12bb745d964aab9fc897f0999cad53aa29000c.tar.gz \
+       | tar -xz --strip-components=1 -C /app/ladder/ladder/components/inference/robots/simpler/maniskill3/data/robots/widowx \
+    && mkdir -p /app/ladder/ladder/components/inference/robots/simpler/sapien_physx \
+    && curl -fsSL -o /tmp/physx.zip https://github.com/insait-institute/ladder/releases/download/v1.0.0/sapien_physx_gpu_linux.zip \
+    && python -m zipfile -e /tmp/physx.zip /app/ladder/ladder/components/inference/robots/simpler/sapien_physx \
+    && rm -f /tmp/physx.zip
+
+ENV LADDER_ROOT=/app/ladder
+ENV MS_ASSET_DIR=/app/ladder/ladder/components/inference/robots/simpler/maniskill3
+
+WORKDIR /workspace
+COPY pyproject.toml README.md ./
+COPY src/ src/
+ARG HARNESS_VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${HARNESS_VERSION}
+RUN uv pip install --no-cache-dir -e .
+COPY configs/ configs/
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "ladder_simpler", "vla-eval"]
+CMD ["run", "--config", "/workspace/configs/benchmarks/ladder/simpler.yaml"]

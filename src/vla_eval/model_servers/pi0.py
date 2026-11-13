@@ -51,6 +51,7 @@ class Pi0ModelServer(PredictModelServer):
         image_key: str = "observation/image",
         wrist_image_key: str | None = "observation/wrist_image",
         state_key: str | None = "observation/state",
+        gripper_key: str | None = None,
         state_dim: int = 8,
         image_resolution: int | None = None,
         *,
@@ -64,6 +65,7 @@ class Pi0ModelServer(PredictModelServer):
         # CLI passes the string "None" when disabling; normalize to actual None
         self.wrist_image_key = None if wrist_image_key in (None, "None", "none") else wrist_image_key
         self.state_key = None if state_key in (None, "None", "none") else state_key
+        self.gripper_key = None if gripper_key in (None, "None", "none") else gripper_key
         self.state_dim = state_dim
         self.image_resolution = image_resolution
 
@@ -124,10 +126,16 @@ class Pi0ModelServer(PredictModelServer):
         # LIBERO sends "states" (plural), other benchmarks may use "state" (singular)
         if self.state_key:
             raw_state = obs.get("states", obs.get("state"))
-            if raw_state is not None:
-                openpi_obs[self.state_key] = np.asarray(raw_state, dtype=np.float64)
+            vec = (
+                np.asarray(raw_state, dtype=np.float64).reshape(-1)
+                if raw_state is not None
+                else np.zeros(self.state_dim, dtype=np.float64)
+            )
+            if self.gripper_key:
+                openpi_obs[self.state_key] = vec[:-1]
+                openpi_obs[self.gripper_key] = vec[-1:]
             else:
-                openpi_obs[self.state_key] = np.zeros(self.state_dim, dtype=np.float64)
+                openpi_obs[self.state_key] = vec
 
         result = self._policy.infer(openpi_obs)
         return {"actions": result["actions"]}

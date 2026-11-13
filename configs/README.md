@@ -37,6 +37,7 @@ Benchmark names link to their config directory with available YAML files and usa
 | [RoboCerebra](benchmarks/robocerebra/) | ![◇](https://img.shields.io/badge/◇-blue) | [2506.06677](https://arxiv.org/abs/2506.06677) | [`robocerebra`](https://ghcr.io/allenai/vla-evaluation-harness/robocerebra) | 3.8 | Cognitive manipulation (MuJoCo) |
 | [BEHAVIOR-1K](benchmarks/behavior1k/) | ![◇](https://img.shields.io/badge/◇-blue) | [2403.09227](https://arxiv.org/abs/2403.09227) | 🔒 `behavior1k` | 3.11 | Household activities, B100 (OmniGibson) |
 | [RoboDojo](benchmarks/robodojo/) | ![◇](https://img.shields.io/badge/◇-blue) | [2607.04434](https://arxiv.org/abs/2607.04434) | 🔒 `robodojo` | 3.11 | Bimanual dual ARX-X5, 42 tasks (Isaac Lab) |
+| [LADDER](benchmarks/ladder/) | ![◇](https://img.shields.io/badge/◇-blue) | [2610.18053](https://arxiv.org/abs/2610.18053) | [`ladder-simpler`](https://ghcr.io/allenai/vla-evaluation-harness/ladder-simpler), [`ladder-robot-arena`](https://ghcr.io/allenai/vla-evaluation-harness/ladder-robot-arena), 🔒 `ladder-robolab` | 3.11 / 3.12 | Long-horizon manipulation, 145 tasks across 3 suites (SAPIEN 3, Genesis, Isaac Sim 6) |
 
 <sub>![✓](https://img.shields.io/badge/✓-teal) [reproduced](../docs/reproductions/) · ![◇](https://img.shields.io/badge/◇-blue) integrated, awaiting first reproduction · 🔒 license-restricted (local build only)</sub>
 
