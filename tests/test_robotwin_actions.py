@@ -89,3 +89,10 @@ def test_ee_specs() -> None:
     assert check_specs(server_action, bench.get_action_spec(), server_obs, bench.get_observation_spec()) == []
     assert check_specs(server_action, _bench()[0].get_action_spec(), {}, {})  # a qpos benchmark warns
     assert bench.get_metadata()["action_dim"] == 16
+
+
+def test_instruction_type_defaults_to_the_task_config() -> None:
+    assert RoboTwinBenchmark(task_name="grab_roller").instruction_type == ""  # read from eval_instruction at init
+    assert RoboTwinBenchmark(task_name="grab_roller", instruction_type="unseen").instruction_type == "unseen"
+    with pytest.raises(ValueError, match="instruction_type"):
+        RoboTwinBenchmark(task_name="grab_roller", instruction_type="Seen")
