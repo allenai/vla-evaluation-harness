@@ -1,0 +1,11 @@
+# X-VLA model server — RoboTwin 2.0 cotrain checkpoint (pair with configs/benchmarks/robotwin/xvla.yaml)
+# Follows XPolicyLab policy/X_VLA/model.py, which RoboTwin's eval_policy_xpolicylab.py loads: head camera only,
+# the episode instruction as prompt, wxyz quaternions, raw gripper values, measured proprio, domain_id 0.
+# Checkpoint: HF dataset TianxingChen/RoboTwin2.0, cotrain_ckpt/X_VLA/RoboTwin-cotrain-aloha_agilex-ee-0.tar.gz.
+# The tarball ships no trust_remote_code files; copy them in from 2toINF/X-VLA-RoboTwin2 before loading.
+extends: _base.yaml
+args:
+  model_path: "${oc.env:XVLA_ROBOTWIN_CKPT,${oc.env:VLA_EVAL_ASSETS_CACHE,${oc.env:XDG_CACHE_HOME,${oc.env:HOME}/.cache}/vla-eval/assets}/robotwin/xvla/RoboTwin-cotrain-aloha_agilex-ee-0/ckpt-30000}"
+  benchmark_profile: "robotwin_xpolicylab"
+  domain_id: 0
+  chunk_size: 30
