@@ -3,6 +3,12 @@
 A blocking native sim call (SAPIEN/Vulkan) freezes the event loop, so no
 await-timeout can fire. Only a separate OS thread keeps running, and only
 os._exit reliably kills a process stuck in native code.
+
+A native call that blocks while *holding the GIL* (e.g. PhysX fetch_results
+waiting on a GPU that hit an Xid fault) starves that Python thread too, so a
+faulthandler timer runs alongside it as a backstop: it lives in a C thread that
+needs no GIL, fires a little after the Python thread would have, dumps every
+thread's stack and _exit(1)s.
 """
 
 from __future__ import annotations
@@ -16,6 +22,7 @@ import time
 logger = logging.getLogger(__name__)
 
 PANIC_EXIT_CODE = 124  # `timeout(1)` convention — marks a watchdog kill
+# The GIL-free backstop cannot choose its code: faulthandler _exit(1)s after printing "Timeout (h:mm:ss)!".
 
 
 class ProgressWatchdog:
@@ -28,6 +35,12 @@ class ProgressWatchdog:
         self._last = time.monotonic()
         self._phase = "startup"
         self._stopped = threading.Event()
+        # The backstop is re-armed at most once per _rearm_s, and its deadline padded past the Python thread's
+        # (which polls every <= _rearm_s), so it only fires when that thread could not run.
+        self._rearm_s = min(60.0, self._timeout_s / 4)
+        self._armed = 0.0
+        self._fd = 2
+        self._running = False
 
     def pet(self, phase: str | None = None) -> None:
         """Record progress; phase (kept when None) is surfaced if the watchdog later panics."""
@@ -36,6 +49,13 @@ class ProgressWatchdog:
         self._last = time.monotonic()
         if phase is not None:
             self._phase = phase
+        if self._running and self._last - self._armed >= self._rearm_s:
+            self._arm_backstop()
+
+    def _arm_backstop(self) -> None:
+        """(Re)start faulthandler's timer: it fires timeout + one to two re-arm periods after the last pet."""
+        self._armed = time.monotonic()
+        faulthandler.dump_traceback_later(self._timeout_s + 2 * self._rearm_s + 5, file=self._fd, exit=True)
 
     def idle_s(self) -> float:
         return time.monotonic() - self._last
@@ -44,12 +64,26 @@ class ProgressWatchdog:
         return self._phase
 
     def start(self) -> ProgressWatchdog:
+        # The backstop writes to a private copy of the stderr we start with: a benchmark may later dup2 fd 2 onto
+        # a pipe (RoboDojo tees it) whose reader is starved by the same wedge, and a blocking write there would
+        # keep faulthandler from reaching its _exit.
+        try:
+            self._fd = os.dup(2)
+        except OSError:
+            self._fd = 2
         threading.Thread(target=self._loop, name="progress-watchdog", daemon=True).start()
+        self._running = True
+        self._arm_backstop()
         return self
 
     def stop(self) -> None:
         """Disarm: the thread exits at its next poll. For library callers whose run has ended."""
         self._stopped.set()
+        self._running = False
+        faulthandler.cancel_dump_traceback_later()
+        if self._fd != 2:
+            os.close(self._fd)
+            self._fd = 2
 
     def _loop(self) -> None:
         poll = min(30.0, self._timeout_s / 4)
