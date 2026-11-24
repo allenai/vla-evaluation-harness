@@ -40,7 +40,7 @@ from vla_eval import columns
 from vla_eval.benchmarks.base import VectorStepBenchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.base import EnvUnusableError, EpisodeSkipped
-from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
+from vla_eval.specs import EE_POSE_DUAL_WXYZ, IMAGE_RGB, LANGUAGE, STATE_EE_POSE_DUAL_WXYZ, STATE_JOINT, DimSpec
 from vla_eval.types import Batch, EpisodeResult, Task
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,12 @@ DEFAULT_TASKS = ["stack_blocks"]
 # gripper (1). The Franka in the three competition tasks is scripted, not policy-driven.
 ACTION_DIMS = (6, 1, 6, 1)
 ACTION_DIM = sum(ACTION_DIMS)
+# End-effector action space (XPolicyLab's ``action_type: "ee"``): a 7-D pose per arm,
+# ``[x, y, z, qw, qx, qy, qz]``, plus its gripper, 16 values in total. RoboDojo's
+# ``EvalEnv.validate_action_dict`` accepts ``left_ee_pose``/``right_ee_pose`` (7) next to
+# the joint keys, so the env itself needs no change — only the flattened layout differs.
+EE_ACTION_DIMS = (7, 1, 7, 1)
+EE_ACTION_DIM = sum(EE_ACTION_DIMS)
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
@@ -104,6 +110,12 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         stream_upstream_videos: Keep RoboDojo's own per-camera ffmpeg episode
             streams (written under ``<root>/eval_result``). Off by default —
             vla-eval's recorder owns video capture.
+        action_type: Action space the policy was trained with, as XPolicyLab names it.
+            ``"joint"`` (default): 14-D absolute joint targets, ``[left arm (6), left
+            gripper (1), right arm (6), right gripper (1)]``. ``"ee"``: 16-D end-effector
+            poses, ``[x, y, z, qw, qx, qy, qz]`` plus the gripper per arm. The 16-D pose
+            is what ``EvalEnv`` accepts as ``left_ee_pose``/``right_ee_pose``; there is no
+            env-side switch, only the flattened layout and the concatenated state change.
     """
 
     partial_reset: ClassVar[bool] = False
@@ -122,7 +134,10 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         seed: int = 0,
         enable_planner: bool = False,
         stream_upstream_videos: bool = False,
+        action_type: str = "joint",
     ) -> None:
+        if action_type not in ("joint", "ee"):
+            raise ValueError(f"Invalid action_type: {action_type!r}")
         task_names = list(tasks or DEFAULT_TASKS)
         if num_envs > RANDOM_TASK_MAX_ENVS and any(name.endswith("_random") for name in task_names):
             if not all(name.endswith("_random") for name in task_names):
@@ -138,6 +153,12 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         self._seed = int(seed)
         self._enable_planner = bool(enable_planner)
         self._stream_upstream_videos = bool(stream_upstream_videos)
+        self._action_type = action_type
+        self._action_dims = EE_ACTION_DIMS if action_type == "ee" else ACTION_DIMS
+        self._action_dim = EE_ACTION_DIM if action_type == "ee" else ACTION_DIM
+        # The action column the model server fills: end-effector poses keep RoboTwin's key
+        # (``EE_POSE_DUAL_WXYZ``), so a server declaring that spec matches without an alias.
+        self._action_key = "ee_pose" if action_type == "ee" else "actions"
         self._env: Any = None
         self._scene_used = False  # reset since the env (re)launched its scene; see _fresh_scene
         self._task_name = ""
@@ -297,6 +318,9 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             env.save_video = lambda *args, **kwargs: None
 
         info = env.robot_action_dim_info
+        # The embodiment's own capability set, independent of ``action_type``: joint dims and
+        # gripper dims describe the keys ``validate_action_dict`` accepts (6-D joints, 7-D ee
+        # poses), so this check stays the joint layout whichever action space we drive.
         actual_dims = tuple(dim for pair in zip(info["arm_dim"], info["ee_dim"]) for dim in pair)
         if actual_dims != ACTION_DIMS:
             raise RuntimeError(f"RoboDojo embodiment reports action dims {actual_dims}, expected {ACTION_DIMS}")
@@ -447,7 +471,7 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         live = [s for s in slots if not env.end_flag[s]]
         try:
             if live:
-                env.take_action_batch([self._unflatten_action(rows[s].get("actions")) for s in live], live)
+                env.take_action_batch([self._unflatten_action(rows[s].get(self._action_key)) for s in live], live)
             env.is_episode_end()
             raw = env.get_obs_batch(env.get_running_env_idx_list())
         except Exception as exc:
@@ -521,16 +545,27 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         env.close()
         logger.info("RoboDojo closed the used scene in %.1fs", time.monotonic() - started)
 
-    @staticmethod
-    def _unflatten_action(values: Any) -> dict[str, np.ndarray]:
+    def _unflatten_action(self, values: Any) -> dict[str, np.ndarray]:
+        """One flattened action as the per-arm dict ``EvalEnv.validate_action_dict`` takes.
+
+        Keys follow ``action_type``: ``left_/right_arm_joint_state`` (6) for joints,
+        ``left_/right_ee_pose`` (7) for end-effector poses; the gripper key is the same in both.
+        """
         flat = np.asarray(values, dtype=np.float32).reshape(-1)
-        if flat.size != ACTION_DIM:
-            raise ValueError(f"RoboDojo expects {ACTION_DIM} action values, got {flat.size}")
-        parts = np.split(flat, np.cumsum(ACTION_DIMS)[:-1])
+        if flat.size != self._action_dim:
+            raise ValueError(
+                f"RoboDojo expects {self._action_dim} action values for action_type={self._action_type!r}, "
+                f"got {flat.size}"
+            )
+        parts = np.split(flat, np.cumsum(self._action_dims)[:-1])
+        if self._action_type == "ee":
+            left_arm, right_arm = "left_ee_pose", "right_ee_pose"
+        else:
+            left_arm, right_arm = "left_arm_joint_state", "right_arm_joint_state"
         return {
-            "left_arm_joint_state": parts[0],
+            left_arm: parts[0],
             "left_ee_joint_state": parts[1],
-            "right_arm_joint_state": parts[2],
+            right_arm: parts[2],
             "right_ee_joint_state": parts[3],
         }
 
@@ -565,20 +600,34 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             "task_description": str(raw_obs.get("instruction") or str(task["name"]).replace("_", " ")),
         }
         if self._send_state and isinstance(raw_obs.get("state"), dict):
-            obs["state"] = self._pack_state(raw_obs["state"])
+            obs["ee_state" if self._action_type == "ee" else "state"] = self._pack_state(raw_obs["state"])
         return obs
 
-    @staticmethod
-    def _pack_state(state: dict[str, Any]) -> np.ndarray:
-        """14-D qpos in XPolicyLab's canonical packing:
-        [left arm (6), left gripper (1), right arm (6), right gripper (1)]."""
-        canonical = (
-            "left_arm_joint_state",
-            "left_ee_joint_state",
-            "right_arm_joint_state",
-            "right_ee_joint_state",
-        )
-        keys = canonical if all(k in state for k in canonical) else tuple(state)
+    def _pack_state(self, state: dict[str, Any]) -> np.ndarray:
+        """The state vector in XPolicyLab's canonical packing for ``action_type``.
+
+        ``"joint"``: 14-D qpos, ``[left arm (6), left gripper (1), right arm (6), right gripper (1)]``.
+        ``"ee"``: 16-D end-effector poses, ``[left pose (7), left gripper (1), right pose (7), right
+        gripper (1)]``, which RoboDojo publishes when ``env_cfg`` sets ``world_ee_state: true``.
+        """
+        if self._action_type == "ee":
+            canonical = ("left_ee_pose", "left_ee_joint_state", "right_ee_pose", "right_ee_joint_state")
+            # No fallback here: a joint-only env_cfg would silently ship the joint vector as poses.
+            missing = [key for key in canonical if key not in state]
+            if missing:
+                raise RuntimeError(
+                    f"RoboDojo: action_type='ee' needs end-effector state, missing {missing}; "
+                    "set observation.robot.world_ee_state: true in env_cfg"
+                )
+            keys = canonical
+        else:
+            canonical = (
+                "left_arm_joint_state",
+                "left_ee_joint_state",
+                "right_arm_joint_state",
+                "right_ee_joint_state",
+            )
+            keys = canonical if all(k in state for k in canonical) else tuple(state)
         return np.concatenate([np.asarray(state[k], dtype=np.float32).reshape(-1) for k in keys])
 
     def get_metric_keys(self) -> dict[str, str]:
@@ -589,11 +638,14 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             "max_steps": DEFAULT_MAX_STEPS,
             "suite": "robodojo",
             "embodiment": self._env_config,
-            "action_dim": ACTION_DIM,
+            "action_dim": self._action_dim,
             "num_envs": self.num_envs,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
+        if self._action_type == "ee":
+            # RoboTwin's 16-D ee column, so a server declaring ``ee_pose`` matches this benchmark.
+            return {"ee_pose": EE_POSE_DUAL_WXYZ}
         return {
             "actions": DimSpec(
                 "actions",
@@ -606,7 +658,9 @@ class RoboDojoBenchmark(VectorStepBenchmark):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         spec = {"images": IMAGE_RGB, "language": LANGUAGE}
         if self._send_state:
-            spec["state"] = STATE_JOINT
+            spec["ee_state" if self._action_type == "ee" else "state"] = (
+                STATE_EE_POSE_DUAL_WXYZ if self._action_type == "ee" else STATE_JOINT
+            )
         return spec
 
     def cleanup(self) -> None:

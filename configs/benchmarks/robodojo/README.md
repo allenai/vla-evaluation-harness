@@ -57,11 +57,18 @@ exit 3 needs the shared queue, so rerun through `run_sharded.sh` (also with `-n 
 
 ## Interface
 
-- **Action (14-D absolute joints):** left arm (6), left gripper (1), right arm (6),
-  right gripper (1). All 42 tasks use the dual ARX-X5 policy action space; the Franka arm
+- **Action:** `action_type: "joint"` (default, 14-D absolute joints): left arm (6), left gripper (1),
+  right arm (6), right gripper (1). All 42 tasks use the dual ARX-X5 policy action space; the Franka arm
   in the three `dual_x5_and_franka_competition` tasks is scripted, not policy-controlled.
+  `action_type: "ee"` sends 16-D end-effector poses instead — left pose (7), left gripper (1),
+  right pose (7), right gripper (1), each pose `[x, y, z, qw, qx, qy, qz]` — matching XPolicyLab's
+  `action_type: 'ee'` packing. The env takes both; only the flattened layout differs.
 - **Observation:** `images` (RoboDojo camera dict), `task_description` (the task's language
-  instruction), and optional concatenated joint `state`.
+  instruction), and with `send_state` either the concatenated joint `state` or, under
+  `action_type: "ee"`, the `ee_state` poses in the same 16-D packing (needs
+  `observation.robot.world_ee_state: true` in the env config; the adapter raises if it is off).
+- **Spec keys:** the action column is `actions` for joints and `ee_pose` for end-effector poses
+  (`EE_POSE_DUAL_WXYZ`), so a model server declaring that spec matches without an alias.
 - **Metrics:** `success` (binary, from RoboDojo's native reward manager) and `score`
   (paper metric: 1.0 on success, else partial task progress). The paper reports
   score/success-rate scaled by 100 and averages the five dimension means.
