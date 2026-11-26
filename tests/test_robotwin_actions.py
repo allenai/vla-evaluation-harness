@@ -49,12 +49,21 @@ def test_ee_action_rejects_other_lengths(dim: int) -> None:
     assert not env.calls
 
 
-def test_qpos_action_keeps_trimming() -> None:
+def test_qpos_action_passes_through_unchanged() -> None:
     bench, env = _bench()
-    bench.step({"actions": np.arange(16.0)})
+    bench.step({"actions": np.arange(14.0)})
     sent, kind = env.calls[0]
     assert kind == "qpos"
     np.testing.assert_array_equal(sent, np.arange(14.0))
+
+
+@pytest.mark.parametrize("dim", [7, 13, 16])
+def test_qpos_action_rejects_other_lengths(dim: int) -> None:
+    """A 16D end pose must not be trimmed and run as joint angles, nor a short action zero-padded."""
+    bench, env = _bench()
+    with pytest.raises(ValueError, match="14D"):
+        bench.step({"actions": np.zeros(dim)})
+    assert not env.calls
 
 
 def test_ee_needs_the_curobo_planner() -> None:

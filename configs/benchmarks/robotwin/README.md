@@ -21,7 +21,8 @@ Each expert-checked seed is one task, so `test_num` sets the episodes per task;
 
 ## Action types
 
-`action_type: qpos` (default) takes 14D joint targets. `action_type: ee` takes 16D
+`action_type: qpos` (default) takes 14D joint targets; any other length is an error
+rather than trimmed or zero-padded. `action_type: ee` takes 16D
 end-effector poses in RoboTwin's `take_action(..., "ee")` layout, `[pos3, quat_wxyz4,
 gripper1]` per arm, left first; RoboTwin clips the gripper to [0, 1] (1 = open) and
 plans each pose with CuRobo, so `fast_init` is off. Model servers convert their own
