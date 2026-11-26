@@ -461,9 +461,19 @@ class XVLAModelServer(PredictModelServer):
             self._task_prompts.pop(rid, None)
 
     def get_observation_params(self) -> dict[str, Any]:
-        if self.benchmark_profile and self.benchmark_profile in _PROFILE_OBS_PARAMS:
-            return dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
-        return {}
+        """Return the benchmark params this server needs, sent in the HELLO response.
+
+        RoboTwin (16D end-pose actions) also requests ``render_every = chunk_size``: the
+        server reads an observation only at chunk boundaries and runs the rest of the
+        chunk open loop, so RoboTwinBenchmark need not render its three cameras in between.
+        An eval config that sets ``render_every`` itself still wins.
+        """
+        if not self.benchmark_profile or self.benchmark_profile not in _PROFILE_OBS_PARAMS:
+            return {}
+        params = dict(_PROFILE_OBS_PARAMS[self.benchmark_profile])
+        if self.output_action_dim == 16:
+            params["render_every"] = int(self.chunk_size or 1)
+        return params
 
     def get_action_spec(self) -> dict[str, DimSpec]:
         if self.output_action_dim == 7:

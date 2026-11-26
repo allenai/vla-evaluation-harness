@@ -20,4 +20,6 @@ Uses `_base.yaml` for shared settings. `domain_id` selects the embodiment prompt
 
 RoboTwin follows X-VLA's `evaluation/robotwin-2.0/client.py`: the server decodes each
 30-action chunk into 16D `ee` actions, builds proprio from the commanded end pose, and
-prompts with the task name. Run it with `configs/benchmarks/robotwin/xvla.yaml`.
+prompts with the task name. Run it with `configs/benchmarks/robotwin/xvla.yaml`. Its HELLO
+asks for `send_state`, `action_type: ee` and `render_every` = `chunk_size`, so a benchmark
+config that omits them still renders only where the server queries; a config value wins.
