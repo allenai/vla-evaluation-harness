@@ -7,7 +7,7 @@ Non-obvious behaviors:
     - **Expert check**: ``get_tasks()`` optionally runs the oracle planner
       per seed to verify solvability (``skip_expert_check=False``).
     - **Lazy init**: Heavy imports happen on first use, not at construction.
-    - **14D action** (``action_type="qpos"``, default): dual-arm qpos; 16D inputs are trimmed to 14D.
+    - **14D action** (``action_type="qpos"``, default): dual-arm qpos; any other length raises.
     - **16D action** (``action_type="ee"``): RoboTwin's ``take_action(..., "ee")`` layout,
       ``[pos3, quat_wxyz4, gripper1]`` per arm (left first), passed through unchanged.
 """
@@ -532,11 +532,12 @@ class RoboTwinBenchmark(StepBenchmark):
                 raise ValueError(f"action_type='ee' takes a 16D action, got {len(act)}D")
             self._env.take_action(act, action_type="ee")
         else:
-            if len(act) > 14:
-                act = act[:14]
-            elif len(act) < 14:
-                act = np.pad(act, (0, 14 - len(act)))
-            assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
+            # A 16D end pose trimmed to 14D would run as joint angles and still score; refuse it
+            if len(act) != 14:
+                raise ValueError(
+                    f"action_type='qpos' takes a 14D action, got {len(act)}D; "
+                    "16D end-pose actions need action_type='ee'"
+                )
             self._env.take_action(act, action_type="qpos")
         self._steps += 1
         success = bool(self._env.eval_success)
