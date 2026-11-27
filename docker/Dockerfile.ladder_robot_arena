@@ -18,7 +18,7 @@ RUN mkdir -p /app/ladder \
     && git checkout -q FETCH_HEAD \
     && rm -rf .git
 
-RUN uv pip install --no-cache-dir "torch==2.7.0" --index-url https://download.pytorch.org/whl/cu128 \
+RUN uv pip install --no-cache-dir "torch==2.7.0" --torch-backend cu128 \
     && uv pip install --no-cache-dir \
         "genesis-world==0.4.3" \
         "quadrants==0.4.4" \

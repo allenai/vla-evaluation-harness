@@ -36,7 +36,9 @@ RUN mkdir -p /app/robolab_src /app/openpi_src /app/ladder/ladder/components/infe
     && curl -fsSL https://github.com/insait-institute/ladder/releases/download/v1.0.0/openpi_src.tar.gz \
        | tar -xz --strip-components=1 -C /app/openpi_src
 
+# isaaclab 3.0.0b2 is only on pypi.nvidia.com, whose files carry no upload date for the base uv cutoff.
 RUN uv pip install --no-cache-dir --prerelease=allow --index-strategy unsafe-best-match \
+        --exclude-newer-package isaaclab=false \
         --extra-index-url https://pypi.nvidia.com \
         --extra-index-url https://download.pytorch.org/whl/cu128 \
         "isaacsim[all,extscache]==6.0.0.1" \
