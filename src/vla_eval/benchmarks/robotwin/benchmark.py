@@ -7,7 +7,7 @@ Non-obvious behaviors:
     - **Expert check**: ``get_tasks()`` optionally runs the oracle planner
       per seed to verify solvability (``skip_expert_check=False``).
     - **Lazy init**: Heavy imports happen on first use, not at construction.
-    - **14D action** (``action_type="qpos"``, default): dual-arm qpos; 16D inputs are trimmed to 14D.
+    - **14D action** (``action_type="qpos"``, default): dual-arm qpos; any other length raises.
     - **16D action** (``action_type="ee"``): RoboTwin's ``take_action(..., "ee")`` layout,
       ``[pos3, quat_wxyz4, gripper1]`` per arm (left first), passed through unchanged.
 """
@@ -186,29 +186,15 @@ def _patched_render_setup(enabled: bool):
             setattr(sapien_render, name, func)
 
 
-def _restore_play_once_attributes(env: Any, task_name: str) -> None:
-    """Set what these tasks' check_success reads but only play_once assigns (eval_policy.py runs play_once on the same
-    env first); play_once derives it from the initial scene, so the same expressions after setup_demo match."""
-    if task_name == "open_laptop":
-        from envs.utils import ArmTag, get_face_prod
-
-        env.arm_tag = ArmTag("left" if get_face_prod(env.laptop.get_pose().q, [1, 0, 0], [1, 0, 0]) > 0 else "right")
-    elif task_name in ("place_object_scale", "put_object_cabinet"):
-        from envs.utils import ArmTag
-
-        env.arm_tag = ArmTag("right" if env.object.get_pose().p[0] > 0 else "left")
-        if task_name == "put_object_cabinet":
-            env.origin_z = env.object.get_pose().p[2]
-
-
 class RoboTwinBenchmark(StepBenchmark):
     """RoboTwin dual-arm manipulation benchmark (SAPIEN/CuRobo).
 
     Args:
         task_name: RoboTwin task (e.g. ``"grab_roller"``).
-        task_config: Config name under ``task_config/`` (default ``"demo_clean"``).
+        task_config: Config name under ``env_cfg/task_config/`` (default ``"demo_clean"``).
         seed: Base seed index.  Starting seed = ``100000 * (1 + seed)``.
-        instruction_type: Instruction variant (``"seen"`` or ``"unseen"``).
+        instruction_type: ``"seen"`` or ``"unseen"``; ``None`` (default) takes the task config's
+            ``eval_instruction``, as RoboTwin's eval does (``demo_clean``: seen, ``demo_randomized``: unseen).
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
@@ -240,7 +226,7 @@ class RoboTwinBenchmark(StepBenchmark):
         task_name: str,
         task_config: str = "demo_clean",
         seed: int = 0,
-        instruction_type: str = "seen",
+        instruction_type: str | None = None,
         test_num: int = 100,
         skip_expert_check: bool = False,
         action_type: str = "qpos",
@@ -288,7 +274,7 @@ class RoboTwinBenchmark(StepBenchmark):
         if self._args is not None:
             return
 
-        for p in [ROBOTWIN_ROOT, f"{ROBOTWIN_ROOT}/policy", f"{ROBOTWIN_ROOT}/description/utils"]:
+        for p in [ROBOTWIN_ROOT, f"{ROBOTWIN_ROOT}/description/utils"]:
             if p not in sys.path:
                 sys.path.insert(0, p)
 
@@ -297,6 +283,7 @@ class RoboTwinBenchmark(StepBenchmark):
 
         config_path = os.path.join(
             ROBOTWIN_ROOT,
+            "env_cfg",
             "task_config",
             f"{self.task_config}.yml",
         )
@@ -305,6 +292,7 @@ class RoboTwinBenchmark(StepBenchmark):
 
         args["task_name"] = self.task_name
         args["task_config"] = self.task_config
+        self.instruction_type = self.instruction_type or args["eval_instruction"]
 
         from envs import CONFIGS_PATH
 
@@ -432,19 +420,15 @@ class RoboTwinBenchmark(StepBenchmark):
             return None
 
     def _instructions(self, episode_info: dict[str, Any], seed: int) -> dict[str, str]:
-        """One ``seen`` and one ``unseen`` instruction, drawn with ``seed`` (RoboTwin's own draw is unseeded)."""
+        """One ``seen`` and one ``unseen`` instruction for ``seed``, drawn as RoboTwin's ``build_instruction`` does."""
         import random
 
         from generate_episode_instructions import generate_episode_descriptions
 
-        state = random.getstate()
-        random.seed(seed)  # generate_episode_descriptions samples with the global ``random``
-        try:
-            results = generate_episode_descriptions(self.task_name, [episode_info], 100)[0]  # independent of test_num
-        finally:
-            random.setstate(state)
-        rng = np.random.default_rng(seed)
-        return {kind: str(rng.choice(results[kind])) for kind in ("seen", "unseen")}
+        # RoboTwin passes test_num here; 100 (its default) keeps the draw independent of test_num
+        results = generate_episode_descriptions(self.task_name, [episode_info], 100, seed=seed)[0]
+        # a fresh "<seed>:select" stream per kind: RoboTwin draws once, for the requested kind only
+        return {kind: random.Random(f"{seed}:select").choice(results[kind]) for kind in ("seen", "unseen")}
 
     def fingerprint(self) -> str:
         """What the expert check depends on: the resolved configs, the task's code and the base task's code."""
@@ -480,7 +464,7 @@ class RoboTwinBenchmark(StepBenchmark):
         self._init_robotwin()
         assert self._args is not None
 
-        # As eval_policy.py: one env, SAPIEN's asset cache cleared every clear_cache_freq episodes (task configs: 5).
+        # As RoboTwin's eval: one env, SAPIEN's asset cache cleared every clear_cache_freq episodes (task configs: 5).
         if self._env is not None:
             clear = not self._env_done or self._episodes_since_clear >= self._args["clear_cache_freq"]
             try:
@@ -503,7 +487,6 @@ class RoboTwinBenchmark(StepBenchmark):
                 is_test=True,
                 **self._args,
             )
-        _restore_play_once_attributes(self._env, self.task_name)
         self._env.set_instruction(instruction=task["instruction"])
         self._steps = 0
         raw_obs = self._env.get_obs()
@@ -518,11 +501,12 @@ class RoboTwinBenchmark(StepBenchmark):
                 raise ValueError(f"action_type='ee' takes a 16D action, got {len(act)}D")
             self._env.take_action(act, action_type="ee")
         else:
-            if len(act) > 14:
-                act = act[:14]
-            elif len(act) < 14:
-                act = np.pad(act, (0, 14 - len(act)))
-            assert act.shape[-1] == 14, f"Action dimension mismatch: got {act.shape[-1]}, expected 14"
+            # A 16D end pose trimmed to 14D would run as joint angles and still score; refuse it
+            if len(act) != 14:
+                raise ValueError(
+                    f"action_type='qpos' takes a 14D action, got {len(act)}D; "
+                    "16D end-pose actions need action_type='ee'"
+                )
             self._env.take_action(act, action_type="qpos")
         self._steps += 1
         success = bool(self._env.eval_success)

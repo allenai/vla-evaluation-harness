@@ -23,7 +23,7 @@ they must be present in the clone:
 
 ```bash
 git clone --recurse-submodules https://github.com/RoboDojo-Benchmark/RoboDojo.git
-git -C RoboDojo checkout --recurse-submodules ee67a1468510da7624a089164402359f2afc72c8
+git -C RoboDojo checkout --recurse-submodules c3af1ac6ad7302c0c09d17f4b050fd3a5c68c921
 docker build -t robodojo:cuda12.8 RoboDojo
 docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
 ```
@@ -60,11 +60,26 @@ exit 3 needs the shared queue, so rerun through `run_sharded.sh` (also with `-n 
 - **Action (14-D absolute joints):** left arm (6), left gripper (1), right arm (6),
   right gripper (1). All 42 tasks use the dual ARX-X5 policy action space; the Franka arm
   in the three `dual_x5_and_franka_competition` tasks is scripted, not policy-controlled.
+  `params.action_type: ee` takes 16-D end-effector poses instead (`ee_pose`: per arm `[x, y, z, qw, qx, qy, qz]` +
+  gripper, XPolicyLab's `ee` packing) and sends the observed poses as `ee_state`; see below.
 - **Observation:** `images` (RoboDojo camera dict), `task_description` (the task's language
   instruction), and optional concatenated joint `state`.
 - **Metrics:** `success` (binary, from RoboDojo's native reward manager) and `score`
   (paper metric: 1.0 on success, else partial task progress). The paper reports
   score/success-rate scaled by 100 and averages the five dimension means.
+
+### End-effector actions
+
+`action_type: ee` turns on RoboDojo's cuRobo planner, whose IK maps each pose to joints. It needs
+`Assets/Robots/<robot>/curobo.yml`, generated once from the shipped templates with the in-container path:
+
+```bash
+for r in x5 franka; do
+  sed 's#${ASSETS_PATH}#/workspace/RoboDojo#g' "$ROBODOJO_ASSETS/Robots/$r/curobo_tmp.yml" > "$ROBODOJO_ASSETS/Robots/$r/curobo.yml"
+done
+```
+
+As upstream, a pose whose IK fails is dropped silently: that arm keeps its last joint target (the gripper still moves).
 
 ## Protocol notes
 

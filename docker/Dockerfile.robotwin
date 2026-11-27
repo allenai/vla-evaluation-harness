@@ -57,7 +57,7 @@ RUN MPLIB_LOC=$(python -c "import mplib; print(mplib.__path__[0])") && \
         "$MPLIB_LOC/planner.py"
 
 # ── Clone RoboTwin ───────────────────────────────────────────────────
-ARG ROBOTWIN_REF=c3ddfa8b97d5519efa828b075999bd0006778e5e
+ARG ROBOTWIN_REF=ea8b21121ebb3cd201ff5b3fe361944ac94eda3f
 RUN mkdir -p /app/RoboTwin \
     && cd /app/RoboTwin \
     && git init -q \
@@ -91,7 +91,7 @@ RUN cd /app/RoboTwin/assets \
     && unzip -qo background_texture.zip && rm -f background_texture.zip
 
 # ── Resolve embodiment config paths ──────────────────────────────────
-RUN cd /app/RoboTwin && python script/update_embodiment_config_path.py
+RUN cd /app/RoboTwin && python scripts/update_embodiment_config_path.py
 
 WORKDIR /workspace
 COPY pyproject.toml README.md ./

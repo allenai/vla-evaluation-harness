@@ -38,8 +38,11 @@ Action conversion (``output_action_dim=7``):
 
         [pos_x, pos_y, pos_z, aa_x, aa_y, aa_z, gripper]
 
-    RoboTwin (``output_action_dim=16``) decodes both arms as the official
-    ``evaluation/robotwin-2.0/client.py`` does, into RoboTwin's ``take_action(..., "ee")`` layout.
+    RoboTwin (``output_action_dim=16``) decodes both arms into RoboTwin's ``take_action(..., "ee")``
+    layout.  Profile ``robotwin`` follows X-VLA's ``evaluation/robotwin-2.0/client.py`` (for
+    ``2toINF/X-VLA-RoboTwin2``); profile ``robotwin_xpolicylab`` follows XPolicyLab
+    ``policy/X_VLA/model.py`` (for RoboTwin's cotrain checkpoints): head camera only, the episode
+    instruction as prompt, wxyz quaternions, raw gripper values and measured proprio on every query.
 
 Proprioceptive state (closed-loop feedback):
     On the **first** inference of an episode, accepts ``obs["state"]``
@@ -112,6 +115,8 @@ class _XVLABenchmarkProfile:
     euler_state: bool = False  # True: state[3:6] is euler XYZ, not axis-angle
     rot6d_convention: str = "interleaved"  # "interleaved" or "contiguous"
     gripper_threshold_map: dict[str, float] | None = None  # per-task gripper thresholds
+    quat_wxyz: bool = False  # RoboTwin: read/write end-pose quaternions as wxyz (XPolicyLab), not xyzw
+    raw_gripper: bool = False  # RoboTwin: gripper as the raw joint value / sigmoid, not 1 - 2 * x
 
 
 _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
@@ -172,6 +177,17 @@ _BENCHMARK_PROFILES: dict[str, _XVLABenchmarkProfile] = {
         output_action_dim=16,
         instruction_from_task_name=True,
     ),
+    # XPolicyLab policy/X_VLA (RoboTwin cotrain checkpoints); pair with domain_id 0
+    "robotwin_xpolicylab": _XVLABenchmarkProfile(
+        image_keys=("head_camera",),
+        predicted_proprio_dims=None,  # proprio is the measured end pose (_robotwin_proprio)
+        use_predicted_proprio=False,
+        gripper_threshold=0.7,  # unused: raw_gripper passes the sigmoid through
+        gripper_close_above=True,
+        output_action_dim=16,
+        quat_wxyz=True,
+        raw_gripper=True,
+    ),
 }
 
 
@@ -200,6 +216,7 @@ _PROFILE_OBS_PARAMS: dict[str, dict[str, Any]] = {
     },
     "vlabench": {"send_wrist_image": True, "send_state": True},
     "robotwin": {"send_state": True, "action_type": "ee"},
+    "robotwin_xpolicylab": {"send_state": True, "action_type": "ee"},
 }
 
 
@@ -290,31 +307,38 @@ def _convert_ee6d_to_7d(
     return out[0] if single else out
 
 
-def _ee6d_to_robotwin_ee16(actions: np.ndarray, gripper_threshold: float) -> np.ndarray:
-    """``(T, 20)`` EE6D → ``(T, 16)`` RoboTwin ee actions, as the official client: interleaved rot6d, the quaternion
-    left in scipy's xyzw order, gripper ``1 - 2 * (sigmoid > threshold)`` (RoboTwin clips it after interpolating)."""
+def _ee6d_to_robotwin_ee16(
+    actions: np.ndarray, gripper_threshold: float, quat_wxyz: bool = False, raw_gripper: bool = False
+) -> np.ndarray:
+    """``(T, 20)`` EE6D → ``(T, 16)`` RoboTwin ee actions from the interleaved rot6d. Defaults follow the official
+    client (scipy xyzw quaternion, gripper ``1 - 2 * (sigmoid > threshold)``); XPolicyLab writes wxyz and the raw sigmoid."""
     out = np.zeros((len(actions), 16), dtype=np.float64)
     for i, a in enumerate(np.asarray(actions, dtype=np.float64)):
         for arm in range(2):
             src, dst = a[10 * arm : 10 * arm + 10], out[i, 8 * arm : 8 * arm + 8]
             dst[:3] = src[:3]
-            dst[3:7] = rot6d_interleaved_to_quat(src[3:9])
-            dst[7] = 1.0 - 2.0 * float(src[9] > gripper_threshold)
+            quat = rot6d_interleaved_to_quat(src[3:9])
+            dst[3:7] = quat[[3, 0, 1, 2]] if quat_wxyz else quat
+            dst[7] = float(src[9]) if raw_gripper else 1.0 - 2.0 * float(src[9] > gripper_threshold)
     return out
 
 
-def _robotwin_proprio(state: np.ndarray, commanded: np.ndarray | None) -> np.ndarray:
-    """16-D RoboTwin end pose → 20-D proprio, as the official client: each arm ``[pos3,
-    rot6d(quat read as xyzw), 1 - 2 * gripper]``; after the first chunk the poses are the last commanded ones."""
+def _robotwin_proprio(
+    state: np.ndarray, commanded: np.ndarray | None, quat_wxyz: bool = False, raw_gripper: bool = False
+) -> np.ndarray:
+    """16-D RoboTwin end pose → 20-D proprio, each arm ``[pos3, rot6d, gripper]``; ``commanded`` poses replace the
+    measured ones. Defaults follow the official client (xyzw, ``1 - 2 * g``); XPolicyLab reads wxyz and the raw gripper."""
     ee = np.asarray(state, dtype=np.float64).copy()
     if commanded is not None:
         ee[0:7], ee[8:15] = commanded[0:7], commanded[8:15]
     proprio = np.zeros(20, dtype=np.float32)
     for arm in range(2):
         src = ee[8 * arm : 8 * arm + 8]
+        quat = src[3:7] / np.linalg.norm(src[3:7])
+        quat_xyzw = quat[[1, 2, 3, 0]] if quat_wxyz else quat
         proprio[10 * arm : 10 * arm + 3] = src[:3]
-        proprio[10 * arm + 3 : 10 * arm + 9] = quat_to_rot6d_interleaved(src[3:7] / np.linalg.norm(src[3:7]))
-        proprio[10 * arm + 9] = 1.0 - 2.0 * src[7]
+        proprio[10 * arm + 3 : 10 * arm + 9] = quat_to_rot6d_interleaved(quat_xyzw)
+        proprio[10 * arm + 9] = src[7] if raw_gripper else 1.0 - 2.0 * src[7]
     return proprio
 
 
@@ -383,6 +407,8 @@ class XVLAModelServer(PredictModelServer):
         self._gripper_threshold = profile.gripper_threshold if profile is not None else 0.5
         self._gripper_close_above = profile.gripper_close_above if profile is not None else True
         self._gripper_threshold_map = profile.gripper_threshold_map if profile is not None else None
+        self._quat_wxyz = profile.quat_wxyz if profile is not None else False
+        self._raw_gripper = profile.raw_gripper if profile is not None else False
         rot6d_conv = profile.rot6d_convention if profile is not None else "interleaved"
         if rot6d_conv == "contiguous":
             self._rot6d_to_matrix = _rot6d_to_matrix_contig
@@ -524,8 +550,9 @@ class XVLAModelServer(PredictModelServer):
                 raise ValueError(
                     "RoboTwin profile needs the 16-D end pose in obs['states']: send_state, and render_every == chunk_size"
                 )
-            commanded = self._last_commanded.get(row.id)
-            proprio = torch.tensor(_robotwin_proprio(state, commanded), device=device).unsqueeze(0)
+            commanded = self._last_commanded.get(row.id) if self.use_predicted_proprio else None
+            proprio_np = _robotwin_proprio(state, commanded, self._quat_wxyz, self._raw_gripper)
+            proprio = torch.tensor(proprio_np, device=device).unsqueeze(0)
         elif last_actions is not None:
             proprio_np = np.zeros(dim_proprio, dtype=np.float32)
             n = self._predicted_proprio_dims or dim_proprio
@@ -585,7 +612,9 @@ class XVLAModelServer(PredictModelServer):
 
         if self.output_action_dim == 16:
             # the whole chunk runs before the next query, so its last action is the next commanded pose
-            ee16 = _ee6d_to_robotwin_ee16(raw_actions[: self.chunk_size], self._gripper_threshold)
+            ee16 = _ee6d_to_robotwin_ee16(
+                raw_actions[: self.chunk_size], self._gripper_threshold, self._quat_wxyz, self._raw_gripper
+            )
             self._last_commanded[row.id] = ee16[-1]
             return {"actions": ee16}
 

@@ -8,12 +8,12 @@ directly and leaves model communication to vla-eval, following upstream's eval l
 
 * A task's layouts ``Assets/Eval_Layout/RoboDojo/<config>/<seed>/<task>_<n>.json`` form a queue in id
   order. Each round (a wave of ``num_envs`` slots) takes the next ``min(num_envs, episodes still to
-  count)`` ids, pads the rest with ``None``, closes the used scene and resets onto them (main.py:347-356,
-  434-439). The harness hands a wave as many episodes as are still to count, so rounds match.
+  count)`` ids, pads the rest with ``None``, closes the used scene and resets onto them (main.py:352-361,
+  439-444). The harness hands a wave as many episodes as are still to count, so rounds match.
 * Not counted, not retried (``EpisodeSkipped``; the episode runs again on the next ids): layouts whose
   scene does not settle (eval_env.py:247-255), envs a task flags unstable mid-episode (eval_env.py:784-794),
-  and every layout of a round that raised (main.py:371-394). PhysX-broken envs (tasks with articulations,
-  as upstream's monitor) abandon their layout and the round reruns with refills (main.py:396-424).
+  and every layout of a round that raised (main.py:376-399). PhysX-broken envs (tasks with articulations,
+  as upstream's monitor) abandon their layout and the round reruns with refills (main.py:401-429).
 * A round's episodes end together and score like ``run_eval()`` (eval_env.py:771-826): ``score`` is 1.0 on
   success, else the task's process score / 100. The queue running dry ends the remaining episodes uncounted.
 * Every counted or skipped layout is recorded, so a rerun with the same eval id resumes the queue past them
@@ -40,7 +40,7 @@ from vla_eval import columns
 from vla_eval.benchmarks.base import VectorStepBenchmark
 from vla_eval.recording import EpisodeRecorder
 from vla_eval.runners.base import EnvUnusableError, EpisodeSkipped
-from vla_eval.specs import IMAGE_RGB, LANGUAGE, STATE_JOINT, DimSpec
+from vla_eval.specs import EE_POSE_DUAL_WXYZ, IMAGE_RGB, LANGUAGE, STATE_EE_POSE_DUAL_WXYZ, STATE_JOINT, DimSpec
 from vla_eval.types import Batch, EpisodeResult, Task
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,11 @@ DEFAULT_TASKS = ["stack_blocks"]
 # gripper (1). The Franka in the three competition tasks is scripted, not policy-driven.
 ACTION_DIMS = (6, 1, 6, 1)
 ACTION_DIM = sum(ACTION_DIMS)
+# action_type -> (action dims, EvalEnv arm key, action column, state column); gripper keys are shared.
+ACTION_LAYOUTS = {
+    "joint": (ACTION_DIMS, "arm_joint_state", "actions", "state"),
+    "ee": ((7, 1, 7, 1), "ee_pose", "ee_pose", "ee_state"),  # pose [x, y, z, qw, qx, qy, qz] per arm
+}
 # Safety cap above the largest per-task ``step_lim`` (fasten_screws: 1900) so
 # the harness never truncates an episode before RoboDojo's own limit ends it.
 DEFAULT_MAX_STEPS = 2000
@@ -101,9 +106,12 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             evaluation never uses them (even the Franka competition arm replays
             pkl trajectories), and the public assets ship only ``curobo_tmp.yml``
             templates, so enabling this requires generating ``curobo.yml`` first.
+            Forced on for ``action_type="ee"``, whose actions go through cuRobo IK.
         stream_upstream_videos: Keep RoboDojo's own per-camera ffmpeg episode
             streams (written under ``<root>/eval_result``). Off by default —
             vla-eval's recorder owns video capture.
+        action_type: ``"joint"`` (14-D absolute joints) or ``"ee"`` (16-D end-effector
+            poses), as XPolicyLab's ``action_type``.
     """
 
     partial_reset: ClassVar[bool] = False
@@ -122,7 +130,10 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         seed: int = 0,
         enable_planner: bool = False,
         stream_upstream_videos: bool = False,
+        action_type: str = "joint",
     ) -> None:
+        if action_type not in ACTION_LAYOUTS:
+            raise ValueError(f"Invalid action_type: {action_type!r}")
         task_names = list(tasks or DEFAULT_TASKS)
         if num_envs > RANDOM_TASK_MAX_ENVS and any(name.endswith("_random") for name in task_names):
             if not all(name.endswith("_random") for name in task_names):
@@ -136,7 +147,10 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         self._camera_names = camera_names
         self._send_state = send_state
         self._seed = int(seed)
-        self._enable_planner = bool(enable_planner)
+        self._enable_planner = bool(enable_planner) or action_type == "ee"
+        self._action_type = action_type
+        self._action_dims, arm, self._action_key, self._state_key = ACTION_LAYOUTS[action_type]
+        self._keys = (f"left_{arm}", "left_ee_joint_state", f"right_{arm}", "right_ee_joint_state")
         self._stream_upstream_videos = bool(stream_upstream_videos)
         self._env: Any = None
         self._scene_used = False  # reset since the env (re)launched its scene; see _fresh_scene
@@ -189,9 +203,11 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         # AppLauncher must run before any module that imports Isaac/Omniverse.
         from isaaclab.app import AppLauncher
 
-        # Same kit extensions as upstream eval_policy.sh; naming them explicitly
-        # keeps Kit from consulting remote registries at startup.
-        kit_args = "--enable isaacsim.replicator.behavior --enable isaacsim.sensors.camera"
+        from env.camera_manager.capture.render_sync import zero_delay_kit_args
+
+        # Same kit extensions as upstream eval_policy.sh; naming them explicitly keeps Kit from consulting remote
+        # registries at startup. Zero-delay settings make camera frames match physics, as main.py:123-126.
+        kit_args = "--enable isaacsim.replicator.behavior --enable isaacsim.sensors.camera " + zero_delay_kit_args()
 
         # Kit boots on a worker thread (the main thread would lose the harness asyncio loop),
         # and signal handlers register only on the main thread — mute Isaac's SIGINT hook.
@@ -447,7 +463,7 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         live = [s for s in slots if not env.end_flag[s]]
         try:
             if live:
-                env.take_action_batch([self._unflatten_action(rows[s].get("actions")) for s in live], live)
+                env.take_action_batch([self._unflatten_action(rows[s].get(self._action_key)) for s in live], live)
             env.is_episode_end()
             raw = env.get_obs_batch(env.get_running_env_idx_list())
         except Exception as exc:
@@ -485,7 +501,7 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             self._results[slot] = {"success": success, "score": score, "layout_id": layout}
 
     def _round_failed(self, exc: Exception) -> Exception:
-        """What a round that raised becomes (main.py:358-424); the caller raises it for every slot."""
+        """What a round that raised becomes (main.py:363-429); the caller raises it for every slot."""
         real = [s for s in self._seeds if s is not None]
         name, monitor = type(exc).__name__, _Kit.monitor if self._env.physx_monitor_enabled else None
         if name == "PhysXFatalError" or (monitor is not None and monitor.is_fatal()):
@@ -521,18 +537,11 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         env.close()
         logger.info("RoboDojo closed the used scene in %.1fs", time.monotonic() - started)
 
-    @staticmethod
-    def _unflatten_action(values: Any) -> dict[str, np.ndarray]:
+    def _unflatten_action(self, values: Any) -> dict[str, np.ndarray]:
         flat = np.asarray(values, dtype=np.float32).reshape(-1)
-        if flat.size != ACTION_DIM:
-            raise ValueError(f"RoboDojo expects {ACTION_DIM} action values, got {flat.size}")
-        parts = np.split(flat, np.cumsum(ACTION_DIMS)[:-1])
-        return {
-            "left_arm_joint_state": parts[0],
-            "left_ee_joint_state": parts[1],
-            "right_arm_joint_state": parts[2],
-            "right_ee_joint_state": parts[3],
-        }
+        if flat.size != sum(self._action_dims):
+            raise ValueError(f"RoboDojo expects {sum(self._action_dims)} action values, got {flat.size}")
+        return dict(zip(self._keys, np.split(flat, np.cumsum(self._action_dims)[:-1])))
 
     @staticmethod
     def _to_rgb(image: Any) -> np.ndarray:
@@ -565,20 +574,12 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             "task_description": str(raw_obs.get("instruction") or str(task["name"]).replace("_", " ")),
         }
         if self._send_state and isinstance(raw_obs.get("state"), dict):
-            obs["state"] = self._pack_state(raw_obs["state"])
+            obs[self._state_key] = self._pack_state(raw_obs["state"])
         return obs
 
-    @staticmethod
-    def _pack_state(state: dict[str, Any]) -> np.ndarray:
-        """14-D qpos in XPolicyLab's canonical packing:
-        [left arm (6), left gripper (1), right arm (6), right gripper (1)]."""
-        canonical = (
-            "left_arm_joint_state",
-            "left_ee_joint_state",
-            "right_arm_joint_state",
-            "right_ee_joint_state",
-        )
-        keys = canonical if all(k in state for k in canonical) else tuple(state)
+    def _pack_state(self, state: dict[str, Any]) -> np.ndarray:
+        """XPolicyLab's packing: [left arm joints (6) or pose (7), left gripper (1), right arm, right gripper (1)]."""
+        keys = self._keys if self._action_type == "ee" or all(k in state for k in self._keys) else tuple(state)
         return np.concatenate([np.asarray(state[k], dtype=np.float32).reshape(-1) for k in keys])
 
     def get_metric_keys(self) -> dict[str, str]:
@@ -589,11 +590,13 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             "max_steps": DEFAULT_MAX_STEPS,
             "suite": "robodojo",
             "embodiment": self._env_config,
-            "action_dim": ACTION_DIM,
+            "action_dim": sum(self._action_dims),
             "num_envs": self.num_envs,
         }
 
     def get_action_spec(self) -> dict[str, DimSpec]:
+        if self._action_type == "ee":
+            return {"ee_pose": EE_POSE_DUAL_WXYZ}
         return {
             "actions": DimSpec(
                 "actions",
@@ -606,7 +609,7 @@ class RoboDojoBenchmark(VectorStepBenchmark):
     def get_observation_spec(self) -> dict[str, DimSpec]:
         spec = {"images": IMAGE_RGB, "language": LANGUAGE}
         if self._send_state:
-            spec["state"] = STATE_JOINT
+            spec[self._state_key] = STATE_EE_POSE_DUAL_WXYZ if self._action_type == "ee" else STATE_JOINT
         return spec
 
     def cleanup(self) -> None:

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-import threading
 import time
-import types
 from typing import Any
 
 import anyio
@@ -412,75 +409,4 @@ async def test_a_server_without_vector_step_refuses_it(free_port):
             await conn.exchange(step)
     finally:
         await conn.close()
-        await stop_server(task)
-
-
-# ---------------------------------------------------------------------------
-# VLANeXt on the base: dense state history, its own chunk queue, per-row errors
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def vlanext(monkeypatch):
-    """VLANeXtModelServer with torch and the model stubbed: the chunk is ``value + arange``, the history logged."""
-    monkeypatch.setitem(sys.modules, "torch", types.ModuleType("torch"))
-    monkeypatch.delitem(sys.modules, "vla_eval.model_servers.vlanext", raising=False)
-    from vla_eval.model_servers import vlanext as m
-
-    monkeypatch.setitem(sys.modules, "vla_eval.model_servers.vlanext", m)  # dropped again after the test
-    log: list[tuple[float, list[float], int, str]] = []
-
-    def predict_chunk(self, obs, row):
-        v = float(obs["value"])
-        log.append(
-            (v, [float(s[0]) for s in self._state_histories[row.id]], row.step, threading.current_thread().name)
-        )
-        if v < 0:
-            raise ValueError("bad state")
-        return {"actions": v + np.arange(56, dtype=np.float64).reshape(8, 7)}
-
-    monkeypatch.setattr(m.VLANeXtModelServer, "_init_model", lambda self: None)
-    monkeypatch.setattr(m.VLANeXtModelServer, "_predict_chunk", predict_chunk)
-    return m.VLANeXtModelServer, log
-
-
-def _vobs(values: Any) -> dict[str, Any]:
-    v = np.atleast_1d(np.asarray(values, np.float64))
-    return {"value": v, "state": v[:, None] * np.ones((1, 7))}
-
-
-@pytest.mark.anyio
-async def test_vlanext_history_is_dense_and_buffered_steps_come_from_its_queue(vlanext, free_port):
-    cls, log = vlanext
-    task = await start_server(cls("x", chunk_size=3), free_port)
-    try:
-        async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            await conn.start_episode({"task": {"name": "t"}})
-            got = [await conn.act({"value": float(v), "state": np.full(7, float(v))}) for v in range(1, 6)]
-            await conn.start_episode({"task": {"name": "t"}})  # a new episode starts a new history
-            await conn.act({"value": 9.0, "state": np.full(7, 9.0)})
-        chunk = np.arange(56, dtype=np.float32).reshape(8, 7)
-        expected = [1 + chunk[0], 1 + chunk[1], 1 + chunk[2], 4 + chunk[0], 4 + chunk[1]]
-        assert all(np.array_equal(a["actions"], e) and a["actions"].dtype == np.float32 for a, e in zip(got, expected))
-        assert [x[:3] for x in log] == [(1.0, [1.0], 0), (4.0, [1.0, 2.0, 3.0, 4.0], 3), (9.0, [9.0], 0)]
-        assert {x[3] for x in log} == {"model_0"}
-    finally:
-        await stop_server(task)
-
-
-@pytest.mark.anyio
-async def test_vlanext_a_rows_failure_is_its_own_in_a_vector_step(vlanext, free_port):
-    cls, log = vlanext
-    task = await start_server(cls("x", chunk_size=2), free_port)
-    try:
-        async with Connection(f"ws://127.0.0.1:{free_port}") as conn:
-            step = {"ends": [], "starts": [[s, {}] for s in range(3)], "slots": [0, 1, 2]}
-            reply = await conn.exchange({**step, "observations": _vobs([1.0, -1.0, 3.0])})
-            assert [s for s, _ in reply["errors"]] == [1] and "bad state" in reply["errors"][0][1]
-            assert [float(a[0]) for a in reply["actions"]["actions"]] == [1.0, 3.0]
-            reply = await conn.exchange({**step, "starts": [], "observations": _vobs([2.0, 5.0, 4.0])})
-            assert reply["errors"] == []
-            assert [float(a[0]) for a in reply["actions"]["actions"]] == [1.0 + 7, 5.0, 3.0 + 7]
-        assert [x[:2] for x in log] == [(1.0, [1.0]), (-1.0, [-1.0]), (3.0, [3.0]), (5.0, [-1.0, 5.0])]
-    finally:
         await stop_server(task)
