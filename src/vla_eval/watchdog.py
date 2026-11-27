@@ -3,6 +3,10 @@
 A blocking native sim call (SAPIEN/Vulkan) freezes the event loop, so no
 await-timeout can fire. Only a separate OS thread keeps running, and only
 os._exit reliably kills a process stuck in native code.
+
+A native call that blocks while holding the GIL (PhysX on a faulted GPU) starves
+that thread too, so a faulthandler timer, a C thread needing no GIL, backs it up:
+re-armed on every poll, it fires only once the poll loop has stopped running.
 """
 
 from __future__ import annotations
@@ -25,9 +29,13 @@ class ProgressWatchdog:
         if timeout_s <= 0:
             raise ValueError(f"watchdog timeout_s must be positive, got {timeout_s}")
         self._timeout_s = float(timeout_s)
+        self._poll_s = min(30.0, self._timeout_s / 4)
+        self._slack_s = 2 * self._poll_s + 1  # backstop fires this long after the timeout, past this thread's panic
         self._last = time.monotonic()
         self._phase = "startup"
         self._stopped = threading.Event()
+        self._lock = threading.Lock()
+        self._fd: int | None = None
 
     def pet(self, phase: str | None = None) -> None:
         """Record progress; phase (kept when None) is surfaced if the watchdog later panics."""
@@ -44,19 +52,33 @@ class ProgressWatchdog:
         return self._phase
 
     def start(self) -> ProgressWatchdog:
+        self._fd = _nonblocking_stderr()
+        self._backstop(self._timeout_s + self._slack_s)
         threading.Thread(target=self._loop, name="progress-watchdog", daemon=True).start()
         return self
 
     def stop(self) -> None:
         """Disarm: the thread exits at its next poll. For library callers whose run has ended."""
-        self._stopped.set()
+        with self._lock:
+            self._stopped.set()
+            faulthandler.cancel_dump_traceback_later()
+            if self._fd is not None:
+                os.close(self._fd)
+                self._fd = None
+
+    def _backstop(self, delay: float) -> None:
+        # Exits 1 (faulthandler's code) after "Timeout (h:mm:ss)!" and the stacks.
+        with self._lock:
+            if not self._stopped.is_set():
+                assert self._fd is not None  # set by start(), cleared only once stopped
+                faulthandler.dump_traceback_later(delay, exit=True, file=self._fd)
 
     def _loop(self) -> None:
-        poll = min(30.0, self._timeout_s / 4)
-        while not self._stopped.wait(poll):
+        while not self._stopped.wait(self._poll_s):
             idle = self.idle_s()
             if idle > self._timeout_s:
                 self._panic(idle)
+            self._backstop(self._timeout_s - idle + self._slack_s)
 
     def _panic(self, idle: float) -> None:
         # free() can block forever on a malloc lock held by a crashed thread, so skip logging; stderr may be a
@@ -72,6 +94,14 @@ class ProgressWatchdog:
         except Exception:  # a closed/invalid stderr must not keep the process alive
             pass
         os._exit(PANIC_EXIT_CODE)
+
+
+def _nonblocking_stderr() -> int:
+    """Own non-blocking handle on today's stderr: a later dup2 of fd 2 or a full pipe can't block the backstop."""
+    try:
+        return os.open("/proc/self/fd/2", os.O_WRONLY | os.O_APPEND | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError:
+        return os.open(os.devnull, os.O_WRONLY | os.O_CLOEXEC)
 
 
 _watchdog: ProgressWatchdog | None = None
