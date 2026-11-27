@@ -310,21 +310,8 @@ def _convert_ee6d_to_7d(
 def _ee6d_to_robotwin_ee16(
     actions: np.ndarray, gripper_threshold: float, quat_wxyz: bool = False, raw_gripper: bool = False
 ) -> np.ndarray:
-    """Decode ``(T, 20)`` EE6D actions into ``(T, 16)`` RoboTwin ee actions.
-
-    Each arm becomes ``[pos3, quat4, gripper]`` from the interleaved rot6d.  The defaults follow X-VLA's
-    official client (quaternion left in scipy's xyzw order, gripper ``1 - 2 * (sigmoid > threshold)``, which
-    RoboTwin clips after interpolating); XPolicyLab writes wxyz and passes the raw sigmoid through.
-
-    Args:
-        actions: ``(T, 20)`` raw model actions, ``[pos3, rot6d, gripper]`` per arm.
-        gripper_threshold: Sigmoid threshold for the binarized gripper; unused with ``raw_gripper``.
-        quat_wxyz: Emit quaternions as wxyz instead of xyzw.
-        raw_gripper: Emit the raw gripper sigmoid instead of ``±1``.
-
-    Returns:
-        ``(T, 16)`` float64 array in ``take_action(..., "ee")`` layout.
-    """
+    """``(T, 20)`` EE6D → ``(T, 16)`` RoboTwin ee actions from the interleaved rot6d. Defaults follow the official
+    client (scipy xyzw quaternion, gripper ``1 - 2 * (sigmoid > threshold)``); XPolicyLab writes wxyz and the raw sigmoid."""
     out = np.zeros((len(actions), 16), dtype=np.float64)
     for i, a in enumerate(np.asarray(actions, dtype=np.float64)):
         for arm in range(2):
@@ -339,33 +326,15 @@ def _ee6d_to_robotwin_ee16(
 def _robotwin_proprio(
     state: np.ndarray, commanded: np.ndarray | None, quat_wxyz: bool = False, raw_gripper: bool = False
 ) -> np.ndarray:
-    """Encode the 16-D RoboTwin end pose as the 20-D X-VLA proprio.
-
-    Each arm becomes ``[pos3, rot6d, gripper]``.  The defaults follow X-VLA's official client (quaternion read
-    as xyzw, gripper ``1 - 2 * g``); XPolicyLab reads RoboTwin's wxyz and feeds the raw gripper joint value.
-
-    Args:
-        state: 16-D ``[left pos3, quat4, gripper, right pos3, quat4, gripper]`` from ``obs["states"]``.
-        commanded: Last commanded 16-D ee action whose poses replace the measured ones, or ``None``.
-        quat_wxyz: Read quaternions as wxyz instead of xyzw.
-        raw_gripper: Use the raw gripper value instead of ``1 - 2 * g``.
-
-    Returns:
-        20-D float32 proprio.
-
-    Raises:
-        ValueError: If a quaternion has zero norm.
-    """
+    """16-D RoboTwin end pose → 20-D proprio, each arm ``[pos3, rot6d, gripper]``; ``commanded`` poses replace the
+    measured ones. Defaults follow the official client (xyzw, ``1 - 2 * g``); XPolicyLab reads wxyz and the raw gripper."""
     ee = np.asarray(state, dtype=np.float64).copy()
     if commanded is not None:
         ee[0:7], ee[8:15] = commanded[0:7], commanded[8:15]
     proprio = np.zeros(20, dtype=np.float32)
     for arm in range(2):
         src = ee[8 * arm : 8 * arm + 8]
-        norm = np.linalg.norm(src[3:7])
-        if norm < 1e-8:
-            raise ValueError(f"Zero-norm end-pose quaternion in RoboTwin state: {src[3:7]}")
-        quat = src[3:7] / norm
+        quat = src[3:7] / np.linalg.norm(src[3:7])
         quat_xyzw = quat[[1, 2, 3, 0]] if quat_wxyz else quat
         proprio[10 * arm : 10 * arm + 3] = src[:3]
         proprio[10 * arm + 3 : 10 * arm + 9] = quat_to_rot6d_interleaved(quat_xyzw)
@@ -551,14 +520,6 @@ class XVLAModelServer(PredictModelServer):
             self._last_raw_actions.pop(row.id, None)
             self._last_commanded.pop(row.id, None)
 
-        if self.output_action_dim == 16:
-            # RoboTwin: a missing camera means render_every != chunk_size; don't infer from fewer views
-            missing = [k for k in self._image_keys if k not in obs.get("images", {})]
-            if missing:
-                raise KeyError(
-                    f"Missing cameras {missing} in obs['images'] (got {list(obs.get('images', {}))}); "
-                    "the benchmark's render_every must equal the server's chunk_size"
-                )
         raw_images = _ordered_images(obs, self._image_keys)
         # Un-flip wrist image: benchmark sends all images flipped [::-1,::-1],
         # but X-VLA was trained with unflipped wrist images.

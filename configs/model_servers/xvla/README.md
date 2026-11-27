@@ -28,4 +28,5 @@ prompts with the task name. Run it with `configs/benchmarks/robotwin/xvla.yaml`.
 episode instruction as prompt, `domain_id` 0, wxyz quaternions, raw gripper values, and
 proprio from the measured end pose on every query. The tarball lacks the `trust_remote_code`
 files; copy them from `2toINF/X-VLA-RoboTwin2`. Set `XVLA_ROBOTWIN_CKPT` to the `ckpt-30000`
-directory and use the same benchmark config.
+directory and use the same benchmark config with `--benchmark-field max_steps=null`:
+XPolicyLab runs each task to its step limit, not the official client's 300 actions.
