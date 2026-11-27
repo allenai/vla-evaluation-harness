@@ -42,11 +42,8 @@ logger = logging.getLogger(__name__)
 
 
 def _droid_jointpos_config() -> Any:
-    """``pi05_droid`` with absolute joint-position outputs, for the public ``pi05_droid_jointpos`` checkpoint.
-
-    The pinned openpi registers only the joint-velocity ``pi05_droid``; this is the config openpi forks
-    register for the joint-position checkpoint (the model adds the current joints back to its 7 arm deltas).
-    """
+    """``pi05_droid_jointpos`` as in Physical-Intelligence/openpi@aa64205 src/openpi/training/config.py
+    (the openpi LADDER v1.0.0 vendors); the pinned openpi lacks it."""
     import dataclasses
 
     from openpi import transforms
