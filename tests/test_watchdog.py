@@ -127,13 +127,20 @@ def test_backstop_exits_when_the_gil_is_held() -> None:
     # The Python thread starves here; faulthandler's C timer still dumps (to the original stderr) and exits.
     t0 = time.monotonic()
     proc = subprocess.run([sys.executable, "-c", _GIL_WEDGE_SCRIPT], capture_output=True, text=True, timeout=25)
-    assert proc.returncode == 1 and time.monotonic() - t0 < 20
+    assert proc.returncode == 1 and time.monotonic() - t0 < 10
     assert "Timeout (" in proc.stderr and "most recent call first" in proc.stderr
     assert "Progress watchdog: no progress for" not in proc.stderr
 
 
+def test_backstop_exits_when_the_gil_is_held_and_stderr_is_full() -> None:
+    # A blocking dump into a pipe nobody drains would keep faulthandler from reaching _exit.
+    script = _FULL_STDERR_PIPE_SCRIPT.replace("time.sleep(30)", "import ctypes; ctypes.PyDLL(None).sleep(30)")
+    proc = subprocess.run([sys.executable, "-c", script], capture_output=True, timeout=10)
+    assert proc.returncode == 1
+
+
 def test_stop_cancels_the_backstop() -> None:
     # Library callers stop() the watchdog when their run ends; the backstop must not _exit them later.
-    script = "import time\nfrom vla_eval import watchdog\nwatchdog.start(0.2)\nwatchdog.stop()\ntime.sleep(6)\n"
+    script = "import time\nfrom vla_eval import watchdog\nwatchdog.start(0.2)\nwatchdog.stop()\ntime.sleep(2)\n"
     proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=25)
     assert proc.returncode == 0, proc.stderr
