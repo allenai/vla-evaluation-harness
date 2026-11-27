@@ -57,21 +57,29 @@ exit 3 needs the shared queue, so rerun through `run_sharded.sh` (also with `-n 
 
 ## Interface
 
-- **Action:** `action_type: "joint"` (default, 14-D absolute joints): left arm (6), left gripper (1),
-  right arm (6), right gripper (1). All 42 tasks use the dual ARX-X5 policy action space; the Franka arm
+- **Action (14-D absolute joints):** left arm (6), left gripper (1), right arm (6),
+  right gripper (1). All 42 tasks use the dual ARX-X5 policy action space; the Franka arm
   in the three `dual_x5_and_franka_competition` tasks is scripted, not policy-controlled.
-  `action_type: "ee"` sends 16-D end-effector poses instead — left pose (7), left gripper (1),
-  right pose (7), right gripper (1), each pose `[x, y, z, qw, qx, qy, qz]` — matching XPolicyLab's
-  `action_type: 'ee'` packing. The env takes both; only the flattened layout differs.
+  `params.action_type: ee` takes 16-D end-effector poses instead (`ee_pose`: per arm `[x, y, z, qw, qx, qy, qz]` +
+  gripper, XPolicyLab's `ee` packing) and sends the observed poses as `ee_state`; see below.
 - **Observation:** `images` (RoboDojo camera dict), `task_description` (the task's language
-  instruction), and with `send_state` either the concatenated joint `state` or, under
-  `action_type: "ee"`, the `ee_state` poses in the same 16-D packing (needs
-  `observation.robot.world_ee_state: true` in the env config; the adapter raises if it is off).
-- **Spec keys:** the action column is `actions` for joints and `ee_pose` for end-effector poses
-  (`EE_POSE_DUAL_WXYZ`), so a model server declaring that spec matches without an alias.
+  instruction), and optional concatenated joint `state`.
 - **Metrics:** `success` (binary, from RoboDojo's native reward manager) and `score`
   (paper metric: 1.0 on success, else partial task progress). The paper reports
   score/success-rate scaled by 100 and averages the five dimension means.
+
+### End-effector actions
+
+`action_type: ee` turns on RoboDojo's cuRobo planner, whose IK maps each pose to joints. It needs
+`Assets/Robots/<robot>/curobo.yml`, generated once from the shipped templates with the in-container path:
+
+```bash
+for r in x5 franka; do
+  sed 's#${ASSETS_PATH}#/workspace/RoboDojo#g' "$ROBODOJO_ASSETS/Robots/$r/curobo_tmp.yml" > "$ROBODOJO_ASSETS/Robots/$r/curobo.yml"
+done
+```
+
+As upstream, a pose whose IK fails is dropped silently: that arm keeps its last joint target (the gripper still moves).
 
 ## Protocol notes
 
