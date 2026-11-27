@@ -23,7 +23,7 @@ they must be present in the clone:
 
 ```bash
 git clone --recurse-submodules https://github.com/RoboDojo-Benchmark/RoboDojo.git
-git -C RoboDojo checkout --recurse-submodules ee67a1468510da7624a089164402359f2afc72c8
+git -C RoboDojo checkout --recurse-submodules c3af1ac6ad7302c0c09d17f4b050fd3a5c68c921
 docker build -t robodojo:cuda12.8 RoboDojo
 docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
 ```

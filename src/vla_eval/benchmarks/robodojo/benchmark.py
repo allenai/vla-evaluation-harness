@@ -8,12 +8,12 @@ directly and leaves model communication to vla-eval, following upstream's eval l
 
 * A task's layouts ``Assets/Eval_Layout/RoboDojo/<config>/<seed>/<task>_<n>.json`` form a queue in id
   order. Each round (a wave of ``num_envs`` slots) takes the next ``min(num_envs, episodes still to
-  count)`` ids, pads the rest with ``None``, closes the used scene and resets onto them (main.py:347-356,
-  434-439). The harness hands a wave as many episodes as are still to count, so rounds match.
+  count)`` ids, pads the rest with ``None``, closes the used scene and resets onto them (main.py:352-361,
+  439-444). The harness hands a wave as many episodes as are still to count, so rounds match.
 * Not counted, not retried (``EpisodeSkipped``; the episode runs again on the next ids): layouts whose
   scene does not settle (eval_env.py:247-255), envs a task flags unstable mid-episode (eval_env.py:784-794),
-  and every layout of a round that raised (main.py:371-394). PhysX-broken envs (tasks with articulations,
-  as upstream's monitor) abandon their layout and the round reruns with refills (main.py:396-424).
+  and every layout of a round that raised (main.py:376-399). PhysX-broken envs (tasks with articulations,
+  as upstream's monitor) abandon their layout and the round reruns with refills (main.py:401-429).
 * A round's episodes end together and score like ``run_eval()`` (eval_env.py:771-826): ``score`` is 1.0 on
   success, else the task's process score / 100. The queue running dry ends the remaining episodes uncounted.
 * Every counted or skipped layout is recorded, so a rerun with the same eval id resumes the queue past them
@@ -203,9 +203,11 @@ class RoboDojoBenchmark(VectorStepBenchmark):
         # AppLauncher must run before any module that imports Isaac/Omniverse.
         from isaaclab.app import AppLauncher
 
-        # Same kit extensions as upstream eval_policy.sh; naming them explicitly
-        # keeps Kit from consulting remote registries at startup.
-        kit_args = "--enable isaacsim.replicator.behavior --enable isaacsim.sensors.camera"
+        from env.camera_manager.capture.render_sync import zero_delay_kit_args
+
+        # Same kit extensions as upstream eval_policy.sh; naming them explicitly keeps Kit from consulting remote
+        # registries at startup. Zero-delay settings make camera frames match physics, as main.py:123-126.
+        kit_args = "--enable isaacsim.replicator.behavior --enable isaacsim.sensors.camera " + zero_delay_kit_args()
 
         # Kit boots on a worker thread (the main thread would lose the harness asyncio loop),
         # and signal handlers register only on the main thread — mute Isaac's SIGINT hook.
@@ -499,7 +501,7 @@ class RoboDojoBenchmark(VectorStepBenchmark):
             self._results[slot] = {"success": success, "score": score, "layout_id": layout}
 
     def _round_failed(self, exc: Exception) -> Exception:
-        """What a round that raised becomes (main.py:358-424); the caller raises it for every slot."""
+        """What a round that raised becomes (main.py:363-429); the caller raises it for every slot."""
         real = [s for s in self._seeds if s is not None]
         name, monitor = type(exc).__name__, _Kit.monitor if self._env.physx_monitor_enabled else None
         if name == "PhysXFatalError" or (monitor is not None and monitor.is_fatal()):

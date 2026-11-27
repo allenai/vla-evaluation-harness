@@ -5,7 +5,7 @@
 # COPY'd into the build context, so clone with --recurse-submodules):
 #
 #   git clone --recurse-submodules https://github.com/RoboDojo-Benchmark/RoboDojo.git
-#   git -C RoboDojo checkout --recurse-submodules ee67a1468510da7624a089164402359f2afc72c8
+#   git -C RoboDojo checkout --recurse-submodules c3af1ac6ad7302c0c09d17f4b050fd3a5c68c921
 #   docker build -t robodojo:cuda12.8 RoboDojo
 #   docker/build.sh robodojo --base-image robodojo:cuda12.8 --accept-license robodojo
 #
@@ -23,6 +23,10 @@ RUN if [ "$ACCEPT_NVIDIA_EULA" != "YES" ]; then \
         echo "Re-run with: docker/build.sh robodojo --accept-license robodojo"; \
         exit 1; \
     fi
+
+# A base built before the pin above lacks render_sync, which the adapter imports at launch.
+RUN test -f /workspace/RoboDojo/env/camera_manager/capture/render_sync.py || \
+    { echo "Stale RoboDojo base image: rebuild it at the commit named above."; exit 1; }
 
 WORKDIR /workspace/vla-evaluation-harness
 COPY pyproject.toml README.md ./
