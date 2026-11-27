@@ -186,21 +186,6 @@ def _patched_render_setup(enabled: bool):
             setattr(sapien_render, name, func)
 
 
-def _restore_play_once_attributes(env: Any, task_name: str) -> None:
-    """Set what these tasks' check_success reads but only play_once assigns (eval_policy.py runs play_once on the same
-    env first); play_once derives it from the initial scene, so the same expressions after setup_demo match."""
-    if task_name == "open_laptop":
-        from envs.utils import ArmTag, get_face_prod
-
-        env.arm_tag = ArmTag("left" if get_face_prod(env.laptop.get_pose().q, [1, 0, 0], [1, 0, 0]) > 0 else "right")
-    elif task_name in ("place_object_scale", "put_object_cabinet"):
-        from envs.utils import ArmTag
-
-        env.arm_tag = ArmTag("right" if env.object.get_pose().p[0] > 0 else "left")
-        if task_name == "put_object_cabinet":
-            env.origin_z = env.object.get_pose().p[2]
-
-
 class RoboTwinBenchmark(StepBenchmark):
     """RoboTwin dual-arm manipulation benchmark (SAPIEN/CuRobo).
 
@@ -208,9 +193,8 @@ class RoboTwinBenchmark(StepBenchmark):
         task_name: RoboTwin task (e.g. ``"grab_roller"``).
         task_config: Config name under ``env_cfg/task_config/`` (default ``"demo_clean"``).
         seed: Base seed index.  Starting seed = ``100000 * (1 + seed)``.
-        instruction_type: Instruction variant (``"seen"`` or ``"unseen"``). ``None`` (default)
-            takes the task config's ``eval_instruction``, as RoboTwin's eval does
-            (``demo_clean``: seen, ``demo_randomized``: unseen).
+        instruction_type: ``"seen"`` or ``"unseen"``; ``None`` (default) takes the task config's
+            ``eval_instruction``, as RoboTwin's eval does (``demo_clean``: seen, ``demo_randomized``: unseen).
         test_num: Number of valid episodes to evaluate.
         skip_expert_check: If ``True``, skip oracle planner verification in
             ``get_tasks()`` (useful for quick smoke tests).
@@ -261,14 +245,12 @@ class RoboTwinBenchmark(StepBenchmark):
             raise ValueError(f"Invalid task_config: {task_config!r}")
         if action_type not in ("qpos", "ee"):
             raise ValueError(f"Invalid action_type: {action_type!r}")
-        if instruction_type not in (None, "seen", "unseen"):
-            raise ValueError(f"Invalid instruction_type: {instruction_type!r}")
         self.action_type = action_type
         self.send_state = send_state
         self.task_name = task_name
         self.task_config = task_config
         self.seed = seed
-        self.instruction_type = instruction_type or ""  # empty until _init_robotwin reads the task config
+        self.instruction_type = instruction_type
         self.test_num = test_num
         self.skip_expert_check = skip_expert_check
         # the fast path stubs out plan_path, which take_action(..., "ee") plans with
@@ -292,7 +274,7 @@ class RoboTwinBenchmark(StepBenchmark):
         if self._args is not None:
             return
 
-        for p in [ROBOTWIN_ROOT, f"{ROBOTWIN_ROOT}/policy", f"{ROBOTWIN_ROOT}/description/utils"]:
+        for p in [ROBOTWIN_ROOT, f"{ROBOTWIN_ROOT}/description/utils"]:
             if p not in sys.path:
                 sys.path.insert(0, p)
 
@@ -310,11 +292,7 @@ class RoboTwinBenchmark(StepBenchmark):
 
         args["task_name"] = self.task_name
         args["task_config"] = self.task_config
-        if not self.instruction_type:  # as RoboTwin's resolve_eval_instruction
-            kind = str(args.get("eval_instruction", "")).strip().lower()
-            if kind not in ("seen", "unseen"):
-                raise ValueError(f"{config_path} must set eval_instruction to 'seen' or 'unseen', got {kind!r}")
-            self.instruction_type = kind
+        self.instruction_type = self.instruction_type or args["eval_instruction"]
 
         from envs import CONFIGS_PATH
 
@@ -442,15 +420,7 @@ class RoboTwinBenchmark(StepBenchmark):
             return None
 
     def _instructions(self, episode_info: dict[str, Any], seed: int) -> dict[str, str]:
-        """One ``seen`` and one ``unseen`` instruction for ``seed``, drawn as RoboTwin's ``build_instruction`` does.
-
-        Args:
-            episode_info: The ``info`` dict of the oracle's episode.
-            seed: The episode's seed.
-
-        Returns:
-            ``{"seen": ..., "unseen": ...}``.
-        """
+        """One ``seen`` and one ``unseen`` instruction for ``seed``, drawn as RoboTwin's ``build_instruction`` does."""
         import random
 
         from generate_episode_instructions import generate_episode_descriptions
@@ -494,7 +464,7 @@ class RoboTwinBenchmark(StepBenchmark):
         self._init_robotwin()
         assert self._args is not None
 
-        # As eval_policy.py: one env, SAPIEN's asset cache cleared every clear_cache_freq episodes (task configs: 5).
+        # As RoboTwin's eval: one env, SAPIEN's asset cache cleared every clear_cache_freq episodes (task configs: 5).
         if self._env is not None:
             clear = not self._env_done or self._episodes_since_clear >= self._args["clear_cache_freq"]
             try:
@@ -517,7 +487,6 @@ class RoboTwinBenchmark(StepBenchmark):
                 is_test=True,
                 **self._args,
             )
-        _restore_play_once_attributes(self._env, self.task_name)
         self._env.set_instruction(instruction=task["instruction"])
         self._steps = 0
         raw_obs = self._env.get_obs()
