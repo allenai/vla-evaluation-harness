@@ -1,9 +1,10 @@
 # π₀.5 model server — DROID (direct OpenPI inference)
-# Serves the official π₀.5 DROID checkpoint for Franka DROID benchmarks (e.g. LADDER RoboLab-Long).
+# Serves the official π₀.5 DROID joint-position checkpoint (absolute joint targets) for simulated
+# Franka DROID benchmarks (e.g. LADDER RoboLab-Long).
 
 script: "src/vla_eval/model_servers/pi0.py"
 args:
-  config_name: pi05_droid
+  config_name: pi05_droid_jointpos
   image_key: "observation/exterior_image_1_left"
   wrist_image_key: "observation/wrist_image_left"
   state_key: "observation/joint_position"

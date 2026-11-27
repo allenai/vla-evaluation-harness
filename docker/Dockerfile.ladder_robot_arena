@@ -8,7 +8,8 @@ RUN conda create -n ladder_robot_arena python=3.11 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "ladder_robot_arena", "/bin/bash", "-c"]
 
 WORKDIR /app
-ARG LADDER_REF=6c88eea
+# LADDER v1.0.0
+ARG LADDER_REF=6c88eeadc8f5666fdf65f10b9c06bb7bdf1f7ca4
 RUN mkdir -p /app/ladder \
     && cd /app/ladder \
     && git init -q \
@@ -33,6 +34,7 @@ RUN mkdir -p /app/ladder/ladder/components/inference/robots/robot_arena/robot_ar
        | tar -xz --strip-components=1 -C /app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data
 
 ENV LADDER_ROOT=/app/ladder
+ENV PYTHONPATH=/app/ladder
 ENV LADDER_ROBOT_ARENA_ASSETS=/app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data/examples/data
 
 WORKDIR /workspace

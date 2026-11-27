@@ -8,10 +8,9 @@ docker:
 output_dir: "./results"
 
 benchmarks:
-  - benchmark: "vla_eval.benchmarks.ladder.benchmark:LadderRobotArenaBenchmark"
+  - benchmark: "vla_eval.benchmarks.ladder.robot_arena:LadderRobotArenaBenchmark"
     episodes_per_task: 8
     action_dim: 7
     params:
       num_envs: 8
       seed: 42
-      action_mode: "delta_ee"

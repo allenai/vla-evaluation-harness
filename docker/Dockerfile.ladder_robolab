@@ -16,7 +16,8 @@ RUN conda create -n ladder_robolab python=3.12 pip -y && conda clean -afy
 SHELL ["conda", "run", "-n", "ladder_robolab", "/bin/bash", "-c"]
 
 WORKDIR /app
-ARG LADDER_REF=6c88eea
+# LADDER v1.0.0
+ARG LADDER_REF=6c88eeadc8f5666fdf65f10b9c06bb7bdf1f7ca4
 RUN mkdir -p /app/ladder \
     && cd /app/ladder \
     && git init -q \

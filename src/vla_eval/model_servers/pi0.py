@@ -41,6 +41,30 @@ from vla_eval.model_servers.predict import PredictModelServer
 logger = logging.getLogger(__name__)
 
 
+def _droid_jointpos_config() -> Any:
+    """``pi05_droid`` with absolute joint-position outputs, for the public ``pi05_droid_jointpos`` checkpoint.
+
+    The pinned openpi registers only the joint-velocity ``pi05_droid``; this is the config openpi forks
+    register for the joint-position checkpoint (the model adds the current joints back to its 7 arm deltas).
+    """
+    import dataclasses
+
+    from openpi import transforms
+    from openpi.models.model import ModelType
+    from openpi.policies import droid_policy
+    from openpi.training import config as _config
+
+    base = _config.get_config("pi05_droid")
+    data = dataclasses.replace(
+        base.data,
+        data_transforms=lambda model: transforms.Group(
+            inputs=[droid_policy.DroidInputs(model_type=ModelType.PI05)],
+            outputs=[transforms.AbsoluteActions(transforms.make_bool_mask(7, -1)), droid_policy.DroidOutputs()],
+        ),
+    )
+    return dataclasses.replace(base, name="pi05_droid_jointpos", data=data)
+
+
 class Pi0ModelServer(PredictModelServer):
     """π₀ / π₀-FAST model server using OpenPI direct inference."""
 
@@ -73,7 +97,11 @@ class Pi0ModelServer(PredictModelServer):
         from openpi.training import config as _config
 
         logger.info("Loading OpenPI config: %s", self.config_name)
-        _cfg = _config.get_config(self.config_name)
+        _cfg = (
+            _droid_jointpos_config()
+            if self.config_name == "pi05_droid_jointpos"
+            else _config.get_config(self.config_name)
+        )
         ckpt = checkpoint if checkpoint is not None else f"gs://openpi-assets/checkpoints/{self.config_name}"
         logger.info("Loading policy from checkpoint: %s", ckpt)
         self._policy = policy_config.create_trained_policy(_cfg, ckpt)

@@ -7,14 +7,9 @@ RUN conda create -n ladder_simpler python=3.11 pip -y && conda clean -afy
 
 SHELL ["conda", "run", "-n", "ladder_simpler", "/bin/bash", "-c"]
 
-# Software Vulkan for `--render cpu`
-RUN conda create -y -p /opt/lavapipe-env -c conda-forge "mesa-lavapipe==26.2.1" \
-    && conda clean -afy \
-    && mkdir -p /opt/lavapipe \
-    && cp /opt/lavapipe-env/share/vulkan/icd.d/lvp_icd.x86_64.json /opt/lavapipe/lvp_icd.json
-
 WORKDIR /app
-ARG LADDER_REF=6c88eea
+# LADDER v1.0.0
+ARG LADDER_REF=6c88eeadc8f5666fdf65f10b9c06bb7bdf1f7ca4
 RUN mkdir -p /app/ladder \
     && cd /app/ladder \
     && git init -q \
@@ -42,6 +37,7 @@ RUN mkdir -p /app/ladder/ladder/components/inference/robots/simpler/maniskill3 \
     && rm -f /tmp/physx.zip
 
 ENV LADDER_ROOT=/app/ladder
+ENV PYTHONPATH=/app/ladder
 ENV MS_ASSET_DIR=/app/ladder/ladder/components/inference/robots/simpler/maniskill3
 
 WORKDIR /workspace
