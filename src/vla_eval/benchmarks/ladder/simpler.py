@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from vla_eval.benchmarks.ladder.base import EnvStep, WidowXBenchmark
+from vla_eval.benchmarks.ladder.base import LADDER_ROOT, EnvStep, WidowXBenchmark
+
+_CONFIG = LADDER_ROOT / "ladder/components/inference/robots/simpler/configs/widowx_composition.yaml"
 
 
 class LadderSimplerBenchmark(WidowXBenchmark):
@@ -15,32 +17,21 @@ class LadderSimplerBenchmark(WidowXBenchmark):
 
     def __init__(self, num_envs: int = 24, **kwargs: Any) -> None:
         super().__init__(num_envs=num_envs, **kwargs)
+        from ladder.core.databib.config.yaml_util import load_config
+
+        self._env_config = load_config(_CONFIG)["env_config"]  # the published SimplerEnv-Long settings
         self._env: Any = None
         self._env_key: tuple[str, int] | None = None
 
     def _reset_wave(self, task_name: str, episode_ids: list[int]) -> list[EnvStep]:
-        from ladder.components.inference.robots.simpler.env_builder import ABS_CONTROL_MODE
         from ladder.components.inference.robots.simpler.simpler_env import SimplerEnv, SimplerEnvConfig
 
         key = (task_name, len(episode_ids))
         if self._env_key != key:
             if self._env is not None:
                 self._env.close()
-            self._env = SimplerEnv(
-                SimplerEnvConfig(
-                    env_name=f"{task_name}-v0",
-                    robot_name="widowx",
-                    scene_name="bridge_table_1_v1",
-                    rgb_overlay_path="",
-                    sim_freq=500,
-                    control_mode=ABS_CONTROL_MODE,
-                    control_freq=5,
-                    max_episode_steps=0,  # the task's own budget
-                    raytracing=False,
-                    n_envs=len(episode_ids),
-                    episode_layouts=max(24, max(episode_ids) + 1),
-                )
-            )
+            config = {**self._env_config, "env_name": f"{task_name}-v0", "n_envs": len(episode_ids)}
+            self._env = SimplerEnv(SimplerEnvConfig(**config))
             self._env_key = key
         steps = self._to_steps(self._env.reset(episode_ids))
         self._actions = self._hold_actions()

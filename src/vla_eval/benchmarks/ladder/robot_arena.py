@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, ClassVar
 
 from vla_eval.benchmarks.ladder.base import LADDER_ROOT, EnvStep, WidowXBenchmark
@@ -23,7 +22,9 @@ class LadderRobotArenaBenchmark(WidowXBenchmark):
         super().__init__(num_envs=num_envs, **kwargs)
         from ladder.core.databib.config.yaml_util import load_config
 
-        self._offsets = [tuple(o) for o in load_config(_K8_CONFIG)["test_config"]["object_variation_offsets_m"]]
+        config = load_config(_K8_CONFIG)  # the published RobotArena-Long settings
+        self._env_config = config["env_config"]
+        self._offsets = [tuple(o) for o in config["test_config"]["object_variation_offsets_m"]]
         self._seed = seed
         self._env: Any = None
         self._padded = False
@@ -43,18 +44,14 @@ class LadderRobotArenaBenchmark(WidowXBenchmark):
             offsets.append(self._offsets[0])
         task = COMPOSITION_TASKS[task_name]
         cfg = RobotArenaEnvConfig(
-            data_root=os.environ["LADDER_ROBOT_ARENA_ASSETS"],
-            scene_name=task.scene,
-            robot_name="widowx",
-            max_episode_steps=task.max_episode_steps,
-            control_freq=5,
-            sim_freq=200,
-            sim_substeps=1,
-            rigid_constraint_timeconst=0.02,
-            camera_width=640,
-            camera_height=480,
-            per_env_object_offsets=offsets,
-            composition_task=task_name,
+            **{
+                **self._env_config,
+                "data_root": str(LADDER_ROOT / self._env_config["data_root"]),
+                "scene_name": task.scene,
+                "composition_task": task_name,
+                "max_episode_steps": task.max_episode_steps,
+                "per_env_object_offsets": offsets,
+            }
         )
         if self._env is not None and self._env.can_reuse_for(cfg):
             self._env.reconfigure(cfg)

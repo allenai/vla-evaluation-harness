@@ -48,7 +48,7 @@ RUN uv pip install --no-cache-dir --prerelease=allow --index-strategy unsafe-bes
     && uv pip install --no-cache-dir --no-deps /app/openpi_src/packages/openpi-client
 
 ENV LADDER_ROOT=/app/ladder
-ENV PYTHONPATH=/app/robolab_src:/app/ladder:/app/ladder/build_support/python
+ENV PYTHONPATH=/app/robolab_src:/app/ladder
 ENV ROBOLAB_ASSET_DIR=/app/ladder/ladder/components/inference/robots/robolab/assets
 ENV OMNI_KIT_ACCEPT_EULA=YES
 

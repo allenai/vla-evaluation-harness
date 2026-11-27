@@ -1,4 +1,4 @@
-# LADDER RobotArena-Long evaluation environment (Genesis >= 0.4.0)
+# LADDER RobotArena-Long evaluation environment (Genesis 0.4.3)
 
 ARG BASE_IMAGE=ghcr.io/allenai/vla-evaluation-harness/base:latest
 FROM ${BASE_IMAGE}
@@ -35,7 +35,6 @@ RUN mkdir -p /app/ladder/ladder/components/inference/robots/robot_arena/robot_ar
 
 ENV LADDER_ROOT=/app/ladder
 ENV PYTHONPATH=/app/ladder
-ENV LADDER_ROBOT_ARENA_ASSETS=/app/ladder/ladder/components/inference/robots/robot_arena/robot_arena_data/examples/data
 
 WORKDIR /workspace
 COPY pyproject.toml README.md ./

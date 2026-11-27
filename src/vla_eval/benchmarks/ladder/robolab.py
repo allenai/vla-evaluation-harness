@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 import signal
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar
 
 import numpy as np
 
 from vla_eval.benchmarks.ladder.base import EnvStep, LadderBenchmark
 from vla_eval.specs import IMAGE_RGB, DimSpec
-
-_T = TypeVar("_T")
 
 # Kit's async engine must own its thread, and the orchestrator's event loop owns the main one.
 _KIT_THREAD = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ladder-robolab")
@@ -48,14 +45,11 @@ class LadderRoboLabBenchmark(LadderBenchmark):
         self._raw_obs: Any = None
         self._step_count = 0
 
-    def _on_kit_thread(self, fn: Callable[..., _T], *args: Any) -> _T:
-        return _KIT_THREAD.submit(fn, *args).result()
-
     def _reset_wave(self, task_name: str, episode_ids: list[int]) -> list[EnvStep]:
-        return self._on_kit_thread(self._reset_sync, task_name, len(episode_ids))
+        return _KIT_THREAD.submit(self._reset_sync, task_name, len(episode_ids)).result()
 
     def _step_wave(self, actions: list[Any]) -> list[EnvStep]:
-        return self._on_kit_thread(self._step_sync, actions)
+        return _KIT_THREAD.submit(self._step_sync, actions).result()
 
     def _launch_app(self) -> None:
         import cv2  # noqa: F401 -- must precede the isaaclab import
@@ -75,7 +69,7 @@ class LadderRoboLabBenchmark(LadderBenchmark):
         from ladder.components.inference.robots.robolab.composition.specs import task_target
 
         robolab.constants.ENABLE_SUBTASK_PROGRESS_CHECKING = False
-        auto_register_droid_envs(task_dirs=None, task=[task_target(t) for t in self._task_names], cameras=None)
+        auto_register_droid_envs(task_dirs=None, task=[task_target(t) for t in self._task_names])
 
     def _reset_sync(self, task_name: str, n_envs: int) -> list[EnvStep]:
         if self._env is None:
@@ -90,15 +84,7 @@ class LadderRoboLabBenchmark(LadderBenchmark):
         if self._env_key != key:
             if self._env is not None:
                 self._env.close()
-            self._env, env_cfg = create_env(
-                key[0],
-                device="cuda:0",
-                num_envs=n_envs,
-                instruction_type="default",
-                policy="ladder_runner",
-                renderer="realtime",
-                rendering_mode="balanced",
-            )
+            self._env, env_cfg = create_env(key[0], num_envs=n_envs, policy="ladder_runner")  # as LADDER's env server
             self._env_key = key
             self._instruction = env_cfg.instruction
             self._oracle = build_oracle(getattr(self._env.cfg, "subtasks", None), env_cfg.instruction)
@@ -126,7 +112,7 @@ class LadderRoboLabBenchmark(LadderBenchmark):
         return self._steps()
 
     def _joints(self) -> np.ndarray:
-        return self._raw_obs["proprio_obs"]["arm_joint_pos"].detach().cpu().numpy()
+        return self._raw_obs["proprio_obs"]["arm_joint_pos"].cpu().numpy()
 
     def _steps(self) -> list[EnvStep]:
         images, proprio = self._raw_obs["image_obs"], self._raw_obs["proprio_obs"]

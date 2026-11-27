@@ -154,16 +154,14 @@ class Pi0ModelServer(PredictModelServer):
         # LIBERO sends "states" (plural), other benchmarks may use "state" (singular)
         if self.state_key:
             raw_state = obs.get("states", obs.get("state"))
-            vec = (
-                np.asarray(raw_state, dtype=np.float64).reshape(-1)
-                if raw_state is not None
-                else np.zeros(self.state_dim, dtype=np.float64)
-            )
-            if self.gripper_key:
-                openpi_obs[self.state_key] = vec[:-1]
-                openpi_obs[self.gripper_key] = vec[-1:]
+            if raw_state is not None:
+                state = np.asarray(raw_state, dtype=np.float64)
             else:
-                openpi_obs[self.state_key] = vec
+                state = np.zeros(self.state_dim, dtype=np.float64)
+            if self.gripper_key:  # DROID: the gripper is its own input, the last state dim
+                openpi_obs[self.state_key], openpi_obs[self.gripper_key] = state[:-1], state[-1:]
+            else:
+                openpi_obs[self.state_key] = state
 
         result = self._policy.infer(openpi_obs)
         return {"actions": result["actions"]}
