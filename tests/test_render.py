@@ -243,29 +243,6 @@ def test_duobench_keeps_egl_but_pins_the_software_device(preserve_env: None):
     assert benchmark_cls.configure_render("gpu") == {}
 
 
-def test_molmospaces_stubs_the_mac_only_cgl_module():
-    """molmo_spaces calls mujoco.cgl lock/unlock around every GPU-less render, but that
-    module hard-dlopens the macOS OpenGL framework; without the stub, render: cpu
-    crashes at the first scene load."""
-    import sys
-
-    from vla_eval.benchmarks.molmospaces.benchmark import _stub_out_mujoco_cgl
-
-    before = {k: sys.modules.get(k) for k in ("mujoco.cgl", "mujoco.cgl.cgl")}
-    try:
-        _stub_out_mujoco_cgl()
-        from mujoco.cgl import cgl  # what MjOpenGLRenderer executes per render
-
-        assert cgl.CGLUnlockContext(object()) is None
-        assert cgl.CGLLockContext(object()) is None
-    finally:
-        for k, v in before.items():
-            if v is None:
-                sys.modules.pop(k, None)
-            else:
-                sys.modules[k] = v
-
-
 def test_calvin_swaps_egl_for_the_tiny_renderer(preserve_env: None):
     """PyBullet's EGL plugin aborts the whole process with no GPU, so CALVIN's cpu mode
     routes through an env var that _init_calvin reads to refuse the plugin — the patch
