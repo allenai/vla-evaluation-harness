@@ -25,6 +25,8 @@ Long-horizon robot manipulation benchmark across 145 tasks of 1 to 10 subgoals i
 ```bash
 # Terminal 1: start a Bridge/WidowX delta end-effector model server (e.g. StarVLA)
 vla-eval serve -c configs/model_servers/starvla/groot_qwen3_simpler.yaml
+# or X-VLA, whose profile switches the WidowX suites to absolute end-effector poses
+# vla-eval serve -c configs/model_servers/xvla/simpler_widowx.yaml
 
 # Terminal 2: run LADDER SimplerEnv-Long or RobotArena-Long
 vla-eval run -c configs/benchmarks/ladder/simpler.yaml
