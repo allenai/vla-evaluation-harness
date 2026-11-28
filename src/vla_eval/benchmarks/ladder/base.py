@@ -134,7 +134,7 @@ class WidowXBenchmark(LadderBenchmark):
     An action is ``[dx, dy, dz, axis-angle (3), gripper]`` with gripper 1 = open, applied to the env's
     commanded target pose (``eef_pose_from_target``) in the robot base frame, as LADDER's own runner does.
     A ``control_mode`` with ``target_base_pose`` (X-VLA's SimplerEnv profile) instead takes absolute
-    ``[x, y, z, intrinsic XYZ Euler (3), gripper]`` in the WidowX controller frame, as ManiSkill's base-pose controller.
+    ``[x, y, z, extrinsic xyz Euler (3), gripper]`` in the WidowX controller frame, as docker/xvla_absolute_ee.patch reads it.
     """
 
     MAX_STEPS: ClassVar[int] = 1000  # longest task budget: 100 steps per goal x 10 goals
@@ -186,8 +186,8 @@ class WidowXBenchmark(LadderBenchmark):
     def _decode_action(self, env_i: int, raw: np.ndarray) -> Any:
         from ladder.components.inference.api.core.action import EndEffectorPoseAction, ManipulatorAction
 
-        if self._absolute:  # intrinsic XYZ = euler_xyz_to_matrix(-e).T; the env maps it back to the same Euler
-            rotation = euler_xyz_to_matrix(-raw[3:6].astype(np.float64)).T @ _CANONICAL_TO_WIDOWX.T
+        if self._absolute:
+            rotation = euler_xyz_to_matrix(raw[3:6].astype(np.float64)) @ _CANONICAL_TO_WIDOWX.T
             return ManipulatorAction(
                 arm_action=EndEffectorPoseAction(translation=raw[:3].copy(), rotation=rotation.astype(np.float32)),
                 gripper_action=float(np.clip(raw[6], 0.0, 1.0)),
