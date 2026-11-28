@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 import time
-from collections.abc import Collection, Generator, Iterable
+from collections.abc import Collection, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -113,6 +114,68 @@ def serializable_task_kwargs(task: dict[str, Any]) -> dict[str, Any]:
 def recording_filename_context(*, benchmark_safe_name: str, task_idx: int, episode_id: int) -> dict[str, Any]:
     """Filename-template keys injected by the orchestrator."""
     return {"benchmark_safe_name": benchmark_safe_name[:96], "task_idx": task_idx, "episode_id": episode_id}
+
+
+# A view label becomes part of a filename, so keep it to characters that are safe in a path component.
+_VIEW_LABEL_RE = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def normalize_video_views(video_views: Sequence[str] | Mapping[str, str] | None) -> dict[str, str]:
+    """Normalize a benchmark's ``video_views`` parameter to ``{view: filename label}``.
+
+    Args:
+        video_views: A list of view names (each file is named after its view), or a mapping from view
+            to the label its file carries, e.g. ``{"cam_head": "head"}``. ``None`` or empty turns
+            per-view video off.
+
+    Returns:
+        View → filename label, in the given order; empty when per-view video is off.
+
+    Raises:
+        ValueError: A view or label appears twice (two views would write one file), or a label has
+            characters other than letters, digits, ``_`` and ``-``.
+    """
+    if not video_views:
+        return {}
+    if isinstance(video_views, Mapping):
+        pairs = [(str(view), str(label)) for view, label in video_views.items()]
+    else:
+        pairs = [(str(view), str(view)) for view in video_views]
+    views = [view for view, _ in pairs]
+    labels = [label for _, label in pairs]
+    if len(set(views)) != len(views) or len(set(labels)) != len(labels):
+        raise ValueError(f"duplicate video_views {dict(pairs) if isinstance(video_views, Mapping) else views}")
+    for label in labels:
+        if not _VIEW_LABEL_RE.fullmatch(label):
+            raise ValueError(f"video_views label {label!r} must match [A-Za-z0-9_-]+")
+    return dict(pairs)
+
+
+def view_filename_stem(stem: str, view: str) -> str:
+    """Add a view label to a filename stem, before ``{status}`` when the template has one.
+
+    Args:
+        stem: The recorder's ``filename_stem``, e.g.
+            ``"{benchmark_safe_name}/task{task_idx:04d}_ep{episode_id:04d}_{status}"``.
+        view: The label of the camera this file holds, e.g. ``"cam_head"``.
+
+    Returns:
+        The stem with the label inserted: ``..._{view}_{status}`` when ``{status}`` is present, the
+        label appended otherwise (also for templates this cannot parse, such as ``{status!s}``) —
+        before the file extension, since ``EpisodeRecorder`` hands the writer ``stem + ".mp4"``.
+
+    Raises:
+        ValueError: The label has characters other than letters, digits, ``_`` and ``-``.
+    """
+    if not _VIEW_LABEL_RE.fullmatch(view):
+        raise ValueError(f"video view label {view!r} must match [A-Za-z0-9_-]+")
+    literal = view.replace("{", "{{").replace("}", "}}")
+    if "{status}" in stem:
+        return stem.replace("{status}", f"{literal}_{{status}}", 1)
+    base, dot, ext = stem.rpartition(".")
+    if dot and ext == "mp4":
+        return f"{base}_{literal}.{ext}"
+    return f"{stem}_{literal}"
 
 
 # ---------------------------------------------------------------------------
@@ -449,6 +512,12 @@ class EpisodeRecorder:
         self._next_step = 0
         self._closed = False
         self._video: Any = None
+        self._video_enabled = record_video
+        self._video_fps = video_fps
+        # Per-view writers, created on the first frame of that view: a camera the episode never
+        # produces (or an episode with no frames at all) leaves no empty mp4 behind.
+        self._view_videos: dict[str, Any] = {}
+        self._view_skipped: set[str] = set()
         # step_fields=None → record everything in ``allowed_fields`` (or
         # everything, if both are None). Explicit empty list = record nothing.
         allowed = frozenset(allowed_fields) if allowed_fields is not None else None
@@ -510,12 +579,66 @@ class EpisodeRecorder:
 
     # -- Capture API -------------------------------------------------------
 
-    def record_video(self, frame: np.ndarray | None) -> None:
+    def record_video(self, frame: np.ndarray | None, view: str | None = None) -> None:
         """Append one frame to the per-episode mp4. ``None`` is a no-op so
-        benchmarks can pass ``self._extract_frame(obs)`` directly."""
-        if frame is None or self._video is None:
+        benchmarks can pass ``self._extract_frame(obs)`` directly.
+
+        Args:
+            frame: The RGB frame, or ``None`` for a step that rendered nothing.
+            view: Camera this frame belongs to, for benchmarks that capture several views per step
+                (RoboDojo's three cameras, RoboTwin's head + wrists). ``None`` (the default) appends
+                to the single stream named by ``filename_stem``. With a view, each distinct label
+                gets its own writer, named ``<filename_stem>_<view>.mp4``, opened on that view's
+                first frame and saved with the episode's status at ``close()``.
+
+        A view whose camera the observation never carries produces no file, and a label that is not
+        ``[A-Za-z0-9_-]+`` is rejected rather than reaching the filesystem.
+        """
+        if frame is None:
             return
-        self._video.record(frame)
+        if view is None:
+            if self._video is not None:
+                self._video.record(frame)
+            return
+        writer = self._view_writer(view)
+        if writer is not None:
+            writer.record(frame)
+
+    def _view_writer(self, view: str) -> Any:
+        """Return this view's writer for the in-flight episode, opening it on first use.
+
+        Args:
+            view: The camera label; validated by ``view_filename_stem``.
+
+        Returns:
+            The view's ``EpisodeVideoRecorder``, or ``None`` when video recording is off, the label
+            is unusable, or the writer could not be opened (all logged, never raised — an episode
+            must not fail because one camera could not be encoded).
+        """
+        if self._video is None and not self._video_enabled:
+            return None
+        writer = self._view_videos.get(view)
+        if writer is not None:
+            return writer
+        if view in self._view_skipped:
+            return None
+        from vla_eval.benchmarks.video import EpisodeVideoRecorder
+
+        try:
+            stem = view_filename_stem(self._filename_stem, view)
+        except ValueError as exc:
+            logger.warning("video view %r unusable: %s", view, exc)
+            self._view_skipped.add(view)
+            return None
+        writer = EpisodeVideoRecorder(output_dir=self._output_dir, filename=stem + ".mp4", fps=self._video_fps)
+        try:
+            writer.start(self._filename_context)
+        except Exception:
+            logger.exception("EpisodeVideoRecorder.start failed for view %r; that view is disabled", view)
+            self._view_skipped.add(view)
+            return None
+        self._view_videos[view] = writer
+        return writer
 
     def record_step(self, **fields: Any) -> None:
         """``step_fields`` filters caller keys; ``step`` kwarg overrides
@@ -555,6 +678,15 @@ class EpisodeRecorder:
             except Exception:
                 logger.exception("video.save failed for sid=%s eid=%s", self._sid, self._eid)
             self._video = None
+        # One view failing (existing target, encoder error) must not cost the others.
+        for view, writer in self._view_videos.items():
+            try:
+                writer.save(status=status)
+            except FileExistsError as exc:
+                logger.warning("Episode video for view %s already exists: %s", view, exc)
+            except Exception:
+                logger.exception("video.save failed for view %s sid=%s eid=%s", view, self._sid, self._eid)
+        self._view_videos = {}
 
         try:
             jsonl_name = (self._filename_stem + ".jsonl").format(status=status, **self._filename_context)
@@ -624,7 +756,7 @@ class NullEpisodeRecorder(EpisodeRecorder):
     def db_path(self) -> str:  # type: ignore[override]
         return ""
 
-    def record_video(self, frame: np.ndarray | None) -> None:  # type: ignore[override]
+    def record_video(self, frame: np.ndarray | None, view: str | None = None) -> None:  # type: ignore[override]
         pass
 
     def record_step(self, **fields: Any) -> None:  # type: ignore[override]
