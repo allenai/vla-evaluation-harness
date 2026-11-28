@@ -79,6 +79,9 @@ for r in x5 franka; do
 done
 ```
 
+The adapter checks `Assets/Robots/x5/curobo.yml` when the run starts: it must exist, have no `${ASSETS_PATH}` left,
+and its `robot_cfg.kinematics` URDF and asset root must exist (a config generated for another root fails here).
+
 As upstream, a pose whose IK fails is dropped silently: that arm keeps its last joint target (the gripper still moves).
 
 ## Protocol notes
