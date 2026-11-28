@@ -41,6 +41,27 @@ from vla_eval.model_servers.predict import PredictModelServer
 logger = logging.getLogger(__name__)
 
 
+def _droid_jointpos_config() -> Any:
+    """``pi05_droid_jointpos`` as in Physical-Intelligence/openpi@aa64205 src/openpi/training/config.py
+    (the openpi LADDER v1.0.0 vendors); the pinned openpi lacks it."""
+    import dataclasses
+
+    from openpi import transforms
+    from openpi.models.model import ModelType
+    from openpi.policies import droid_policy
+    from openpi.training import config as _config
+
+    base = _config.get_config("pi05_droid")
+    data = dataclasses.replace(
+        base.data,
+        data_transforms=lambda model: transforms.Group(
+            inputs=[droid_policy.DroidInputs(model_type=ModelType.PI05)],
+            outputs=[transforms.AbsoluteActions(transforms.make_bool_mask(7, -1)), droid_policy.DroidOutputs()],
+        ),
+    )
+    return dataclasses.replace(base, name="pi05_droid_jointpos", data=data)
+
+
 class Pi0ModelServer(PredictModelServer):
     """π₀ / π₀-FAST model server using OpenPI direct inference."""
 
@@ -51,6 +72,7 @@ class Pi0ModelServer(PredictModelServer):
         image_key: str = "observation/image",
         wrist_image_key: str | None = "observation/wrist_image",
         state_key: str | None = "observation/state",
+        gripper_key: str | None = None,
         state_dim: int = 8,
         image_resolution: int | None = None,
         *,
@@ -64,6 +86,7 @@ class Pi0ModelServer(PredictModelServer):
         # CLI passes the string "None" when disabling; normalize to actual None
         self.wrist_image_key = None if wrist_image_key in (None, "None", "none") else wrist_image_key
         self.state_key = None if state_key in (None, "None", "none") else state_key
+        self.gripper_key = None if gripper_key in (None, "None", "none") else gripper_key
         self.state_dim = state_dim
         self.image_resolution = image_resolution
 
@@ -71,7 +94,11 @@ class Pi0ModelServer(PredictModelServer):
         from openpi.training import config as _config
 
         logger.info("Loading OpenPI config: %s", self.config_name)
-        _cfg = _config.get_config(self.config_name)
+        _cfg = (
+            _droid_jointpos_config()
+            if self.config_name == "pi05_droid_jointpos"
+            else _config.get_config(self.config_name)
+        )
         ckpt = checkpoint if checkpoint is not None else f"gs://openpi-assets/checkpoints/{self.config_name}"
         logger.info("Loading policy from checkpoint: %s", ckpt)
         self._policy = policy_config.create_trained_policy(_cfg, ckpt)
@@ -125,9 +152,13 @@ class Pi0ModelServer(PredictModelServer):
         if self.state_key:
             raw_state = obs.get("states", obs.get("state"))
             if raw_state is not None:
-                openpi_obs[self.state_key] = np.asarray(raw_state, dtype=np.float64)
+                state = np.asarray(raw_state, dtype=np.float64)
             else:
-                openpi_obs[self.state_key] = np.zeros(self.state_dim, dtype=np.float64)
+                state = np.zeros(self.state_dim, dtype=np.float64)
+            if self.gripper_key:  # DROID: the gripper is its own input, the last state dim
+                openpi_obs[self.state_key], openpi_obs[self.gripper_key] = state[:-1], state[-1:]
+            else:
+                openpi_obs[self.state_key] = state
 
         result = self._policy.infer(openpi_obs)
         return {"actions": result["actions"]}
