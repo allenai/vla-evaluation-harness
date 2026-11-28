@@ -12,12 +12,14 @@ import numpy as np
 from vla_eval import columns
 from vla_eval.benchmarks.base import VectorStepBenchmark
 from vla_eval.recording import EpisodeRecorder
-from vla_eval.rotation import axisangle_to_matrix, matrix_to_quat, quat_to_axisangle
+from vla_eval.rotation import axisangle_to_matrix, euler_xyz_to_matrix, matrix_to_quat, quat_to_axisangle
 from vla_eval.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
 from vla_eval.types import Batch, EpisodeResult, Task
 
 # The pinned LADDER checkout; the Dockerfiles put it here and on PYTHONPATH.
 LADDER_ROOT = Path(os.environ.get("LADDER_ROOT", "/app/ladder"))
+# LADDER's CANONICAL_TO_WIDOWX_ROTATION (robots/simpler/proprio.py): canonical EE frame -> WidowX controller frame.
+_CANONICAL_TO_WIDOWX = np.array([[0.0, 0.0, 1.0], [0.0, -1.0, 0.0], [1.0, 0.0, 0.0]])
 
 
 @dataclass
@@ -131,12 +133,15 @@ class WidowXBenchmark(LadderBenchmark):
 
     An action is ``[dx, dy, dz, axis-angle (3), gripper]`` with gripper 1 = open, applied to the env's
     commanded target pose (``eef_pose_from_target``) in the robot base frame, as LADDER's own runner does.
+    A ``control_mode`` with ``target_base_pose`` (X-VLA's SimplerEnv profile) instead takes absolute
+    ``[x, y, z, intrinsic XYZ Euler (3), gripper]`` in the WidowX controller frame, as ManiSkill's base-pose controller.
     """
 
     MAX_STEPS: ClassVar[int] = 1000  # longest task budget: 100 steps per goal x 10 goals
 
-    def __init__(self, num_envs: int = 8, **kwargs: Any) -> None:
+    def __init__(self, num_envs: int = 8, control_mode: str | None = None, **kwargs: Any) -> None:
         super().__init__(num_envs=num_envs, **kwargs)
+        self._absolute = control_mode is not None and "target_base_pose" in control_mode
         self._targets: list[np.ndarray] = []
 
     def _to_steps(self, robot_obs: list[Any]) -> list[EnvStep]:
@@ -181,6 +186,12 @@ class WidowXBenchmark(LadderBenchmark):
     def _decode_action(self, env_i: int, raw: np.ndarray) -> Any:
         from ladder.components.inference.api.core.action import EndEffectorPoseAction, ManipulatorAction
 
+        if self._absolute:  # intrinsic XYZ = euler_xyz_to_matrix(-e).T; the env maps it back to the same Euler
+            rotation = euler_xyz_to_matrix(-raw[3:6].astype(np.float64)).T @ _CANONICAL_TO_WIDOWX.T
+            return ManipulatorAction(
+                arm_action=EndEffectorPoseAction(translation=raw[:3].copy(), rotation=rotation.astype(np.float32)),
+                gripper_action=float(np.clip(raw[6], 0.0, 1.0)),
+            )
         target = self._targets[env_i]
         return ManipulatorAction(
             arm_action=EndEffectorPoseAction(
