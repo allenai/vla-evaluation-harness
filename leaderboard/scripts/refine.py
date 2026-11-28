@@ -547,6 +547,9 @@ Report what you kept, dropped, and why when you finish.
 """
 
 
+REFINE_DISALLOWED_TOOLS = "Bash NotebookEdit WebFetch WebSearch"
+
+
 def _refine_one_benchmark(
     benchmark: str,
     candidates: list[dict],
@@ -606,6 +609,10 @@ def _refine_one_benchmark(
         # user skills that might delegate to outside knowledge sources.
         "--strict-mcp-config",
         "--disable-slash-commands",
+        # The agent reads candidates and paper text that originate outside
+        # this repo, under bypassPermissions: keep shell and network tools off.
+        "--disallowed-tools",
+        REFINE_DISALLOWED_TOOLS,
         "--add-dir",
         str(REFINE_LOGS_DIR.resolve()),
         "--add-dir",
