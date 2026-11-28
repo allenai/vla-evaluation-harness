@@ -149,6 +149,59 @@ conditions are not aligned: most #4614 runs used MuJoCo 3.8.1, under which Spati
 ([lerobot#4390](https://github.com/huggingface/lerobot/issues/4390)), and they predate the 2026-10-12 checkpoint
 metadata fix (we use `a24f1f38`). So the data show no detectable difference; they do not show that the two agree.
 
+#### Latency sensitivity (`DelayedChunkServer`)
+
+Simulated inference delay in sync mode with `DelayedChunkServer`: every s = 10 steps a chunk is inferred from that
+step's observation and takes over d steps later (the previous chunk plays until then); see
+[Simulated inference latency (sync)](../tuning-guide.md). Same checkpoint, benchmark config and 500 initial states as
+above; `quat_no_antipodal: true`, 280-step cap. The control is the plain server with `chunk_size: 10` (no wrapper).
+The policy's sampling noise is not seeded (the bridge has no seed), so arms are paired by initial state only.
+
+| d (steps) | delay | Success | 95% Wilson CI |
+|:---------:|:-----:|:-------:|:-------------:|
+| control (`chunk_size: 10`) | – | 83.4% | [79.9, 86.4] |
+| 0 | 0 s | 86.0% | [82.7, 88.8] |
+| 2 | 0.10 s | 84.0% | [80.5, 87.0] |
+| 5 | 0.25 s | 77.6% | [73.7, 81.0] |
+| 10 | 0.50 s | 71.0% | [66.9, 74.8] |
+
+500 episodes per arm, 0 errors. LIBERO's step is 0.05 s, so d steps is d × 0.05 s of inference latency. At the
+220-step cap the numbers are the same except d = 2 (83.6%) and d = 5 (77.4%).
+
+Paired differences against d = 0 (bootstrap stratified by task, 10,000 resamples; exact McNemar), 280-step cap:
+
+| Comparison | Difference | Paired 95% CI | McNemar p |
+|------------|:----------:|:-------------:|:---------:|
+| d = 0 vs control | +2.6 pp | [−0.2, 5.4] | 0.098 |
+| d = 0 vs d = 2 | +2.0 pp | [−0.8, 5.0] | 0.23 |
+| d = 0 vs d = 5 | +8.4 pp | [5.0, 12.0] | 5.0e-6 |
+| d = 0 vs d = 10 | +15.0 pp | [11.2, 19.0] | 4.1e-13 |
+
+- d = 0 should match the control in distribution: on a deterministic stub it gives the same actions as
+  `chunk_size: 10` (`tests/test_delayed_chunk.py`). Here it scores 2.6 pp higher; the interval includes 0, but only
+  just (lower end of the interval: −0.2 pp). With unseeded noise this is not a detected difference, and it is not
+  evidence of agreement either.
+- A delay of 2 steps (0.1 s) is not distinguishable from none; 5 and 10 steps cost 8.4 and 15.0 pp.
+- The recorded schedule was checked on every step of the four wrapper arms (278,431 steps): each step's
+  `chunk_src` / `chunk_idx` / `obs_step` is what the schedule says.
+
+RTX PRO 6000, MuJoCo 3.2.3, lerobot 0.6.0, `libero` image built at `cc26084`, harness at `762937e` (tag
+[`dcs-sweep-762937e`](https://github.com/cathylengyue/vla-evaluation-harness/tree/dcs-sweep-762937e) on the PR fork).
+The sweep ran on `762937e`; the wrapper code is unchanged after the rebase. Commands:
+
+```
+# server config for arm dN (the control uses smolvla_libero.yaml with --arg chunk_size=10)
+extends: configs/model_servers/lerobot/smolvla_libero.yaml
+latency:
+  delay_steps: N
+  execute_steps: 10
+
+vla-eval serve -c <arm>.yaml --address 127.0.0.1:8765 --arg checkpoint=<local smolvla_libero@a24f1f38> -v
+vla-eval run -c spatial.yaml --server-url ws://127.0.0.1:8765 --eval-id <id> --yes -v --shard-id 0 --num-shards 1
+# spatial.yaml: libero_spatial, episodes_per_task 50, max_steps 280, seed 7, num_steps_wait 10, send_state,
+# send_wrist_image, quat_no_antipodal
+```
+
 ### LingBot-VA: LIBERO-10 (Long)
 
 `lerobot/lingbot_va_libero_long`, 10 tasks × 1 episode: 10/10. LeRobot publishes no score for
